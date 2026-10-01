@@ -1,0 +1,20 @@
+[package]
+name = "studybible-cli"
+description = "Консольная оболочка StudyBible"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "studybible"
+path = "src/main.rs"
+
+[dependencies]
+studybible-core.workspace = true
+studybible-convert.workspace = true
+
+[lints]
+workspace = true
