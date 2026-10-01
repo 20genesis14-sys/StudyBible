@@ -293,8 +293,13 @@ fn read(args: &[String]) -> Result<(), String> {
     let r = reference::parse(input.as_str(), profile(m.meta()), versif, catalog)
         .map_err(|e| e.to_string())?;
 
+    // Глава не задана («Быт») — читаем всю книгу.
     let first = r.start.chapter.unwrap_or(1);
-    let last = r.end.and_then(|e| e.chapter).unwrap_or(first);
+    let last = if r.start.chapter.is_none() {
+        versif.chapter_count(r.start.book).unwrap_or(first)
+    } else {
+        r.end.and_then(|e| e.chapter).unwrap_or(first)
+    };
     let name = catalog
         .by_code(r.start.book)
         .map(|b| b.name(profile(m.meta())).to_string())
@@ -316,7 +321,8 @@ fn read(args: &[String]) -> Result<(), String> {
         };
         let mut line = String::new();
         let mut visible = false;
-        for b in &ch.blocks {
+        // Стихи идут по порядку — после верхней границы печатать нечего.
+        'blocks: for b in &ch.blocks {
             match b.kind() {
                 studybible_core::text::BlockKind::Heading => {
                     println!("  [{}]", block_text(b));
@@ -330,7 +336,10 @@ fn read(args: &[String]) -> Result<(), String> {
                                     println!("  {line}");
                                     line.clear();
                                 }
-                                visible = lo <= *v && *v <= hi;
+                                if *v > hi {
+                                    break 'blocks;
+                                }
+                                visible = lo <= *v;
                                 if visible {
                                     line = format!("{v}. ");
                                 }
@@ -499,8 +508,13 @@ fn say(args: &[String]) -> Result<(), String> {
         .map(|b| b.name(prof).to_string())
         .unwrap_or_else(|| r.start.book.to_string());
 
+    // Глава не задана («Быт») — читаем всю книгу.
     let first = r.start.chapter.unwrap_or(1);
-    let last = r.end.and_then(|e| e.chapter).unwrap_or(first);
+    let last = if r.start.chapter.is_none() {
+        versif.chapter_count(r.start.book).unwrap_or(first)
+    } else {
+        r.end.and_then(|e| e.chapter).unwrap_or(first)
+    };
     let mut text = String::new();
     for n in first..=last {
         let ch = m

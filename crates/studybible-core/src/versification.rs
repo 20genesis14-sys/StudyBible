@@ -51,6 +51,8 @@ pub struct Versification {
     chapters: HashMap<BookCode, Vec<u16>>,
     to_org: HashMap<VerseKey, Vec<VerseKey>>,
     from_org: HashMap<VerseKey, Vec<VerseKey>>,
+    /// Строки-соответствия, которые не удалось разобрать (содержимое для аудита).
+    skipped: Vec<String>,
 }
 
 /// Встроенные версификации Paratext.
@@ -87,6 +89,7 @@ impl Versification {
             chapters: HashMap::new(),
             to_org: HashMap::new(),
             from_org: HashMap::new(),
+            skipped: vec![],
         };
         for (n, raw) in text.lines().enumerate() {
             let line = raw.split('#').next().unwrap_or("").trim();
@@ -95,7 +98,15 @@ impl Versification {
             }
             let err = || format!("{name}.vrs:{}: {raw}", n + 1);
             if let Some((lhs, rhs)) = line.split_once('=') {
-                let (l, r) = (expand(lhs).ok_or_else(err)?, expand(rhs).ok_or_else(err)?);
+                // Искажённое соответствие (напр. `DAG 3:52-23` в vul.vrs) пропускаем
+                // и записываем — хуже, чем падение всей версификации.
+                let (l, r) = match (expand(lhs), expand(rhs)) {
+                    (Some(l), Some(r)) => (l, r),
+                    _ => {
+                        v.skipped.push(err());
+                        continue;
+                    }
+                };
                 for i in 0..l.len().max(r.len()) {
                     let (a, b) = (l[i.min(l.len() - 1)], r[i.min(r.len() - 1)]);
                     push_unique(v.to_org.entry(a).or_default(), b);
@@ -116,6 +127,11 @@ impl Versification {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Пропущенные при разборе строки-соответствия (для аудита источника).
+    pub fn skipped(&self) -> &[String] {
+        &self.skipped
     }
 
     pub fn chapter_count(&self, book: BookCode) -> Option<u16> {

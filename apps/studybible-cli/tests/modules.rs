@@ -227,3 +227,85 @@ fn cli_read_and_search() {
     let mtime2 = std::fs::metadata(&idx).unwrap().modified().unwrap();
     assert_eq!(mtime1, mtime2, "индекс не должен перестраиваться");
 }
+
+#[test]
+fn cli_read_edges() {
+    let Some(data) = data_root() else {
+        eprintln!("SKIPPED: нет каталога данных");
+        return;
+    };
+    let dir = tempfile::tempdir().unwrap();
+    build_all(&data, dir.path());
+    let syn = dir.path().join("russyn.sb");
+
+    // Вся книга: все 50 глав Бытия.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", syn.to_str().unwrap(), "Быт"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("Бытие 1"));
+    assert!(text.contains("Бытие 50"), "книга должна читаться целиком");
+
+    // Одноглавая книга: «Авд 3» = Авдия 1:3.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", syn.to_str().unwrap(), "Авд 3"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("3. "));
+
+    // Заголовок следующего раздела не должен попадать в вывод диапазона.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", syn.to_str().unwrap(), "Быт 1:1-2"])
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("1. "));
+    assert!(text.contains("2. "));
+    assert!(!text.contains("3. "), "стихи за диапазоном не выводятся");
+
+    // Ошибка: главы/книги нет — не паника.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", syn.to_str().unwrap(), "Быт 99:1"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // Ошибка разбора ссылки.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", syn.to_str().unwrap(), "абракадабра"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+
+    // Английский профиль в модуле WEB.
+    let web = dir.path().join("engwebp.sb");
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", web.to_str().unwrap(), "Ps 23:1"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert!(String::from_utf8_lossy(&out.stdout).contains("shepherd"));
+
+    // Пустой поисковый запрос — пустой ответ, без ошибки.
+    let idx = dir.path().join("web.idx");
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args([
+            "search",
+            syn.to_str().unwrap(),
+            "",
+            "--cache",
+            idx.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert!(String::from_utf8_lossy(&out.stdout).trim().is_empty());
+}

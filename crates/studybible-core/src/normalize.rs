@@ -6,10 +6,13 @@ use unicode_normalization::UnicodeNormalization;
 /// дореформенные `ѣ` `і` `ѳ` `ѵ`, огласовки и теамим (через NFD).
 /// Стемминг и словарные нормализации — отдельные уровни, здесь их нет.
 pub fn for_search(s: &str) -> String {
+    // `й` разлагается в `и`+бреве, но для поиска «мой» и «мои» — разные формы:
+    // прячем `й` за символ частной области перед NFD и возвращаем после.
     let mut out = String::with_capacity(s.len());
-    for c in s.nfd() {
+    for c in s.replace(['й', 'Й'], "\u{e001}").nfd() {
         match c {
             '\u{ad}' => {}
+            '\u{e001}' => out.push('й'),
             'ё' | 'Ё' => out.push('е'),
             'ѣ' | 'Ѣ' => out.push('е'),
             'і' | 'І' => out.push('и'),

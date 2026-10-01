@@ -390,7 +390,6 @@ impl Book {
                     }
                 }
             }
-            out.push('\n');
         }
         out
     }
