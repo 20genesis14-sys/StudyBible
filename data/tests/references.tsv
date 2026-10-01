@@ -1,0 +1,29 @@
+input	names	versification	expect	expect_org	note
+1Кор3:16	syn	rsc	1Cor.3.16	1Cor.3.16	без пробела
+1 Кор. 3:16	syn	rsc	1Cor.3.16	1Cor.3.16	пробел и точка
+Ин 3.16	syn	rsc	John.3.16	John.3.16	точка вместо двоеточия
+Ин 3:16-18	syn	rsc	John.3.16-John.3.18	-	диапазон стихов
+Мф 5–7	syn	rsc	Matt.5-Matt.7	-	диапазон глав, тире
+Руф	syn	rsc	Ruth	-	книга целиком
+Пс 22	syn	rsc	Ps.22	Ps.23	глава, синодальная нумерация
+Пс 22:1	syn	rsc	Ps.22.1	Ps.23.1	синодальный Пс 22 = Пс 23
+Пс 50:3	syn	rsc	Ps.50.3	Ps.51.3	надписание занимает стихи 1–2
+Исх 8:1	syn	rsc	Exod.8.1	Exod.7.26	сдвиг в Исход 7–8
+Иоил 2:28	syn	rsc	Joel.2.28	Joel.3.1	Иоиль
+Мал 4:1	syn	rsc	Mal.4.1	Mal.3.19	Малахия
+Рим 14:24	syn	rsc	Rom.14.24	Rom.16.25	славословие в конце Рим 14
+1Цар 1:1	syn	rsc	1Sam.1.1	1Sam.1.1	синодальное 1Цар = 1 Самуила
+3Цар 1:1	syn	rsc	1Kgs.1.1	1Kgs.1.1	синодальное 3Цар
+1Цар 1:1	alt	eng	1Kgs.1.1	1Kgs.1.1	АЛЬТ 1Цар = 1 Царей (неоднозначное сокращение)
+1Сам 1:1	alt	eng	1Sam.1.1	1Sam.1.1	АЛЬТ
+1Пар 1:1	syn	rsc	1Chr.1.1	1Chr.1.1	синодальное
+1Лет 1:1	alt	eng	1Chr.1.1	1Chr.1.1	АЛЬТ
+Притч 1:1	syn	rsc	Prov.1.1	Prov.1.1	синодальное
+Пр 1:1	alt	eng	Prov.1.1	Prov.1.1	АЛЬТ
+Еф 1:1	syn	rsc	Eph.1.1	Eph.1.1	синодальное
+Эф 1:1	alt	eng	Eph.1.1	Eph.1.1	АЛЬТ
+Откр 22:21	syn	rsc	Rev.22.21	Rev.22.21	синодальное
+Отк 22:21	alt	eng	Rev.22.21	Rev.22.21	АЛЬТ
+Gen 1:1	en	eng	Gen.1.1	Gen.1.1	английское
+Ps 23:1	en	eng	Ps.23.1	Ps.23.1	английское
+2Езд 1:1	syn	rso	1Esd.1.1	-	неканоническая, синодальная 2 Ездры

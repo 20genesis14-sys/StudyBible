@@ -1,0 +1,79 @@
+osis	usfm	canon	order_list	order_syn	name_alt	abbr_alt	name_syn	abbr_syn	name_en	abbr_en
+Gen	GEN	canonical	1	1	Книга Бытие	Быт	Бытие	Быт	Genesis	Gen
+Exod	EXO	canonical	2	2	Книга Исход	Исх	Исход	Исх	Exodus	Exod
+Lev	LEV	canonical	3	3	Книга Левит	Лев	Левит	Лев	Leviticus	Lev
+Num	NUM	canonical	4	4	Книга Числа	Чис	Числа	Чис	Numbers	Num
+Deut	DEU	canonical	5	5	Книга Второзаконие	Втор	Второзаконие	Втор	Deuteronomy	Deut
+Josh	JOS	canonical	6	6	Книга Иисуса Навина	Нав	Книга Иисуса Навина	Нав	Joshua	Josh
+Judg	JDG	canonical	7	7	Книга Судей	Суд	Книга Судей Израилевых	Суд	Judges	Judg
+Ruth	RUT	canonical	8	8	Книга Руфь	Руф	Книга Руфь	Руф	Ruth	Ruth
+1Sam	1SA	canonical	9	9	Первая книга Самуила	1Сам	Первая книга Царств	1Цар	1 Samuel	1Sam
+2Sam	2SA	canonical	10	10	Вторая книга Самуила	2Сам	Вторая книга Царств	2Цар	2 Samuel	2Sam
+1Kgs	1KI	canonical	11	11	Первая книга Царей	1Цар	Третья книга Царств	3Цар	1 Kings	1Kgs
+2Kgs	2KI	canonical	12	12	Вторая книга Царей	2Цар	Четвёртая книга Царств	4Цар	2 Kings	2Kgs
+1Chr	1CH	canonical	13	13	Первая летопись	1Лет	Первая книга Паралипоменон	1Пар	1 Chronicles	1Chr
+2Chr	2CH	canonical	14	14	Вторая летопись	2Лет	Вторая книга Паралипоменон	2Пар	2 Chronicles	2Chr
+Ezra	EZR	canonical	15	15	Книга Ездры	Езд	Первая книга Ездры	Езд	Ezra	Ezra
+Neh	NEH	canonical	16	16	Книга Неемии	Неем	Книга Неемии	Неем	Nehemiah	Neh
+Esth	EST	canonical	17	20	Книга Эсфирь	Есф	Книга Есфирь	Есф	Esther	Esth
+Job	JOB	canonical	18	21	Книга Иов	Иов	Книга Иова	Иов	Job	Job
+Ps	PSA	canonical	19	22	Книга Псалмов	Пс	Псалтирь	Пс	Psalms	Ps
+Prov	PRO	canonical	20	23	Книга Притч	Пр	Книга Притчей Соломоновых	Притч	Proverbs	Prov
+Eccl	ECC	canonical	21	24	Книга Экклезиаст	Екк	Книга Екклесиаста, или Проповедника	Еккл	Ecclesiastes	Eccl
+Song	SNG	canonical	22	25	Книга Песня Соломона	Песн	Песнь песней Соломона	Песн	Song of Solomon	Song
+Isa	ISA	canonical	23	28	Книга Исайи	Ис	Книга пророка Исаии	Ис	Isaiah	Isa
+Jer	JER	canonical	24	29	Книга Иеремии	Иер	Книга пророка Иеремии	Иер	Jeremiah	Jer
+Lam	LAM	canonical	25	30	Книга Плач Иеремии	Плач	Плач Иеремии	Плач	Lamentations	Lam
+Ezek	EZK	canonical	26	33	Книга Иезекииля	Иез	Книга пророка Иезекииля	Иез	Ezekiel	Ezek
+Dan	DAN	canonical	27	34	Книга Даниила	Дан	Книга пророка Даниила	Дан	Daniel	Dan
+Hos	HOS	canonical	28	35	Книга Осии	Ос	Книга пророка Осии	Ос	Hosea	Hos
+Joel	JOL	canonical	29	36	Книга Иоиля	Иоил	Книга пророка Иоиля	Иоил	Joel	Joel
+Amos	AMO	canonical	30	37	Книга Амоса	Ам	Книга пророка Амоса	Ам	Amos	Amos
+Obad	OBA	canonical	31	38	Книга Авдия	Авд	Книга пророка Авдия	Авд	Obadiah	Obad
+Jonah	JON	canonical	32	39	Книга Ионы	Ион	Книга пророка Ионы	Ион	Jonah	Jonah
+Mic	MIC	canonical	33	40	Книга Михея	Мих	Книга пророка Михея	Мих	Micah	Mic
+Nah	NAM	canonical	34	41	Книга Наума	Наум	Книга пророка Наума	Наум	Nahum	Nah
+Hab	HAB	canonical	35	42	Книга Аввакума	Авв	Книга пророка Аввакума	Авв	Habakkuk	Hab
+Zeph	ZEP	canonical	36	43	Книга Софонии	Соф	Книга пророка Софонии	Соф	Zephaniah	Zeph
+Hag	HAG	canonical	37	44	Книга Аггея	Агг	Книга пророка Аггея	Агг	Haggai	Hag
+Zech	ZEC	canonical	38	45	Книга Захарии	Зах	Книга пророка Захарии	Зах	Zechariah	Zech
+Mal	MAL	canonical	39	46	Книга Малахии	Мал	Книга пророка Малахии	Мал	Malachi	Mal
+Matt	MAT	canonical	40	51	Радостная весть от Матфея	Мф	Евангелие от Матфея	Мф	Matthew	Matt
+Mark	MRK	canonical	41	52	Радостная весть от Марка	Мк	Евангелие от Марка	Мк	Mark	Mark
+Luke	LUK	canonical	42	53	Радостная весть от Луки	Лк	Евангелие от Луки	Лк	Luke	Luke
+John	JHN	canonical	43	54	Радостная весть от Иоанна	Ин	Евангелие от Иоанна	Ин	John	John
+Acts	ACT	canonical	44	55	Деяния апостолов	Деян	Деяния святых Апостолов	Деян	Acts	Acts
+Rom	ROM	canonical	45	63	Письмо римлянам	Рим	Послание к Римлянам	Рим	Romans	Rom
+1Cor	1CO	canonical	46	64	Первое письмо коринфянам	1Кор	Первое послание к Коринфянам	1Кор	1 Corinthians	1Cor
+2Cor	2CO	canonical	47	65	Второе письмо коринфянам	2Кор	Второе послание к Коринфянам	2Кор	2 Corinthians	2Cor
+Gal	GAL	canonical	48	66	Письмо галатам	Гал	Послание к Галатам	Гал	Galatians	Gal
+Eph	EPH	canonical	49	67	Письмо эфесянам	Эф	Послание к Ефесянам	Еф	Ephesians	Eph
+Phil	PHP	canonical	50	68	Письмо филиппийцам	Флп	Послание к Филиппийцам	Флп	Philippians	Phil
+Col	COL	canonical	51	69	Письмо колоссянам	Кол	Послание к Колоссянам	Кол	Colossians	Col
+1Thess	1TH	canonical	52	70	Первое письмо фессалоникийцам	1Фес	Первое послание к Фессалоникийцам	1Фес	1 Thessalonians	1Thess
+2Thess	2TH	canonical	53	71	Второе письмо фессалоникийцам	2Фес	Второе послание к Фессалоникийцам	2Фес	2 Thessalonians	2Thess
+1Tim	1TI	canonical	54	72	Первое письмо Тимофею	1Тим	Первое послание к Тимофею	1Тим	1 Timothy	1Tim
+2Tim	2TI	canonical	55	73	Второе письмо Тимофею	2Тим	Второе послание к Тимофею	2Тим	2 Timothy	2Tim
+Titus	TIT	canonical	56	74	Письмо Титу	Тит	Послание к Титу	Тит	Titus	Titus
+Phlm	PHM	canonical	57	75	Письмо Филимону	Флм	Послание к Филимону	Флм	Philemon	Phlm
+Heb	HEB	canonical	58	76	Письмо евреям	Евр	Послание к Евреям	Евр	Hebrews	Heb
+Jas	JAS	canonical	59	56	Письмо Иакова	Иак	Послание Иакова	Иак	James	Jas
+1Pet	1PE	canonical	60	57	Первое письмо Петра	1Пет	Первое послание Петра	1Пет	1 Peter	1Pet
+2Pet	2PE	canonical	61	58	Второе письмо Петра	2Пет	Второе послание Петра	2Пет	2 Peter	2Pet
+1John	1JN	canonical	62	59	Первое письмо Иоанна	1Ин	Первое послание Иоанна	1Ин	1 John	1John
+2John	2JN	canonical	63	60	Второе письмо Иоанна	2Ин	Второе послание Иоанна	2Ин	2 John	2John
+3John	3JN	canonical	64	61	Третье письмо Иоанна	3Ин	Третье послание Иоанна	3Ин	3 John	3John
+Jude	JUD	canonical	65	62	Письмо Иуды	Иуд	Послание Иуды	Иуд	Jude	Jude
+Rev	REV	canonical	66	77	Книга Откровение	Отк	Откровение Иоанна Богослова	Откр	Revelation	Rev
+Tob	TOB	noncanonical		18			Книга Товита	Тов	Tobit	Tob
+Jdt	JDT	noncanonical		19			Книга Иудифи	Иудф	Judith	Jdt
+Wis	WIS	noncanonical		26			Книга Премудрости Соломона	Прем	Wisdom of Solomon	Wis
+Sir	SIR	noncanonical		27			Книга Премудрости Иисуса, сына Сирахова	Сир	Sirach	Sir
+EpJer	LJE	noncanonical		31			Послание Иеремии	ПослИер	Epistle of Jeremiah	EpJer
+Bar	BAR	noncanonical		32			Книга пророка Варуха	Вар	Baruch	Bar
+1Macc	1MA	noncanonical		47			Первая книга Маккавейская	1Мак	1 Maccabees	1Macc
+2Macc	2MA	noncanonical		48			Вторая книга Маккавейская	2Мак	2 Maccabees	2Macc
+3Macc	3MA	noncanonical		49			Третья книга Маккавейская	3Мак	3 Maccabees	3Macc
+1Esd	1ES	noncanonical		17			Вторая книга Ездры	2Езд	1 Esdras	1Esd
+2Esd	2ES	noncanonical		50			Третья книга Ездры	3Езд	2 Esdras	2Esd
+PrMan	MAN	noncanonical					Молитва Манассии	МолМан	Prayer of Manasseh	PrMan

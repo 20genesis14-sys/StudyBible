@@ -41,6 +41,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1      
 ```
 
 `data/canon/canon-66-knig.md` — исходный список канона от пользователя.
+`data/profiles/` — профили книг и неканонического; `data/versification/` — файлы Paratext (MIT);
+`data/tests/` — испытательные наборы. Проверки — `crates/studybible-convert/tests/stage0_fixtures.rs`;
+проверки по текстам пропускаются (SKIPPED), если нет каталога данных.
 
 ## Окружение
 

@@ -1,0 +1,22 @@
+kind	versification	ref	note
+book	rso	TOB	Книга Товита
+book	rso	JDT	Книга Иудифи
+book	rso	WIS	Книга Премудрости Соломона
+book	rso	SIR	Книга Премудрости Иисуса, сына Сирахова
+book	rso	BAR	Книга пророка Варуха
+book	rso	LJE	Послание Иеремии
+book	rso	1MA	Первая книга Маккавейская
+book	rso	2MA	Вторая книга Маккавейская
+book	rso	3MA	Третья книга Маккавейская
+book	rso	1ES	Вторая книга Ездры
+book	rso	2ES	Третья книга Ездры
+book	rso	MAN	Молитва Манассии (в rso также 2CH 37)
+range	rso	2CH 37:1-37:2	Молитва Манассии в конце 2 Паралипоменон (= MAN)
+range	rso	PSA 151:1-151:7	Псалом 151 (= PS2)
+range	rso	DAN 3:24-3:90	Молитва Азарии и песнь трёх отроков (= DAG)
+range	rso	DAN 13:1-13:64	Сусанна (= SUS)
+range	rso	DAN 14:1-14:42	Вил и дракон (= BEL)
+range	rso	JOS 24:34-24:36	Вставка из Септуагинты, нет в org; есть в eBible russyn
+range	rso	PRO 4:28-4:29	Вставка из Септуагинты, нет в org; есть в eBible russyn
+range	rso	PRO 13:14-13:14	Вставка из Септуагинты; в eBible russyn — PRO 13:14
+todo	rso	EST	Добавления к Есфири: в rso — отдельная книга ESG с сегментами (ESG 1:1a…); границы в тексте сверить по второму источнику Синодального
