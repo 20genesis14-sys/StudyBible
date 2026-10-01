@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use studybible_core::BookCode;
-use studybible_core::text::{Block, Chapter, Span};
+use studybible_core::text::{Block, BlockKind, Chapter, Span};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Book {
@@ -191,6 +191,11 @@ pub fn parse(src: &str) -> Result<Book, Error> {
                     .next()
                     .and_then(|v| v.trim_end_matches(char::is_alphabetic).parse().ok())
                     .ok_or_else(|| Error(format!("номер стиха «{n}»")))?;
+                // Стих после заголовка раздела — новый блок без маркера,
+                // чтобы текст стиха не попадал в блок заголовка.
+                if current_block(ch).kind() == BlockKind::Heading {
+                    ch.blocks.push(Block::default());
+                }
                 current_block(ch).spans.push(Span::Verse(n));
                 push_text(ch, rest.strip_prefix(' ').unwrap_or(rest), &styles);
             }
@@ -214,6 +219,8 @@ pub fn parse(src: &str) -> Result<Book, Error> {
                     add(t.text, skip, &mut note);
                     i += 1;
                 }
+                // Текст после закрывающего маркера продолжает стих.
+                let trailing = if i < toks.len() { toks[i].text } else { "" };
                 i += 1;
                 if let Some(ch) = chapter.as_mut() {
                     let kind = if name == "x" { 'x' } else { 'f' };
@@ -222,6 +229,7 @@ pub fn parse(src: &str) -> Result<Book, Error> {
                         caller: caller.to_string(),
                         text: normalize(&note).trim().to_string(),
                     });
+                    push_text(ch, trailing, &styles);
                 }
             }
             _ if name.ends_with('*') => {

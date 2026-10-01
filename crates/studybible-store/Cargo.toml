@@ -1,0 +1,21 @@
+[package]
+name = "studybible-store"
+description = "Хранилище StudyBible: чтение и запись модулей SQLite, кэш поиска"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+studybible-core.workspace = true
+rusqlite = { version = "0.32", features = ["bundled"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+studybible-convert.workspace = true
+tempfile = "3"
+
+[lints]
+workspace = true

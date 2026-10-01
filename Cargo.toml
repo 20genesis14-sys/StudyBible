@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/studybible-core", "crates/studybible-convert", "apps/studybible-cli"]
+members = ["crates/studybible-core", "crates/studybible-convert", "crates/studybible-store", "apps/studybible-cli"]
 
 [workspace.package]
 version = "0.0.1"
@@ -13,6 +13,7 @@ publish = false
 [workspace.dependencies]
 studybible-core = { path = "crates/studybible-core" }
 studybible-convert = { path = "crates/studybible-convert" }
+studybible-store = { path = "crates/studybible-store" }
 
 [workspace.lints.clippy]
 undocumented_unsafe_blocks = "warn"
