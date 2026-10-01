@@ -7,6 +7,7 @@
 pub mod book;
 pub mod normalize;
 pub mod reference;
+pub mod speech;
 pub mod text;
 pub mod versification;
 

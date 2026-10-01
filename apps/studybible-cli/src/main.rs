@@ -3,7 +3,11 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+mod speech;
+
+use speech::TtsSpeech;
 use studybible_convert::usfm;
+use studybible_core::speech::Speech;
 use studybible_core::text::Span;
 use studybible_core::{BookCatalog, BookCode, NameProfile, Versification, reference};
 use studybible_store::{Kind, Meta, Module, ModuleWriter, SearchIndex, UserData};
@@ -20,6 +24,7 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
   studybible user del <id> [--db <файл>]
   studybible user export <файл.zip> [--db <файл>]
   studybible user import <файл.zip> [--db <файл>]
+  studybible say <файл.sb> \"<ссылка>\"            — прочитать вслух (системный синтезатор)
 
 Корень данных: флаг --data, переменная STUDYBIBLE_DATA или ..\\StudyBible-data.";
 
@@ -35,6 +40,7 @@ fn main() -> ExitCode {
         Some("read") => run(read(&args[1..])),
         Some("search") => run(search(&args[1..])),
         Some("user") => run(user(&args[1..])),
+        Some("say") => run(say(&args[1..])),
         Some("--version") | None => {
             println!("StudyBible {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
@@ -475,4 +481,59 @@ fn user(args: &[String]) -> Result<(), String> {
         }
         _ => Err("user: add|list|del|export|import".into()),
     }
+}
+
+/// Глава/диапазон вслух: «Бытие, глава 1. …»; надписание входит, если стих не задан.
+fn say(args: &[String]) -> Result<(), String> {
+    let pos = positional(args);
+    let file = PathBuf::from(pos.first().ok_or("нужен файл модуля")?);
+    let input = pos.get(1..).unwrap_or(&[]).join(" ");
+    let m = Module::open(&file).map_err(|e| e.to_string())?;
+    let catalog = BookCatalog::builtin();
+    let versif = Versification::builtin(m.meta().versification.as_str())
+        .ok_or_else(|| format!("неизвестная версификация «{}»", m.meta().versification))?;
+    let prof = profile(m.meta());
+    let r = reference::parse(input.as_str(), prof, versif, catalog).map_err(|e| e.to_string())?;
+    let name = catalog
+        .by_code(r.start.book)
+        .map(|b| b.name(prof).to_string())
+        .unwrap_or_else(|| r.start.book.to_string());
+
+    let first = r.start.chapter.unwrap_or(1);
+    let last = r.end.and_then(|e| e.chapter).unwrap_or(first);
+    let mut text = String::new();
+    for n in first..=last {
+        let ch = m
+            .chapter(r.start.book, n)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("{name} {n}: главы нет"))?;
+        let lo = if n == first {
+            r.start.verse.unwrap_or(0)
+        } else {
+            0
+        };
+        let hi = if n == last {
+            r.end.and_then(|e| e.verse).unwrap_or(u16::MAX)
+        } else {
+            u16::MAX
+        };
+        if !text.is_empty() {
+            text.push(' ');
+        }
+        text.push_str(&format!("{name}, глава {n}."));
+        let t = studybible_core::speech::speakable(&ch, lo, hi);
+        if !t.is_empty() {
+            text.push(' ');
+            text.push_str(&t);
+        }
+    }
+    if text.is_empty() {
+        return Err("нет текста для озвучивания".into());
+    }
+    let mut tts = TtsSpeech::new().map_err(|e| e.to_string())?;
+    tts.say(&text, true).map_err(|e| e.to_string())?;
+    while tts.speaking() {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    Ok(())
 }
