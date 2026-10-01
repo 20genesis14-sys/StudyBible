@@ -54,6 +54,7 @@ impl Block {
         match base {
             "q" | "qr" | "qc" | "qm" | "qd" => BlockKind::Poetry,
             "s" | "ms" | "mr" | "r" | "sr" | "sp" | "cl" | "qa" | "sd" => BlockKind::Heading,
+            "is" | "iis" | "imt" | "imte" | "mt" | "mte" | "ih" => BlockKind::Heading,
             "d" => BlockKind::Superscription,
             "b" => BlockKind::Blank,
             _ => BlockKind::Paragraph,

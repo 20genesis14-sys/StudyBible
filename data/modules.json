@@ -1,0 +1,44 @@
+{
+    "comment": "Сборка модулей из источников (data/sources.json). studybible module build --defs data/modules.json",
+    "modules": [
+        {
+            "id": "russyn",
+            "source": "russyn",
+            "title": "Синодальный перевод (1876)",
+            "language": "ru",
+            "direction": "ltr",
+            "versification": "rsc",
+            "name_profile": "syn",
+            "book_order": "syn",
+            "version": "1.0.0",
+            "license": "public domain",
+            "attribution": "eBible.org (russyn)"
+        },
+        {
+            "id": "engwebp",
+            "source": "engwebp",
+            "title": "World English Bible",
+            "language": "en",
+            "direction": "ltr",
+            "versification": "org",
+            "name_profile": "en",
+            "book_order": "syn",
+            "version": "1.0.0",
+            "license": "public domain; \"World English Bible\" — товарный знак eBible.org, изменённый текст так называть нельзя",
+            "attribution": "eBible.org (engwebp)"
+        },
+        {
+            "id": "eng-kjv2006",
+            "source": "eng-kjv2006",
+            "title": "King James Version (1769, с номерами Стронга)",
+            "language": "en",
+            "direction": "ltr",
+            "versification": "org",
+            "name_profile": "en",
+            "book_order": "syn",
+            "version": "1.0.0",
+            "license": "public domain вне Великобритании (в UK — Letters Patent)",
+            "attribution": "eBible.org (eng-kjv2006)"
+        }
+    ]
+}
