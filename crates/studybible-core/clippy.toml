@@ -1,0 +1,15 @@
+# Ядро не обращается к файловой системе и не блокирует поток: это делают адаптеры через порты.
+disallowed-types = [
+    { path = "std::fs::File", reason = "файлы — через порт хранилища" },
+    { path = "std::fs::OpenOptions", reason = "файлы — через порт хранилища" },
+]
+disallowed-methods = [
+    { path = "std::fs::read", reason = "файлы — через порт хранилища" },
+    { path = "std::fs::read_to_string", reason = "файлы — через порт хранилища" },
+    { path = "std::fs::read_dir", reason = "файлы — через порт хранилища" },
+    { path = "std::fs::write", reason = "файлы — через порт хранилища" },
+    { path = "std::fs::create_dir_all", reason = "файлы — через порт хранилища" },
+    { path = "std::fs::remove_file", reason = "файлы — через порт хранилища" },
+    { path = "std::fs::metadata", reason = "файлы — через порт хранилища" },
+    { path = "std::thread::sleep", reason = "ядро не блокирует поток" },
+]
