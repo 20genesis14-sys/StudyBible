@@ -6,5 +6,7 @@
 
 mod hash;
 pub mod module;
+pub mod search;
 
 pub use module::{Meta, Module, ModuleError, ModuleWriter};
+pub use search::{Hit, SearchIndex};

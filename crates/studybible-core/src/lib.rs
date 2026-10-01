@@ -5,6 +5,7 @@
 //! идёт через порты, которые реализуют адаптеры платформ.
 
 pub mod book;
+pub mod normalize;
 pub mod reference;
 pub mod text;
 pub mod versification;

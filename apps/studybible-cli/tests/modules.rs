@@ -151,3 +151,79 @@ fn cli_info_and_verse() {
         .unwrap();
     assert!(!out.status.success());
 }
+
+#[test]
+fn cli_read_and_search() {
+    let Some(data) = data_root() else {
+        eprintln!("SKIPPED: нет каталога данных");
+        return;
+    };
+    let dir = tempfile::tempdir().unwrap();
+    build_all(&data, dir.path());
+    let syn = dir.path().join("russyn.sb");
+
+    // Чтение диапазона с русским именем книги.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", syn.to_str().unwrap(), "Быт 1:1-3"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("Бытие 1"));
+    assert!(text.contains("1.  В начале сотворил Бог"));
+    assert!(text.contains("3. И сказал Бог: да будет свет. И стал свет."));
+    assert!(
+        !text.contains("4. И увидел"),
+        "стих 4 за пределами диапазона"
+    );
+
+    // Поиск: ё = е, регистр безразличен.
+    let idx = dir.path().join("syn.idx");
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args([
+            "search",
+            syn.to_str().unwrap(),
+            "ИЕГОВА",
+            "--cache",
+            idx.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let hits = String::from_utf8_lossy(&out.stdout);
+    assert!(hits.contains("Быт 22:14"));
+    assert!(hits.contains("Суд 6:24"));
+
+    // Поиск по нескольким словам — пересечение.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args([
+            "search",
+            syn.to_str().unwrap(),
+            "пастырь мой",
+            "--cache",
+            idx.to_str().unwrap(),
+            "--limit",
+            "3",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let hits = String::from_utf8_lossy(&out.stdout);
+    assert!(hits.contains("Пс 22:1"));
+
+    // Кэш переиспользуется, а не перестраивается.
+    let mtime1 = std::fs::metadata(&idx).unwrap().modified().unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args([
+            "search",
+            syn.to_str().unwrap(),
+            "свет",
+            "--cache",
+            idx.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let mtime2 = std::fs::metadata(&idx).unwrap().modified().unwrap();
+    assert_eq!(mtime1, mtime2, "индекс не должен перестраиваться");
+}
