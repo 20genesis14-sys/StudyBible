@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use studybible_convert::usfm;
 use studybible_core::text::Span;
 use studybible_core::{BookCatalog, BookCode, NameProfile, Versification, reference};
-use studybible_store::{Meta, Module, ModuleWriter, SearchIndex};
+use studybible_store::{Kind, Meta, Module, ModuleWriter, SearchIndex, UserData};
 
 const USAGE: &str = "studybible — консольная оболочка StudyBible
 
@@ -15,6 +15,11 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
   studybible module verse <файл.sb> <КОД> <глава:стих>
   studybible read <файл.sb> \"<ссылка>\"          — глава или диапазон («Быт 1», «Ин 3:16-18»)
   studybible search <файл.sb> \"<запрос>\" [--cache <файл>] [--limit N]
+  studybible user add note|mark|hl <модуль> <КОД> <гл:ст> [текст...] [--db <файл>]
+  studybible user list [note|mark|hl] [--db <файл>]
+  studybible user del <id> [--db <файл>]
+  studybible user export <файл.zip> [--db <файл>]
+  studybible user import <файл.zip> [--db <файл>]
 
 Корень данных: флаг --data, переменная STUDYBIBLE_DATA или ..\\StudyBible-data.";
 
@@ -29,6 +34,7 @@ fn main() -> ExitCode {
         },
         Some("read") => run(read(&args[1..])),
         Some("search") => run(search(&args[1..])),
+        Some("user") => run(user(&args[1..])),
         Some("--version") | None => {
             println!("StudyBible {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
@@ -372,4 +378,101 @@ fn search(args: &[String]) -> Result<(), String> {
         println!("{name} {}:{}  {text}", hit.chapter, hit.verse);
     }
     Ok(())
+}
+
+fn user_db(args: &[String]) -> Result<UserData, String> {
+    let path = flag(args, "--db").map(PathBuf::from).unwrap_or_else(|| {
+        data_root(&[])
+            .map(|d| d.join("userdata.db"))
+            .unwrap_or_default()
+    });
+    UserData::open(&path).map_err(|e| e.to_string())
+}
+
+fn user(args: &[String]) -> Result<(), String> {
+    let pos = positional(args);
+    match pos.first() {
+        Some(&"add") => {
+            let kind = pos
+                .get(1)
+                .and_then(|k| Kind::parse(k))
+                .ok_or("вид: note|mark|hl")?;
+            let module = pos.get(2).ok_or("нужен id модуля")?;
+            let book = pos
+                .get(3)
+                .and_then(|b| BookCode::new(b))
+                .ok_or("нужен код книги")?;
+            let (ch, v) = pos
+                .get(4)
+                .and_then(|s| s.split_once(':'))
+                .ok_or("нужна координата <глава:стих>")?;
+            let (ch, v): (u16, u16) = (
+                ch.parse().map_err(|_| "глава не число")?,
+                v.parse().map_err(|_| "стих не число")?,
+            );
+            let text = pos.get(5..).unwrap_or(&[]).join(" ");
+            let anchor = studybible_store::Anchor {
+                module,
+                book,
+                chapter: ch,
+                verse: v,
+            };
+            let id = user_db(args)?
+                .add(kind, anchor, &text, "")
+                .map_err(|e| e.to_string())?;
+            println!("{id}");
+            Ok(())
+        }
+        Some(&"list") => {
+            let db = user_db(args)?;
+            let filter = pos.get(1).and_then(|k| Kind::parse(k));
+            for kind in filter.map_or_else(
+                || vec![Kind::Mark, Kind::Highlight, Kind::Note],
+                |k| vec![k],
+            ) {
+                for e in db.entries(kind, None).map_err(|e| e.to_string())? {
+                    println!(
+                        "{} {} {} {}:{}:{}  {}",
+                        kind.as_str(),
+                        e.id,
+                        e.module,
+                        e.book,
+                        e.chapter,
+                        e.verse,
+                        e.text
+                    );
+                }
+            }
+            Ok(())
+        }
+        Some(&"del") => {
+            let id = pos.get(1).ok_or("нужен id")?;
+            if user_db(args)?.remove(id).map_err(|e| e.to_string())? {
+                println!("удалено {id}");
+                Ok(())
+            } else {
+                Err(format!("записи {id} нет"))
+            }
+        }
+        Some(&"export") => {
+            let file = pos.get(1).ok_or("нужен файл zip")?;
+            let n = user_db(args)?
+                .export_zip(Path::new(file))
+                .map_err(|e| e.to_string())?;
+            println!("экспортировано записей: {n}");
+            Ok(())
+        }
+        Some(&"import") => {
+            let file = pos.get(1).ok_or("нужен файл zip")?;
+            let s = user_db(args)?
+                .import_zip(Path::new(file))
+                .map_err(|e| e.to_string())?;
+            println!(
+                "добавлено {}, обновлено {}, пропущено {}",
+                s.added, s.updated, s.skipped
+            );
+            Ok(())
+        }
+        _ => Err("user: add|list|del|export|import".into()),
+    }
 }

@@ -7,6 +7,8 @@
 mod hash;
 pub mod module;
 pub mod search;
+pub mod userdata;
 
 pub use module::{Meta, Module, ModuleError, ModuleWriter};
 pub use search::{Hit, SearchIndex};
+pub use userdata::{Anchor, Entry, ImportStats, Kind, UserData, UserError};
