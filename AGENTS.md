@@ -30,7 +30,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 Нужны: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
 В ядре clippy запрещает `std::fs` и `std::thread::sleep` (`crates/studybible-core/clippy.toml`).
 
+## Данные
+
+Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (по умолчанию `C:\StudyBible-data`).
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # скачать и сверить SHA-256
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # перезакрепить хэши после обновления источника
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # сверка содержимого
+```
+
+`data/canon/canon-66-knig.md` — исходный список канона от пользователя.
+
 ## Окружение
+
+- Скрипты `.ps1` с кириллицей сохранять в UTF-8 с BOM: Windows PowerShell 5 иначе читает их как ANSI.
 
 - Оболочка по умолчанию (bash) — WSL Ubuntu; сборку и проверки Windows запускать в PowerShell.
 

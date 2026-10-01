@@ -1,0 +1,35 @@
+{
+    "comment":  "Внешние исходные тексты. Файлы хранятся вне репозитория (STUDYBIBLE_DATA, по умолчанию ..\\StudyBible-data). sha256 закрепляется скриптом fetch-data.ps1 -Pin.",
+    "sources":  [
+                    {
+                        "id":  "russyn",
+                        "title":  "Синодальный перевод (1876)",
+                        "language":  "ru",
+                        "format":  "usfm",
+                        "url":  "https://eBible.org/Scriptures/russyn_usfm.zip",
+                        "page":  "https://ebible.org/find/details.php?id=russyn",
+                        "license":  "public domain",
+                        "sha256":  "acd5d80c0d28ca72d17cb12a2bb9f561d957439b03bddfaa433beb51cf7b0363"
+                    },
+                    {
+                        "id":  "engwebp",
+                        "title":  "World English Bible (без второканонических)",
+                        "language":  "en",
+                        "format":  "usfm",
+                        "url":  "https://eBible.org/Scriptures/engwebp_usfm.zip",
+                        "page":  "https://ebible.org/find/details.php?id=engwebp",
+                        "license":  "public domain; \"World English Bible\" — товарный знак eBible.org, изменённый текст так называть нельзя",
+                        "sha256":  "c725155aa8192b954e552a0b08aa75f8e7b85e6e56f1eb22efd6d30f5b4aa3cc"
+                    },
+                    {
+                        "id":  "eng-kjv2006",
+                        "title":  "King James Version (1769, с номерами Стронга)",
+                        "language":  "en",
+                        "format":  "usfm",
+                        "url":  "https://eBible.org/Scriptures/eng-kjv2006_usfm.zip",
+                        "page":  "https://ebible.org/find/details.php?id=eng-kjv2006",
+                        "license":  "public domain вне Великобритании (в UK — Letters Patent)",
+                        "sha256":  "311bc503438e98ce64f70a85932e144911ab486743391e43398cf65e39052218"
+                    }
+                ]
+}

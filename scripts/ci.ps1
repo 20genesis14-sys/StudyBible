@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
