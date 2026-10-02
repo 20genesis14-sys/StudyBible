@@ -96,6 +96,29 @@ fn psalm_shift_rsc_to_org() {
 }
 
 #[test]
+fn verse_bounds_stop_at_a_single_verse() {
+    // Точка со стихом — только он. Раньше чтение шло до конца главы.
+    assert_eq!(syn("Быт 1:1").unwrap().verse_bounds(1, 1), (1, 1));
+    assert_eq!(syn("Иуд 5").unwrap().verse_bounds(1, 1), (5, 5));
+    assert_eq!(syn("Быт 1:1-3").unwrap().verse_bounds(1, 1), (1, 3));
+
+    // Глава без стиха и книга целиком — вся глава. `open` = 0 оставляет место надписанию.
+    assert_eq!(syn("Быт 1").unwrap().verse_bounds(1, 1), (1, u16::MAX));
+    assert_eq!(syn("Быт 1").unwrap().verse_bounds(1, 0), (0, u16::MAX));
+    assert_eq!(syn("Быт").unwrap().verse_bounds(1, 1), (1, u16::MAX));
+    assert_eq!(syn("Быт").unwrap().verse_bounds(50, 0), (0, u16::MAX));
+
+    // Диапазон через границу главы и диапазон глав.
+    let r = syn("Быт 1:31-2:3").unwrap();
+    assert_eq!(r.verse_bounds(1, 1), (31, u16::MAX));
+    assert_eq!(r.verse_bounds(2, 1), (1, 3));
+    let r = syn("Мф 5-7").unwrap();
+    assert_eq!(r.verse_bounds(5, 1), (1, u16::MAX));
+    assert_eq!(r.verse_bounds(6, 1), (1, u16::MAX));
+    assert_eq!(r.verse_bounds(7, 1), (1, u16::MAX));
+}
+
+#[test]
 fn malformed_references() {
     assert!(matches!(syn(""), Err(ParseError::Empty)));
     assert!(matches!(syn("   "), Err(ParseError::Empty)));

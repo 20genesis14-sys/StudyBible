@@ -176,6 +176,31 @@ impl Reference {
         })
     }
 
+    /// Включительные границы стиха в главе `chapter`.
+    ///
+    /// Глава считается уже входящей в ссылку. `open` подставляется, когда стих
+    /// не назван: для чтения это 1, для озвучивания надписания — 0.
+    /// Точка со стихом («Быт 1:1») — только этот стих. Глава без стиха и книга
+    /// целиком — до конца главы. У книги целиком `start.chapter` пуст, поэтому
+    /// каждую главу считают отдельно.
+    pub fn verse_bounds(&self, chapter: u16, open: u16) -> (u16, u16) {
+        let first = self.start.chapter.unwrap_or(chapter);
+        let last = self.end.and_then(|e| e.chapter).unwrap_or(first);
+        let lo = if chapter == first {
+            self.start.verse.unwrap_or(open)
+        } else {
+            open
+        };
+        let hi = if chapter != last {
+            u16::MAX
+        } else if let Some(end) = self.end {
+            end.verse.unwrap_or(u16::MAX)
+        } else {
+            self.start.verse.unwrap_or(u16::MAX)
+        };
+        (lo, hi)
+    }
+
     /// Запись OSIS: `John.3.16`, `John.3.16-John.3.18`, `Ps.22`, `Ruth`.
     pub fn osis(&self, catalog: &BookCatalog) -> String {
         let one = |p: Point| {

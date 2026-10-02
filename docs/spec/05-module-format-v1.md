@@ -42,6 +42,7 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 (`list`, `syn`), `version`, `license`, `attribution`, `source`, `content_hash` (SHA-256
 потока чтения — часть ключа кэша поиска), `required` (список обязательных возможностей
 через запятую). Прочие ключи сохраняются в `extra` и не ломают чтение.
+Флаги прав (копирование, сеть, ИИ, плагины) в эти ключи не входят — вопрос № 15.
 
 ## Безопасное открытие (`Module::open`)
 

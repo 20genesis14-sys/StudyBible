@@ -309,16 +309,7 @@ fn read(args: &[String]) -> Result<(), String> {
             return Err(format!("{name} {n}: главы нет"));
         };
         println!("=== {name} {n} ===");
-        let lo = if n == first {
-            r.start.verse.unwrap_or(1)
-        } else {
-            1
-        };
-        let hi = if n == last {
-            r.end.and_then(|e| e.verse).unwrap_or(u16::MAX)
-        } else {
-            u16::MAX
-        };
+        let (lo, hi) = r.verse_bounds(n, 1);
         let mut line = String::new();
         let mut visible = false;
         // Стихи идут по порядку — после верхней границы печатать нечего.
@@ -521,16 +512,7 @@ fn say(args: &[String]) -> Result<(), String> {
             .chapter(r.start.book, n)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("{name} {n}: главы нет"))?;
-        let lo = if n == first {
-            r.start.verse.unwrap_or(0)
-        } else {
-            0
-        };
-        let hi = if n == last {
-            r.end.and_then(|e| e.verse).unwrap_or(u16::MAX)
-        } else {
-            u16::MAX
-        };
+        let (lo, hi) = r.verse_bounds(n, 0);
         if !text.is_empty() {
             text.push(' ');
         }

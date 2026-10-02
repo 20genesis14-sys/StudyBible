@@ -9,9 +9,12 @@ use studybible_core::text::Span;
 use studybible_store::Module;
 
 fn data_root() -> Option<PathBuf> {
+    // Каталог — сосед репозитория (`C:\StudyBible-data`), не папка внутри него.
+    // Из `apps/studybible-cli` это три уровня вверх. Без этого тесты молча
+    // пропускались, если переменная STUDYBIBLE_DATA не была задана.
     let root = std::env::var("STUDYBIBLE_DATA")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../StudyBible-data"));
+        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../StudyBible-data"));
     root.join("sources/russyn").is_dir().then_some(root)
 }
 
@@ -93,6 +96,7 @@ fn build_three_modules() {
     // WEB: 66 книг + FRT + GLO.
     let web = Module::open(&dir.path().join("engwebp.sb")).unwrap();
     assert_eq!(web.meta().language, "en");
+    assert_eq!(web.meta().versification, "eng");
     assert_eq!(web.books().unwrap().len(), 68);
     assert_eq!(
         verse(&web, "GEN", 1, 1).as_deref(),
@@ -102,6 +106,7 @@ fn build_three_modules() {
 
     // KJV со Стронгом.
     let kjv = Module::open(&dir.path().join("eng-kjv2006.sb")).unwrap();
+    assert_eq!(kjv.meta().versification, "eng");
     assert_eq!(kjv.books().unwrap().len(), 66);
     assert_eq!(
         verse(&kjv, "GEN", 1, 1).as_deref(),
@@ -271,6 +276,16 @@ fn cli_read_edges() {
     assert!(text.contains("2. "));
     assert!(!text.contains("3. "), "стихи за диапазоном не выводятся");
 
+    // Один стих — не хвост главы.
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", syn.to_str().unwrap(), "Быт 1:1"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("В начале сотворил Бог"));
+    assert!(!text.contains("2. "), "один стих не тянет остаток главы");
+
     // Ошибка: главы/книги нет — не паника.
     let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
         .args(["read", syn.to_str().unwrap(), "Быт 99:1"])
@@ -292,7 +307,36 @@ fn cli_read_edges() {
         .output()
         .unwrap();
     assert!(out.status.success());
-    assert!(String::from_utf8_lossy(&out.stdout).contains("shepherd"));
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("shepherd"));
+    assert!(!text.contains("2. "), "Ps 23:1 — один стих, не весь псалом");
+
+    // Английская нумерация: Мал 4 и Иоил 2:28 есть в eng и нет в org.
+    let kjv = dir.path().join("eng-kjv2006.sb");
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", kjv.to_str().unwrap(), "Mal 4:1"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("the day cometh"));
+    assert!(!text.contains("2. "), "Mal 4:1 — один стих");
+    let out = Command::new(env!("CARGO_BIN_EXE_studybible"))
+        .args(["read", kjv.to_str().unwrap(), "Joel 2:28"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{:?}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("afterward"));
+    assert!(!text.contains("29. "));
 
     // Пустой поисковый запрос — пустой ответ, без ошибки.
     let idx = dir.path().join("web.idx");
