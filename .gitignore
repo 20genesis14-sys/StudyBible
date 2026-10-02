@@ -1,2 +1,8 @@
 /target
 /.devin/config.local.json
+
+# Тексты переводов и собранные модули. Их место — STUDYBIBLE_DATA, не этот репозиторий.
+*.usfm
+*.sb
+*.idx
+/StudyBible-data/

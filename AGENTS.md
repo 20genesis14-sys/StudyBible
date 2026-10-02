@@ -33,6 +33,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ## Данные
 
 Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (по умолчанию `C:\StudyBible-data`).
+Каталог намеренно не внутри репозитория: тексты переводов нельзя выкладывать на GitHub вместе с кодом.
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # скачать и сверить SHA-256

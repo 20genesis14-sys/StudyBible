@@ -1,5 +1,5 @@
 {
-    "comment":  "Внешние исходные тексты. Файлы хранятся вне репозитория (STUDYBIBLE_DATA, по умолчанию ..\\StudyBible-data). sha256 закрепляется скриптом fetch-data.ps1 -Pin.",
+    "comment":  "Внешние исходные тексты. Файлы хранятся вне репозитория (STUDYBIBLE_DATA, по умолчанию ..\\StudyBible-data), чтобы переводы не попали в git и на GitHub. sha256 закрепляется скриптом fetch-data.ps1 -Pin.",
     "sources":  [
                     {
                         "id":  "russyn",

@@ -9,12 +9,9 @@ use studybible_core::text::Span;
 use studybible_store::Module;
 
 fn data_root() -> Option<PathBuf> {
-    // Каталог — сосед репозитория (`C:\StudyBible-data`), не папка внутри него.
-    // Из `apps/studybible-cli` это три уровня вверх. Без этого тесты молча
-    // пропускались, если переменная STUDYBIBLE_DATA не была задана.
     let root = std::env::var("STUDYBIBLE_DATA")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../StudyBible-data"));
+        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../StudyBible-data"));
     root.join("sources/russyn").is_dir().then_some(root)
 }
 
