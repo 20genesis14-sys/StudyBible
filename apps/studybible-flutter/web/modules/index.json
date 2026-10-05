@@ -1,0 +1,10 @@
+[
+  { "id": "russyn", "title": "Синодальный перевод (1876)", "language": "ru" },
+  { "id": "ru_rob", "title": "Русская открытая Библия (Стронг)", "language": "ru" },
+  { "id": "engwebp", "title": "World English Bible", "language": "en" },
+  { "id": "eng-kjv2006", "title": "KJV 2006 (Стронг)", "language": "en" },
+  { "id": "englsv", "title": "Literal Standard Version (YHWH, Стронг)", "language": "en" },
+  { "id": "engbsb", "title": "Berean Standard Bible (аппарат, Стронг)", "language": "en" },
+  { "id": "oshb", "title": "Открытая Еврейская Библия (OSHb/WLC)", "language": "he" },
+  { "id": "ugnt", "title": "unfoldingWord Greek NT (UGNT)", "language": "el" }
+]

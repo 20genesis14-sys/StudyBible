@@ -1,0 +1,28 @@
+[package]
+name = "studybible_flutter_bridge"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lib]
+# cdylib — для flutter_rust_bridge на нативных платформах,
+# staticlib/rlib — для iOS и тестов на Rust-стороне.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.13.0"
+studybible-core.workspace = true
+studybible-store.workspace = true
+anyhow = "1"
+serde_json = "1.0.151"
+
+# Повторяем clippy-правило workspace (наследование нельзя сочетать
+# с локальным rust-разделом — Cargo запрещает смешивать формы).
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

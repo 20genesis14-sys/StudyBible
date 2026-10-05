@@ -1,0 +1,2192 @@
+{
+ "01-01": {
+  "book": "1CO",
+  "chapter": 14,
+  "ref": "1 Кор. 14:20",
+  "verse": 20
+ },
+ "01-02": {
+  "book": "EZK",
+  "chapter": 37,
+  "ref": "Иез. 37:27",
+  "verse": 27
+ },
+ "01-03": {
+  "book": "1CH",
+  "chapter": 12,
+  "ref": "1 Лет. 12:28",
+  "verse": 28
+ },
+ "01-04": {
+  "book": "GEN",
+  "chapter": 5,
+  "ref": "Быт. 5:5",
+  "verse": 5
+ },
+ "01-05": {
+  "book": "JAS",
+  "chapter": 1,
+  "ref": "Иак. 1:22",
+  "verse": 22
+ },
+ "01-06": {
+  "book": "PSA",
+  "chapter": 147,
+  "ref": "Пс. 147:3",
+  "verse": 3
+ },
+ "01-07": {
+  "book": "GEN",
+  "chapter": 7,
+  "ref": "Быт. 7:23",
+  "verse": 23
+ },
+ "01-08": {
+  "book": "ROM",
+  "chapter": 12,
+  "ref": "Рим. 12:21",
+  "verse": 21
+ },
+ "01-09": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:5",
+  "verse": 5
+ },
+ "01-10": {
+  "book": "ROM",
+  "chapter": 6,
+  "ref": "Рим. 6:23",
+  "verse": 23
+ },
+ "01-11": {
+  "book": "JHN",
+  "chapter": 17,
+  "ref": "Иоан. 17:26",
+  "verse": 26
+ },
+ "01-12": {
+  "book": "PRO",
+  "chapter": 31,
+  "ref": "Прит. 31:28",
+  "verse": 28
+ },
+ "01-13": {
+  "book": "ISA",
+  "chapter": 48,
+  "ref": "Ис. 48:17",
+  "verse": 17
+ },
+ "01-14": {
+  "book": "PSA",
+  "chapter": 96,
+  "ref": "Пс. 96:8",
+  "verse": 8
+ },
+ "01-15": {
+  "book": "NUM",
+  "chapter": 16,
+  "ref": "Чис. 16:28",
+  "verse": 28
+ },
+ "01-16": {
+  "book": "HAB",
+  "chapter": 2,
+  "ref": "Авв. 2:3",
+  "verse": 3
+ },
+ "01-17": {
+  "book": "ROM",
+  "chapter": 12,
+  "ref": "Рим. 12:2",
+  "verse": 2
+ },
+ "01-18": {
+  "book": "2TI",
+  "chapter": 2,
+  "ref": "2 Тим. 2:2",
+  "verse": 2
+ },
+ "01-19": {
+  "book": "ACT",
+  "chapter": 13,
+  "ref": "Деян. 13:22",
+  "verse": 22
+ },
+ "01-20": {
+  "book": "PSA",
+  "chapter": 37,
+  "ref": "Пс. 37:5",
+  "verse": 5
+ },
+ "01-21": {
+  "book": "ACT",
+  "chapter": 22,
+  "ref": "Деян. 22:16",
+  "verse": 16
+ },
+ "01-22": {
+  "book": "PSA",
+  "chapter": 130,
+  "ref": "Пс. 130:4",
+  "verse": 4
+ },
+ "01-23": {
+  "book": "MAT",
+  "chapter": 6,
+  "ref": "Матф. 6:2",
+  "verse": 2
+ },
+ "01-24": {
+  "book": "1TI",
+  "chapter": 4,
+  "ref": "1 Тим. 4:16",
+  "verse": 16
+ },
+ "01-25": {
+  "book": "PRO",
+  "chapter": 31,
+  "ref": "Прит. 31:10",
+  "verse": 10
+ },
+ "01-26": {
+  "book": "EPH",
+  "chapter": 4,
+  "ref": "Эф. 4:32",
+  "verse": 32
+ },
+ "01-27": {
+  "book": "PSA",
+  "chapter": 144,
+  "ref": "Пс. 144:1",
+  "verse": 1
+ },
+ "01-28": {
+  "book": "MAT",
+  "chapter": 4,
+  "ref": "Матф. 4:17",
+  "verse": 17
+ },
+ "01-29": {
+  "book": "1PE",
+  "chapter": 4,
+  "ref": "1 Пет. 4:7",
+  "verse": 7
+ },
+ "01-30": {
+  "book": "1CO",
+  "chapter": 13,
+  "ref": "1 Кор. 13:7",
+  "verse": 7
+ },
+ "01-31": {
+  "book": "1TI",
+  "chapter": 5,
+  "ref": "1 Тим. 5:20",
+  "verse": 20
+ },
+ "02-01": {
+  "book": "PRO",
+  "chapter": 20,
+  "ref": "Прит. 20:3",
+  "verse": 3
+ },
+ "02-02": {
+  "book": "MRK",
+  "chapter": 13,
+  "ref": "Мар. 13:27",
+  "verse": 27
+ },
+ "02-03": {
+  "book": "ROM",
+  "chapter": 3,
+  "ref": "Рим. 3:24",
+  "verse": 24
+ },
+ "02-04": {
+  "book": "ACT",
+  "chapter": 24,
+  "ref": "Деян. 24:15",
+  "verse": 15
+ },
+ "02-05": {
+  "book": "MAT",
+  "chapter": 6,
+  "ref": "Матф. 6:33",
+  "verse": 33
+ },
+ "02-06": {
+  "book": "EPH",
+  "chapter": 4,
+  "ref": "Эф. 4:14",
+  "verse": 14
+ },
+ "02-07": {
+  "book": "PSA",
+  "chapter": 15,
+  "ref": "Пс. 15:1",
+  "verse": 1
+ },
+ "02-08": {
+  "book": "1TH",
+  "chapter": 2,
+  "ref": "1 Фес. 2:2",
+  "verse": 2
+ },
+ "02-09": {
+  "book": "GEN",
+  "chapter": 3,
+  "ref": "Быт. 3:6",
+  "verse": 6
+ },
+ "02-10": {
+  "book": "PHP",
+  "chapter": 1,
+  "ref": "Флп. 1:10",
+  "verse": 10
+ },
+ "02-11": {
+  "book": "GAL",
+  "chapter": 6,
+  "ref": "Гал. 6:5",
+  "verse": 5
+ },
+ "02-12": {
+  "book": "PSA",
+  "chapter": 94,
+  "ref": "Пс. 94:19",
+  "verse": 19
+ },
+ "02-13": {
+  "book": "LUK",
+  "chapter": 18,
+  "ref": "Луки 18:7, 8",
+  "verse": 7
+ },
+ "02-14": {
+  "book": "MAT",
+  "chapter": 14,
+  "ref": "Матф. 14:16",
+  "verse": 16
+ },
+ "02-15": {
+  "book": "1CH",
+  "chapter": 29,
+  "ref": "1 Лет. 29:20",
+  "verse": 20
+ },
+ "02-16": {
+  "book": "LUK",
+  "chapter": 11,
+  "ref": "Луки 11:4",
+  "verse": 4
+ },
+ "02-17": {
+  "book": "ACT",
+  "chapter": 9,
+  "ref": "Деян. 9:18",
+  "verse": 18
+ },
+ "02-18": {
+  "book": "1CO",
+  "chapter": 9,
+  "ref": "1 Кор. 9:26",
+  "verse": 26
+ },
+ "02-19": {
+  "book": "HEB",
+  "chapter": 13,
+  "ref": "Евр. 13:17",
+  "verse": 17
+ },
+ "02-20": {
+  "book": "MAT",
+  "chapter": 25,
+  "ref": "Матф. 25:32",
+  "verse": 32
+ },
+ "02-21": {
+  "book": "PSA",
+  "chapter": 18,
+  "ref": "Пс. 18:46",
+  "verse": 46
+ },
+ "02-22": {
+  "book": "PRO",
+  "chapter": 4,
+  "ref": "Прит. 4:18",
+  "verse": 18
+ },
+ "02-23": {
+  "book": "2PE",
+  "chapter": 3,
+  "ref": "2 Пет. 3:9",
+  "verse": 9
+ },
+ "02-24": {
+  "book": "HEB",
+  "chapter": 13,
+  "ref": "Евр. 13:5",
+  "verse": 5
+ },
+ "02-25": {
+  "book": "1CO",
+  "chapter": 10,
+  "ref": "1 Кор. 10:12",
+  "verse": 12
+ },
+ "02-26": {
+  "book": "EPH",
+  "chapter": 4,
+  "ref": "Эф. 4:8",
+  "verse": 8
+ },
+ "02-27": {
+  "book": "PRO",
+  "chapter": 2,
+  "ref": "Прит. 2:11",
+  "verse": 11
+ },
+ "02-28": {
+  "book": "1TH",
+  "chapter": 5,
+  "ref": "1 Фес. 5:21",
+  "verse": 21
+ },
+ "03-01": {
+  "book": "ROM",
+  "chapter": 6,
+  "ref": "Рим. 6:7",
+  "verse": 7
+ },
+ "03-02": {
+  "book": "PSA",
+  "chapter": 61,
+  "ref": "Пс. 61:4",
+  "verse": 4
+ },
+ "03-03": {
+  "book": "PSA",
+  "chapter": 28,
+  "ref": "Пс. 28:7",
+  "verse": 7
+ },
+ "03-04": {
+  "book": "ROM",
+  "chapter": 2,
+  "ref": "Рим. 2:4",
+  "verse": 4
+ },
+ "03-05": {
+  "book": "1JN",
+  "chapter": 3,
+  "ref": "1 Иоан. 3:8",
+  "verse": 8
+ },
+ "03-06": {
+  "book": "PSA",
+  "chapter": 73,
+  "ref": "Пс. 73:2",
+  "verse": 2
+ },
+ "03-07": {
+  "book": "PSA",
+  "chapter": 96,
+  "ref": "Пс. 96:7",
+  "verse": 7
+ },
+ "03-08": {
+  "book": "1CO",
+  "chapter": 5,
+  "ref": "1 Кор. 5:13",
+  "verse": 13
+ },
+ "03-09": {
+  "book": "EZK",
+  "chapter": 33,
+  "ref": "Иез. 33:33",
+  "verse": 33
+ },
+ "03-10": {
+  "book": "2TI",
+  "chapter": 1,
+  "ref": "2 Тим. 1:13",
+  "verse": 13
+ },
+ "03-11": {
+  "book": "HEB",
+  "chapter": 10,
+  "ref": "Евр. 10:36",
+  "verse": 36
+ },
+ "03-12": {
+  "book": "JHN",
+  "chapter": 19,
+  "ref": "Иоан. 19:26",
+  "verse": 26
+ },
+ "03-13": {
+  "book": "1PE",
+  "chapter": 3,
+  "ref": "1 Пет. 3:7",
+  "verse": 7
+ },
+ "03-14": {
+  "book": "TIT",
+  "chapter": 2,
+  "ref": "Титу 2:14",
+  "verse": 14
+ },
+ "03-15": {
+  "book": "PRO",
+  "chapter": 13,
+  "ref": "Прит. 13:16",
+  "verse": 16
+ },
+ "03-16": {
+  "book": "PSA",
+  "chapter": 32,
+  "ref": "Пс. 32:5",
+  "verse": 5
+ },
+ "03-17": {
+  "book": "EZK",
+  "chapter": 18,
+  "ref": "Иез. 18:32",
+  "verse": 32
+ },
+ "03-18": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:15",
+  "verse": 15
+ },
+ "03-19": {
+  "book": "JHN",
+  "chapter": 14,
+  "ref": "Иоан. 14:21",
+  "verse": 21
+ },
+ "03-20": {
+  "book": "ISA",
+  "chapter": 38,
+  "ref": "Ис. 38:17",
+  "verse": 17
+ },
+ "03-21": {
+  "book": "ISA",
+  "chapter": 65,
+  "ref": "Ис. 65:18",
+  "verse": 18
+ },
+ "03-22": {
+  "book": "PHP",
+  "chapter": 4,
+  "ref": "Флп. 4:6",
+  "verse": 6
+ },
+ "03-23": {
+  "book": "PHP",
+  "chapter": 2,
+  "ref": "Флп. 2:4",
+  "verse": 4
+ },
+ "03-24": {
+  "book": "REV",
+  "chapter": 2,
+  "ref": "Отк. 2:21",
+  "verse": 21
+ },
+ "03-25": {
+  "book": "LUK",
+  "chapter": 4,
+  "ref": "Луки 4:43",
+  "verse": 43
+ },
+ "03-26": {
+  "book": "2JN",
+  "chapter": 1,
+  "ref": "2 Иоан. 11",
+  "verse": 11
+ },
+ "03-27": {
+  "book": "MRK",
+  "chapter": 6,
+  "ref": "Мар. 6:52",
+  "verse": 52
+ },
+ "03-28": {
+  "book": "1TI",
+  "chapter": 2,
+  "ref": "1 Тим. 2:4",
+  "verse": 4
+ },
+ "03-29": {
+  "book": "1JN",
+  "chapter": 4,
+  "ref": "1 Иоан. 4:10",
+  "verse": 10
+ },
+ "03-30": {
+  "book": "1JN",
+  "chapter": 4,
+  "ref": "1 Иоан. 4:9",
+  "verse": 9
+ },
+ "03-31": {
+  "book": "PRO",
+  "chapter": 8,
+  "ref": "Прит. 8:10",
+  "verse": 10
+ },
+ "04-01": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:40",
+  "verse": 40
+ },
+ "04-02": {
+  "book": "LUK",
+  "chapter": 12,
+  "ref": "Луки 12:32",
+  "verse": 32
+ },
+ "04-03": {
+  "book": "JHN",
+  "chapter": 3,
+  "ref": "Иоан. 3:16",
+  "verse": 16
+ },
+ "04-04": {
+  "book": "1PE",
+  "chapter": 2,
+  "ref": "1 Пет. 2:21",
+  "verse": 21
+ },
+ "04-05": {
+  "book": "ACT",
+  "chapter": 1,
+  "ref": "Деян. 1:3",
+  "verse": 3
+ },
+ "04-06": {
+  "book": "JUD",
+  "chapter": 1,
+  "ref": "Иуды 20",
+  "verse": 20
+ },
+ "04-07": {
+  "book": "2PE",
+  "chapter": 3,
+  "ref": "2 Пет. 3:9",
+  "verse": 9
+ },
+ "04-08": {
+  "book": "PSA",
+  "chapter": 31,
+  "ref": "Пс. 31:23",
+  "verse": 23
+ },
+ "04-09": {
+  "book": "ISA",
+  "chapter": 53,
+  "ref": "Ис. 53:12",
+  "verse": 12
+ },
+ "04-10": {
+  "book": "PSA",
+  "chapter": 119,
+  "ref": "Пс. 119:97",
+  "verse": 97
+ },
+ "04-11": {
+  "book": "2JN",
+  "chapter": 1,
+  "ref": "2 Иоан. 8",
+  "verse": 8
+ },
+ "04-12": {
+  "book": "PSA",
+  "chapter": 86,
+  "ref": "Пс. 86:12",
+  "verse": 12
+ },
+ "04-13": {
+  "book": "REV",
+  "chapter": 12,
+  "ref": "Отк. 12:9",
+  "verse": 9
+ },
+ "04-14": {
+  "book": "GEN",
+  "chapter": 18,
+  "ref": "Быт. 18:25",
+  "verse": 25
+ },
+ "04-15": {
+  "book": "JHN",
+  "chapter": 15,
+  "ref": "Иоан. 15:12",
+  "verse": 12
+ },
+ "04-16": {
+  "book": "PSA",
+  "chapter": 18,
+  "ref": "Пс. 18:6",
+  "verse": 6
+ },
+ "04-17": {
+  "book": "2TH",
+  "chapter": 2,
+  "ref": "2 Фес. 2:3",
+  "verse": 3
+ },
+ "04-18": {
+  "book": "1JN",
+  "chapter": 2,
+  "ref": "1 Иоан. 2:1",
+  "verse": 1
+ },
+ "04-19": {
+  "book": "PRO",
+  "chapter": 23,
+  "ref": "Прит. 23:15",
+  "verse": 15
+ },
+ "04-20": {
+  "book": "1CO",
+  "chapter": 10,
+  "ref": "1 Кор. 10:24",
+  "verse": 24
+ },
+ "04-21": {
+  "book": "JHN",
+  "chapter": 14,
+  "ref": "Иоан. 14:3",
+  "verse": 3
+ },
+ "04-22": {
+  "book": "1PE",
+  "chapter": 2,
+  "ref": "1 Пет. 2:21",
+  "verse": 21
+ },
+ "04-23": {
+  "book": "1TI",
+  "chapter": 1,
+  "ref": "1 Тим. 1:15",
+  "verse": 15
+ },
+ "04-24": {
+  "book": "1TI",
+  "chapter": 4,
+  "ref": "1 Тим. 4:15",
+  "verse": 15
+ },
+ "04-25": {
+  "book": "PSA",
+  "chapter": 119,
+  "ref": "Пс. 119:127",
+  "verse": 127
+ },
+ "04-26": {
+  "book": "COL",
+  "chapter": 3,
+  "ref": "Кол. 3:13",
+  "verse": 13
+ },
+ "04-27": {
+  "book": "ECC",
+  "chapter": 7,
+  "ref": "Эккл. 7:12",
+  "verse": 12
+ },
+ "04-28": {
+  "book": "HEB",
+  "chapter": 6,
+  "ref": "Евр. 6:1",
+  "verse": 1
+ },
+ "04-29": {
+  "book": "PRO",
+  "chapter": 2,
+  "ref": "Прит. 2:11",
+  "verse": 11
+ },
+ "04-30": {
+  "book": "2SA",
+  "chapter": 12,
+  "ref": "2 Сам. 12:13",
+  "verse": 13
+ },
+ "05-01": {
+  "book": "ROM",
+  "chapter": 2,
+  "ref": "Рим. 2:11",
+  "verse": 11
+ },
+ "05-02": {
+  "book": "2SA",
+  "chapter": 15,
+  "ref": "2 Сам. 15:14",
+  "verse": 14
+ },
+ "05-03": {
+  "book": "ISA",
+  "chapter": 1,
+  "ref": "Ис. 1:18",
+  "verse": 18
+ },
+ "05-04": {
+  "book": "COL",
+  "chapter": 3,
+  "ref": "Кол. 3:10",
+  "verse": 10
+ },
+ "05-05": {
+  "book": "1PE",
+  "chapter": 3,
+  "ref": "1 Пет. 3:15",
+  "verse": 15
+ },
+ "05-06": {
+  "book": "LUK",
+  "chapter": 15,
+  "ref": "Луки 15:10",
+  "verse": 10
+ },
+ "05-07": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:26",
+  "verse": 26
+ },
+ "05-08": {
+  "book": "PRO",
+  "chapter": 16,
+  "ref": "Прит. 16:23",
+  "verse": 23
+ },
+ "05-09": {
+  "book": "PSA",
+  "chapter": 96,
+  "ref": "Пс. 96:3",
+  "verse": 3
+ },
+ "05-10": {
+  "book": "ACT",
+  "chapter": 10,
+  "ref": "Деян. 10:47",
+  "verse": 47
+ },
+ "05-11": {
+  "book": "1TI",
+  "chapter": 4,
+  "ref": "1 Тим. 4:7",
+  "verse": 7
+ },
+ "05-12": {
+  "book": "ROM",
+  "chapter": 16,
+  "ref": "Рим. 16:18",
+  "verse": 18
+ },
+ "05-13": {
+  "book": "HEB",
+  "chapter": 10,
+  "ref": "Евр. 10:12",
+  "verse": 12
+ },
+ "05-14": {
+  "book": "PSA",
+  "chapter": 96,
+  "ref": "Пс. 96:13",
+  "verse": 13
+ },
+ "05-15": {
+  "book": "HEB",
+  "chapter": 12,
+  "ref": "Евр. 12:7",
+  "verse": 7
+ },
+ "05-16": {
+  "book": "MAT",
+  "chapter": 25,
+  "ref": "Матф. 25:13",
+  "verse": 13
+ },
+ "05-17": {
+  "book": "GEN",
+  "chapter": 1,
+  "ref": "Быт. 1:31",
+  "verse": 31
+ },
+ "05-18": {
+  "book": "DEU",
+  "chapter": 30,
+  "ref": "Втор. 30:20",
+  "verse": 20
+ },
+ "05-19": {
+  "book": "1CO",
+  "chapter": 12,
+  "ref": "1 Кор. 12:28",
+  "verse": 28
+ },
+ "05-20": {
+  "book": "PHP",
+  "chapter": 4,
+  "ref": "Флп. 4:13",
+  "verse": 13
+ },
+ "05-21": {
+  "book": "PRO",
+  "chapter": 18,
+  "ref": "Прит. 18:13",
+  "verse": 13
+ },
+ "05-22": {
+  "book": "ISA",
+  "chapter": 1,
+  "ref": "Ис. 1:18",
+  "verse": 18
+ },
+ "05-23": {
+  "book": "2CO",
+  "chapter": 12,
+  "ref": "2 Кор. 12:14",
+  "verse": 14
+ },
+ "05-24": {
+  "book": "EPH",
+  "chapter": 4,
+  "ref": "Эф. 4:24",
+  "verse": 24
+ },
+ "05-25": {
+  "book": "GAL",
+  "chapter": 6,
+  "ref": "Гал. 6:5",
+  "verse": 5
+ },
+ "05-26": {
+  "book": "PRO",
+  "chapter": 17,
+  "ref": "Прит. 17:17",
+  "verse": 17
+ },
+ "05-27": {
+  "book": "PRO",
+  "chapter": 24,
+  "ref": "Прит. 24:10",
+  "verse": 10
+ },
+ "05-28": {
+  "book": "PRO",
+  "chapter": 28,
+  "ref": "Прит. 28:14",
+  "verse": 14
+ },
+ "05-29": {
+  "book": "1TI",
+  "chapter": 5,
+  "ref": "1 Тим. 5:20",
+  "verse": 20
+ },
+ "05-30": {
+  "book": "REV",
+  "chapter": 19,
+  "ref": "Отк. 19:9",
+  "verse": 9
+ },
+ "05-31": {
+  "book": "PSA",
+  "chapter": 73,
+  "ref": "Пс. 73:28",
+  "verse": 28
+ },
+ "06-01": {
+  "book": "PSA",
+  "chapter": 86,
+  "ref": "Пс. 86:5",
+  "verse": 5
+ },
+ "06-02": {
+  "book": "PRO",
+  "chapter": 11,
+  "ref": "Прит. 11:17",
+  "verse": 17
+ },
+ "06-03": {
+  "book": "HEB",
+  "chapter": 5,
+  "ref": "Евр. 5:14",
+  "verse": 14
+ },
+ "06-04": {
+  "book": "MAT",
+  "chapter": 12,
+  "ref": "Матф. 12:41",
+  "verse": 41
+ },
+ "06-05": {
+  "book": "LUK",
+  "chapter": 19,
+  "ref": "Луки 19:10",
+  "verse": 10
+ },
+ "06-06": {
+  "book": "MRK",
+  "chapter": 13,
+  "ref": "Мар. 13:10",
+  "verse": 10
+ },
+ "06-07": {
+  "book": "PSA",
+  "chapter": 100,
+  "ref": "Пс. 100:2",
+  "verse": 2
+ },
+ "06-08": {
+  "book": "PRO",
+  "chapter": 11,
+  "ref": "Прит. 11:2",
+  "verse": 2
+ },
+ "06-09": {
+  "book": "2CO",
+  "chapter": 7,
+  "ref": "2 Кор. 7:11",
+  "verse": 11
+ },
+ "06-10": {
+  "book": "ACT",
+  "chapter": 3,
+  "ref": "Деян. 3:19",
+  "verse": 19
+ },
+ "06-11": {
+  "book": "PSA",
+  "chapter": 37,
+  "ref": "Пс. 37:8",
+  "verse": 8
+ },
+ "06-12": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:29",
+  "verse": 29
+ },
+ "06-13": {
+  "book": "HEB",
+  "chapter": 3,
+  "ref": "Евр. 3:4",
+  "verse": 4
+ },
+ "06-14": {
+  "book": "1CO",
+  "chapter": 5,
+  "ref": "1 Кор. 5:1",
+  "verse": 1
+ },
+ "06-15": {
+  "book": "JHN",
+  "chapter": 3,
+  "ref": "Иоан. 3:16",
+  "verse": 16
+ },
+ "06-16": {
+  "book": "MAT",
+  "chapter": 26,
+  "ref": "Матф. 26:41",
+  "verse": 41
+ },
+ "06-17": {
+  "book": "ROM",
+  "chapter": 5,
+  "ref": "Рим. 5:10",
+  "verse": 10
+ },
+ "06-18": {
+  "book": "2CO",
+  "chapter": 7,
+  "ref": "2 Кор. 7:10",
+  "verse": 10
+ },
+ "06-19": {
+  "book": "HEB",
+  "chapter": 10,
+  "ref": "Евр. 10:33",
+  "verse": 33
+ },
+ "06-20": {
+  "book": "ACT",
+  "chapter": 18,
+  "ref": "Деян. 18:8",
+  "verse": 8
+ },
+ "06-21": {
+  "book": "JAS",
+  "chapter": 1,
+  "ref": "Иак. 1:5",
+  "verse": 5
+ },
+ "06-22": {
+  "book": "ISA",
+  "chapter": 65,
+  "ref": "Ис. 65:13",
+  "verse": 13
+ },
+ "06-23": {
+  "book": "COL",
+  "chapter": 4,
+  "ref": "Кол. 4:6",
+  "verse": 6
+ },
+ "06-24": {
+  "book": "1SA",
+  "chapter": 17,
+  "ref": "1 Сам. 17:45",
+  "verse": 45
+ },
+ "06-25": {
+  "book": "ISA",
+  "chapter": 41,
+  "ref": "Ис. 41:10",
+  "verse": 10
+ },
+ "06-26": {
+  "book": "MAL",
+  "chapter": 3,
+  "ref": "Мал. 3:18",
+  "verse": 18
+ },
+ "06-27": {
+  "book": "EPH",
+  "chapter": 6,
+  "ref": "Эф. 6:4",
+  "verse": 4
+ },
+ "06-28": {
+  "book": "ACT",
+  "chapter": 20,
+  "ref": "Деян. 20:35",
+  "verse": 35
+ },
+ "06-29": {
+  "book": "PHP",
+  "chapter": 3,
+  "ref": "Флп. 3:16",
+  "verse": 16
+ },
+ "06-30": {
+  "book": "HEB",
+  "chapter": 6,
+  "ref": "Евр. 6:10",
+  "verse": 10
+ },
+ "07-01": {
+  "book": "PSA",
+  "chapter": 37,
+  "ref": "Пс. 37:25",
+  "verse": 25
+ },
+ "07-02": {
+  "book": "1CO",
+  "chapter": 8,
+  "ref": "1 Кор. 8:4",
+  "verse": 4
+ },
+ "07-03": {
+  "book": "JER",
+  "chapter": 17,
+  "ref": "Иер. 17:10",
+  "verse": 10
+ },
+ "07-04": {
+  "book": "ISA",
+  "chapter": 41,
+  "ref": "Ис. 41:13",
+  "verse": 13
+ },
+ "07-05": {
+  "book": "1SA",
+  "chapter": 1,
+  "ref": "1 Цар. 1:39",
+  "verse": 39
+ },
+ "07-06": {
+  "book": "GAL",
+  "chapter": 6,
+  "ref": "Гал. 6:9",
+  "verse": 9
+ },
+ "07-07": {
+  "book": "EPH",
+  "chapter": 5,
+  "ref": "Эф. 5:1",
+  "verse": 1
+ },
+ "07-08": {
+  "book": "1TI",
+  "chapter": 3,
+  "ref": "1 Тим. 3:13",
+  "verse": 13
+ },
+ "07-09": {
+  "book": "1TH",
+  "chapter": 2,
+  "ref": "1 Фес. 2:13",
+  "verse": 13
+ },
+ "07-10": {
+  "book": "LUK",
+  "chapter": 11,
+  "ref": "Луки 11:9",
+  "verse": 9
+ },
+ "07-11": {
+  "book": "JHN",
+  "chapter": 3,
+  "ref": "Иоан. 3:16",
+  "verse": 16
+ },
+ "07-12": {
+  "book": "ROM",
+  "chapter": 12,
+  "ref": "Рим. 12:19",
+  "verse": 19
+ },
+ "07-13": {
+  "book": "LUK",
+  "chapter": 11,
+  "ref": "Луки 11:3",
+  "verse": 3
+ },
+ "07-14": {
+  "book": "PRO",
+  "chapter": 5,
+  "ref": "Прит. 5:18",
+  "verse": 18
+ },
+ "07-15": {
+  "book": "HEB",
+  "chapter": 13,
+  "ref": "Евр. 13:6",
+  "verse": 6
+ },
+ "07-16": {
+  "book": "HEB",
+  "chapter": 10,
+  "ref": "Евр. 10:10",
+  "verse": 10
+ },
+ "07-17": {
+  "book": "JHN",
+  "chapter": 3,
+  "ref": "Иоан. 3:34",
+  "verse": 34
+ },
+ "07-18": {
+  "book": "PSA",
+  "chapter": 118,
+  "ref": "Пс. 118:6",
+  "verse": 6
+ },
+ "07-19": {
+  "book": "ROM",
+  "chapter": 5,
+  "ref": "Рим. 5:12",
+  "verse": 12
+ },
+ "07-20": {
+  "book": "2CO",
+  "chapter": 2,
+  "ref": "2 Кор. 2:7",
+  "verse": 7
+ },
+ "07-21": {
+  "book": "EPH",
+  "chapter": 4,
+  "ref": "Эф. 4:8",
+  "verse": 8
+ },
+ "07-22": {
+  "book": "JER",
+  "chapter": 31,
+  "ref": "Иер. 31:34",
+  "verse": 34
+ },
+ "07-23": {
+  "book": "PRO",
+  "chapter": 9,
+  "ref": "Прит. 9:10",
+  "verse": 10
+ },
+ "07-24": {
+  "book": "2TI",
+  "chapter": 4,
+  "ref": "2 Тим. 4:17",
+  "verse": 17
+ },
+ "07-25": {
+  "book": "ISA",
+  "chapter": 65,
+  "ref": "Ис. 65:14",
+  "verse": 14
+ },
+ "07-26": {
+  "book": "1TH",
+  "chapter": 5,
+  "ref": "1 Фес. 5:11",
+  "verse": 11
+ },
+ "07-27": {
+  "book": "DEU",
+  "chapter": 32,
+  "ref": "Втор. 32:31",
+  "verse": 31
+ },
+ "07-28": {
+  "book": "2CH",
+  "chapter": 22,
+  "ref": "2 Лет. 22:9",
+  "verse": 9
+ },
+ "07-29": {
+  "book": "PSA",
+  "chapter": 51,
+  "ref": "Пс. 51:9",
+  "verse": 9
+ },
+ "07-30": {
+  "book": "ROM",
+  "chapter": 2,
+  "ref": "Рим. 2:4",
+  "verse": 4
+ },
+ "07-31": {
+  "book": "1CO",
+  "chapter": 16,
+  "ref": "1 Кор. 16:13",
+  "verse": 13
+ },
+ "08-01": {
+  "book": "MAT",
+  "chapter": 24,
+  "ref": "Матф. 24:21",
+  "verse": 21
+ },
+ "08-02": {
+  "book": "ROM",
+  "chapter": 10,
+  "ref": "Рим. 10:4",
+  "verse": 4
+ },
+ "08-03": {
+  "book": "ACT",
+  "chapter": 24,
+  "ref": "Деян. 24:15",
+  "verse": 15
+ },
+ "08-04": {
+  "book": "ISA",
+  "chapter": 29,
+  "ref": "Ис. 29:13",
+  "verse": 13
+ },
+ "08-05": {
+  "book": "EPH",
+  "chapter": 6,
+  "ref": "Эф. 6:14",
+  "verse": 14
+ },
+ "08-06": {
+  "book": "DEU",
+  "chapter": 30,
+  "ref": "Втор. 30:11",
+  "verse": 11
+ },
+ "08-07": {
+  "book": "ACT",
+  "chapter": 8,
+  "ref": "Деян. 8:1",
+  "verse": 1
+ },
+ "08-08": {
+  "book": "COL",
+  "chapter": 4,
+  "ref": "Кол. 4:11",
+  "verse": 11
+ },
+ "08-09": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:40",
+  "verse": 40
+ },
+ "08-10": {
+  "book": "1PE",
+  "chapter": 3,
+  "ref": "1 Пет. 3:7",
+  "verse": 7
+ },
+ "08-11": {
+  "book": "1PE",
+  "chapter": 4,
+  "ref": "1 Пет. 4:1",
+  "verse": 1
+ },
+ "08-12": {
+  "book": "EPH",
+  "chapter": 1,
+  "ref": "Эф. 1:7",
+  "verse": 7
+ },
+ "08-13": {
+  "book": "1CO",
+  "chapter": 10,
+  "ref": "1 Кор. 10:13",
+  "verse": 13
+ },
+ "08-14": {
+  "book": "JAS",
+  "chapter": 1,
+  "ref": "Иак. 1:14",
+  "verse": 14
+ },
+ "08-15": {
+  "book": "COL",
+  "chapter": 1,
+  "ref": "Кол. 1:10",
+  "verse": 10
+ },
+ "08-16": {
+  "book": "2CO",
+  "chapter": 2,
+  "ref": "2 Кор. 2:9",
+  "verse": 9
+ },
+ "08-17": {
+  "book": "MAT",
+  "chapter": 24,
+  "ref": "Матф. 24:40",
+  "verse": 40
+ },
+ "08-18": {
+  "book": "1CO",
+  "chapter": 16,
+  "ref": "1 Кор. 16:14",
+  "verse": 14
+ },
+ "08-19": {
+  "book": "ACT",
+  "chapter": 20,
+  "ref": "Деян. 20:28",
+  "verse": 28
+ },
+ "08-20": {
+  "book": "ISA",
+  "chapter": 65,
+  "ref": "Ис. 65:17",
+  "verse": 17
+ },
+ "08-21": {
+  "book": "PRO",
+  "chapter": 20,
+  "ref": "Прит. 20:25",
+  "verse": 25
+ },
+ "08-22": {
+  "book": "2TI",
+  "chapter": 1,
+  "ref": "2 Тим. 1:8",
+  "verse": 8
+ },
+ "08-23": {
+  "book": "LUK",
+  "chapter": 10,
+  "ref": "Луки 10:21",
+  "verse": 21
+ },
+ "08-24": {
+  "book": "PSA",
+  "chapter": 94,
+  "ref": "Пс. 94:22",
+  "verse": 22
+ },
+ "08-25": {
+  "book": "PRO",
+  "chapter": 4,
+  "ref": "Прит. 4:23",
+  "verse": 23
+ },
+ "08-26": {
+  "book": "MAT",
+  "chapter": 5,
+  "ref": "Матф. 5:44",
+  "verse": 44
+ },
+ "08-27": {
+  "book": "PSA",
+  "chapter": 5,
+  "ref": "Пс. 5:4",
+  "verse": 4
+ },
+ "08-28": {
+  "book": "PSA",
+  "chapter": 145,
+  "ref": "Пс. 145:16",
+  "verse": 16
+ },
+ "08-29": {
+  "book": "PHP",
+  "chapter": 1,
+  "ref": "Флп. 1:10",
+  "verse": 10
+ },
+ "08-30": {
+  "book": "PSA",
+  "chapter": 34,
+  "ref": "Пс. 34:18",
+  "verse": 18
+ },
+ "08-31": {
+  "book": "PSA",
+  "chapter": 56,
+  "ref": "Пс. 56:8",
+  "verse": 8
+ },
+ "09-01": {
+  "book": "2CO",
+  "chapter": 13,
+  "ref": "2 Кор. 13:5",
+  "verse": 5
+ },
+ "09-02": {
+  "book": "NUM",
+  "chapter": 14,
+  "ref": "Чис. 14:9",
+  "verse": 9
+ },
+ "09-03": {
+  "book": "GEN",
+  "chapter": 18,
+  "ref": "Быт. 18:25",
+  "verse": 25
+ },
+ "09-04": {
+  "book": "PRO",
+  "chapter": 3,
+  "ref": "Прит. 3:32",
+  "verse": 32
+ },
+ "09-05": {
+  "book": "LUK",
+  "chapter": 10,
+  "ref": "Луки 10:17",
+  "verse": 17
+ },
+ "09-06": {
+  "book": "REV",
+  "chapter": 4,
+  "ref": "Отк. 4:11",
+  "verse": 11
+ },
+ "09-07": {
+  "book": "HEB",
+  "chapter": 11,
+  "ref": "Евр. 11:6",
+  "verse": 6
+ },
+ "09-08": {
+  "book": "2SA",
+  "chapter": 17,
+  "ref": "2 Цар. 17:13",
+  "verse": 13
+ },
+ "09-09": {
+  "book": "2TI",
+  "chapter": 3,
+  "ref": "2 Тим. 3:16",
+  "verse": 16
+ },
+ "09-10": {
+  "book": "LUK",
+  "chapter": 21,
+  "ref": "Луки 21:20",
+  "verse": 20
+ },
+ "09-11": {
+  "book": "LUK",
+  "chapter": 24,
+  "ref": "Луки 24:34",
+  "verse": 34
+ },
+ "09-12": {
+  "book": "1PE",
+  "chapter": 3,
+  "ref": "1 Пет. 3:15",
+  "verse": 15
+ },
+ "09-13": {
+  "book": "JOB",
+  "chapter": 12,
+  "ref": "Иов 12:12",
+  "verse": 12
+ },
+ "09-14": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:53",
+  "verse": 53
+ },
+ "09-15": {
+  "book": "ROM",
+  "chapter": 12,
+  "ref": "Рим. 12:1",
+  "verse": 1
+ },
+ "09-16": {
+  "book": "1PE",
+  "chapter": 5,
+  "ref": "1 Пет. 5:2",
+  "verse": 2
+ },
+ "09-17": {
+  "book": "1CO",
+  "chapter": 15,
+  "ref": "1 Кор. 15:22",
+  "verse": 22
+ },
+ "09-18": {
+  "book": "PRO",
+  "chapter": 28,
+  "ref": "Прит. 28:14",
+  "verse": 14
+ },
+ "09-19": {
+  "book": "2CO",
+  "chapter": 2,
+  "ref": "2 Кор. 2:7",
+  "verse": 7
+ },
+ "09-20": {
+  "book": "MAT",
+  "chapter": 25,
+  "ref": "Матф. 25:40",
+  "verse": 40
+ },
+ "09-21": {
+  "book": "1TH",
+  "chapter": 5,
+  "ref": "1 Фес. 5:21",
+  "verse": 21
+ },
+ "09-22": {
+  "book": "1CO",
+  "chapter": 13,
+  "ref": "1 Кор. 13:5",
+  "verse": 5
+ },
+ "09-23": {
+  "book": "PRO",
+  "chapter": 15,
+  "ref": "Прит. 15:22",
+  "verse": 22
+ },
+ "09-24": {
+  "book": "ISA",
+  "chapter": 65,
+  "ref": "Ис. 65:18",
+  "verse": 18
+ },
+ "09-25": {
+  "book": "PSA",
+  "chapter": 62,
+  "ref": "Пс. 62:7",
+  "verse": 7
+ },
+ "09-26": {
+  "book": "1PE",
+  "chapter": 3,
+  "ref": "1 Пет. 3:4",
+  "verse": 4
+ },
+ "09-27": {
+  "book": "2SA",
+  "chapter": 12,
+  "ref": "2 Сам. 12:13",
+  "verse": 13
+ },
+ "09-28": {
+  "book": "1CO",
+  "chapter": 5,
+  "ref": "1 Кор. 5:13",
+  "verse": 13
+ },
+ "09-29": {
+  "book": "PHP",
+  "chapter": 4,
+  "ref": "Флп. 4:13",
+  "verse": 13
+ },
+ "09-30": {
+  "book": "1TI",
+  "chapter": 3,
+  "ref": "1 Тим. 3:1",
+  "verse": 1
+ },
+ "10-01": {
+  "book": "MIC",
+  "chapter": 7,
+  "ref": "Мих. 7:7",
+  "verse": 7
+ },
+ "10-02": {
+  "book": "DAN",
+  "chapter": 2,
+  "ref": "Дан. 2:28",
+  "verse": 28
+ },
+ "10-03": {
+  "book": "PSA",
+  "chapter": 15,
+  "ref": "Пс. 15:3",
+  "verse": 3
+ },
+ "10-04": {
+  "book": "PSA",
+  "chapter": 16,
+  "ref": "Пс. 16:8",
+  "verse": 8
+ },
+ "10-05": {
+  "book": "PRO",
+  "chapter": 17,
+  "ref": "Прит. 17:3",
+  "verse": 3
+ },
+ "10-06": {
+  "book": "HEB",
+  "chapter": 10,
+  "ref": "Евр. 10:1",
+  "verse": 1
+ },
+ "10-07": {
+  "book": "HEB",
+  "chapter": 13,
+  "ref": "Евр. 13:7",
+  "verse": 7
+ },
+ "10-08": {
+  "book": "JHN",
+  "chapter": 20,
+  "ref": "Иоан. 20:18",
+  "verse": 18
+ },
+ "10-09": {
+  "book": "EXO",
+  "chapter": 7,
+  "ref": "Исх. 7:3",
+  "verse": 3
+ },
+ "10-10": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:51",
+  "verse": 51
+ },
+ "10-11": {
+  "book": "COL",
+  "chapter": 3,
+  "ref": "Кол. 3:19",
+  "verse": 19
+ },
+ "10-12": {
+  "book": "GAL",
+  "chapter": 2,
+  "ref": "Гал. 2:16",
+  "verse": 16
+ },
+ "10-13": {
+  "book": "MAT",
+  "chapter": 16,
+  "ref": "Матф. 16:23",
+  "verse": 23
+ },
+ "10-14": {
+  "book": "PSA",
+  "chapter": 34,
+  "ref": "Пс. 34:18",
+  "verse": 18
+ },
+ "10-15": {
+  "book": "COL",
+  "chapter": 3,
+  "ref": "Кол. 3:24",
+  "verse": 24
+ },
+ "10-16": {
+  "book": "PRO",
+  "chapter": 7,
+  "ref": "Прит. 7:25",
+  "verse": 25
+ },
+ "10-17": {
+  "book": "2CO",
+  "chapter": 4,
+  "ref": "2 Кор. 4:7",
+  "verse": 7
+ },
+ "10-18": {
+  "book": "MAT",
+  "chapter": 6,
+  "ref": "Матф. 6:9",
+  "verse": 9
+ },
+ "10-19": {
+  "book": "LUK",
+  "chapter": 14,
+  "ref": "Луки 14:13, 14",
+  "verse": 13
+ },
+ "10-20": {
+  "book": "MAT",
+  "chapter": 25,
+  "ref": "Матф. 25:10",
+  "verse": 10
+ },
+ "10-21": {
+  "book": "REV",
+  "chapter": 7,
+  "ref": "Отк. 7:9",
+  "verse": 9
+ },
+ "10-22": {
+  "book": "PSA",
+  "chapter": 144,
+  "ref": "Пс. 144:3",
+  "verse": 3
+ },
+ "10-23": {
+  "book": "MRK",
+  "chapter": 6,
+  "ref": "Мар. 6:34",
+  "verse": 34
+ },
+ "10-24": {
+  "book": "2CH",
+  "chapter": 15,
+  "ref": "2 Лет. 15:7",
+  "verse": 7
+ },
+ "10-25": {
+  "book": "ROM",
+  "chapter": 5,
+  "ref": "Рим. 5:12",
+  "verse": 12
+ },
+ "10-26": {
+  "book": "2CO",
+  "chapter": 5,
+  "ref": "2 Кор. 5:7",
+  "verse": 7
+ },
+ "10-27": {
+  "book": "ROM",
+  "chapter": 12,
+  "ref": "Рим. 12:2",
+  "verse": 2
+ },
+ "10-28": {
+  "book": "1CO",
+  "chapter": 2,
+  "ref": "1 Кор. 2:16",
+  "verse": 16
+ },
+ "10-29": {
+  "book": "PRO",
+  "chapter": 20,
+  "ref": "Прит. 20:5",
+  "verse": 5
+ },
+ "10-30": {
+  "book": "EPH",
+  "chapter": 5,
+  "ref": "Эф. 5:1",
+  "verse": 1
+ },
+ "10-31": {
+  "book": "DEU",
+  "chapter": 4,
+  "ref": "Втор. 4:24",
+  "verse": 24
+ },
+ "11-01": {
+  "book": "JER",
+  "chapter": 3,
+  "ref": "Иер. 3:12",
+  "verse": 12
+ },
+ "11-02": {
+  "book": "JAS",
+  "chapter": 1,
+  "ref": "Иак. 1:5",
+  "verse": 5
+ },
+ "11-03": {
+  "book": "1TH",
+  "chapter": 2,
+  "ref": "1 Фес. 2:8",
+  "verse": 8
+ },
+ "11-04": {
+  "book": "ACT",
+  "chapter": 20,
+  "ref": "Деян. 20:35",
+  "verse": 35
+ },
+ "11-05": {
+  "book": "2SA",
+  "chapter": 20,
+  "ref": "2 Цар. 20:3",
+  "verse": 3
+ },
+ "11-06": {
+  "book": "ACT",
+  "chapter": 24,
+  "ref": "Деян. 24:15",
+  "verse": 15
+ },
+ "11-07": {
+  "book": "NUM",
+  "chapter": 11,
+  "ref": "Чис. 11:23",
+  "verse": 23
+ },
+ "11-08": {
+  "book": "2PE",
+  "chapter": 2,
+  "ref": "2 Пет. 2:5",
+  "verse": 5
+ },
+ "11-09": {
+  "book": "PSA",
+  "chapter": 15,
+  "ref": "Пс. 15:4",
+  "verse": 4
+ },
+ "11-10": {
+  "book": "PSA",
+  "chapter": 8,
+  "ref": "Пс. 8:4",
+  "verse": 4
+ },
+ "11-11": {
+  "book": "ISA",
+  "chapter": 60,
+  "ref": "Ис. 60:22",
+  "verse": 22
+ },
+ "11-12": {
+  "book": "GEN",
+  "chapter": 4,
+  "ref": "Быт. 4:7",
+  "verse": 7
+ },
+ "11-13": {
+  "book": "DEU",
+  "chapter": 30,
+  "ref": "Втор. 30:19",
+  "verse": 19
+ },
+ "11-14": {
+  "book": "JHN",
+  "chapter": 6,
+  "ref": "Иоан. 6:44",
+  "verse": 44
+ },
+ "11-15": {
+  "book": "EPH",
+  "chapter": 5,
+  "ref": "Эф. 5:25",
+  "verse": 25
+ },
+ "11-16": {
+  "book": "PRO",
+  "chapter": 16,
+  "ref": "Прит. 16:3",
+  "verse": 3
+ },
+ "11-17": {
+  "book": "ACT",
+  "chapter": 10,
+  "ref": "Деян. 10:28",
+  "verse": 28
+ },
+ "11-18": {
+  "book": "HEB",
+  "chapter": 13,
+  "ref": "Евр. 13:9",
+  "verse": 9
+ },
+ "11-19": {
+  "book": "JAS",
+  "chapter": 4,
+  "ref": "Иак. 4:8",
+  "verse": 8
+ },
+ "11-20": {
+  "book": "PSA",
+  "chapter": 34,
+  "ref": "Пс. 34:15",
+  "verse": 15
+ },
+ "11-21": {
+  "book": "ISA",
+  "chapter": 43,
+  "ref": "Ис. 43:12",
+  "verse": 12
+ },
+ "11-22": {
+  "book": "1TI",
+  "chapter": 3,
+  "ref": "1 Тим. 3:5",
+  "verse": 5
+ },
+ "11-23": {
+  "book": "JHN",
+  "chapter": 15,
+  "ref": "Иоан. 15:13",
+  "verse": 13
+ },
+ "11-24": {
+  "book": "PSA",
+  "chapter": 73,
+  "ref": "Пс. 73:14",
+  "verse": 14
+ },
+ "11-25": {
+  "book": "PSA",
+  "chapter": 83,
+  "ref": "Пс. 83:18",
+  "verse": 18
+ },
+ "11-26": {
+  "book": "MAT",
+  "chapter": 8,
+  "ref": "Матф. 8:16",
+  "verse": 16
+ },
+ "11-27": {
+  "book": "2TI",
+  "chapter": 3,
+  "ref": "2 Тим. 3:1",
+  "verse": 1
+ },
+ "11-28": {
+  "book": "ROM",
+  "chapter": 8,
+  "ref": "Рим. 8:32",
+  "verse": 32
+ },
+ "11-29": {
+  "book": "EPH",
+  "chapter": 5,
+  "ref": "Эф. 5:10",
+  "verse": 10
+ },
+ "11-30": {
+  "book": "1TH",
+  "chapter": 5,
+  "ref": "1 Фес. 5:13",
+  "verse": 13
+ },
+ "12-01": {
+  "book": "LUK",
+  "chapter": 24,
+  "ref": "Луки 24:45",
+  "verse": 45
+ },
+ "12-02": {
+  "book": "JHN",
+  "chapter": 8,
+  "ref": "Иоан. 8:28",
+  "verse": 28
+ },
+ "12-03": {
+  "book": "JOS",
+  "chapter": 1,
+  "ref": "Иис. Н. 1:16",
+  "verse": 16
+ },
+ "12-04": {
+  "book": "ACT",
+  "chapter": 13,
+  "ref": "Деян. 13:22",
+  "verse": 22
+ },
+ "12-05": {
+  "book": "ROM",
+  "chapter": 12,
+  "ref": "Рим. 12:2",
+  "verse": 2
+ },
+ "12-06": {
+  "book": "HEB",
+  "chapter": 10,
+  "ref": "Евр. 10:39",
+  "verse": 39
+ },
+ "12-07": {
+  "book": "EPH",
+  "chapter": 4,
+  "ref": "Эф. 4:8",
+  "verse": 8
+ },
+ "12-08": {
+  "book": "PSA",
+  "chapter": 37,
+  "ref": "Пс. 37:29",
+  "verse": 29
+ },
+ "12-09": {
+  "book": "MAT",
+  "chapter": 24,
+  "ref": "Матф. 24:14",
+  "verse": 14
+ },
+ "12-10": {
+  "book": "MAT",
+  "chapter": 19,
+  "ref": "Матф. 19:6",
+  "verse": 6
+ },
+ "12-11": {
+  "book": "ISA",
+  "chapter": 55,
+  "ref": "Ис. 55:7",
+  "verse": 7
+ },
+ "12-12": {
+  "book": "ACT",
+  "chapter": 10,
+  "ref": "Деян. 10:42",
+  "verse": 42
+ },
+ "12-13": {
+  "book": "ACT",
+  "chapter": 13,
+  "ref": "Деян. 13:48",
+  "verse": 48
+ },
+ "12-14": {
+  "book": "1PE",
+  "chapter": 5,
+  "ref": "1 Пет. 5:5",
+  "verse": 5
+ },
+ "12-15": {
+  "book": "PSA",
+  "chapter": 73,
+  "ref": "Пс. 73:24",
+  "verse": 24
+ },
+ "12-16": {
+  "book": "HEB",
+  "chapter": 13,
+  "ref": "Евр. 13:5",
+  "verse": 5
+ },
+ "12-17": {
+  "book": "PSA",
+  "chapter": 119,
+  "ref": "Пс. 119:101",
+  "verse": 101
+ },
+ "12-18": {
+  "book": "PSA",
+  "chapter": 32,
+  "ref": "Пс. 32:8",
+  "verse": 8
+ },
+ "12-19": {
+  "book": "ROM",
+  "chapter": 12,
+  "ref": "Рим. 12:5",
+  "verse": 5
+ },
+ "12-20": {
+  "book": "1SA",
+  "chapter": 1,
+  "ref": "1 Сам. 1:10",
+  "verse": 10
+ },
+ "12-21": {
+  "book": "PRO",
+  "chapter": 8,
+  "ref": "Прит. 8:31",
+  "verse": 31
+ },
+ "12-22": {
+  "book": "ISA",
+  "chapter": 53,
+  "ref": "Ис. 53:5",
+  "verse": 5
+ },
+ "12-23": {
+  "book": "2PE",
+  "chapter": 1,
+  "ref": "2 Пет. 1:10",
+  "verse": 10
+ },
+ "12-24": {
+  "book": "PHP",
+  "chapter": 1,
+  "ref": "Флп. 1:10",
+  "verse": 10
+ },
+ "12-25": {
+  "book": "EPH",
+  "chapter": 4,
+  "ref": "Эф. 4:32",
+  "verse": 32
+ },
+ "12-26": {
+  "book": "MAT",
+  "chapter": 6,
+  "ref": "Матф. 6:33",
+  "verse": 33
+ },
+ "12-27": {
+  "book": "1CO",
+  "chapter": 6,
+  "ref": "1 Кор. 6:18",
+  "verse": 18
+ },
+ "12-28": {
+  "book": "MAT",
+  "chapter": 5,
+  "ref": "Матф. 5:37",
+  "verse": 37
+ },
+ "12-29": {
+  "book": "ISA",
+  "chapter": 26,
+  "ref": "Ис. 26:3",
+  "verse": 3
+ },
+ "12-30": {
+  "book": "LUK",
+  "chapter": 15,
+  "ref": "Луки 15:20",
+  "verse": 20
+ },
+ "12-31": {
+  "book": "COL",
+  "chapter": 3,
+  "ref": "Кол. 3:15",
+  "verse": 15
+ }
+}

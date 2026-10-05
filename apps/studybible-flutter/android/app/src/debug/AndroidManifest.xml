@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- В лаунчере debug-сборка видна под своим именем рядом с release. -->
+    <application
+        android:label="StudyBible Debug"
+        tools:replace="android:label" />
+</manifest>

@@ -58,6 +58,30 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 `create` → `add_book` → `add_chapter` (пишет `blocks`, `spans`, `verses`, копит хэш) →
 `finish` (пишет `content_hash`, `COMMIT`, `PRAGMA optimize`). Всё в одной транзакции.
 
+## Необязательные расширения (ADR 0016, до заморозки 1.0)
+
+Ничего из этого не обязательно и не идёт в `required`.
+
+- `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` | `layer` | `critical`.
+- `meta.features`: `strongs,morph,tokens,alignment,variants` (через запятую).
+- `tokens(book, chapter, verse, seq, surface, lemma, strong, morph, gloss)` —
+  слова оригинала. Источник: OSIS `<w lemma morph>`, USFM `\w …|strong lemma x-morph\w*`,
+  теги Стронга MyBible/BibleQuote. Заполняет конвертер.
+- `alignment(book, chapter, verse, token_seq, target_block, target_seq, target_offset)` —
+  связь токена с текстом перевода/глоссы. Вход автора — TSV `ссылка  оригинал  глосса`.
+  Старый вид подстрочника (`spans.attrs` = `gr="…"`) читается без изменений.
+- `variants(id, book, chapter, verse, token_from, token_to)`,
+  `readings(variant_id, seq, text, is_base)`, `witnesses(reading_id, siglum)` —
+  критический аппарат. Вход — TSV/JSON.
+- `.sbz` — `.sb`, сжатый zstd, только для передачи; импорт распаковывает.
+
+- Место сноски и ссылки в стихе: span `f`/`x` уже стоит в потоке на своём месте
+  (часть стиха). Принято (ADR 0015, 0016): текст привязки из
+  USFM `\fq`/`\xq`, OSIS `<catchWord>` и буква части из `\fr`/`\xo` (`1:1a`).
+
+Точные столбцы и индексы фиксируются при реализации, до заморозки 1.0.
+Инструменты: `studybible module check`, `studybible module pack`, шаблоны TSV.
+
 ## Эволюция формата
 
 Менять или удалять существующие поля нельзя. Новое — только необязательные таблицы
