@@ -77,6 +77,12 @@ class Settings extends ChangeNotifier {
   /// Показывать выбор стиха после выбора главы (тумблер из ТЗ).
   bool versePickerEnabled = false;
 
+  /// Активный план чтения (id из assets/data/plans.json; '' — нет).
+  String activePlan = '';
+
+  /// Дата начала активного плана (ISO yyyy-mm-dd).
+  String planStart = '';
+
   /// Язык интерфейса: 'ru' | 'en'.
   String lang = 'ru';
 
@@ -108,6 +114,8 @@ class Settings extends ChangeNotifier {
         readingFont = ReadingFont.values[j['readingFont'] as int? ?? 0];
         bookFullNames = j['bookFullNames'] as bool? ?? false;
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
+        activePlan = j['activePlan'] as String? ?? '';
+        planStart = j['planStart'] as String? ?? '';
         lang = j['lang'] as String? ?? 'ru';
         defaultModule = j['defaultModule'] as String? ?? 'russyn';
       }
@@ -132,6 +140,8 @@ class Settings extends ChangeNotifier {
       'readingFont': readingFont.index,
       'bookFullNames': bookFullNames,
       'versePickerEnabled': versePickerEnabled,
+      'activePlan': activePlan,
+      'planStart': planStart,
       'lang': lang,
       'defaultModule': defaultModule,
     });

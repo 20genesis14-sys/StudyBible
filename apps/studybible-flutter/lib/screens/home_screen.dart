@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../data.dart';
 import '../models.dart';
+import '../plans.dart';
 import '../state.dart';
 import '../theme.dart';
 import 'bookmarks_screen.dart';
@@ -240,25 +241,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ---------- «Сегодня по плану» ----------
 
-  /// Карточка дня плана чтения (ADR 0015). Пока — вход на экран
-  /// плана; содержимое появится с экраном «План» (Блок 2).
+  /// Карточка дня плана чтения (ADR 0015): отрывки сегодняшнего дня
+  /// активного плана; без плана — приглашение выбрать его.
   Widget _planCard(Palette p) {
-    return _card(
-      p,
-      onTap: () =>
-          Navigator.of(context).push(fastRoute(const PlanScreen(pushed: true))),
-      child: ListTile(
-        leading: Icon(Icons.event_note_outlined, size: 32, color: p.accent),
-        title: Text(
-          tr('Сегодня по плану', 'Today in the plan'),
-          style: const TextStyle(fontSize: 13),
-        ),
-        subtitle: Text(
-          tr('План чтения', 'Reading plan'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-        ),
-        trailing: Icon(Icons.chevron_right, color: p.muted),
-      ),
+    return FutureBuilder<List<ReadingPlan>>(
+      future: loadPlans(),
+      builder: (context, snap) {
+        ReadingPlan? plan;
+        List<PlanReading> today = const [];
+        var done = false;
+        if (snap.hasData) {
+          for (final pl in snap.data!) {
+            if (pl.id == settings.activePlan) plan = pl;
+          }
+          if (plan != null) {
+            final idx = planTodayIndex(settings.planStart);
+            if (idx >= 0 && idx < plan.days.length) today = plan.days[idx];
+            done = idx >= plan.days.length;
+          }
+        }
+        final subtitle = plan == null
+            ? tr('Выберите план чтения', 'Choose a reading plan')
+            : done
+            ? tr('План завершён 🎉', 'Plan completed 🎉')
+            : today
+                .map(
+                  (r) =>
+                      '${kShortName[r.book] ?? r.book} '
+                      '${r.from == r.to ? '${r.from}' : '${r.from}–${r.to}'}',
+                )
+                .join(' · ');
+        return _card(
+          p,
+          onTap: () => Navigator.of(
+            context,
+          ).push(fastRoute(const PlanScreen(pushed: true))),
+          child: ListTile(
+            leading: Icon(Icons.event_note_outlined, size: 32, color: p.accent),
+            title: Text(
+              tr('Сегодня по плану', 'Today in the plan'),
+              style: const TextStyle(fontSize: 13),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            trailing: Icon(Icons.chevron_right, color: p.muted),
+          ),
+        );
+      },
     );
   }
 
