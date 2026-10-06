@@ -665,28 +665,70 @@ extension _ReaderChrome on _ReadingScreenState {
           child: SizedBox(
             height: MediaQuery.of(ctx).size.height * 0.62,
             child: sel == null
-                ? Padding(
-                    padding: const EdgeInsets.all(12),
-                    // Та же цветная сетка книг, что в разделе «Библия»,
-                    // только компактная: группы — цветом плитки.
-                    child: GridView.count(
-                      crossAxisCount:
-                          MediaQuery.of(ctx).size.width >= 700 ? 8 : 4,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 1.9,
-                      children: [
-                        for (final b in books)
-                          _bookTile(ctx, p, b, () {
-                            if (b.chapters <= 1) {
-                              Navigator.of(ctx).pop();
-                              _jumpTo(b.code, 1);
-                            } else {
-                              setSheet(() => sel = b.code);
-                            }
-                          }),
-                      ],
-                    ),
+                ? Builder(
+                    builder: (_) {
+                      // Разделы как в каталоге: ВЗ → НЗ → прочие
+                      // (книги модуля вне канона-66, напр. LXX).
+                      final ot = <BookDoc>[], nt = <BookDoc>[], ex = <BookDoc>[];
+                      for (final b in books) {
+                        final idx = kCatalog.indexWhere((e) => e.$1 == b.code);
+                        if (idx < 0) {
+                          ex.add(b);
+                        } else if (idx < kNtFirstIndex) {
+                          ot.add(b);
+                        } else {
+                          nt.add(b);
+                        }
+                      }
+                      return ListView(
+                        padding: const EdgeInsets.all(12),
+                        children: [
+                          for (final (label, list) in [
+                            (tr('Ветхий Завет', 'Old Testament'), ot),
+                            (tr('Новый Завет', 'New Testament'), nt),
+                            (tr('Прочие книги', 'Other books'), ex),
+                          ])
+                            if (list.isNotEmpty) ...[
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  2, 4, 2, 8,
+                                ),
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: p.muted,
+                                  ),
+                                ),
+                              ),
+                              GridView.count(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                crossAxisCount:
+                                    MediaQuery.of(ctx).size.width >= 700
+                                    ? 8
+                                    : 4,
+                                mainAxisSpacing: 8,
+                                crossAxisSpacing: 8,
+                                childAspectRatio: 1.9,
+                                children: [
+                                  for (final b in list)
+                                    _bookTile(ctx, p, b, () {
+                                      if (b.chapters <= 1) {
+                                        Navigator.of(ctx).pop();
+                                        _jumpTo(b.code, 1);
+                                      } else {
+                                        setSheet(() => sel = b.code);
+                                      }
+                                    }),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                        ],
+                      );
+                    },
                   )
                 : Column(
                     children: [
