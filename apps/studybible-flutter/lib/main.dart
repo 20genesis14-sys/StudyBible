@@ -6,10 +6,10 @@ import 'l10n.dart';
 import 'state.dart';
 import 'theme.dart';
 import 'screens/book_grid_screen.dart';
+import 'screens/bookmarks_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/modules_screen.dart';
 import 'screens/plan_screen.dart';
-import 'screens/settings_screen.dart';
 import 'tts_media.dart';
 
 void main() async {
@@ -74,12 +74,14 @@ class _HomeShellState extends State<HomeShell> {
     progress.load();
   }
 
+  // Нижняя навигация — вариант А (ADR 0015): настройки уехали
+  // на шестерёнку Главной, «График» стал «План», модули — «Библиотека».
   static const _items = [
     (Icons.home_outlined, 'Главная', 'Home'),
     (Icons.menu_book_outlined, 'Библия', 'Bible'),
-    (Icons.event_note_outlined, 'График', 'Plan'),
-    (Icons.book_outlined, 'Модули', 'Modules'),
-    (Icons.settings_outlined, 'Настройки', 'Settings'),
+    (Icons.event_note_outlined, 'План', 'Plan'),
+    (Icons.edit_note_outlined, 'Записи', 'Notes'),
+    (Icons.library_books_outlined, 'Библиотека', 'Library'),
   ];
 
   @override
@@ -91,8 +93,8 @@ class _HomeShellState extends State<HomeShell> {
       const HomeScreen(),
       const BookGridScreen(),
       const PlanScreen(),
+      const BookmarksScreen(),
       const ModulesScreen(),
-      const SettingsScreen(),
     ];
     return Scaffold(
       appBar: wide

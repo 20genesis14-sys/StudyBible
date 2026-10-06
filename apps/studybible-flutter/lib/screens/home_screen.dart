@@ -16,6 +16,7 @@ import 'modules_screen.dart';
 import 'plan_screen.dart';
 import 'reading_screen.dart';
 import 'search_screen.dart';
+import 'settings_screen.dart';
 import '../routes.dart';
 
 /// «Стих дня»: дата → ссылка по расписанию ежедневника
@@ -129,7 +130,24 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // ADR 0015, вариант А: поиск — поле вверху Главной,
+          // настройки — шестерёнка здесь же.
+          Row(
+            children: [
+              Expanded(child: _searchField(p)),
+              IconButton(
+                tooltip: tr('Настройки', 'Settings'),
+                icon: Icon(Icons.settings_outlined, color: p.muted),
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(fastRoute(const SettingsScreen())),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           _continueCard(p),
+          const SizedBox(height: 12),
+          _planCard(p),
           const SizedBox(height: 12),
           _dailyCard(p),
           const SizedBox(height: 12),
@@ -189,6 +207,58 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  /// Поле поиска вверху Главной — тап открывает экран поиска.
+  Widget _searchField(Palette p) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () =>
+          Navigator.of(context).push(fastRoute(const SearchScreen())),
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: p.edge),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search, size: 18, color: p.muted),
+            const SizedBox(width: 8),
+            Text(
+              tr('Поиск по тексту', 'Search the text'),
+              style: TextStyle(fontSize: 14, color: p.muted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------- «Сегодня по плану» ----------
+
+  /// Карточка дня плана чтения (ADR 0015). Пока — вход на экран
+  /// плана; содержимое появится с экраном «План» (Блок 2).
+  Widget _planCard(Palette p) {
+    return _card(
+      p,
+      onTap: () =>
+          Navigator.of(context).push(fastRoute(const PlanScreen(pushed: true))),
+      child: ListTile(
+        leading: Icon(Icons.event_note_outlined, size: 32, color: p.accent),
+        title: Text(
+          tr('Сегодня по плану', 'Today in the plan'),
+          style: const TextStyle(fontSize: 13),
+        ),
+        subtitle: Text(
+          tr('План чтения', 'Reading plan'),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+        trailing: Icon(Icons.chevron_right, color: p.muted),
+      ),
     );
   }
 

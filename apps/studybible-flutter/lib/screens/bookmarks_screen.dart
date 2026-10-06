@@ -108,8 +108,9 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       backgroundColor: p.background,
       appBar: AppBar(
         backgroundColor: p.background,
+        // Вкладка «Записи» (ADR 0015): закладки + теги + заметки.
         title: Text(
-          tr('Закладки', 'Bookmarks'),
+          tr('Записи', 'Notes'),
           style: TextStyle(color: p.ink),
         ),
         iconTheme: IconThemeData(color: p.ink),
