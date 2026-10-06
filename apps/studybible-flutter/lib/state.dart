@@ -83,6 +83,9 @@ class Settings extends ChangeNotifier {
   /// Дата начала активного плана (ISO yyyy-mm-dd).
   String planStart = '';
 
+  /// Перевод для текстов параллельных мест/сносок ('' — основной).
+  String xrefModule = '';
+
   /// Язык интерфейса: 'ru' | 'en'.
   String lang = 'ru';
 
@@ -116,6 +119,7 @@ class Settings extends ChangeNotifier {
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
         activePlan = j['activePlan'] as String? ?? '';
         planStart = j['planStart'] as String? ?? '';
+        xrefModule = j['xrefModule'] as String? ?? '';
         lang = j['lang'] as String? ?? 'ru';
         defaultModule = j['defaultModule'] as String? ?? 'russyn';
       }
@@ -142,6 +146,7 @@ class Settings extends ChangeNotifier {
       'versePickerEnabled': versePickerEnabled,
       'activePlan': activePlan,
       'planStart': planStart,
+      'xrefModule': xrefModule,
       'lang': lang,
       'defaultModule': defaultModule,
     });

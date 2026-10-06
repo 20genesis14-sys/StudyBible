@@ -8,7 +8,11 @@ class Ref {
   final String book; // код kCatalog ('GEN', 'JHN', …)
   final int chapter;
   final int verse;
-  const Ref(this.book, this.chapter, this.verse);
+
+  /// Конец диапазона «Ин 1:1–3» → 3; для одиночного стиха == verse.
+  final int verseEnd;
+  const Ref(this.book, this.chapter, this.verse, [int? end])
+    : verseEnd = end ?? verse;
 
   @override
   String toString() => '$book $chapter:$verse';
@@ -299,8 +303,9 @@ List<RefMatch> findRefs(String text) {
     if (book == null) continue;
     final ch = int.tryParse(m.group(2)!) ?? 0;
     final vs = int.tryParse(m.group(3)!) ?? 0;
+    final ve = m.group(4) != null ? int.tryParse(m.group(4)!) : null;
     if (ch <= 0 || vs <= 0) continue;
-    out.add(RefMatch(Ref(book, ch, vs), m.start, m.end));
+    out.add(RefMatch(Ref(book, ch, vs, ve), m.start, m.end));
   }
   return out;
 }

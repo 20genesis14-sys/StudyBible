@@ -238,6 +238,59 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                _section(
+                  p,
+                  tr(
+                    'Перевод параллельных мест',
+                    'Cross-reference translation',
+                  ),
+                ),
+                _card(
+                  p,
+                  // Тексты стихов в карточках сносок/«°» — из этого
+                  // перевода; по умолчанию — из основного.
+                  ListenableBuilder(
+                    listenable: settings,
+                    builder: (context, _) => Column(
+                      children: [
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(
+                            Icons.star_outline,
+                            size: 18,
+                          ),
+                          title: Text(
+                            tr(
+                              'Как основной перевод',
+                              'Same as default translation',
+                            ),
+                          ),
+                          trailing: settings.xrefModule.isEmpty
+                              ? Icon(Icons.check, color: p.accent, size: 18)
+                              : null,
+                          onTap: () => settings.update(
+                            () => settings.xrefModule = '',
+                          ),
+                        ),
+                        for (final e in kModules.entries)
+                          ListTile(
+                            dense: true,
+                            leading: const Icon(
+                              Icons.menu_book_outlined,
+                              size: 18,
+                            ),
+                            title: Text(e.value),
+                            trailing: e.key == settings.xrefModule
+                                ? Icon(Icons.check, color: p.accent, size: 18)
+                                : null,
+                            onTap: () => settings.update(
+                              () => settings.xrefModule = e.key,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
                 _section(p, tr('Прогресс', 'Progress')),
                 _card(
                   p,

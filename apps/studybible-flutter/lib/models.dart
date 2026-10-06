@@ -198,3 +198,22 @@ class NoteSpanDoc extends SpanDoc {
     required this.text,
   }) : super._();
 }
+
+/// Простой текст стихов [v]..[vEnd] главы [ch] — без сносок,
+/// стилей и номеров стихов (для карточек параллельных мест).
+String verseText(ChapterDoc ch, int v, [int? vEnd]) {
+  final end = vEnd ?? v;
+  final buf = StringBuffer();
+  var inside = false;
+  for (final b in ch.blocks) {
+    for (final s in b.spans) {
+      if (s is VerseSpanDoc) {
+        inside = s.verse >= v && s.verse <= end;
+        if (inside && buf.isNotEmpty) buf.write(' ');
+      } else if (inside && s is TextSpanDoc) {
+        buf.write(s.text);
+      }
+    }
+  }
+  return buf.toString().trim();
+}
