@@ -124,26 +124,41 @@ fn build(args: &[String]) -> Result<(), String> {
         .and_then(|m| m.as_array())
         .ok_or_else(|| format!("{defs}: нет «modules»"))?;
 
+    // Ошибка одного модуля не останавливает остальные — в конце отчёт.
+    let mut failed = Vec::new();
     for m in modules {
-        let meta = meta_from(m)?;
-        // Формат исходного текста: usfm (по умолчанию) или osis.
-        let format = m.get("format").and_then(|f| f.as_str()).unwrap_or("usfm");
-        let src = data.join("sources").join(&meta.source);
-        let file = out.join(format!("{}.sb", meta.id));
-        // Необязательный TSV аппарата рядом с источником (ADR 0016).
-        let variants = m
-            .get("variants")
-            .and_then(|x| x.as_str())
-            .map(|v| src.join(v));
-        let stats = build_module(&src, &file, &meta, format, variants.as_deref())?;
-        println!(
-            "{}: {} книг, {} глав, {} стихов → {}",
-            meta.id,
-            stats.books,
-            stats.chapters,
-            stats.verses,
-            file.display()
-        );
+        let step = (|| -> Result<String, String> {
+            let meta = meta_from(m)?;
+            // Формат исходного текста: usfm (по умолчанию) или osis.
+            let format = m.get("format").and_then(|f| f.as_str()).unwrap_or("usfm");
+            let src = data.join("sources").join(&meta.source);
+            let file = out.join(format!("{}.sb", meta.id));
+            // Необязательный TSV аппарата рядом с источником (ADR 0016).
+            let variants = m
+                .get("variants")
+                .and_then(|x| x.as_str())
+                .map(|v| src.join(v));
+            let stats = build_module(&src, &file, &meta, format, variants.as_deref())?;
+            Ok(format!(
+                "{}: {} книг, {} глав, {} стихов → {}",
+                meta.id,
+                stats.books,
+                stats.chapters,
+                stats.verses,
+                file.display()
+            ))
+        })();
+        match step {
+            Ok(line) => println!("{line}"),
+            Err(e) => {
+                let id = m.get("id").and_then(|x| x.as_str()).unwrap_or("?");
+                eprintln!("ошибка {id}: {e}");
+                failed.push(id.to_string());
+            }
+        }
+    }
+    if !failed.is_empty() {
+        return Err(format!("не собраны: {}", failed.join(", ")));
     }
     Ok(())
 }
@@ -240,7 +255,14 @@ fn build_module(
     }
 
     let mut stats = Stats::default();
-    let mut w = ModuleWriter::create(out, meta).map_err(|e| e.to_string())?;
+    // Пишем во временный файл и переименовываем в конце — неудачная
+    // сборка не трогает готовый модуль, повторная сборка перезаписывает.
+    let tmp = out.with_file_name(format!(
+        "{}.building",
+        out.file_name().unwrap_or_default().to_string_lossy()
+    ));
+    let _ = std::fs::remove_file(&tmp);
+    let mut w = ModuleWriter::create(&tmp, meta).map_err(|e| e.to_string())?;
     // Автоопределение возможностей по содержимому (ADR 0016): автору
     // не нужно знать, что внутри — конвертер помечает сам.
     let mut has_strongs = false;
@@ -345,6 +367,7 @@ fn build_module(
         }
     }
     w.finish().map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, out).map_err(|e| format!("{}: {e}", out.display()))?;
     Ok(stats)
 }
 
