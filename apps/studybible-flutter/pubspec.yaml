@@ -56,19 +56,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-# Вендорный пакет: native_toolchain_rust 1.0.7 зашит на Android API 35,
-# а minSdk приложения — 26; патченая копия линкует мост под API 21
-# (открытый вопрос № 29, проверка — scripts/check-apk-api.ps1).
-dependency_overrides:
-  native_toolchain_rust:
-    path: third_party/native_toolchain_rust
-
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+# Вендорный пакет: native_toolchain_rust 1.0.7 зашит на Android API 35,
+# а minSdk приложения — 26; патченая копия линкует мост под API 21
+# (открытый вопрос № 29, проверка — scripts/check-apk-api.ps1).
+dependency_overrides:
+  native_toolchain_rust:
+    path: third_party/native_toolchain_rust
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
