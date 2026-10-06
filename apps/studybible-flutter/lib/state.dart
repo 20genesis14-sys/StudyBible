@@ -19,6 +19,11 @@ import 'theme.dart';
 /// Два варианта вёрстки главы.
 enum LayoutMode { paragraphs, versePerLine, book }
 
+/// Режим экрана чтения (ADR 0015): «Чтение» — чистый текст без
+/// учебных меток; «Изучение» — стих на строку, маркеры сносок,
+/// параллельных мест и номеров Стронга.
+enum ReaderMode { reading, study }
+
 /// Ширина текстовой колонки на десктопе.
 enum ColumnWidth { reading, full }
 
@@ -50,6 +55,9 @@ class Settings extends ChangeNotifier {
   LayoutMode layoutMode = LayoutMode.paragraphs;
   ColumnWidth columnWidth = ColumnWidth.full;
 
+  /// Режим «Чтение» / «Изучение» (ADR 0015).
+  ReaderMode readerMode = ReaderMode.reading;
+
   /// Шрифт текста главы.
   ReadingFont readingFont = ReadingFont.literata;
 
@@ -80,6 +88,7 @@ class Settings extends ChangeNotifier {
         fontScale = (j['fontScale'] as num? ?? 1.0).toDouble();
         layoutMode = LayoutMode.values[j['layoutMode'] as int? ?? 0];
         columnWidth = ColumnWidth.values[j['columnWidth'] as int? ?? 1];
+        readerMode = ReaderMode.values[j['readerMode'] as int? ?? 0];
         readingFont = ReadingFont.values[j['readingFont'] as int? ?? 0];
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
         lang = j['lang'] as String? ?? 'ru';
@@ -99,6 +108,7 @@ class Settings extends ChangeNotifier {
       'fontScale': fontScale,
       'layoutMode': layoutMode.index,
       'columnWidth': columnWidth.index,
+      'readerMode': readerMode.index,
       'readingFont': readingFont.index,
       'versePickerEnabled': versePickerEnabled,
       'lang': lang,

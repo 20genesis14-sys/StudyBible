@@ -125,6 +125,51 @@ extension _ReaderChrome on _ReadingScreenState {
     ];
   }
 
+  /// Переключатель «Чтение / Изучение» (ADR 0015): компактная
+  /// двухсегментная пилюля в верхней панели.
+  Widget _modeSwitch(Palette p) {
+    Widget seg(String label, ReaderMode m) {
+      final on = settings.readerMode == m;
+      return InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: on
+            ? null
+            : () => settings.update(() => settings.readerMode = m),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color: on ? p.accent.withValues(alpha: 0.16) : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+              color: on ? p.accent : p.muted,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: p.edge.withValues(alpha: 0.30),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          seg(tr('Чтение', 'Read'), ReaderMode.reading),
+          seg(tr('Изучение', 'Study'), ReaderMode.study),
+        ],
+      ),
+    );
+  }
+
   Widget _topBar(Palette p, Color color, {required bool wide}) {
     // Фон панели рисуем ПОД строкой состояния (edge-to-edge), а
     // содержимое опускаем на её высоту — иначе над панелью остаётся
@@ -198,13 +243,18 @@ extension _ReaderChrome on _ReadingScreenState {
                           reverse: true,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: _toolActions(p),
+                            children: [
+                              _modeSwitch(p),
+                              const SizedBox(width: 6),
+                              ..._toolActions(p),
+                            ],
                           ),
                         ),
                       ),
                     ),
                   ] else ...[
                     const Spacer(),
+                    _modeSwitch(p),
                     _searchPill(p),
                   ],
                 ],

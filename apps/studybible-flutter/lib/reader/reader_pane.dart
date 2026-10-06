@@ -7,8 +7,12 @@ extension _ReaderPane on _ReadingScreenState {
         ? 720.0
         : double.infinity;
     Widget content;
-    if (settings.layoutMode == LayoutMode.book && !_interleaved && !_compare) {
-      // «Бесконечная книга»: вся книга одной лентой.
+    if (settings.layoutMode == LayoutMode.book &&
+        !_interleaved &&
+        !_compare &&
+        !_study) {
+      // «Бесконечная книга»: вся книга одной лентой. В режиме
+      // «Изучение» лента уступает построчной вёрстке главы.
       return _bookFeed(p, wide);
     }
     if (ch == null) {

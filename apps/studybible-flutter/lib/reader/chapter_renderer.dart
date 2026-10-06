@@ -4,6 +4,11 @@ part of '../screens/reading_screen.dart';
 extension _ChapterRenderer on _ReadingScreenState {
   // ---------- спаны ----------
 
+  /// Режим «Изучение» (ADR 0015): стих на строку + учебные метки
+  /// (сноски, параллельные, подчёркивания Стронга). В режиме
+  /// «Чтение» метки скрыты — чистый текст.
+  bool get _study => settings.readerMode == ReaderMode.study;
+
   /// Иврит/арамейский — RTL и специальный шрифт с оглашёнными.
   bool get _isRtl => const {
     'he',
@@ -126,6 +131,8 @@ extension _ChapterRenderer on _ReadingScreenState {
       );
     }
     if (s is NoteSpanDoc) {
+      // В режиме «Чтение» маркеров нет — чистый текст (ADR 0015).
+      if (!_study) return const TextSpan();
       // Маркер сноски: «×» на акцентном фоне — читается как кнопка.
       // WidgetSpan+GestureDetector не принимает тап внутри параграфа,
       // поэтому остаёмся на TextSpan+recognizer с подсветкой фона.
@@ -147,7 +154,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       style: TextStyle(
         color: t.style == 'wj' ? p.jesus : p.ink,
         fontStyle: t.style == 'add' ? FontStyle.italic : null,
-        decoration: strong != null ? TextDecoration.underline : null,
+        decoration: _study && strong != null ? TextDecoration.underline : null,
         decorationStyle: TextDecorationStyle.dotted,
         decorationColor: p.muted,
         // Фон читаемого вслух стиха (null!=null-защита: без TTS не красим).
@@ -155,7 +162,7 @@ extension _ChapterRenderer on _ReadingScreenState {
             ? p.accent.withValues(alpha: 0.14)
             : null,
       ),
-      recognizer: strong != null
+      recognizer: _study && strong != null
           ? _tap(() => _showStrong(strong, t.text))
           : null,
     );
@@ -432,7 +439,8 @@ extension _ChapterRenderer on _ReadingScreenState {
     // Модуль-подстрочник (пары слово/слово в attrs gr="…") во всех
     // режимах рисуется колонками «перевод над оригиналом».
     if (_hasPairs(ch)) return _buildPairsChapter(ch, p, peek: peek);
-    if (settings.layoutMode == LayoutMode.versePerLine) {
+    // «Изучение» — всегда стих на строку (ADR 0015).
+    if (_study || settings.layoutMode == LayoutMode.versePerLine) {
       return _buildVerseLines(ch, p, peek);
     }
     return _buildBlocks(ch, p, peek);
