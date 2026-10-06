@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data.dart';
 import '../l10n.dart';
+import '../state.dart';
 import '../native_bridge.dart' show UserEntry;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
@@ -27,11 +28,19 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
   /// Выбранный тег-фильтр; null — все.
   String? _tag;
+  final _noteCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+    notes.load();
+  }
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -139,6 +148,18 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               ),
             ),
           if (_tag == null) ...[
+            _header(tr('Заметки', 'Notes'), p),
+            _noteComposer(p),
+            ListenableBuilder(
+              listenable: notes,
+              builder: (_, _) => Column(
+                children: [
+                  if (notes.items.isEmpty)
+                    _empty(tr('Заметок пока нет', 'No notes yet'), p),
+                  for (final n in notes.items) _noteTile(n, p),
+                ],
+              ),
+            ),
             _header(tr('Закладки', 'Bookmarks'), p),
             if (_marks.isEmpty)
               _empty(tr('Закладок пока нет', 'No bookmarks yet'), p),
@@ -166,6 +187,74 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
           ],
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  /// Поле «новая заметка»: текст + кнопка добавления.
+  Widget _noteComposer(Palette p) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _noteCtrl,
+              maxLines: 3,
+              minLines: 1,
+              style: TextStyle(fontSize: 14, color: p.ink),
+              decoration: InputDecoration(
+                hintText: tr('Новая заметка…', 'New note…'),
+                hintStyle: TextStyle(color: p.muted),
+                isDense: true,
+                filled: true,
+                fillColor: p.card,
+                contentPadding: const EdgeInsets.all(10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: p.edge),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: p.edge),
+                ),
+              ),
+              onSubmitted: (_) => _addNote(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            style: IconButton.styleFrom(backgroundColor: p.accent),
+            icon: Icon(Icons.add, color: p.onAccent),
+            tooltip: tr('Добавить', 'Add'),
+            onPressed: _addNote,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addNote() {
+    notes.add(_noteCtrl.text);
+    _noteCtrl.clear();
+  }
+
+  Widget _noteTile(NoteItem n, Palette p) {
+    return ListTile(
+      dense: true,
+      leading: Icon(Icons.sticky_note_2_outlined, size: 18, color: p.accent),
+      title: Text(n.text, style: TextStyle(color: p.ink, fontSize: 14)),
+      subtitle: Text(
+        '${n.created.day.toString().padLeft(2, '0')}.'
+        '${n.created.month.toString().padLeft(2, '0')}.'
+        '${n.created.year}',
+        style: TextStyle(color: p.muted, fontSize: 11),
+      ),
+      trailing: IconButton(
+        icon: Icon(Icons.close, size: 16, color: p.muted),
+        tooltip: tr('Удалить', 'Delete'),
+        onPressed: () => notes.remove(n),
       ),
     );
   }

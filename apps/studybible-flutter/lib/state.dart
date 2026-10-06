@@ -254,23 +254,56 @@ class NoteItem {
   NoteItem(this.id, this.text, this.created);
 }
 
-/// Заметки пользователя. Пока в памяти; персистентность через
-/// store::UserData (kind=note) — следующий шаг моста.
+/// Заметки пользователя: свободный текст, записи UserData kind='note'
+/// (userdata.db / localStorage на web). К стихам не привязаны —
+/// заметки к стиху живут в листе стиха (notes_sheet).
 class Notes extends ChangeNotifier {
   final List<NoteItem> items = [];
+  bool _loaded = false;
 
-  void add(String text) {
+  Future<void> load() async {
+    final all = await bridgeEntriesList('note');
+    items
+      ..clear()
+      ..addAll(
+        all.map(
+          (e) => NoteItem(
+            e.id,
+            e.text,
+            DateTime.fromMillisecondsSinceEpoch(e.created),
+          ),
+        ),
+      );
+    items.sort((a, b) => b.created.compareTo(a.created));
+    _loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> add(String text) async {
     final t = text.trim();
     if (t.isEmpty) return;
+    if (!_loaded) await load();
+    final id = await bridgeEntryAdd(
+      kind: 'note',
+      module: '',
+      book: '',
+      chapter: 0,
+      verse: 0,
+      text: t,
+      context: '',
+    );
+    // Мост может вернуть null (стаб/офлайн) — тогда локальный id.
     items.insert(
       0,
-      NoteItem('${DateTime.now().microsecondsSinceEpoch}', t, DateTime.now()),
+      NoteItem(id ?? 'local-${DateTime.now().microsecondsSinceEpoch}', t,
+          DateTime.now()),
     );
     notifyListeners();
   }
 
-  void remove(NoteItem n) {
+  Future<void> remove(NoteItem n) async {
     items.remove(n);
+    await bridgeEntryRemove(n.id);
     notifyListeners();
   }
 }

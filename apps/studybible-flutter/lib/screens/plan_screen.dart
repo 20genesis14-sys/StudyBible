@@ -146,7 +146,7 @@ class _PlanScreenState extends State<PlanScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     return ListenableBuilder(
-      listenable: Listenable.merge([progress, notes]),
+      listenable: progress,
       builder: (context, _) {
         final body = ListView(
           padding: const EdgeInsets.all(16),
