@@ -2,7 +2,7 @@ import '../l10n.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show FontFeature, ImageFilter;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';

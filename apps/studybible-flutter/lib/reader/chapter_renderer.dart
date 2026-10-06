@@ -55,20 +55,41 @@ extension _ChapterRenderer on _ReadingScreenState {
     Set<int>? anchorVerses,
   ]) {
     int? cur;
+    var noteIdx = 0;
     final took = <int>{};
     final out = <InlineSpan>[];
     for (final s in b.spans) {
       var anchor = false;
       if (s is VerseSpanDoc) {
         cur = s.verse;
+        noteIdx = 0;
         anchor =
             anchorVerses != null &&
             anchorVerses.contains(s.verse) &&
             took.add(s.verse);
       }
+      if (s is NoteSpanDoc) {
+        out.add(_spanOf(s, p, chCtx, cur, anchor, noteIdx++));
+        continue;
+      }
       out.add(_spanOf(s, p, chCtx, cur, anchor));
     }
     return out;
+  }
+
+  /// Буквы сносок по порядку внутри стиха (без «i», «l», «o» —
+  /// их легко спутать с цифрами/буквами слова).
+  static const _fnLetters = 'abcdefghjkmnpqrstuvwxyz';
+
+  /// Спаны одного стиха (versePerLine / строчное сравнение):
+  /// сноски нумеруются буквами a, b, c… внутри стиха.
+  List<InlineSpan> _verseSpans(List<SpanDoc> spans, Palette p, int v) {
+    var ni = 0;
+    return [
+      for (final s in spans)
+        if (s is! VerseSpanDoc)
+          _spanOf(s, p, null, v, false, s is NoteSpanDoc ? ni++ : 0),
+    ];
   }
 
   InlineSpan _spanOf(
@@ -77,6 +98,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     int? chCtx,
     int? vCtx,
     bool anchor = false,
+    int noteIdx = 0,
   ]) {
     final inChapter = chCtx == null || chCtx == _ch;
     if (s is VerseSpanDoc) {
@@ -138,18 +160,36 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (s.kind == 'x' ? !settings.layerXrefs : !settings.layerFootnotes) {
         return const TextSpan();
       }
-      // Маркер сноски: «×» на акцентном фоне — читается как кнопка.
-      // WidgetSpan+GestureDetector не принимает тап внутри параграфа,
-      // поэтому остаёмся на TextSpan+recognizer с подсветкой фона.
+      // Вариант А (ADR 0015): надстрочная буква у слова без пробела;
+      // для параллельных мест — «°». Маркер модуля (caller) имеет
+      // приоритет над автоматической буквой; '+'/'*' — не буквы.
+      final caller = s.caller.trim();
+      final mark = s.kind == 'x'
+          ? '°'
+          : (caller.isNotEmpty && caller != '+' && caller != '*'
+                ? caller
+                : _fnLetters[noteIdx % _fnLetters.length]);
       return TextSpan(
-        text: ' ${s.kind == 'x' ? '×' : '*'} ',
+        text: mark,
         style: TextStyle(
-          fontSize: 12 * settings.fontScale,
-          color: p.accent,
+          fontSize: 11 * settings.fontScale,
           fontWeight: FontWeight.w800,
-          backgroundColor: p.accent.withValues(alpha: 0.18),
+          color: p.accent,
+          fontFeatures: const [FontFeature.superscripts()],
         ),
-        recognizer: _tap(_openNotes),
+        semanticsLabel: s.kind == 'x'
+            ? tr('Параллельные места', 'Cross-references')
+            : tr('Сноска $mark', 'Footnote $mark'),
+        // Тап → карточка сноски (ADR 0015), «Все сноски» — список главы.
+        recognizer: _tap(
+          () => showNoteCard(
+            context,
+            note: s,
+            verse: vCtx ?? 0,
+            onRef: _goToRef,
+            onShowAll: _openNotes,
+          ),
+        ),
       );
     }
     final t = s as TextSpanDoc;
@@ -913,10 +953,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                 child: Text.rich(
                   TextSpan(
                     style: _baseStyle(p),
-                    children: [
-                      for (final s in verses[v]!)
-                        if (s is! VerseSpanDoc) _spanOf(s, p, null, v),
-                    ],
+                    children: _verseSpans(verses[v]!, p, v),
                   ),
                 ),
               ),
@@ -1193,10 +1230,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                     child: Text.rich(
                       TextSpan(
                         style: _baseStyle(p),
-                        children: [
-                          for (final s in verses[v]!)
-                            if (s is! VerseSpanDoc) _spanOf(s, p, null, v),
-                        ],
+                        children: _verseSpans(verses[v]!, p, v),
                       ),
                     ),
                   ),

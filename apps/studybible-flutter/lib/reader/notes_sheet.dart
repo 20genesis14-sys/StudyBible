@@ -98,6 +98,97 @@ class NotesSheet extends StatelessWidget {
   }
 }
 
+/// Карточка одной сноски/параллельного места по тапу на маркер
+/// (ADR 0015). Показывает текст с активными ссылками; кнопка
+/// «Все сноски» открывает полный список главы.
+void showNoteCard(
+  BuildContext context, {
+  required NoteSpanDoc note,
+  required int verse,
+  required void Function(Ref) onRef,
+  VoidCallback? onShowAll,
+}) {
+  final p = context.palette;
+  showModalBottomSheet(
+    context: context,
+    builder: (_) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: note.kind == 'x'
+                        ? p.accent.withValues(alpha: 0.14)
+                        : p.muted.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    note.kind == 'x'
+                        ? '°'
+                        : (note.caller.isEmpty ? '•' : note.caller),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: p.accent,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  note.kind == 'x'
+                      ? tr('Параллельные места', 'Cross-references')
+                      : tr('Сноска', 'Footnote'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: p.muted,
+                  ),
+                ),
+                if (verse > 0) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    tr('· ст. $verse', '· v. $verse'),
+                    style: TextStyle(fontSize: 13, color: p.muted),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Text.rich(
+                  TextSpan(children: _noteSpans(note.text, p, onRef)),
+                ),
+              ),
+            ),
+            if (onShowAll != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onShowAll();
+                  },
+                  child: Text(tr('Все сноски главы', 'All chapter notes')),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 /// Разбить текст сноски на спаны: обычный текст + гиперссылки
 /// «Быт 1:1» → onRef. Ссылки рисуем виджетом (тапабельным), текст — спанами.
 List<InlineSpan> _noteSpans(String text, Palette p, void Function(Ref) onRef) {
