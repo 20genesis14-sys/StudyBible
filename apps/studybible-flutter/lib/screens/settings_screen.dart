@@ -437,13 +437,11 @@ class SettingsScreen extends StatelessWidget {
   }) {
     final inner = LayoutBuilder(
       builder: (_, c) {
-        final narrow = c.maxWidth < 400;
-        final ctrl = narrow
-            ? SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: control,
-              )
-            : control;
+        final narrow = c.maxWidth < 480;
+        final ctrl = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: control,
+        );
         if (narrow) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -459,7 +457,8 @@ class SettingsScreen extends StatelessWidget {
             Expanded(
               child: Text(label, style: TextStyle(fontSize: 14, color: p.ink)),
             ),
-            ctrl,
+            const SizedBox(width: 8),
+            Flexible(child: ctrl),
           ],
         );
       },

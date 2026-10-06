@@ -26,7 +26,6 @@ import '../theme.dart';
 import '../workspace/workspace_model.dart';
 import 'history_screen.dart';
 import 'search_screen.dart';
-import 'settings_screen.dart';
 import 'verse_compare_screen.dart';
 import '../routes.dart';
 

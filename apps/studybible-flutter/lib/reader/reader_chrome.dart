@@ -631,11 +631,6 @@ extension _ReaderChrome on _ReadingScreenState {
               Navigator.of(context).push(fastRoute(const HistoryScreen()));
             }),
             item(
-              Icons.my_location_outlined,
-              tr('Перейти к стиху…', 'Go to verse…'),
-              _gotoVerseDialog,
-            ),
-            item(
               Icons.view_agenda_outlined,
               tr('Вёрстка', 'Layout'),
               _layoutSheet,
@@ -653,9 +648,7 @@ extension _ReaderChrome on _ReadingScreenState {
             item(
               Icons.text_fields,
               tr('Шрифт и тема', 'Font and theme'),
-              () => Navigator.of(
-                context,
-              ).push(fastRoute(const SettingsScreen())),
+              _fontThemeSheet,
             ),
           ],
         ),
@@ -906,41 +899,130 @@ extension _ReaderChrome on _ReadingScreenState {
     }
   }
 
-  /// Диалог «Перейти к стиху…» — номер стиха текущей главы.
-  Future<void> _gotoVerseDialog() async {
-    final ctrl = TextEditingController();
-    final v = await showDialog<int>(
+  /// Лист «Шрифт и тема» — быстрые настройки чтения без ухода в «Настройки».
+  void _fontThemeSheet() {
+    final p = context.palette;
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('Перейти к стиху', 'Go to verse')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            hintText: '${_titleOf(_code)} $_ch:N',
-            border: const OutlineInputBorder(),
+      builder: (_) => SafeArea(
+        child: ListenableBuilder(
+          listenable: settings,
+          builder: (_, _) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('Тема', 'Theme'),
+                  style: TextStyle(fontSize: 12, color: p.muted),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<AppTheme>(
+                    showSelectedIcon: false,
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                    segments: [
+                      ButtonSegment(
+                        value: AppTheme.light,
+                        label: Text(tr('Светлая', 'Light')),
+                      ),
+                      ButtonSegment(
+                        value: AppTheme.dark,
+                        label: Text(tr('Тёмная', 'Dark')),
+                      ),
+                      const ButtonSegment(
+                        value: AppTheme.amoled,
+                        label: Text('AMOLED'),
+                      ),
+                    ],
+                    selected: {settings.theme},
+                    onSelectionChanged: (s) =>
+                        settings.update(() => settings.theme = s.first),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  tr('Шрифт текста', 'Reading font'),
+                  style: TextStyle(fontSize: 12, color: p.muted),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ReadingFont>(
+                    showSelectedIcon: false,
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    segments: [
+                      const ButtonSegment(
+                        value: ReadingFont.literata,
+                        label: Text('Literata'),
+                      ),
+                      const ButtonSegment(
+                        value: ReadingFont.gentium,
+                        label: Text('Gentium'),
+                      ),
+                      const ButtonSegment(
+                        value: ReadingFont.ptSerif,
+                        label: Text('PT Serif'),
+                      ),
+                      ButtonSegment(
+                        value: ReadingFont.system,
+                        label: Text(tr('Сист.', 'System')),
+                      ),
+                    ],
+                    selected: {settings.readingFont},
+                    onSelectionChanged: (s) =>
+                        settings.update(() => settings.readingFont = s.first),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text(
+                      tr('Размер', 'Size'),
+                      style: TextStyle(fontSize: 12, color: p.muted),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'x${settings.fontScale.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 12, color: p.muted),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: settings.fontScale,
+                  min: 0.8,
+                  max: 1.6,
+                  divisions: 8,
+                  onChanged: (v) =>
+                      settings.update(() => settings.fontScale = v),
+                ),
+                Text(
+                  tr(
+                    'Блаженны нищие духом, ибо их есть Царство Небесное.',
+                    'Blessed are the poor in spirit, for theirs is the kingdom of heaven.',
+                  ),
+                  style: TextStyle(
+                    fontFamily: readingFontFamily(settings.readingFont),
+                    fontSize: 16 * settings.fontScale,
+                    color: p.ink,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
           ),
-          onSubmitted: (t) => Navigator.of(ctx).pop(int.tryParse(t)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(tr('Отмена', 'Cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(int.tryParse(ctrl.text)),
-            child: Text(tr('Перейти', 'Go')),
-          ),
-        ],
       ),
     );
-    ctrl.dispose();
-    final max = _module?.verseCount(_code, _ch) ?? 0;
-    if (v == null || v < 1 || v > max) return;
-    _rebuild(() => _selectedVerse = v);
-    progress.setVerse(_code, _ch, v);
-    _scrollToVerse(v);
   }
 
   /// Закладка на главу целиком — mark-запись с verse=0.
