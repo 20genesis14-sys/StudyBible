@@ -136,6 +136,86 @@ fn embedded_fts() {
     assert!(!cache.exists(), "для модуля с fts кэш-индекс не создаётся");
 }
 
+/// Вопрос № 14: греческая конечная сигма и ивритские конечные формы
+/// находятся запросом обычными буквами.
+#[test]
+fn final_forms_search() {
+    let src = "\\id JHN\n\\mt1 Ин\n\\c 1\n\\p\n\
+               \\v 1 ἐν ἀρχῇ ἦν ὁ λόγος\n\
+               \\v 2 מֶלֶךְ שָׁלוֹם כָּל־הָאָרֶץ\n";
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", src);
+    let idx = SearchIndex::open(&dir.path().join("a.idx"), &m).unwrap();
+    // «λογοσ»/«λογος»/«ΛΟΓΟΣ» — один и тот же запрос.
+    for q in ["λογοσ", "λογος", "ΛΟΓΟΣ"] {
+        let hits = idx.search(q, 10).unwrap();
+        assert_eq!(hits.len(), 1, "запрос {q}");
+        assert_eq!(hits[0].verse, 1);
+    }
+    // Конечная буква ך в тексте, в запросе — обычная כ.
+    let hits = idx.search("מלך", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 2);
+    // Маккеф делит слова: «כל הארצ» = два слова, AND в одном стихе.
+    let hits = idx.search("כל הארצ", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+}
+
+/// Старый кэш с ключом другой версии нормализации перестраивается.
+#[test]
+fn cache_rebuilds_on_norm_version_change() {
+    let dir = tempfile::tempdir().unwrap();
+    let idx_path = dir.path().join("m.idx");
+    let (_, m) = module(&dir, "m.sb", SRC);
+    SearchIndex::open(&idx_path, &m).unwrap();
+    // Подменяем версию в ключе кэша на старую («:1»).
+    {
+        let conn = rusqlite::Connection::open(&idx_path).unwrap();
+        conn.execute(
+            "UPDATE meta SET value = replace(value, ':2', ':1') WHERE key='module'",
+            [],
+        )
+        .unwrap();
+    }
+    SearchIndex::open(&idx_path, &m).unwrap();
+    let conn = rusqlite::Connection::open(&idx_path).unwrap();
+    let key: String = conn
+        .query_row("SELECT value FROM meta WHERE key='module'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert!(key.ends_with(":2"), "кэш не перестроен: {key}");
+}
+
+/// Модуль со встроенной `fts` старой версии нормализации — читатель
+/// игнорирует её и строит кэш `.idx`.
+#[test]
+fn embedded_fts_old_version_falls_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("emb.sb");
+    let b = usfm::parse(SRC).unwrap();
+    let mut w = ModuleWriter::create(&path, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    w.build_search_index().unwrap();
+    w.finish().unwrap();
+    // Откатываем маркер на старую версию — как у модулей, собранных
+    // до расширения нормализации (ключа вообще не было).
+    {
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute("UPDATE meta SET value='1' WHERE key='norm_version'", [])
+            .unwrap();
+    }
+    let m = Module::open(&path).unwrap();
+    assert!(m.has_search_index());
+    let cache = dir.path().join("emb.idx");
+    let idx = SearchIndex::open(&cache, &m).unwrap();
+    assert_eq!(idx.search("свет", 10).unwrap().len(), 1);
+    assert!(cache.exists(), "старый fts должен откатываться на кэш");
+}
+
 #[test]
 fn query_quoting() {
     let dir = tempfile::tempdir().unwrap();

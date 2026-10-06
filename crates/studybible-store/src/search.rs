@@ -9,8 +9,11 @@ use studybible_core::normalize::for_search;
 
 use crate::module::{Module, ModuleError};
 
-/// Меняется при смене нормализации или схемы индекса — старый кэш тогда строится заново.
-const TOKENIZER_VERSION: &str = "1";
+/// Меняется при смене нормализации или схемы индекса — старый кэш тогда
+/// строится заново, а встроенная `fts` модуля с другой версией
+/// (`meta.norm_version`) игнорируется в пользу кэша (ADR 0016 п. 11).
+/// «2» — конечные буквы иврита, маккеф и конечная сигма (вопрос № 14).
+pub(crate) const TOKENIZER_VERSION: &str = "2";
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -33,12 +36,27 @@ pub struct SearchIndex {
     conn: Connection,
 }
 
+/// Версия нормализации встроенного `fts` (`meta.norm_version`);
+/// отсутствие ключа — индекс построен правилами версии «1».
+fn module_norm_version(module: &Module) -> Result<String, ModuleError> {
+    Ok(module
+        .conn()
+        .query_row("SELECT value FROM meta WHERE key='norm_version'", [], |r| {
+            r.get::<_, String>(0)
+        })
+        .optional()?
+        .unwrap_or_else(|| "1".into()))
+}
+
 impl SearchIndex {
     /// Открыть индекс модуля: у модуля со встроенной таблицей `fts`
     /// (ADR 0016 п. 11) поиск идёт прямо по файлу модуля, иначе —
     /// кэш `.idx` по пути `path`; при несовпадении ключа перестроить.
     pub fn open(path: &Path, module: &Module) -> Result<Self, ModuleError> {
-        if module.has_search_index() {
+        // Встроенная `fts` действительна только при совпадающей версии
+        // нормализации; старый индекс (без `meta.norm_version` = «1»)
+        // пропускаем — дальше строится/открывается кэш `.idx`.
+        if module.has_search_index() && module_norm_version(module)? == TOKENIZER_VERSION {
             let conn =
                 Connection::open_with_flags(module.path(), OpenFlags::SQLITE_OPEN_READ_ONLY)?;
             conn.execute_batch("PRAGMA query_only=ON; PRAGMA trusted_schema=OFF")?;

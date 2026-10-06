@@ -496,8 +496,14 @@ Future<DictArticleInfo?> bridgeDictEntry(String path, int ord) async {
 
 // ---------- поиск ----------
 
+/// Версия правил нормализации, с которой сопоставляется встроенная
+/// `fts` модуля (`meta.norm_version`, ADR 0016 п. 11); «2» — конечные
+/// буквы иврита, маккеф → пробел, ς→σ.
+const String _normVersion = '2';
+
 /// Нормализация запроса под колонку `fts.norm` — лёгкий аналог
-/// `core::normalize::for_search` (регистр, ё→е, снятие диакритики).
+/// `core::normalize::for_search` (регистр, ё→е, снятие диакритики,
+/// конечные формы иврита, маккеф, конечная сигма).
 String _normSearchQuery(String s) {
   final b = StringBuffer();
   for (final c in s.toLowerCase().split('')) {
@@ -512,6 +518,23 @@ String _normSearchQuery(String s) {
         b.write('ф');
       case 'ѵ':
         b.write('и');
+      // Конечные формы иврита → обычные буквы.
+      case 'ך':
+        b.write('כ');
+      case 'ם':
+        b.write('מ');
+      case 'ן':
+        b.write('נ');
+      case 'ף':
+        b.write('פ');
+      case 'ץ':
+        b.write('צ');
+      // Маккеф — разделитель слов.
+      case '־':
+        b.write(' ');
+      // Конечная сигма → обычная (Σ уже даёт σ).
+      case 'ς':
+        b.write('σ');
       default:
         b.write(c);
     }
@@ -540,7 +563,15 @@ Future<List<SearchHit>> bridgeModuleSearch(
     final hasFts = db.select(
       "SELECT count(*) AS n FROM sqlite_master WHERE name='fts' AND sql LIKE '%VIRTUAL TABLE%'",
     );
-    if ((hasFts.first['n'] as num) > 0) {
+    // Встроенный индекс годится только при совпадающей версии
+    // нормализации (meta.norm_version); старый — LIKE-скан.
+    final normVer = (hasFts.first['n'] as num) > 0
+        ? db.select("SELECT value AS v FROM meta WHERE key='norm_version'")
+        : const [];
+    final ftsOk = (hasFts.first['n'] as num) > 0 &&
+        normVer.isNotEmpty &&
+        '${normVer.first['v']}' == _normVersion;
+    if (ftsOk) {
       final terms = _normSearchQuery(q)
           .split(RegExp(r'\s+'))
           .where((w) => w.isNotEmpty)

@@ -538,6 +538,8 @@ impl ModuleWriter {
     /// Встроить поисковый индекс FTS5 в модуль (таблица `fts`,
     /// ADR 0016 п. 11). Та же схема и нормализация, что у кэш-индекса
     /// `SearchIndex`; читатель без `fts` строит кэш как раньше.
+    /// В `meta.norm_version` пишется версия правил нормализации —
+    /// читатель с другой версией откатится на кэш `.idx`.
     pub fn build_search_index(&self) -> Result<()> {
         self.conn.execute_batch(
             "CREATE VIRTUAL TABLE fts USING fts5(
@@ -569,6 +571,7 @@ impl ModuleWriter {
                 ])?;
             }
         }
+        self.set_meta("norm_version", crate::search::TOKENIZER_VERSION)?;
         Ok(())
     }
 

@@ -18,6 +18,16 @@ pub fn for_search(s: &str) -> String {
             'і' | 'І' => out.push('и'),
             'ѳ' | 'Ѳ' => out.push('ф'),
             'ѵ' | 'Ѵ' => out.push('и'),
+            // Конечные формы иврита → обычные буквы.
+            'ך' => out.push('כ'),
+            'ם' => out.push('מ'),
+            'ן' => out.push('נ'),
+            'ף' => out.push('פ'),
+            'ץ' => out.push('צ'),
+            // Маккеф — дефис иврита, для поиска это разделитель слов.
+            '\u{05be}' => out.push(' '),
+            // Конечная сигма → обычная (Σ уже даёт σ через lowercase).
+            'ς' | 'Ϲ' => out.push('σ'),
             c if is_combining(c) => {}
             c => out.extend(c.to_lowercase()),
         }
