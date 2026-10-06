@@ -14,6 +14,7 @@ import 'native_bridge_stub.dart'
     if (dart.library.io) 'native_bridge_io.dart'
     if (dart.library.html) 'native_bridge_web.dart';
 import 'native_bridge.dart' show UserEntry;
+import 'data.dart' show kModules, mainModuleId;
 import 'theme.dart';
 
 /// Два варианта вёрстки главы.
@@ -86,6 +87,10 @@ class Settings extends ChangeNotifier {
   /// Перевод для текстов параллельных мест/сносок ('' — основной).
   String xrefModule = '';
 
+  /// Переводы на экране «стих во всех переводах»
+  /// (через запятую; '' — все установленные).
+  String compareModules = '';
+
   /// Язык интерфейса: 'ru' | 'en'.
   String lang = 'ru';
 
@@ -120,6 +125,7 @@ class Settings extends ChangeNotifier {
         activePlan = j['activePlan'] as String? ?? '';
         planStart = j['planStart'] as String? ?? '';
         xrefModule = j['xrefModule'] as String? ?? '';
+        compareModules = j['compareModules'] as String? ?? '';
         lang = j['lang'] as String? ?? 'ru';
         defaultModule = j['defaultModule'] as String? ?? 'russyn';
       }
@@ -147,6 +153,7 @@ class Settings extends ChangeNotifier {
       'activePlan': activePlan,
       'planStart': planStart,
       'xrefModule': xrefModule,
+      'compareModules': compareModules,
       'lang': lang,
       'defaultModule': defaultModule,
     });
@@ -176,6 +183,16 @@ class Settings extends ChangeNotifier {
     notifyListeners();
     if (_loaded) _save();
   }
+
+  /// Модули для экрана «стих во всех переводах»: явный список или,
+  /// если не задан, все установленные.
+  List<String> get compareList => compareModules.isEmpty
+      ? kModules.keys.toList()
+      : compareModules.split(',').where(kModules.containsKey).toList();
+
+  /// Модуль для текстов в карточках параллельных мест.
+  String get xrefModuleOrMain =>
+      xrefModule.isEmpty ? mainModuleId() : xrefModule;
 }
 
 /// Единственный экземпляр настроек.

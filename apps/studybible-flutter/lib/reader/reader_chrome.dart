@@ -1165,13 +1165,21 @@ extension _ReaderChrome on _ReadingScreenState {
                           tr('Параллельные', 'Cross-refs'),
                           _openNotes,
                         ),
-                      btn(Icons.compare_arrows, tr('Сравнить', 'Compare'), () {
-                        _rebuild(() => _compare = true);
-                        final second = _mods[_compareModuleId];
-                        if (second != null) {
-                          _ensureChapter(second, _code, _ch);
-                        }
-                      }),
+                      // «Сравнить» — стих во всех переводах
+                      // (экран; выбор модулей — в настройках).
+                      btn(
+                        Icons.compare_arrows,
+                        tr('Сравнить', 'Compare'),
+                        () => Navigator.of(context).push(
+                          fastRoute(
+                            VerseCompareScreen(
+                              bookCode: _code,
+                              chapter: _ch,
+                              verse: v,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

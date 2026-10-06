@@ -291,6 +291,52 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                _section(
+                  p,
+                  tr('Переводы для сравнения', 'Compare translations'),
+                ),
+                _card(
+                  p,
+                  // Экран «стих во всех переводах» (тап по стиху →
+                  // «Сравнить») показывает только отмеченные модули;
+                  // все отмечены == все установленные.
+                  ListenableBuilder(
+                    listenable: settings,
+                    builder: (context, _) {
+                      final sel = settings.compareModules.isEmpty
+                          ? kModules.keys.toSet()
+                          : settings.compareModules
+                                .split(',')
+                                .where((s) => s.isNotEmpty)
+                                .toSet();
+                      return Column(
+                        children: [
+                          for (final e in kModules.entries)
+                            CheckboxListTile(
+                              dense: true,
+                              value: sel.contains(e.key),
+                              title: Text(e.value),
+                              activeColor: p.accent,
+                              onChanged: (on) {
+                                final next = Set.of(sel);
+                                if (on ?? false) {
+                                  next.add(e.key);
+                                } else {
+                                  next.remove(e.key);
+                                }
+                                settings.update(
+                                  () => settings.compareModules =
+                                      next.length == kModules.length
+                                      ? ''
+                                      : next.join(','),
+                                );
+                              },
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
                 _section(p, tr('Прогресс', 'Progress')),
                 _card(
                   p,
