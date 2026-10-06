@@ -41,8 +41,8 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 `versification` (`rsc`, `org`…), `name_profile` (`syn`, `alt`, `en`), `book_order`
 (`list`, `syn`), `version`, `license`, `attribution`, `source`, `content_hash` (SHA-256
 потока чтения — часть ключа кэша поиска), `required` (список обязательных возможностей
-через запятую). Прочие ключи сохраняются в `extra` и не ломают чтение.
-Флаги прав (копирование, сеть, ИИ, плагины) в эти ключи не входят — вопрос № 15.
+через запятую). Флаги прав — необязательный ключ `rights` (см. расширения
+ниже; вопрос № 15 закрыт). Прочие ключи сохраняются в `extra` и не ломают чтение.
 
 ## Безопасное открытие (`Module::open`)
 
@@ -73,11 +73,18 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 - `variants(id, book, chapter, verse, token_from, token_to)`,
   `readings(variant_id, seq, text, is_base)`, `witnesses(reading_id, siglum)` —
   критический аппарат. Вход — TSV/JSON.
-- `.sbz` — `.sb`, сжатый zstd, только для передачи; импорт распаковывает.
+- `.sbz` — `.sb`, сжатый внешним кодеком, только для передачи; импорт
+  распаковывает. Заголовок: `magic "SBZ1"` + `codec_id` (1 байт) + payload.
+  Кодеки: `0` = zstd (обязателен), `1` = brotli, `2` = xz (зарезервирован);
+  прочие — на будущее, неизвестный кодек = понятная ошибка.
+- `meta.rights` — флаги прав через запятую: `no-distribute`, `no-net`,
+  `no-ai`, `no-plugins`. Отсутствие ключа = всё разрешено; честное
+  соглашение, не DRM (вопрос № 15).
 
 - Место сноски и ссылки в стихе: span `f`/`x` уже стоит в потоке на своём месте
-  (часть стиха). Принято (ADR 0015, 0016): текст привязки из
-  USFM `\fq`/`\xq`, OSIS `<catchWord>` и буква части из `\fr`/`\xo` (`1:1a`).
+  (часть стиха) — и для сносок, и для параллельных мест. Принято (ADR 0015,
+  0016): текст привязки из USFM `\fq`/`\xq`, OSIS `<catchWord>` и буква
+  части из `\fr`/`\xo` (`1:1a`).
 
 Точные столбцы и индексы фиксируются при реализации, до заморозки 1.0.
 Инструменты: `studybible module check`, `studybible module pack`, шаблоны TSV.
