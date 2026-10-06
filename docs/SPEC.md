@@ -8,6 +8,7 @@
 - [DECISIONS.md](DECISIONS.md) — принятые решения (источник истины).
 - [ROADMAP.md](ROADMAP.md) — дорожная карта и ход работ.
 - [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) — открытые вопросы.
+- [BUGS.md](BUGS.md) — журнал исправленных багов и недочётов.
 
 ## Разделы
 
