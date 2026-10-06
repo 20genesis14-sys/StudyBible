@@ -154,7 +154,7 @@ fn first_word(s: &str) -> (&str, &str) {
     (&s[..end], &s[end..])
 }
 
-fn normalize(s: &str) -> String {
+pub(crate) fn normalize(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut space = false;
     for c in s.chars() {
@@ -302,7 +302,7 @@ pub fn parse(src: &str) -> Result<Book, Error> {
     Ok(book)
 }
 
-fn current_block(ch: &mut Chapter) -> &mut Block {
+pub(crate) fn current_block(ch: &mut Chapter) -> &mut Block {
     if ch.blocks.is_empty() {
         ch.blocks.push(Block::default());
     }
@@ -310,6 +310,17 @@ fn current_block(ch: &mut Chapter) -> &mut Block {
 }
 
 fn push_text(ch: &mut Chapter, text: &str, styles: &[String]) {
+    let style = styles.last().cloned().unwrap_or_default();
+    let text = normalize(text);
+    let (text, attrs) = match text.split_once('|') {
+        Some((t, a)) if !style.is_empty() => (t.to_string(), a.trim().to_string()),
+        _ => (text, String::new()),
+    };
+    push_span(ch, &text, &style, attrs);
+}
+
+/// Текстовый промежуток без разбора `|`: стиль и атрибуты заданы явно (OSIS).
+pub(crate) fn push_span(ch: &mut Chapter, text: &str, style: &str, attrs: String) {
     let text = normalize(text);
     if text.trim().is_empty() && !text.is_empty() {
         if let Some(Span::Text { text: t, .. }) =
@@ -323,14 +334,11 @@ fn push_text(ch: &mut Chapter, text: &str, styles: &[String]) {
     if text.is_empty() {
         return;
     }
-    let style = styles.last().cloned().unwrap_or_default();
-    let (text, attrs) = match text.split_once('|') {
-        Some((t, a)) if !style.is_empty() => (t.to_string(), a.trim().to_string()),
-        _ => (text, String::new()),
-    };
-    current_block(ch)
-        .spans
-        .push(Span::Text { text, style, attrs });
+    current_block(ch).spans.push(Span::Text {
+        text,
+        style: style.to_string(),
+        attrs,
+    });
 }
 
 impl Book {

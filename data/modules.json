@@ -12,7 +12,8 @@
             "book_order": "syn",
             "version": "1.0.0",
             "license": "public domain",
-            "attribution": "eBible.org (russyn)"
+            "attribution": "eBible.org (russyn)",
+            "format": "usfm"
         },
         {
             "id": "engwebp",
@@ -25,7 +26,8 @@
             "book_order": "syn",
             "version": "1.0.0",
             "license": "public domain; \"World English Bible\" — товарный знак eBible.org, изменённый текст так называть нельзя",
-            "attribution": "eBible.org (engwebp)"
+            "attribution": "eBible.org (engwebp)",
+            "format": "usfm"
         },
         {
             "id": "eng-kjv2006",
@@ -38,7 +40,50 @@
             "book_order": "syn",
             "version": "1.0.0",
             "license": "public domain вне Великобритании (в UK — Letters Patent)",
-            "attribution": "eBible.org (eng-kjv2006)"
+            "attribution": "eBible.org (eng-kjv2006)",
+            "format": "usfm"
+        },
+        {
+            "id": "ru_rob",
+            "source": "ru_rob",
+            "title": "Русская открытая Библия (с номерами Стронга)",
+            "language": "ru",
+            "direction": "ltr",
+            "versification": "rsc",
+            "name_profile": "syn",
+            "book_order": "syn",
+            "version": "1.0.0",
+            "license": "CC BY-SA 4.0",
+            "attribution": "Door43-Catalog/ru_rob (unfoldingWord); обязательна ссылка на door43.org",
+            "format": "usfm"
+        },
+        {
+            "id": "englsv",
+            "source": "englsv",
+            "title": "Literal Standard Version (YHWH, Стронг)",
+            "language": "en",
+            "direction": "ltr",
+            "versification": "eng",
+            "name_profile": "en",
+            "book_order": "syn",
+            "version": "1.0.0",
+            "license": "© 2020 Covenant Press — free to read, distribute, and translate from",
+            "attribution": "eBible.org (englsv), lsvbible.com",
+            "format": "usfm"
+        },
+        {
+            "id": "engbsb",
+            "source": "engbsb",
+            "title": "Berean Standard Bible (критический аппарат, Стронг)",
+            "language": "en",
+            "direction": "ltr",
+            "versification": "eng",
+            "name_profile": "en",
+            "book_order": "syn",
+            "version": "1.0.0",
+            "license": "public domain",
+            "attribution": "eBible.org (engbsb); ~4500 сносок о разночтениях LXX/MT/DSS/SP/Vulgate",
+            "format": "usfm"
         }
     ]
 }

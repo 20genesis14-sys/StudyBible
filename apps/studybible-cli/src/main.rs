@@ -6,7 +6,7 @@ use std::process::ExitCode;
 mod speech;
 
 use speech::TtsSpeech;
-use studybible_convert::usfm;
+use studybible_convert::{osis, usfm, zefania};
 use studybible_core::speech::Speech;
 use studybible_core::text::Span;
 use studybible_core::{BookCatalog, BookCode, NameProfile, Versification, reference};
@@ -121,9 +121,11 @@ fn build(args: &[String]) -> Result<(), String> {
 
     for m in modules {
         let meta = meta_from(m)?;
+        // Формат исходного текста: usfm (по умолчанию) или osis.
+        let format = m.get("format").and_then(|f| f.as_str()).unwrap_or("usfm");
         let src = data.join("sources").join(&meta.source);
         let file = out.join(format!("{}.sb", meta.id));
-        let stats = build_module(&src, &file, &meta)?;
+        let stats = build_module(&src, &file, &meta, format)?;
         println!(
             "{}: {} книг, {} глав, {} стихов → {}",
             meta.id,
@@ -175,36 +177,63 @@ struct Stats {
     verses: usize,
 }
 
-fn build_module(src: &Path, out: &Path, meta: &Meta) -> Result<Stats, String> {
+fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Stats, String> {
+    let exts: &[&str] = match format {
+        "usfm" => &["usfm"],
+        "osis" => &["osis", "xml"],
+        "zefania" => &["xml"],
+        other => return Err(format!("modules.json: неизвестный format «{other}»")),
+    };
     let mut files: Vec<PathBuf> = std::fs::read_dir(src)
         .map_err(|e| format!("{}: {e}", src.display()))?
         .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| p.extension().is_some_and(|x| x == "usfm"))
+        .filter(|p| {
+            p.extension()
+                .is_some_and(|x| exts.contains(&x.to_str().unwrap_or("")))
+        })
         .collect();
     files.sort();
     if files.is_empty() {
-        return Err(format!("{}: нет *.usfm", src.display()));
+        return Err(format!(
+            "{}: нет файлов источника ({})",
+            src.display(),
+            exts.iter()
+                .map(|e| format!("*.{e}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
     }
 
     let mut stats = Stats::default();
     let mut w = ModuleWriter::create(out, meta).map_err(|e| e.to_string())?;
-    for (ord, f) in files.iter().enumerate() {
+    let mut ord = 0u16;
+    for f in files.iter() {
         let text = std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
-        let book = usfm::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?;
-        let title = ["toc1", "h", "mt1"]
-            .iter()
-            .find_map(|k| book.header.get(*k))
-            .cloned()
-            .unwrap_or_default();
-        w.add_book(book.code, ord as u16 + 1, &title, &book.header)
-            .map_err(|e| e.to_string())?;
-        stats.books += 1;
-        stats.chapters += book.chapters.len();
-        let mut chapters = book.chapters;
-        chapters.sort_by_key(|c| c.number);
-        for ch in &chapters {
-            stats.verses += ch.verse_texts().len();
-            w.add_chapter(book.code, ch).map_err(|e| e.to_string())?;
+        // OSIS/Zefania-файл может нести несколько книг, USFM — одну.
+        let books = match format {
+            "osis" => osis::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
+            "zefania" => {
+                zefania::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?
+            }
+            _ => vec![usfm::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?],
+        };
+        for book in books {
+            ord += 1;
+            let title = ["toc1", "h", "mt1"]
+                .iter()
+                .find_map(|k| book.header.get(*k))
+                .cloned()
+                .unwrap_or_default();
+            w.add_book(book.code, ord, &title, &book.header)
+                .map_err(|e| e.to_string())?;
+            stats.books += 1;
+            stats.chapters += book.chapters.len();
+            let mut chapters = book.chapters;
+            chapters.sort_by_key(|c| c.number);
+            for ch in &chapters {
+                stats.verses += ch.verse_texts().len();
+                w.add_chapter(book.code, ch).map_err(|e| e.to_string())?;
+            }
         }
     }
     w.finish().map_err(|e| e.to_string())?;

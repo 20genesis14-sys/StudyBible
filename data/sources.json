@@ -30,6 +30,37 @@
                         "page":  "https://ebible.org/find/details.php?id=eng-kjv2006",
                         "license":  "public domain вне Великобритании (в UK — Letters Patent)",
                         "sha256":  "311bc503438e98ce64f70a85932e144911ab486743391e43398cf65e39052218"
+                    },
+                    {
+                        "id":  "ru_rob",
+                        "title":  "Русская открытая Библия (aligned to UGNT/UHB)",
+                        "language":  "ru",
+                        "format":  "usfm",
+                        "url":  "https://git.door43.org/Door43-Catalog/ru_rob/archive/master.zip",
+                        "page":  "https://git.door43.org/Door43-Catalog/ru_rob",
+                        "license":  "CC BY-SA 4.0; требуется атрибуция и share-alike",
+                        "sha256":  "49428c3f6e4987856c2ff2059873cda7b83a93e38d646a5c2ec87448d4cb3ac8",
+                        "note": "zip распаковывается в ru_rob/*.usfm; перед сборкой прогоняется scripts/prep-rob.py (снятие \\zaln, перенос x-strong → \\w)"
+                    },
+                    {
+                        "id":  "englsv",
+                        "title":  "Literal Standard Version (YHWH, Стронг)",
+                        "language":  "en",
+                        "format":  "usfm",
+                        "url":  "https://eBible.org/Scriptures/englsv_usfm.zip",
+                        "page":  "https://ebible.org/find/details.php?id=englsv",
+                        "license":  "© 2020 Covenant Press — free to read, distribute, and translate from",
+                        "sha256":  "1944530ca36074c5666060ad8ba9345c2db4a9b841c318cc14446539a58e4618"
+                    },
+                    {
+                        "id":  "engbsb",
+                        "title":  "Berean Standard Bible (критический аппарат, Стронг)",
+                        "language":  "en",
+                        "format":  "usfm",
+                        "url":  "https://eBible.org/Scriptures/engbsb_usfm.zip",
+                        "page":  "https://ebible.org/find/details.php?id=engbsb",
+                        "license":  "public domain",
+                        "sha256":  "b77cc2d5161b03610204e2564934135b955ea87e534fd5ec7db336048699483b"
                     }
                 ]
 }

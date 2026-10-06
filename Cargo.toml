@@ -1,6 +1,13 @@
 [workspace]
 resolver = "3"
-members = ["crates/studybible-core", "crates/studybible-convert", "crates/studybible-store", "apps/studybible-cli"]
+members = [
+    "crates/studybible-core",
+    "crates/studybible-convert",
+    "crates/studybible-store",
+    "apps/studybible-cli",
+    # FFI-мост Flutter↔ядро (flutter_rust_bridge); живёт внутри приложения.
+    "apps/studybible-flutter/rust",
+]
 
 [workspace.package]
 version = "0.0.1"

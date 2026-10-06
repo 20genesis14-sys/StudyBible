@@ -64,6 +64,8 @@ pub enum Kind {
     Mark,
     /// Выделение (`text` — цвет, например `yellow`).
     Highlight,
+    /// Теги стиха (`text` — имена через запятую; одна запись на стих).
+    Tag,
 }
 
 impl Kind {
@@ -72,6 +74,7 @@ impl Kind {
             Self::Note => "note",
             Self::Mark => "mark",
             Self::Highlight => "hl",
+            Self::Tag => "tag",
         }
     }
 
@@ -80,6 +83,7 @@ impl Kind {
             "note" => Some(Self::Note),
             "mark" => Some(Self::Mark),
             "hl" | "highlight" => Some(Self::Highlight),
+            "tag" => Some(Self::Tag),
             _ => None,
         }
     }
