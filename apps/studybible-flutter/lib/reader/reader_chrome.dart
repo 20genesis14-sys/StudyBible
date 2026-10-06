@@ -310,6 +310,7 @@ extension _ReaderChrome on _ReadingScreenState {
               Expanded(
                 child: TextField(
                   controller: _searchCtrl,
+                  focusNode: _searchFocus,
                   autofocus: true,
                   textInputAction: TextInputAction.search,
                   style: TextStyle(fontSize: 14, color: p.ink),
@@ -447,10 +448,20 @@ extension _ReaderChrome on _ReadingScreenState {
                 Icons.search,
                 tr('Поиск', 'Search'),
                 _searchOpen,
-                () => _rebuild(() {
-                  _searchOpen = !_searchOpen;
-                  if (!_searchOpen) _searchCtrl.clear();
-                }),
+                () {
+                  _rebuild(() {
+                    _searchOpen = !_searchOpen;
+                    if (!_searchOpen) _searchCtrl.clear();
+                  });
+                  // Поле вставлено в этот же кадр — autofocus на
+                  // Android часто не поднимает клавиатуру; просим
+                  // фокус явно, когда виджет уже на дереве.
+                  if (_searchOpen) {
+                    WidgetsBinding.instance.addPostFrameCallback(
+                      (_) => _searchFocus.requestFocus(),
+                    );
+                  }
+                },
               ),
               btn(Icons.more_horiz, tr('Ещё', 'More'), false, _moreSheet),
             ],

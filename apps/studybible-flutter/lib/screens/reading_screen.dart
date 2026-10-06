@@ -87,6 +87,11 @@ class _ReadingScreenState extends State<ReadingScreen> {
   bool _searchOpen = false;
   final _searchCtrl = TextEditingController();
 
+  /// Фокус поля поиска: autofocus одного TextField при вставке в
+  /// уже показанный экран ненадёжен — фокус просим явно после
+  /// кадра (см. переключатель «Поиск»).
+  final _searchFocus = FocusNode();
+
   /// Второй перевод в режиме сравнения.
   late String _compareModuleId = _moduleId == 'engwebp' ? 'russyn' : 'engwebp';
   final ScrollController _compareScroll = ScrollController();
@@ -202,6 +207,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
     _tapRecognizers.clear();
     _ttsService.dispose();
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     _scroll.dispose();
     _compareScroll.dispose();
     super.dispose();
