@@ -63,7 +63,8 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 Ничего из этого не обязательно и не идёт в `required`.
 
 - `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` | `layer` | `critical`.
-- `meta.features`: `strongs,morph,tokens,alignment,variants,entries` (через запятую).
+- `meta.features`: `strongs,morph,tokens,alignment,variants,entries,fts,marks`
+  (через запятую).
 - `entries(ord INTEGER PRIMARY KEY, headword TEXT NOT NULL,
   norm TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '')` —
   словарные статьи для `kind=dictionary`: `ord` — порядок в словаре,
@@ -87,6 +88,22 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 - `meta.rights` — флаги прав через запятую: `no-distribute`, `no-net`,
   `no-ai`, `no-plugins`. Отсутствие ключа = всё разрешено; честное
   соглашение, не DRM (вопрос № 15).
+- `fts` — виртуальная таблица FTS5 `fts(book UNINDEXED, chapter UNINDEXED,
+  verse UNINDEXED, norm)` (`tokenize='unicode61'`, `norm` = `for_search`
+  текста стиха) — готовый поисковый индекс внутри модуля. Собирается
+  конвертером по `"fts": true` в modules.json; читатель без неё строит
+  кэш `.idx` как раньше (вопрос № 23).
+- `marks(book, chapter, verse, seq, offset_ms, dur_ms, text)` — метки
+  времени: смещение от начала аудиодорожки главы (мс), `dur_ms` —
+  длительность (NULL = до следующей метки), `text` — слово/фраза для
+  подсветки. Под аудиобиблии и пословную подсветку TTS. Вход — TSV
+  (`"marks"` в modules.json): `стих<TAB>смещение_мс[<TAB>длит_мс][<TAB>слово]`,
+  `seq` — порядок строки в стихе.
+-  при `kind="commentary"` собирает из того же пакета модуль
+  комментариев: `VerseCommentaryMap` привязывает стих к
+  `VerseCommentary`, текст — срез `Document.Content` по диапазону
+  `DocumentParagraph` (ординалы = `ParagraphIndex`, позиции в байтах
+  UTF-8). Каждый блок главы начинается меткой `Span::Verse`.
 
 - Место сноски и ссылки в стихе: span `f`/`x` уже стоит в потоке на своём месте
   (часть стиха) — и для сносок, и для параллельных мест. Принято (ADR 0015,

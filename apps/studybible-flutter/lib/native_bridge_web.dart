@@ -496,8 +496,38 @@ Future<DictArticleInfo?> bridgeDictEntry(String path, int ord) async {
 
 // ---------- поиск ----------
 
-/// Простой поиск подстроки по тексту стихов модуля (web-фоллбэк
-/// вместо FTS5 — индекс под web не строим). Сниппет без подсветки.
+/// Нормализация запроса под колонку `fts.norm` — лёгкий аналог
+/// `core::normalize::for_search` (регистр, ё→е, снятие диакритики).
+String _normSearchQuery(String s) {
+  final b = StringBuffer();
+  for (final c in s.toLowerCase().split('')) {
+    switch (c) {
+      case 'ё':
+        b.write('е');
+      case 'ѣ':
+        b.write('е');
+      case 'і':
+        b.write('и');
+      case 'ѳ':
+        b.write('ф');
+      case 'ѵ':
+        b.write('и');
+      default:
+        b.write(c);
+    }
+  }
+  // Combining-диапазоны (ударения, огласовки) снимаем.
+  return b.toString().replaceAll(
+    RegExp('[\\u0300-\\u036F\\u0483-\\u0489\\u0591-\\u05BD\\u0610-\\u061A'
+        '\\u064B-\\u065F\\u0670\\u1AB0-\\u1AFF\\u1DC0-\\u1DFF'
+        '\\u20D0-\\u20FF\\uFE20-\\uFE2F\\u00AD\\u05BF\\u05C1\\u05C2'
+        '\\u05C4\\u05C5\\u05C7]'),
+    '',
+  );
+}
+
+/// Поиск по модулю: есть встроенная FTS5-таблица `fts` (ADR 0016) —
+/// MATCH-запрос прямо по ней; иначе — LIKE-скан по спанам.
 Future<List<SearchHit>> bridgeModuleSearch(
   String modulePath,
   String query, {
@@ -507,6 +537,35 @@ Future<List<SearchHit>> bridgeModuleSearch(
     final db = await _openDb(modulePath);
     final q = query.trim();
     if (q.isEmpty) return const [];
+    final hasFts = db.select(
+      "SELECT count(*) AS n FROM sqlite_master WHERE name='fts' AND sql LIKE '%VIRTUAL TABLE%'",
+    );
+    if ((hasFts.first['n'] as num) > 0) {
+      final terms = _normSearchQuery(q)
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .map((w) => '"${w.replaceAll('"', '""')}"')
+          .toList();
+      if (terms.isEmpty) return const [];
+      try {
+        final rows = db.select(
+          "SELECT book, chapter, verse, snippet(fts, 3, '[', ']', '…', 8) AS s"
+          ' FROM fts WHERE fts MATCH ? ORDER BY rank LIMIT ?',
+          [terms.join(' AND '), limit],
+        );
+        return [
+          for (final r in rows)
+            SearchHit(
+              book: '${r['book']}',
+              chapter: (r['chapter'] as num).toInt(),
+              verse: (r['verse'] as num).toInt(),
+              snippet: '${r['s']}',
+            ),
+        ];
+      } catch (_) {
+        // wasm-сборка sqlite без FTS5 или битый индекс — скан ниже.
+      }
+    }
     // Текст стиха живёт в спанах kind='t'; номера стихов — в спанах
     // kind='v' (колонки verse у spans нет): выводим его оконной функцией
     // как последний 'v' перед 't' внутри главы.

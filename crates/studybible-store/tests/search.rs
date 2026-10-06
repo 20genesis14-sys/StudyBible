@@ -111,6 +111,31 @@ fn index_reused_when_same() {
     );
 }
 
+/// Модуль со встроенной `fts` (ADR 0016 п. 11): поиск идёт по ней,
+/// кэш-файл `.idx` вообще не создаётся.
+#[test]
+fn embedded_fts() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("emb.sb");
+    let b = usfm::parse(SRC).unwrap();
+    let mut w = ModuleWriter::create(&path, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    w.build_search_index().unwrap();
+    w.finish().unwrap();
+
+    let m = Module::open(&path).unwrap();
+    assert!(m.has_search_index());
+    let cache = dir.path().join("emb.idx");
+    let idx = SearchIndex::open(&cache, &m).unwrap();
+    let hits = idx.search("свет", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 3);
+    assert!(!cache.exists(), "для модуля с fts кэш-индекс не создаётся");
+}
+
 #[test]
 fn query_quoting() {
     let dir = tempfile::tempdir().unwrap();

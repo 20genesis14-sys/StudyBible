@@ -138,7 +138,17 @@ fn build(args: &[String]) -> Result<(), String> {
                 .get("variants")
                 .and_then(|x| x.as_str())
                 .map(|v| src.join(v));
-            let stats = build_module(&src, &file, &meta, format, variants.as_deref())?;
+            // Необязательный TSV меток времени (ADR 0016 п. 12).
+            let marks = m.get("marks").and_then(|x| x.as_str()).map(|v| src.join(v));
+            let stats = build_module(
+                &src,
+                &file,
+                &meta,
+                format,
+                variants.as_deref(),
+                marks.as_deref(),
+                m.get("fts").and_then(|x| x.as_bool()).unwrap_or(false),
+            )?;
             Ok(format!(
                 "{}: {} книг, {} глав, {} стихов → {}",
                 meta.id,
@@ -226,6 +236,8 @@ fn build_module(
     meta: &Meta,
     format: &str,
     variants: Option<&Path>,
+    marks: Option<&Path>,
+    want_fts: bool,
 ) -> Result<Stats, String> {
     let exts: &[&str] = match format {
         "usfm" => &["usfm"],
@@ -307,13 +319,23 @@ fn build_module(
     let mut has_gloss_pairs = false; // спаны с gr="…" — пары подстрочника
     let mut ord = 0u16;
     for f in files.iter() {
-        let text = std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
-        // OSIS/Zefania-файл может нести несколько книг, USFM — одну.
-        let books = match format {
-            "osis" => osis::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
-            "zefania" => zefania::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
-            "tsv" => tsv::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
-            _ => vec![usfm::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?],
+        //  — бинарный пакет (ZIP+SQLite), читается по пути, не текстом.
+        // kind="commentary" → модуль комментариев из VerseCommentary (ADR 0016 п. 13).
+        let books = if format == "" {
+            if meta.kind == "commentary" {
+                ::parse_commentary_file(f).map_err(|e| format!("{}: {}", f.display(), e.0))?
+            } else {
+                ::parse_file(f).map_err(|e| format!("{}: {}", f.display(), e.0))?
+            }
+        } else {
+            let text = std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
+            // OSIS/Zefania-файл может нести несколько книг, USFM — одну.
+            match format {
+                "osis" => osis::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
+                "zefania" => zefania::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
+                "tsv" => tsv::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
+                _ => vec![usfm::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?],
+            }
         };
         for book in books {
             ord += 1;
@@ -399,6 +421,41 @@ fn build_module(
         }
         if !list.is_empty() && !features.iter().any(|x| x == "variants") {
             features.push("variants".into());
+            w.set_meta("features", &features.join(","))
+                .map_err(|e| e.to_string())?;
+        }
+    }
+
+    // Метки времени из TSV (ADR 0016 п. 12).
+    if let Some(mf) = marks {
+        let text = std::fs::read_to_string(mf).map_err(|e| format!("{}: {e}", mf.display()))?;
+        let list = tsv::parse_marks(&text).map_err(|e| format!("{}: {}", mf.display(), e.0))?;
+        for m in &list {
+            w.add_mark(
+                m.book,
+                m.chapter,
+                &studybible_store::Mark {
+                    verse: m.verse,
+                    seq: m.seq,
+                    offset_ms: m.offset_ms,
+                    dur_ms: m.dur_ms,
+                    text: m.text.clone(),
+                },
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        if !list.is_empty() && !features.iter().any(|x| x == "marks") {
+            features.push("marks".into());
+            w.set_meta("features", &features.join(","))
+                .map_err(|e| e.to_string())?;
+        }
+    }
+
+    // Встроенный индекс FTS5 по запросу автора (ADR 0016 п. 11).
+    if want_fts {
+        w.build_search_index().map_err(|e| e.to_string())?;
+        if !features.iter().any(|x| x == "fts") {
+            features.push("fts".into());
             w.set_meta("features", &features.join(","))
                 .map_err(|e| e.to_string())?;
         }

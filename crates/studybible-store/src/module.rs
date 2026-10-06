@@ -243,6 +243,13 @@ CREATE TABLE witnesses(reading_id INTEGER NOT NULL, siglum TEXT NOT NULL,
 CREATE TABLE entries(ord INTEGER PRIMARY KEY, headword TEXT NOT NULL,
                      norm TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '');
 CREATE INDEX entries_norm ON entries(norm);
+-- ADR 0016 (необязательная): метки времени — синхронизация аудио и
+-- пословная подсветка TTS. offset_ms — от начала аудиодорожки главы;
+-- dur_ms NULL = до следующей метки; text — слово для подсветки.
+CREATE TABLE marks(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                   seq INTEGER NOT NULL, offset_ms INTEGER NOT NULL,
+                   dur_ms INTEGER, text TEXT NOT NULL DEFAULT '',
+                   PRIMARY KEY(book, chapter, verse, seq));
 ";
 
 /// Слово уровня токена (таблица `tokens`, ADR 0016).
@@ -259,6 +266,21 @@ pub struct Token {
     pub morph: String,
     /// Переводная глосса (для пар подстрочника — текст спана).
     pub gloss: String,
+}
+
+/// Метка времени (таблица `marks`, ADR 0016): позиция в аудиодорожке
+/// главы для синхронизации аудио и пословной подсветки TTS.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Mark {
+    pub verse: u16,
+    /// Порядок внутри стиха.
+    pub seq: u16,
+    /// Смещение от начала дорожки главы, мс.
+    pub offset_ms: u32,
+    /// Длительность, мс; None — звучит до следующей метки.
+    pub dur_ms: Option<u32>,
+    /// Слово/фраза метки (контроль и подсветка).
+    pub text: String,
 }
 
 /// Достать `key="значение"` из строки атрибутов спана.
@@ -496,6 +518,60 @@ impl ModuleWriter {
         Ok(())
     }
 
+    /// Добавить метку времени (таблица `marks`, ADR 0016).
+    pub fn add_mark(&self, book: BookCode, chapter: u16, mark: &Mark) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO marks VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                book.as_str(),
+                chapter,
+                mark.verse,
+                mark.seq,
+                mark.offset_ms,
+                mark.dur_ms,
+                mark.text
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Встроить поисковый индекс FTS5 в модуль (таблица `fts`,
+    /// ADR 0016 п. 11). Та же схема и нормализация, что у кэш-индекса
+    /// `SearchIndex`; читатель без `fts` строит кэш как раньше.
+    pub fn build_search_index(&self) -> Result<()> {
+        self.conn.execute_batch(
+            "CREATE VIRTUAL TABLE fts USING fts5(
+                 book UNINDEXED, chapter UNINDEXED, verse UNINDEXED, norm,
+                 tokenize='unicode61');",
+        )?;
+        {
+            let mut rd = self
+                .conn
+                .prepare("SELECT book, chapter, verse, text FROM verses")?;
+            let mut ins = self
+                .conn
+                .prepare_cached("INSERT INTO fts VALUES(?1, ?2, ?3, ?4)")?;
+            let rows = rd.query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, u16>(1)?,
+                    r.get::<_, u16>(2)?,
+                    r.get::<_, String>(3)?,
+                ))
+            })?;
+            for row in rows {
+                let (book, ch, v, text) = row?;
+                ins.execute(params![
+                    book,
+                    ch,
+                    v,
+                    studybible_core::normalize::for_search(&text)
+                ])?;
+            }
+        }
+        Ok(())
+    }
+
     /// Сколько токенов записано (для `meta.features = tokens`).
     pub fn tokens_written(&self) -> usize {
         self.tokens
@@ -525,11 +601,16 @@ impl ModuleWriter {
 pub struct Module {
     conn: Connection,
     meta: Meta,
+    /// Путь к файлу — нужен SearchIndex для встроенного `fts`.
+    path: std::path::PathBuf,
     /// Необязательные таблицы ADR 0016, которые есть в файле.
     has_tokens: bool,
     has_alignment: bool,
     has_variants: bool,
     has_entries: bool,
+    has_marks: bool,
+    /// Виртуальная таблица `fts` (FTS5) — готовый поисковый индекс.
+    has_fts: bool,
 }
 
 /// Связь токена со спаном потока чтения (таблица `alignment`, ADR 0016).
@@ -619,11 +700,22 @@ impl Module {
                 |r| r.get::<_, i64>(0),
             )? > 0)
         };
+        // FTS5-таблица — виртуальная: у её записи в sqlite_schema
+        // есть sql с CREATE VIRTUAL TABLE.
+        let has_fts = conn.query_row(
+            "SELECT count(*) FROM sqlite_schema
+             WHERE name='fts' AND sql LIKE '%VIRTUAL TABLE%'",
+            [],
+            |r| r.get::<_, i64>(0),
+        )? > 0;
         Ok(Self {
+            path: path.to_path_buf(),
             has_tokens: has("tokens")?,
             has_alignment: has("alignment")?,
             has_variants: has("variants")?,
             has_entries: has("entries")?,
+            has_marks: has("marks")?,
+            has_fts,
             conn,
             meta,
         })
@@ -637,6 +729,42 @@ impl Module {
     #[doc(hidden)]
     pub fn conn(&self) -> &Connection {
         &self.conn
+    }
+
+    /// Путь к файлу модуля.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Есть ли в модуле встроенный индекс FTS5 (таблица `fts`).
+    pub fn has_search_index(&self) -> bool {
+        self.has_fts
+    }
+
+    /// Метки времени главы (таблица `marks`, ADR 0016). Пусто —
+    /// у модулей без таблицы.
+    pub fn marks(&self, book: BookCode, chapter: u16) -> Result<Vec<Mark>> {
+        if !self.has_marks {
+            return Ok(vec![]);
+        }
+        let mut st = self.conn.prepare(
+            "SELECT verse, seq, offset_ms, dur_ms, text FROM marks
+             WHERE book=?1 AND chapter=?2 ORDER BY verse, seq",
+        )?;
+        let rows = st.query_map(params![book.as_str(), chapter], |r| {
+            Ok(Mark {
+                verse: r.get::<_, i64>(0)? as u16,
+                seq: r.get::<_, i64>(1)? as u16,
+                offset_ms: r.get::<_, i64>(2)? as u32,
+                dur_ms: r.get::<_, Option<i64>>(3)?.map(|d| d as u32),
+                text: r.get(4)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for m in rows {
+            out.push(m?);
+        }
+        Ok(out)
     }
 
     /// Книги в порядке модуля: код и заголовок.

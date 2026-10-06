@@ -100,3 +100,36 @@ fn tsv_entries_reject_bad() {
     assert!(tsv::parse_entries("одно поле без таба\n").is_err());
     assert!(tsv::parse_entries("\tтекст без заголовка\n").is_err());
 }
+
+// --- метки времени (ключ marks в modules.json) ---
+
+#[test]
+fn tsv_marks_parse() {
+    let src = "# аудио-метки Быт 1\n\
+               GEN 1:1\t0\t1200\tВ\n\
+               GEN 1:1\t1200\t800\tначале\n\
+               GEN 1:1\t2000\t\tсотворил\n\
+               GEN 1:2\t5400\n";
+    let ms = tsv::parse_marks(src).unwrap();
+    assert_eq!(ms.len(), 4);
+    assert_eq!(
+        (ms[0].seq, ms[0].offset_ms, ms[0].dur_ms),
+        (0, 0, Some(1200))
+    );
+    assert_eq!(ms[1].seq, 1);
+    // Пустая длительность — «до следующей метки».
+    assert_eq!(ms[2].dur_ms, None);
+    assert_eq!(ms[2].text, "сотворил");
+    // Стих 2 — свой счётчик seq.
+    assert_eq!(ms[3].verse, 2);
+    assert_eq!(ms[3].seq, 0);
+    assert_eq!(ms[3].text, "");
+}
+
+#[test]
+fn tsv_marks_reject_bad() {
+    assert!(tsv::parse_marks("GEN 1:1\n").is_err());
+    assert!(tsv::parse_marks("GEN 1:1\tне-число\n").is_err());
+    assert!(tsv::parse_marks("GEN 1:1\t10\tне-число\n").is_err());
+    assert!(tsv::parse_marks("плохая ссылка\t10\n").is_err());
+}

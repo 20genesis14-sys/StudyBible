@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use studybible_core::BookCode;
 use studybible_core::normalize::for_search;
 
@@ -34,8 +34,16 @@ pub struct SearchIndex {
 }
 
 impl SearchIndex {
-    /// Открыть кэш модуля; при несовпадении ключа перестроить.
+    /// Открыть индекс модуля: у модуля со встроенной таблицей `fts`
+    /// (ADR 0016 п. 11) поиск идёт прямо по файлу модуля, иначе —
+    /// кэш `.idx` по пути `path`; при несовпадении ключа перестроить.
     pub fn open(path: &Path, module: &Module) -> Result<Self, ModuleError> {
+        if module.has_search_index() {
+            let conn =
+                Connection::open_with_flags(module.path(), OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+            conn.execute_batch("PRAGMA query_only=ON; PRAGMA trusted_schema=OFF")?;
+            return Ok(Self { conn });
+        }
         let conn = Connection::open(path)?;
         conn.execute_batch(SCHEMA)?;
         conn.execute_batch("PRAGMA trusted_schema=OFF")?;

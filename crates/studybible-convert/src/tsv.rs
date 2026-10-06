@@ -288,3 +288,69 @@ pub fn parse_entries(src: &str) -> Result<Vec<EntryInput>, usfm::Error> {
     }
     Ok(out)
 }
+
+// ---------- метки времени (marks TSV) ----------
+
+/// Метка времени из TSV (ADR 0016): позиция в аудиодорожке главы.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MarkInput {
+    pub book: BookCode,
+    pub chapter: u16,
+    pub verse: u16,
+    /// Порядок внутри стиха (порядок строки для этого стиха).
+    pub seq: u16,
+    /// Смещение от начала дорожки главы, мс.
+    pub offset_ms: u32,
+    /// Длительность, мс; None — звучит до следующей метки.
+    pub dur_ms: Option<u32>,
+    /// Слово/фраза метки (может быть пустым).
+    pub text: String,
+}
+
+/// Разобрать TSV меток: `REF <TAB> смещение_мс [<TAB> длит_мс]
+/// [<TAB> слово]`. Пустая длительность — «до следующей метки».
+/// `seq` — счётчик строк внутри стиха.
+pub fn parse_marks(src: &str) -> Result<Vec<MarkInput>, usfm::Error> {
+    let mut out: Vec<MarkInput> = Vec::new();
+    for (ln, line) in src.lines().enumerate() {
+        let line = line.trim_end();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let f: Vec<&str> = line.split('\t').collect();
+        if f.len() < 2 {
+            return Err(usfm::Error(format!(
+                "TSV меток, строка {}: меньше 2 полей: «{line}»",
+                ln + 1
+            )));
+        }
+        let (book, chapter, verse) =
+            parse_ref(f[0]).map_err(|e| usfm::Error(format!("TSV строка {}: {}", ln + 1, e.0)))?;
+        let offset_ms: u32 = f[1].trim().parse().map_err(|_| {
+            usfm::Error(format!("TSV строка {}: смещение «{}»", ln + 1, f[1].trim()))
+        })?;
+        let dur_ms = f
+            .get(2)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                s.parse::<u32>()
+                    .map_err(|_| usfm::Error(format!("TSV строка {}: длительность «{s}»", ln + 1)))
+            })
+            .transpose()?;
+        let seq = out
+            .iter()
+            .filter(|m| m.book == book && m.chapter == chapter && m.verse == verse)
+            .count() as u16;
+        out.push(MarkInput {
+            book,
+            chapter,
+            verse,
+            seq,
+            offset_ms,
+            dur_ms,
+            text: f.get(3).map(|s| s.trim().to_string()).unwrap_or_default(),
+        });
+    }
+    Ok(out)
+}

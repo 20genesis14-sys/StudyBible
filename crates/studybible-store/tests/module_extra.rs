@@ -360,6 +360,67 @@ fn entries_roundtrip() {
 }
 
 #[test]
+fn marks_roundtrip() {
+    // ADR 0016 п. 12: метки времени — смещение/длительность/слово.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    let b = usfm::parse(SRC).unwrap();
+    let mut w = ModuleWriter::create(&p, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    use studybible_store::Mark;
+    w.add_mark(
+        b.code,
+        1,
+        &Mark {
+            verse: 1,
+            seq: 0,
+            offset_ms: 0,
+            dur_ms: Some(1200),
+            text: "В".into(),
+        },
+    )
+    .unwrap();
+    w.add_mark(
+        b.code,
+        1,
+        &Mark {
+            verse: 1,
+            seq: 1,
+            offset_ms: 1200,
+            dur_ms: None,
+            text: "начале".into(),
+        },
+    )
+    .unwrap();
+    w.add_mark(
+        b.code,
+        1,
+        &Mark {
+            verse: 2,
+            seq: 0,
+            offset_ms: 5400,
+            dur_ms: Some(900),
+            text: "Земля".into(),
+        },
+    )
+    .unwrap();
+    w.finish().unwrap();
+
+    let m = Module::open(&p).unwrap();
+    let marks = m.marks(b.code, 1).unwrap();
+    assert_eq!(marks.len(), 3);
+    assert_eq!(marks[0].offset_ms, 0);
+    assert_eq!(marks[0].dur_ms, Some(1200));
+    assert_eq!(marks[1].text, "начале");
+    assert_eq!(marks[1].dur_ms, None);
+    assert_eq!(marks[2].verse, 2);
+    assert!(m.marks(b.code, 2).unwrap().is_empty());
+}
+
+#[test]
 fn create_twice_fails() {
     // Повторная запись поверх существующего файла — ошибка схемы.
     let dir = tempfile::tempdir().unwrap();
