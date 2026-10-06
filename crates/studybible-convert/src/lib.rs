@@ -4,5 +4,6 @@
 //! на мобильных — напрямую. Кода под GPL здесь нет.
 
 pub mod osis;
+pub mod tsv;
 pub mod usfm;
 pub mod zefania;

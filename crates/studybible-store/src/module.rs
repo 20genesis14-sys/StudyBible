@@ -222,6 +222,11 @@ CREATE TABLE tokens(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
                     lemma TEXT NOT NULL DEFAULT '', strong TEXT NOT NULL DEFAULT '',
                     morph TEXT NOT NULL DEFAULT '', gloss TEXT NOT NULL DEFAULT '',
                     PRIMARY KEY(book, chapter, verse, seq));
+-- ADR 0016 (необязательная): токен → его спан в потоке чтения
+-- (block = blocks.seq, span = spans.seq). Позиция слова в тексте.
+CREATE TABLE alignment(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                       token_seq INTEGER NOT NULL, block INTEGER NOT NULL, span INTEGER NOT NULL,
+                       PRIMARY KEY(book, chapter, verse, token_seq));
 ";
 
 /// Слово уровня токена (таблица `tokens`, ADR 0016).
@@ -334,6 +339,9 @@ impl ModuleWriter {
             let mut ts = self.conn.prepare_cached(
                 "INSERT INTO tokens VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )?;
+            let mut al = self.conn.prepare_cached(
+                "INSERT INTO alignment VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
+            )?;
             let mut cur_verse: u16 = 0;
             let mut tok_seq: u16 = 0;
             for (seq, b) in ch.blocks.iter().enumerate() {
@@ -355,6 +363,14 @@ impl ModuleWriter {
                             t.strong,
                             t.morph,
                             t.gloss
+                        ])?;
+                        al.execute(params![
+                            book.as_str(),
+                            ch.number,
+                            t.verse,
+                            t.seq,
+                            seq,
+                            i
                         ])?;
                         self.tokens += 1;
                         tok_seq += 1;
@@ -441,6 +457,17 @@ pub struct Module {
     meta: Meta,
     /// Необязательные таблицы ADR 0016, которые есть в файле.
     has_tokens: bool,
+    has_alignment: bool,
+}
+
+/// Связь токена со спаном потока чтения (таблица `alignment`, ADR 0016).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Alignment {
+    pub verse: u16,
+    pub token_seq: u16,
+    /// `blocks.seq` и `spans.seq` спана, из которого выведен токен.
+    pub block: u16,
+    pub span: u16,
 }
 
 impl Module {
@@ -491,15 +518,18 @@ impl Module {
             return Err(ModuleError::UnsupportedFeature(req.clone()));
         }
         // Необязательные таблицы могут отсутствовать у старых модулей.
-        let has_tokens: bool = conn.query_row(
-            "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='tokens'",
-            [],
-            |r| r.get::<_, i64>(0),
-        )? > 0;
+        let has = |name: &str| -> Result<bool> {
+            Ok(conn.query_row(
+                "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name=?1",
+                params![name],
+                |r| r.get::<_, i64>(0),
+            )? > 0)
+        };
         Ok(Self {
+            has_tokens: has("tokens")?,
+            has_alignment: has("alignment")?,
             conn,
             meta,
-            has_tokens,
         })
     }
 
@@ -616,6 +646,31 @@ impl Module {
         let mut out = Vec::new();
         for t in rows {
             out.push(t?);
+        }
+        Ok(out)
+    }
+
+    /// Карта «токен → спан» главы (таблица `alignment`). Пусто —
+    /// у модулей без таблицы.
+    pub fn alignment(&self, book: BookCode, chapter: u16) -> Result<Vec<Alignment>> {
+        if !self.has_alignment {
+            return Ok(vec![]);
+        }
+        let mut st = self.conn.prepare(
+            "SELECT verse, token_seq, block, span FROM alignment
+             WHERE book=?1 AND chapter=?2 ORDER BY verse, token_seq",
+        )?;
+        let rows = st.query_map(params![book.as_str(), chapter], |r| {
+            Ok(Alignment {
+                verse: r.get::<_, i64>(0)? as u16,
+                token_seq: r.get::<_, i64>(1)? as u16,
+                block: r.get::<_, i64>(2)? as u16,
+                span: r.get::<_, i64>(3)? as u16,
+            })
+        })?;
+        let mut out = Vec::new();
+        for a in rows {
+            out.push(a?);
         }
         Ok(out)
     }

@@ -6,7 +6,7 @@ use std::process::ExitCode;
 mod speech;
 
 use speech::TtsSpeech;
-use studybible_convert::{osis, usfm, zefania};
+use studybible_convert::{osis, tsv, usfm, zefania};
 use studybible_core::speech::Speech;
 use studybible_core::text::Span;
 use studybible_core::{BookCatalog, BookCode, NameProfile, Versification, reference};
@@ -200,6 +200,7 @@ fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Sta
         "usfm" => &["usfm"],
         "osis" => &["osis", "xml"],
         "zefania" => &["xml"],
+        "tsv" => &["tsv"],
         other => return Err(format!("modules.json: неизвестный format «{other}»")),
     };
     let mut files: Vec<PathBuf> = std::fs::read_dir(src)
@@ -238,6 +239,7 @@ fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Sta
             "zefania" => {
                 zefania::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?
             }
+            "tsv" => tsv::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
             _ => vec![usfm::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?],
         };
         for book in books {

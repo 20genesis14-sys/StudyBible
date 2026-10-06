@@ -1,0 +1,160 @@
+//! Конвертер TSV → поток чтения (ADR 0016): простой вход для авторов
+//! подстрочников и слоёв без SQL и без разметки.
+//!
+//! Строка таблицы (поля через табуляцию, `#` в начале — комментарий):
+//!
+//! ```text
+//! КОД_КНИГИ ГЛАВА:СТИХ <TAB> слово-оригинала <TAB> глосса [<TAB> лемма <TAB> стронг <TAB> морф]
+//! ```
+//!
+//! Повторная ссылка добавляет ещё одну пару в тот же стих.
+//! Каждый стих — блок `p`: маркер стиха, затем спаны `w` с
+//! `attrs gr="оригинал" lemma/strong/morph`; текст спана — глосса.
+//! Таблицы `tokens` и `alignment` заполняет записыватель сам.
+
+use std::collections::BTreeMap;
+
+use studybible_core::BookCode;
+use studybible_core::text::{Block, Chapter, Span};
+
+use crate::usfm;
+
+/// Одна строка TSV.
+struct Row {
+    book: BookCode,
+    chapter: u16,
+    verse: u16,
+    orig: String,
+    gloss: String,
+    lemma: String,
+    strong: String,
+    morph: String,
+}
+
+fn parse_ref(s: &str) -> Result<(BookCode, u16, u16), usfm::Error> {
+    // «GEN 1:1» / «GEN 1:1a» — букву части пока отбрасываем
+    // (части стиха — позиция в потоке, не координата токена).
+    let (code_s, rest) = s
+        .trim()
+        .split_once(' ')
+        .ok_or_else(|| usfm::Error(format!("TSV: нет пробела в ссылке «{s}»")))?;
+    let code = BookCode::new(code_s.trim())
+        .ok_or_else(|| usfm::Error(format!("TSV: код книги «{code_s}»")))?;
+    let (ch_s, v_s) = rest
+        .trim()
+        .split_once(':')
+        .ok_or_else(|| usfm::Error(format!("TSV: ссылка без «гл:ст» — «{s}»")))?;
+    let ch: u16 = ch_s
+        .trim()
+        .parse()
+        .map_err(|_| usfm::Error(format!("TSV: глава «{ch_s}»")))?;
+    let v_s = v_s.trim().trim_end_matches(|c: char| c.is_ascii_lowercase());
+    let v: u16 = v_s
+        .parse()
+        .map_err(|_| usfm::Error(format!("TSV: стих «{v_s}»")))?;
+    Ok((code, ch, v))
+}
+
+fn quote_attr(k: &str, v: &str) -> String {
+    if v.is_empty() {
+        String::new()
+    } else {
+        format!(" {k}=\"{}\"", v.replace('"', "'"))
+    }
+}
+
+/// Разобрать TSV-таблицу в список книг (в порядке первого появления).
+pub fn parse(src: &str) -> Result<Vec<usfm::Book>, usfm::Error> {
+    // (код книги, глава, стих) → пары для сохранения порядка строк.
+    let mut rows: Vec<Row> = Vec::new();
+    for (ln, line) in src.lines().enumerate() {
+        let line = line.trim_end();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let f: Vec<&str> = line.split('\t').collect();
+        if f.len() < 3 {
+            return Err(usfm::Error(format!(
+                "TSV строка {}: меньше 3 полей: «{line}»",
+                ln + 1
+            )));
+        }
+        let (book, chapter, verse) = parse_ref(f[0]).map_err(|e| {
+            usfm::Error(format!("TSV строка {}: {}", ln + 1, e.0))
+        })?;
+        rows.push(Row {
+            book,
+            chapter,
+            verse,
+            orig: f[1].trim().to_string(),
+            gloss: f[2].trim().to_string(),
+            lemma: f.get(3).map(|s| s.trim().to_string()).unwrap_or_default(),
+            strong: f.get(4).map(|s| s.trim().to_string()).unwrap_or_default(),
+            morph: f.get(5).map(|s| s.trim().to_string()).unwrap_or_default(),
+        });
+    }
+    if rows.is_empty() {
+        return Err(usfm::Error("TSV: нет строк данных".into()));
+    }
+
+    // Группировка: книга → глава → стих → пары. Порядок книг — по первому
+    // появлению в файле; главы и стихи — по номерам.
+    let mut order: Vec<BookCode> = Vec::new();
+    let mut books: BTreeMap<String, BTreeMap<u16, BTreeMap<u16, Vec<&Row>>>> =
+        BTreeMap::new();
+    for r in &rows {
+        let key = r.book.as_str().to_string();
+        if !books.contains_key(&key) {
+            order.push(r.book);
+        }
+        books
+            .entry(key)
+            .or_default()
+            .entry(r.chapter)
+            .or_default()
+            .entry(r.verse)
+            .or_default()
+            .push(r);
+    }
+
+    let mut out = Vec::new();
+    for code in order {
+        let mut book = usfm::Book {
+            code,
+            ..usfm::Book::default()
+        };
+        book.header.insert("id".into(), code.as_str().to_string());
+        book.header.insert("h".into(), code.as_str().to_string());
+        let chs = &books[code.as_str()];
+        for (ch_n, verses) in chs {
+            let mut ch = Chapter {
+                number: *ch_n,
+                blocks: vec![],
+            };
+            for (v_n, pairs) in verses {
+                let mut spans = vec![Span::Verse(*v_n)];
+                for r in pairs {
+                    let attrs = format!(
+                        "gr=\"{}\"{}{}{}",
+                        r.orig.replace('"', "'"),
+                        quote_attr("lemma", &r.lemma),
+                        quote_attr("strong", &r.strong),
+                        quote_attr("morph", &r.morph),
+                    );
+                    spans.push(Span::Text {
+                        text: format!("{} ", r.gloss),
+                        style: "w".into(),
+                        attrs,
+                    });
+                }
+                ch.blocks.push(Block {
+                    marker: "p".into(),
+                    spans,
+                });
+            }
+            book.chapters.push(ch);
+        }
+        out.push(book);
+    }
+    Ok(out)
+}

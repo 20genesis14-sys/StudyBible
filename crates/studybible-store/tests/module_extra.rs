@@ -212,6 +212,14 @@ fn tokens_written_and_read() {
     assert_eq!(last.verse, 2);
     assert_eq!(last.surface, "אָרֶץ");
     assert_eq!(last.gloss, "Земля");
+
+    // alignment: каждый токен знает свой спан в потоке чтения.
+    let al = m.alignment(BookCode::new("GEN").unwrap(), 1).unwrap();
+    assert_eq!(al.len(), toks.len());
+    assert_eq!(al[0].token_seq, 0);
+    let ch = m.chapter(BookCode::new("GEN").unwrap(), 1).unwrap().unwrap();
+    let span = &ch.blocks[al[0].block as usize].spans[al[0].span as usize];
+    assert!(matches!(span, Span::Text { text, .. } if text.trim() == "Вначале"));
 }
 
 #[test]
