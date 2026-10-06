@@ -57,6 +57,12 @@ class Settings extends ChangeNotifier {
   /// Масштаб шрифта: 0.8 – 1.6, шаг настройки.
   double fontScale = 1.0;
 
+  /// Отдельный масштаб текста сносок (карточка «Сноска»).
+  double footScale = 1.0;
+
+  /// Отдельный масштаб текста параллельных мест (карточка «°»).
+  double xrefScale = 1.0;
+
   LayoutMode layoutMode = LayoutMode.paragraphs;
   ColumnWidth columnWidth = ColumnWidth.full;
 
@@ -113,6 +119,8 @@ class Settings extends ChangeNotifier {
         final j = jsonDecode(e.context) as Map<String, dynamic>;
         theme = AppTheme.values[j['theme'] as int? ?? 0];
         fontScale = (j['fontScale'] as num? ?? 1.0).toDouble();
+        footScale = (j['footScale'] as num? ?? 1.0).toDouble();
+        xrefScale = (j['xrefScale'] as num? ?? 1.0).toDouble();
         layoutMode = LayoutMode.values[j['layoutMode'] as int? ?? 0];
         columnWidth = ColumnWidth.values[j['columnWidth'] as int? ?? 1];
         readerMode = ReaderMode.values[j['readerMode'] as int? ?? 0];
@@ -141,6 +149,8 @@ class Settings extends ChangeNotifier {
     final j = jsonEncode({
       'theme': theme.index,
       'fontScale': fontScale,
+      'footScale': footScale,
+      'xrefScale': xrefScale,
       'layoutMode': layoutMode.index,
       'columnWidth': columnWidth.index,
       'readerMode': readerMode.index,

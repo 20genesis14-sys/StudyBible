@@ -899,6 +899,35 @@ extension _ReaderChrome on _ReadingScreenState {
     }
   }
 
+  /// Компактный «подпись + ползунок» для листа «Шрифт и тема».
+  Widget _miniSlider(String label, double v, void Function(double) set) {
+    final p = context.palette;
+    return Row(
+      children: [
+        SizedBox(
+          width: 96,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: p.muted),
+          ),
+        ),
+        Expanded(
+          child: Slider(
+            value: v,
+            min: 0.8,
+            max: 1.6,
+            divisions: 8,
+            onChanged: set,
+          ),
+        ),
+        Text(
+          'x${v.toStringAsFixed(2)}',
+          style: TextStyle(fontSize: 11, color: p.muted),
+        ),
+      ],
+    );
+  }
+
   /// Лист «Шрифт и тема» — быстрые настройки чтения без ухода в «Настройки».
   void _fontThemeSheet() {
     final p = context.palette;
@@ -1004,6 +1033,16 @@ extension _ReaderChrome on _ReadingScreenState {
                   divisions: 8,
                   onChanged: (v) =>
                       settings.update(() => settings.fontScale = v),
+                ),
+                _miniSlider(
+                  tr('Сноски', 'Footnotes'),
+                  settings.footScale,
+                  (v) => settings.update(() => settings.footScale = v),
+                ),
+                _miniSlider(
+                  tr('Параллельные', 'Cross-refs'),
+                  settings.xrefScale,
+                  (v) => settings.update(() => settings.xrefScale = v),
                 ),
                 Text(
                   tr(
@@ -1170,111 +1209,113 @@ extension _ReaderChrome on _ReadingScreenState {
   /// Отступ контента над нижней панелью кнопок (узкий экран).
   double _bottomClear() => MediaQuery.of(context).padding.bottom + 62;
 
-  Widget _actionBar(Palette p) {
-    Widget btn(IconData i, String l, VoidCallback f) => TextButton.icon(
-      onPressed: f,
-      icon: Icon(i, size: 16),
-      label: Text(l, style: const TextStyle(fontSize: 12)),
-    );
-    final v = _selectedVerse!;
-    // У выделенного стиха есть сноски/параллельные — показываем
-    // явную кнопку (жалоба: тап по «×» в тексте не очевиден).
+  /// Всплывающее меню действий стиха — у места тапа (_lastTapPos).
+  /// Порядок: выделить, заметка, закладка, теги, сравнить (5-й),
+  /// параллельные, копировать, поделиться.
+  Future<void> _verseMenu(int v) async {
+    final p = context.palette;
     final chNow = _module?.chapter(_code, _ch);
     final hasNotes = chNow != null && _notesOf(chNow).any((n) => n.verse == v);
 
-    return Material(
-      color: p.card,
-      elevation: 8,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    PopupMenuItem<String> mi(String id, IconData i, String l) =>
+        PopupMenuItem<String>(
+          value: id,
+          height: 44,
           child: Row(
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      Text(
-                        tr('ст. $_selectedVerse', 'v. $_selectedVerse'),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: p.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      btn(
-                        _highlights.containsKey(v)
-                            ? Icons.highlight
-                            : Icons.highlight_outlined,
-                        tr('Выделить', 'Highlight'),
-                        () => _toggleHighlight(v),
-                      ),
-                      btn(
-                        _verseNotes.containsKey(v)
-                            ? Icons.sticky_note_2
-                            : Icons.edit_outlined,
-                        tr('Заметка', 'Note'),
-                        () => _editNote(v),
-                      ),
-                      btn(
-                        _verseMarks.containsKey(v)
-                            ? Icons.bookmark
-                            : Icons.bookmark_outline,
-                        tr('Закладка', 'Bookmark'),
-                        () => _toggleMark(v),
-                      ),
-                      btn(
-                        _tagEntries.containsKey(v)
-                            ? Icons.label
-                            : Icons.label_outline,
-                        tr('Теги', 'Tags'),
-                        () => _editTags(v),
-                      ),
-                      btn(
-                        Icons.copy_outlined,
-                        tr('Копировать', 'Copy'),
-                        () => _copyVerse(v),
-                      ),
-                      btn(
-                        Icons.share_outlined,
-                        tr('Поделиться', 'Share'),
-                        () => _shareVerse(v),
-                      ),
-                      if (hasNotes)
-                        btn(
-                          Icons.library_books_outlined,
-                          tr('Параллельные', 'Cross-refs'),
-                          _openNotes,
-                        ),
-                      // «Сравнить» — стих во всех переводах
-                      // (экран; выбор модулей — в настройках).
-                      btn(
-                        Icons.compare_arrows,
-                        tr('Сравнить', 'Compare'),
-                        () => Navigator.of(context).push(
-                          fastRoute(
-                            VerseCompareScreen(
-                              bookCode: _code,
-                              chapter: _ch,
-                              verse: v,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: tr('Закрыть', 'Close'),
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: () => _rebuild(() => _selectedVerse = null),
-              ),
+              Icon(i, size: 18, color: p.muted),
+              const SizedBox(width: 10),
+              Text(l, style: const TextStyle(fontSize: 14)),
             ],
           ),
-        ),
+        );
+
+    final pos = _lastTapPos;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromCenter(center: pos, width: 1, height: 1),
+        Offset.zero & overlay.size,
       ),
+      items: [
+        PopupMenuItem<String>(
+          enabled: false,
+          height: 30,
+          child: Text(
+            tr('ст. $v', 'v. $v'),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              color: p.accent,
+            ),
+          ),
+        ),
+        const PopupMenuDivider(height: 4),
+        mi(
+          'hl',
+          _highlights.containsKey(v)
+              ? Icons.highlight
+              : Icons.highlight_outlined,
+          tr('Выделить', 'Highlight'),
+        ),
+        mi(
+          'note',
+          _verseNotes.containsKey(v)
+              ? Icons.sticky_note_2
+              : Icons.edit_outlined,
+          tr('Заметка', 'Note'),
+        ),
+        mi(
+          'mark',
+          _verseMarks.containsKey(v)
+              ? Icons.bookmark
+              : Icons.bookmark_outline,
+          tr('Закладка', 'Bookmark'),
+        ),
+        mi(
+          'tags',
+          _tagEntries.containsKey(v) ? Icons.label : Icons.label_outline,
+          tr('Теги', 'Tags'),
+        ),
+        // «Сравнить» — стих во всех переводах (экран; список
+        // переводов — в настройках).
+        mi('cmp', Icons.compare_arrows, tr('Сравнить', 'Compare')),
+        if (hasNotes)
+          mi(
+            'refs',
+            Icons.library_books_outlined,
+            tr('Параллельные', 'Cross-refs'),
+          ),
+        mi('copy', Icons.copy_outlined, tr('Копировать', 'Copy')),
+        mi('share', Icons.share_outlined, tr('Поделиться', 'Share')),
+      ],
     );
+    switch (choice) {
+      case 'hl':
+        _toggleHighlight(v);
+      case 'note':
+        _editNote(v);
+      case 'mark':
+        _toggleMark(v);
+      case 'tags':
+        _editTags(v);
+      case 'cmp':
+        if (!mounted) return;
+        Navigator.of(context).push(
+          fastRoute(
+            VerseCompareScreen(bookCode: _code, chapter: _ch, verse: v),
+          ),
+        );
+      case 'refs':
+        _openNotes();
+      case 'copy':
+        _copyVerse(v);
+      case 'share':
+        _shareVerse(v);
+      case null:
+        _rebuild(() => _selectedVerse = null); // тап мимо — снять выбор
+    }
   }
 }

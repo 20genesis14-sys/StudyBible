@@ -49,7 +49,9 @@ extension _ChapterRenderer on _ReadingScreenState {
   Color _verseColor(Palette p) => p.accent;
 
   TapGestureRecognizer _tap(VoidCallback f) {
-    final r = TapGestureRecognizer()..onTap = f;
+    final r = TapGestureRecognizer()
+      ..onTap = f
+      ..onTapDown = (d) => _lastTapPos = d.globalPosition;
     _tapRecognizers.add(r);
     return r;
   }
@@ -298,6 +300,11 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (isDouble && wide) {
         _compare = true;
       }
+    });
+    // Меню действий стиха — у места тапа, в следующем кадре
+    // (иначе позиция ещё не проставлена onTapDown).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _selectedVerse == v) _verseMenu(v);
     });
   }
 
@@ -580,6 +587,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                   label: tr('Стих $v', 'Verse $v'),
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    onTapDown: (d) => _lastTapPos = d.globalPosition,
                     onTap: () => chapterNum == null
                         ? _selectVerse(v)
                         : _selectVerse(v, chapterNum),
@@ -935,6 +943,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                 label: tr('Стих $v', 'Verse $v'),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  onTapDown: (d) => _lastTapPos = d.globalPosition,
                   onTap: () => _selectVerse(v),
                   child: SizedBox(
                     width: 40,
@@ -984,6 +993,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                   label: tr('Заметка к стиху $v', 'Note for verse $v'),
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    onTapDown: (d) => _lastTapPos = d.globalPosition,
                     onTap: () => _selectVerse(v),
                     child: Padding(
                       padding: const EdgeInsets.only(left: 4, top: 2),
@@ -1212,6 +1222,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                     label: tr('Стих $v', 'Verse $v'),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
+                      onTapDown: (d) => _lastTapPos = d.globalPosition,
                       onTap: () => _selectVerse(v),
                       child: SizedBox(
                         width: 30,

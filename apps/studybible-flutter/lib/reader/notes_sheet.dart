@@ -89,7 +89,16 @@ class NotesSheet extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text.rich(
-                  TextSpan(children: _noteSpans(n.text, p, onRef)),
+                  TextSpan(
+                    children: _noteSpans(
+                      n.text,
+                      p,
+                      onRef,
+                      scale: n.kind == 'x'
+                          ? settings.xrefScale
+                          : settings.footScale,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -231,9 +240,19 @@ class _NoteCardState extends State<_NoteCard> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Сам текст сноски — со ссылками-гиперссылками.
+              // Сам текст сноски — со ссылками-гиперссылками; размер —
+              // отдельный масштаб (footScale/xrefScale) из настроек.
               Text.rich(
-                TextSpan(children: _noteSpans(note.text, p, widget.onRef)),
+                TextSpan(
+                  children: _noteSpans(
+                    note.text,
+                    p,
+                    widget.onRef,
+                    scale: note.kind == 'x'
+                        ? settings.xrefScale
+                        : settings.footScale,
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               // Тексты параллельных мест.
@@ -286,7 +305,11 @@ class _NoteCardState extends State<_NoteCard> {
                                 child: Text(
                                   it.text!,
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize:
+                                        14 *
+                                        (note.kind == 'x'
+                                            ? settings.xrefScale
+                                            : settings.footScale),
                                     color: p.ink,
                                     height: 1.35,
                                   ),
@@ -317,17 +340,25 @@ class _NoteCardState extends State<_NoteCard> {
 
 /// Разбить текст сноски на спаны: обычный текст + гиперссылки
 /// «Быт 1:1» → onRef. Ссылки рисуем виджетом (тапабельным), текст — спанами.
-List<InlineSpan> _noteSpans(String text, Palette p, void Function(Ref) onRef) {
+List<InlineSpan> _noteSpans(
+  String text,
+  Palette p,
+  void Function(Ref) onRef, {
+  double scale = 1,
+}) {
   final refs = findRefs(text);
   if (refs.isEmpty) {
-    return [TextSpan(text: text, style: _noteStyle(p))];
+    return [TextSpan(text: text, style: _noteStyle(p, scale))];
   }
   final out = <InlineSpan>[];
   var pos = 0;
   for (final m in refs) {
     if (m.start > pos) {
       out.add(
-        TextSpan(text: text.substring(pos, m.start), style: _noteStyle(p)),
+        TextSpan(
+          text: text.substring(pos, m.start),
+          style: _noteStyle(p, scale),
+        ),
       );
     }
     final shown = text.substring(m.start, m.end);
@@ -339,7 +370,7 @@ List<InlineSpan> _noteSpans(String text, Palette p, void Function(Ref) onRef) {
           onTap: () => onRef(m.ref),
           child: Text(
             shown,
-            style: _noteStyle(p).copyWith(
+            style: _noteStyle(p, scale).copyWith(
               color: p.accent,
               fontWeight: FontWeight.w600,
               decoration: TextDecoration.underline,
@@ -352,10 +383,10 @@ List<InlineSpan> _noteSpans(String text, Palette p, void Function(Ref) onRef) {
     pos = m.end;
   }
   if (pos < text.length) {
-    out.add(TextSpan(text: text.substring(pos), style: _noteStyle(p)));
+    out.add(TextSpan(text: text.substring(pos), style: _noteStyle(p, scale)));
   }
   return out;
 }
 
-TextStyle _noteStyle(Palette p) =>
-    TextStyle(fontSize: 13, color: p.ink, height: 1.4);
+TextStyle _noteStyle(Palette p, [double scale = 1]) =>
+    TextStyle(fontSize: 14 * scale, color: p.ink, height: 1.4);

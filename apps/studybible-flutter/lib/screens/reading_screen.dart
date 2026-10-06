@@ -73,6 +73,10 @@ class _ReadingScreenState extends State<ReadingScreen> {
   bool _notesOpen = false;
   int? _selectedVerse;
 
+  /// Позиция последнего тапа по тексту — якорь всплывающего
+  /// меню стиха (меню открывается рядом с местом нажатия).
+  Offset _lastTapPos = Offset.zero;
+
   /// Нижняя панель управления: прячется при прокрутке, возвращается
   /// по тапу на тексте.
   bool _barVisible = true;
@@ -412,7 +416,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
                 ),
             ],
           ),
-          bottomNavigationBar: _selectedVerse != null ? _actionBar(p) : null,
         ),
       ),
     );

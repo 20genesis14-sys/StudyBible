@@ -133,6 +133,38 @@ class SettingsScreen extends StatelessWidget {
                           onChanged: (v) =>
                               settings.update(() => settings.fontScale = v),
                         ),
+                        _labeled(
+                          p,
+                          tr('Размер сносок', 'Footnote size'),
+                          Text(
+                            'x${settings.footScale.toStringAsFixed(2)}',
+                            style: TextStyle(color: p.muted, fontSize: 13),
+                          ),
+                        ),
+                        Slider(
+                          value: settings.footScale,
+                          min: 0.8,
+                          max: 1.6,
+                          divisions: 8,
+                          onChanged: (v) =>
+                              settings.update(() => settings.footScale = v),
+                        ),
+                        _labeled(
+                          p,
+                          tr('Размер параллельных мест', 'Cross-ref size'),
+                          Text(
+                            'x${settings.xrefScale.toStringAsFixed(2)}',
+                            style: TextStyle(color: p.muted, fontSize: 13),
+                          ),
+                        ),
+                        Slider(
+                          value: settings.xrefScale,
+                          min: 0.8,
+                          max: 1.6,
+                          divisions: 8,
+                          onChanged: (v) =>
+                              settings.update(() => settings.xrefScale = v),
+                        ),
                         Text(
                           tr(
                             'Блаженны нищие духом, ибо их есть Царство Небесное.',
