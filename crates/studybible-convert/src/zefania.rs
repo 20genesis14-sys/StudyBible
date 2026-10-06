@@ -342,7 +342,7 @@ mod tests {
         assert_eq!(ch.number, 1);
         // Заголовок + два стиха.
         assert_eq!(ch.blocks[0].marker, "s1");
-        assert_eq!(ch.verse_text(1).unwrap().contains("небо"), true);
+        assert!(ch.verse_text(1).unwrap().contains("небо"));
         assert_eq!(ch.verse_text(2).unwrap(), "Земля же была безвидна.");
         // В стихе 1 есть слово со Стронгом и сноска.
         let mut strong = false;
