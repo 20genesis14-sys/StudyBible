@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:studybible/data.dart';
+import 'package:studybible/plans.dart';
 
 /// Число глав по 66 книгам (канон sinodal-66) — контрольные суммы
 /// против assets/data/plans.json.
@@ -83,5 +84,52 @@ void main() {
     }
     expect(ch, 89);
     expect(books, {'MAT', 'MRK', 'LUK', 'JHN'});
+  });
+
+  test('дни хронологического плана идут по порядку без повторов', () {
+    final plan = plans.firstWhere((p) => p['id'] == 'chronological');
+    final seen = <String>{};
+    for (final day in plan['days'] as List) {
+      for (final r in day as List) {
+        for (var c = r['f'] as int; c <= (r['t'] as int); c++) {
+          expect(
+            seen.add('${r['b']}:$c'),
+            isTrue,
+            reason: 'дубль ${r['b']}:$c',
+          );
+        }
+      }
+    }
+  });
+
+  group('planTodayIndex', () {
+    String iso(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+
+    test('старт сегодня → день 0', () {
+      expect(planTodayIndex(iso(DateTime.now())), 0);
+    });
+
+    test('старт вчера → день 1', () {
+      expect(
+        planTodayIndex(iso(DateTime.now().subtract(const Duration(days: 1)))),
+        1,
+      );
+    });
+
+    test('старт завтра → -1 (план ещё не начался)', () {
+      expect(
+        planTodayIndex(iso(DateTime.now().add(const Duration(days: 1)))),
+        -1,
+      );
+    });
+
+    test('мусор вместо даты → -1', () {
+      expect(planTodayIndex(''), -1);
+      expect(planTodayIndex('не дата'), -1);
+      expect(planTodayIndex('2026-13-45'), -1);
+    });
   });
 }
