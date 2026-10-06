@@ -89,25 +89,28 @@ class Palette {
     required this.onAccent,
   });
 
+  /// Светлая «книга и киноварь» (ADR 0015): тёплая бумага с уклоном
+  /// в сепию, тёплая тушь, единственный акцент — киноварь.
   static const light = Palette(
-    background: Color(0xFFF5F4F0),
-    card: Color(0xFFFFFFFF),
-    edge: Color(0xFFE4E2DC),
-    ink: Color(0xFF1F2430),
-    muted: Color(0xFF6B7280),
-    accent: Color(0xFF4338CA),
-    jesus: Color(0xFFB42318),
-    onAccent: Color(0xFFFFFFFF),
+    background: Color(0xFFF3EDDE),
+    card: Color(0xFFFBF6EA),
+    edge: Color(0xFFE3D8C2),
+    ink: Color(0xFF2B2520),
+    muted: Color(0xFF7C6F5E),
+    accent: Color(0xFF9E2A20),
+    jesus: Color(0xFF8E2318),
+    onAccent: Color(0xFFFAF3E6),
   );
 
-  /// Тёмная «для глаз»: тёплый серый фон, текст не чисто-белый.
+  /// Тёмная «для глаз»: тёплый серый фон, текст не чисто-белый;
+  /// киноварь осветлена, чтобы не теряться на тёмном.
   static const dark = Palette(
     background: Color(0xFF232326),
     card: Color(0xFF2E2E33),
     edge: Color(0xFF3F3F46),
     ink: Color(0xFFE8E6E0),
     muted: Color(0xFF9CA0A8),
-    accent: Color(0xFF8B85E8),
+    accent: Color(0xFFE0705C),
     jesus: Color(0xFFEF6A5A),
     onAccent: Color(0xFF101014),
   );
@@ -119,7 +122,7 @@ class Palette {
     edge: Color(0xFF26262B),
     ink: Color(0xFFE8E6E0),
     muted: Color(0xFF8E9299),
-    accent: Color(0xFF8B85E8),
+    accent: Color(0xFFE0705C),
     jesus: Color(0xFFEF6A5A),
     onAccent: Color(0xFF101014),
   );
@@ -183,13 +186,13 @@ ThemeData buildThemeData(AppTheme t) {
       onSurface: p.ink,
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: p.card,
+      backgroundColor: p.background,
       foregroundColor: p.ink,
       elevation: 0,
       scrolledUnderElevation: 0,
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: p.card,
+      backgroundColor: p.background,
       indicatorColor: p.accent.withValues(alpha: 0.15),
       labelTextStyle: WidgetStatePropertyAll(
         TextStyle(fontSize: 10, color: p.muted),

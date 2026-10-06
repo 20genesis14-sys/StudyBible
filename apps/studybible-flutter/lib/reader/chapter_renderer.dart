@@ -29,11 +29,9 @@ extension _ChapterRenderer on _ReadingScreenState {
     height: 1.66,
   );
 
-  /// Цвет номеров стихов — акцент группы текущей книги.
-  Color _verseColor(Palette p) {
-    final g = kBookGroup[_code];
-    return g != null ? groupColor(g, appThemeOf(context)) : p.accent;
-  }
+  /// Цвет номеров стихов — киноварь (ADR 0015): единый акцент чтения,
+  /// цвет группы книги остаётся только на плитках сетки.
+  Color _verseColor(Palette p) => p.accent;
 
   TapGestureRecognizer _tap(VoidCallback f) {
     final r = TapGestureRecognizer()..onTap = f;
