@@ -7,6 +7,7 @@ import '../attachments_stub.dart'
     if (dart.library.html) '../attachments_web.dart';
 import '../l10n.dart';
 import '../lexicon.dart';
+import '../state.dart' show splitNote, joinNote;
 import '../native_bridge.dart' show UserEntry;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
@@ -103,7 +104,10 @@ class NoteDialog extends StatefulWidget {
 
 class _NoteDialogState extends State<NoteDialog> {
   late final TextEditingController _ctrl = TextEditingController(
-    text: widget.entry?.text ?? '',
+    text: splitNote(widget.entry?.text ?? '').$2,
+  );
+  late final TextEditingController _titleCtrl = TextEditingController(
+    text: splitNote(widget.entry?.text ?? '').$1,
   );
   late final TextEditingController _tagsCtrl = TextEditingController(
     text:
@@ -132,6 +136,7 @@ class _NoteDialogState extends State<NoteDialog> {
   @override
   void dispose() {
     _ctrl.dispose();
+    _titleCtrl.dispose();
     _tagsCtrl.dispose();
     _scroll.dispose();
     _player.dispose();
@@ -155,7 +160,7 @@ class _NoteDialogState extends State<NoteDialog> {
       book: widget.book,
       chapter: widget.chapter,
       verse: widget.verse,
-      text: _ctrl.text.trim(),
+      text: joinNote(_titleCtrl.text.trim(), _ctrl.text.trim()),
       context: widget.contextText,
     );
     _entryId = id;
@@ -229,7 +234,7 @@ class _NoteDialogState extends State<NoteDialog> {
   }
 
   Future<void> _save() async {
-    final text = _ctrl.text.trim();
+    final text = joinNote(_titleCtrl.text.trim(), _ctrl.text.trim());
     var id = _entryId;
     if (id != null) {
       // Заметка без текста, но с вложениями — остаётся.
@@ -298,6 +303,15 @@ class _NoteDialogState extends State<NoteDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            TextField(
+              controller: _titleCtrl,
+              decoration: InputDecoration(
+                hintText: tr('Название…', 'Title…'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: _ctrl,
               scrollController: _scroll,

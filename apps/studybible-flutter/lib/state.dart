@@ -278,12 +278,47 @@ class ReadProgress extends ChangeNotifier {
 
 final ReadProgress progress = ReadProgress();
 
-/// Свободная заметка на странице «График чтения».
+/// Хранимый формат заметки: «заголовок\x1Fтекст»; без \x1F — всё тело
+/// (совместимо со старыми записями без заголовка).
+(String title, String body) splitNote(String s) {
+  final i = s.indexOf('\x1F');
+  if (i < 0) return ('', s);
+  return (s.substring(0, i), s.substring(i + 1));
+}
+
+/// Собрать текст записи из заголовка и тела.
+String joinNote(String title, String body) =>
+    title.isEmpty ? body : '$title\x1F$body';
+
+/// Свободная заметка на странице «Записи».
 class NoteItem {
   final String id;
   String text;
+
+  /// Заголовок заметки (может быть пустым).
+  String title;
+
+  /// Якорь стиха для заметок, созданных из текста ('' — свободная).
+  final String module, book;
+  final int chapter, verse;
   final DateTime created;
-  NoteItem(this.id, this.text, this.created);
+
+  NoteItem(
+    this.id,
+    this.text,
+    this.created, {
+    this.title = '',
+    this.module = '',
+    this.book = '',
+    this.chapter = 0,
+    this.verse = 0,
+  });
+
+  /// Есть ли привязка к месту Писания.
+  bool get anchored => book.isNotEmpty;
+
+  /// «Бт 1:24» — короткая ссылка для подзаголовка.
+  String get ref => anchored ? '$book $chapter:$verse' : '';
 }
 
 /// Заметки пользователя: свободный текст, записи UserData kind='note'
@@ -298,22 +333,29 @@ class Notes extends ChangeNotifier {
     items
       ..clear()
       ..addAll(
-        all.map(
-          (e) => NoteItem(
+        all.map((e) {
+          final (t, b) = splitNote(e.text);
+          return NoteItem(
             e.id,
-            e.text,
+            b,
             DateTime.fromMillisecondsSinceEpoch(e.created),
-          ),
-        ),
+            title: t,
+            module: e.module,
+            book: e.book,
+            chapter: e.chapter,
+            verse: e.verse,
+          );
+        }),
       );
     items.sort((a, b) => b.created.compareTo(a.created));
     _loaded = true;
     notifyListeners();
   }
 
-  Future<void> add(String text) async {
-    final t = text.trim();
-    if (t.isEmpty) return;
+  Future<void> add(String title, String text) async {
+    final b = text.trim();
+    final t = title.trim();
+    if (b.isEmpty && t.isEmpty) return;
     if (!_loaded) await load();
     final id = await bridgeEntryAdd(
       kind: 'note',
@@ -321,15 +363,30 @@ class Notes extends ChangeNotifier {
       book: '',
       chapter: 0,
       verse: 0,
-      text: t,
+      text: joinNote(t, b),
       context: '',
     );
     // Мост может вернуть null (стаб/офлайн) — тогда локальный id.
     items.insert(
       0,
-      NoteItem(id ?? 'local-${DateTime.now().microsecondsSinceEpoch}', t,
-          DateTime.now()),
+      NoteItem(
+        id ?? 'local-${DateTime.now().microsecondsSinceEpoch}',
+        b,
+        DateTime.now(),
+        title: t,
+      ),
     );
+    notifyListeners();
+  }
+
+  /// Изменить заголовок/текст заметки (заголовок хранится в text
+  /// записи — bridgeEntryUpdate обновляет только text).
+  Future<void> edit(NoteItem n, String title, String text) async {
+    final b = text.trim();
+    final t = title.trim();
+    n.title = t;
+    n.text = b;
+    await bridgeEntryUpdate(n.id, joinNote(t, b));
     notifyListeners();
   }
 

@@ -80,25 +80,42 @@ void main() {
   group('Notes', () {
     test('add: пустая и whitespace-заметка не добавляется', () async {
       final n = Notes();
-      await n.add('');
-      await n.add('   ');
+      await n.add('', '');
+      await n.add('   ', '   ');
       expect(n.items, isEmpty);
     });
 
     test('add обрезает пробелы и вставляет сверху', () async {
       final n = Notes();
-      await n.add('  первая  ');
-      await n.add('вторая');
+      await n.add('', '  первая  ');
+      await n.add('заголовок', 'вторая');
       expect(n.items, hasLength(2));
       expect(n.items[0].text, 'вторая');
+      expect(n.items[0].title, 'заголовок');
       expect(n.items[1].text, 'первая');
+    });
+
+    test('edit меняет заголовок и текст', () async {
+      final n = Notes();
+      await n.add('t', 'b');
+      await n.edit(n.items.single, 'новое', 'новый текст');
+      expect(n.items.single.title, 'новое');
+      expect(n.items.single.text, 'новый текст');
     });
 
     test('remove удаляет запись', () async {
       final n = Notes();
-      await n.add('x');
+      await n.add('', 'x');
       await n.remove(n.items.single);
       expect(n.items, isEmpty);
+    });
+
+    test('splitNote/joinNote: формат «заголовок\\x1Fтекст»', () {
+      expect(joinNote('', 'тело'), 'тело');
+      expect(joinNote('заг', 'тело'), 'заг\x1Fтело');
+      expect(splitNote('тело без заголовка'), ('', 'тело без заголовка'));
+      expect(splitNote('заг\x1Fтело'), ('заг', 'тело'));
+      expect(splitNote('заг\x1F'), ('заг', ''));
     });
   });
 

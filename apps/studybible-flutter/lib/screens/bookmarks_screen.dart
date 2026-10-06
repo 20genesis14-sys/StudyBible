@@ -28,7 +28,6 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
   /// Выбранный тег-фильтр; null — все.
   String? _tag;
-  final _noteCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -37,11 +36,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     notes.load();
   }
 
-  @override
-  void dispose() {
-    _noteCtrl.dispose();
-    super.dispose();
-  }
+
 
   Future<void> _load() async {
     // Служебные записи kind='mark' убираем: прогресс ('*'), настройки
@@ -149,7 +144,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             ),
           if (_tag == null) ...[
             _header(tr('Заметки', 'Notes'), p),
-            _noteComposer(p),
+            _noteComposer(),
             ListenableBuilder(
               listenable: notes,
               builder: (_, _) => Column(
@@ -191,71 +186,157 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     );
   }
 
-  /// Поле «новая заметка»: текст + кнопка добавления.
-  Widget _noteComposer(Palette p) {
+  /// Кнопка «новая заметка» → диалог с названием и текстом.
+  Widget _noteComposer() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _noteCtrl,
-              maxLines: 3,
-              minLines: 1,
-              style: TextStyle(fontSize: 14, color: p.ink),
-              decoration: InputDecoration(
-                hintText: tr('Новая заметка…', 'New note…'),
-                hintStyle: TextStyle(color: p.muted),
-                isDense: true,
-                filled: true,
-                fillColor: p.card,
-                contentPadding: const EdgeInsets.all(10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: p.edge),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: p.edge),
-                ),
-              ),
-              onSubmitted: (_) => _addNote(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            style: IconButton.styleFrom(backgroundColor: p.accent),
-            icon: Icon(Icons.add, color: p.onAccent),
-            tooltip: tr('Добавить', 'Add'),
-            onPressed: _addNote,
-          ),
-        ],
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: FilledButton.tonalIcon(
+          icon: const Icon(Icons.add, size: 18),
+          label: Text(tr('Новая заметка', 'New note')),
+          onPressed: () => _noteDialog(),
+        ),
       ),
     );
   }
 
-  void _addNote() {
-    notes.add(_noteCtrl.text);
-    _noteCtrl.clear();
+  /// Диалог создания/правки заметки: название + текст.
+  Future<void> _noteDialog({NoteItem? n}) async {
+    final p = context.palette;
+    final title = TextEditingController(text: n?.title ?? '');
+    final body = TextEditingController(text: n?.text ?? '');
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Заметка', 'Note')),
+        scrollable: true,
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: title,
+                decoration: InputDecoration(
+                  hintText: tr('Название…', 'Title…'),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: body,
+                autofocus: true,
+                maxLines: 6,
+                minLines: 3,
+                decoration: InputDecoration(
+                  hintText: tr('Текст заметки…', 'Note text…'),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          if (n != null)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('delete'),
+              child: Text(
+                tr('Удалить', 'Delete'),
+                style: TextStyle(color: p.accent),
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr('Отмена', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop('save'),
+            child: Text(tr('Сохранить', 'Save')),
+          ),
+        ],
+      ),
+    );
+    if (action == 'save') {
+      if (n == null) {
+        await notes.add(title.text, body.text);
+      } else {
+        await notes.edit(n, title.text, body.text);
+      }
+    } else if (action == 'delete' && n != null) {
+      await notes.remove(n);
+    }
+    title.dispose();
+    body.dispose();
   }
 
   Widget _noteTile(NoteItem n, Palette p) {
     return ListTile(
       dense: true,
       leading: Icon(Icons.sticky_note_2_outlined, size: 18, color: p.accent),
-      title: Text(n.text, style: TextStyle(color: p.ink, fontSize: 14)),
-      subtitle: Text(
-        '${n.created.day.toString().padLeft(2, '0')}.'
-        '${n.created.month.toString().padLeft(2, '0')}.'
-        '${n.created.year}',
-        style: TextStyle(color: p.muted, fontSize: 11),
+      title: Text(
+        n.title.isEmpty ? n.text : n.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: p.ink, fontSize: 14),
       ),
-      trailing: IconButton(
-        icon: Icon(Icons.close, size: 16, color: p.muted),
-        tooltip: tr('Удалить', 'Delete'),
-        onPressed: () => notes.remove(n),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (n.title.isNotEmpty && n.text.isNotEmpty)
+            Text(
+              n.text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: p.ink.withValues(alpha: 0.75),
+                  fontSize: 12),
+            ),
+          Text(
+            [
+              if (n.anchored)
+                '${kShortName[n.book] ?? n.book} ${n.chapter}:${n.verse}'
+                    ' — ${kModules[n.module] ?? n.module}',
+              '${n.created.day.toString().padLeft(2, '0')}.'
+              '${n.created.month.toString().padLeft(2, '0')}.'
+              '${n.created.year}',
+            ].join(' · '),
+            style: TextStyle(color: p.muted, fontSize: 11),
+          ),
+        ],
       ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.edit_outlined, size: 16, color: p.muted),
+            tooltip: tr('Править', 'Edit'),
+            onPressed: () => _noteDialog(n: n),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, size: 16, color: p.muted),
+            tooltip: tr('Удалить', 'Delete'),
+            onPressed: () => notes.remove(n),
+          ),
+        ],
+      ),
+      // Заметка к стиху: тап по плитке открывает её место.
+      onTap: n.anchored
+          ? () => _open(
+                UserEntry(
+                  id: n.id,
+                  module: n.module,
+                  kind: 'note',
+                  book: n.book,
+                  chapter: n.chapter,
+                  verse: n.verse,
+                  text: n.text,
+                  context: '',
+                  created: n.created.millisecondsSinceEpoch,
+                  updated: n.created.millisecondsSinceEpoch,
+                ),
+              )
+          : () => _noteDialog(n: n),
     );
   }
 
