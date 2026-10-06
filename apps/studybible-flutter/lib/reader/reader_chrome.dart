@@ -1269,6 +1269,11 @@ extension _ReaderChrome on _ReadingScreenState {
           tr('Заметка', 'Note'),
         ),
         mi(
+          'tags',
+          _tagEntries.containsKey(v) ? Icons.label : Icons.label_outline,
+          tr('Теги', 'Tags'),
+        ),
+        mi(
           'mark',
           _verseMarks.containsKey(v)
               ? Icons.bookmark
@@ -1278,11 +1283,6 @@ extension _ReaderChrome on _ReadingScreenState {
         // «Сравнить» — стих во всех переводах (экран; список
         // переводов — в настройках).
         mi('cmp', Icons.compare_arrows, tr('Сравнить', 'Compare')),
-        mi(
-          'tags',
-          _tagEntries.containsKey(v) ? Icons.label : Icons.label_outline,
-          tr('Теги', 'Tags'),
-        ),
         if (hasNotes)
           mi(
             'refs',
