@@ -132,7 +132,12 @@ extension _ChapterRenderer on _ReadingScreenState {
     }
     if (s is NoteSpanDoc) {
       // В режиме «Чтение» маркеров нет — чистый текст (ADR 0015).
+      // В «Изучении» маркеры подчиняются листу «Слои» отдельно:
+      // «×» — параллельные места, «*» — сноски.
       if (!_study) return const TextSpan();
+      if (s.kind == 'x' ? !settings.layerXrefs : !settings.layerFootnotes) {
+        return const TextSpan();
+      }
       // Маркер сноски: «×» на акцентном фоне — читается как кнопка.
       // WidgetSpan+GestureDetector не принимает тап внутри параграфа,
       // поэтому остаёмся на TextSpan+recognizer с подсветкой фона.
@@ -154,7 +159,9 @@ extension _ChapterRenderer on _ReadingScreenState {
       style: TextStyle(
         color: t.style == 'wj' ? p.jesus : p.ink,
         fontStyle: t.style == 'add' ? FontStyle.italic : null,
-        decoration: _study && strong != null ? TextDecoration.underline : null,
+        decoration: _study && settings.layerStrongs && strong != null
+            ? TextDecoration.underline
+            : null,
         decorationStyle: TextDecorationStyle.dotted,
         decorationColor: p.muted,
         // Фон читаемого вслух стиха (null!=null-защита: без TTS не красим).
@@ -162,7 +169,7 @@ extension _ChapterRenderer on _ReadingScreenState {
             ? p.accent.withValues(alpha: 0.14)
             : null,
       ),
-      recognizer: _study && strong != null
+      recognizer: _study && settings.layerStrongs && strong != null
           ? _tap(() => _showStrong(strong, t.text))
           : null,
     );

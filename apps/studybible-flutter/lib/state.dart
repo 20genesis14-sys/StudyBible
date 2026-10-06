@@ -58,6 +58,12 @@ class Settings extends ChangeNotifier {
   /// Режим «Чтение» / «Изучение» (ADR 0015).
   ReaderMode readerMode = ReaderMode.reading;
 
+  /// Слои учебных меток (лист «Слои», ADR 0014/0015): видны в режиме
+  /// «Изучение»; выключенные скрывают маркеры даже там.
+  bool layerFootnotes = true;
+  bool layerXrefs = true;
+  bool layerStrongs = true;
+
   /// Шрифт текста главы.
   ReadingFont readingFont = ReadingFont.literata;
 
@@ -89,6 +95,9 @@ class Settings extends ChangeNotifier {
         layoutMode = LayoutMode.values[j['layoutMode'] as int? ?? 0];
         columnWidth = ColumnWidth.values[j['columnWidth'] as int? ?? 1];
         readerMode = ReaderMode.values[j['readerMode'] as int? ?? 0];
+        layerFootnotes = j['layerFootnotes'] as bool? ?? true;
+        layerXrefs = j['layerXrefs'] as bool? ?? true;
+        layerStrongs = j['layerStrongs'] as bool? ?? true;
         readingFont = ReadingFont.values[j['readingFont'] as int? ?? 0];
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
         lang = j['lang'] as String? ?? 'ru';
@@ -109,6 +118,9 @@ class Settings extends ChangeNotifier {
       'layoutMode': layoutMode.index,
       'columnWidth': columnWidth.index,
       'readerMode': readerMode.index,
+      'layerFootnotes': layerFootnotes,
+      'layerXrefs': layerXrefs,
+      'layerStrongs': layerStrongs,
       'readingFont': readingFont.index,
       'versePickerEnabled': versePickerEnabled,
       'lang': lang,

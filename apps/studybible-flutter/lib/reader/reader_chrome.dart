@@ -214,13 +214,34 @@ extension _ReaderChrome on _ReadingScreenState {
                   // Flexible loose: заголовок может сжаться до нуля,
                   // пилюля при этом всегда целиком на экране.
                   Flexible(
-                    child: Text(
-                      '${_titleCapped()} $_ch',
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    // Тап по «Книга Гл. ▾» — быстрый переход
+                    // книга → глава (ADR 0015).
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: _quickNav,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${_titleCapped()} $_ch',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.expand_more,
+                              size: 16,
+                              color: p.muted,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -319,36 +340,514 @@ extension _ReaderChrome on _ReadingScreenState {
     );
   }
 
-  /// Нижняя панель управления чтением (только узкий экран):
-  /// ‹ › глав + кнопки действий. Полупрозрачное «стекло».
+  /// Нижняя панель чтения (ADR 0015): 4 монохромные кнопки
+  /// Перевод · Слои · Слушать · Ещё. Вместо размытия за панелью —
+  /// градиент фона, текст «уходит в бумагу».
   Widget _controlBar(Palette p, Color color, {required bool wide}) {
-    // Фон до нижнего края экрана, содержимое выше системной навигации.
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: _ReadingScreenState._glassBlur,
-          sigmaY: _ReadingScreenState._glassBlur,
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: p.card.withValues(alpha: _ReadingScreenState._glassAlpha),
-            border: Border(
-              top: BorderSide(color: _ReadingScreenState._glassRim(p)),
+    Widget btn(IconData icon, String label, bool on, VoidCallback f) {
+      final c = on ? p.accent : p.muted;
+      return Expanded(
+        child: InkWell(
+          onTap: f,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 22, color: c),
+                const SizedBox(height: 2),
+                Text(label, style: TextStyle(fontSize: 11, color: c)),
+              ],
             ),
           ),
-          child: Padding(
-            padding: EdgeInsets.only(bottom: bottomInset),
-            // Стрелок глав нет — главы листаются свайпами; кнопки
-            // крупные, равномерно по ширине, у каждой свой цвет.
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _toolActions(p, search: false, large: true),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Градиент фона вместо «стекла» за панелью (ADR 0015).
+        Container(
+          height: 22,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                p.background.withValues(alpha: 0),
+                p.background.withValues(alpha: 0.92),
+              ],
             ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: p.card,
+            border: Border(top: BorderSide(color: p.edge)),
+          ),
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Row(
+            children: [
+              btn(
+                Icons.translate,
+                tr('Перевод', 'Version'),
+                false,
+                _translationSheet,
+              ),
+              btn(
+                Icons.layers_outlined,
+                tr('Слои', 'Layers'),
+                _compare || _interleaved,
+                _layersSheet,
+              ),
+              btn(
+                _ttsPlaying
+                    ? Icons.stop_circle_outlined
+                    : Icons.volume_up_outlined,
+                tr('Слушать', 'Listen'),
+                _ttsPlaying,
+                () => _toggleTts(),
+              ),
+              btn(Icons.more_horiz, tr('Ещё', 'More'), false, _moreSheet),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Лист выбора перевода (кнопка «Перевод» нижней панели).
+  void _translationSheet() {
+    final p = context.palette;
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final e in kModules.entries)
+              ListTile(
+                dense: true,
+                leading: e.key == _moduleId
+                    ? Icon(Icons.check, size: 18, color: p.accent)
+                    : const SizedBox(width: 18),
+                title: Text(e.value),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _stopTts();
+                  _rebuild(() => _moduleId = e.key);
+                  _load(e.key);
+                  _loadVerseEntries();
+                  history.touch(e.key, _code, _ch);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Лист «Слои» (ADR 0015): сравнение, подстрочник и учебные
+  /// метки — переключатели. Маркеры видны в режиме «Изучение».
+  void _layersSheet() {
+    final p = context.palette;
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          Widget sw(
+            String label,
+            String hint,
+            bool value,
+            void Function(bool) set,
+          ) => SwitchListTile(
+            dense: true,
+            title: Text(label, style: const TextStyle(fontSize: 14)),
+            subtitle: hint.isEmpty
+                ? null
+                : Text(hint, style: TextStyle(fontSize: 12, color: p.muted)),
+            value: value,
+            onChanged: (v) {
+              set(v);
+              setSheet(() {});
+            },
+          );
+          return SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(
+                    tr('Слои', 'Layers'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: p.ink,
+                    ),
+                  ),
+                ),
+                sw(
+                  tr('Сравнение переводов', 'Compare translations'),
+                  tr('Вторая колонка/панель', 'Second pane'),
+                  _compare,
+                  (v) => _rebuild(() {
+                    _compare = v;
+                    if (v) {
+                      _interleaved = false;
+                      final m = _mods[_compareModuleId];
+                      if (m != null) _ensureChapter(m, _code, _ch);
+                    }
+                  }),
+                ),
+                sw(
+                  tr('Подстрочное сравнение', 'Interleaved compare'),
+                  tr('Второй перевод под каждым стихом', 'Second line per verse'),
+                  _interleaved,
+                  (v) => _rebuild(() {
+                    _interleaved = v;
+                    if (v) {
+                      _compare = false;
+                      final m = _mods[_compareModuleId];
+                      if (m != null) _ensureChapter(m, _code, _ch);
+                    }
+                  }),
+                ),
+                if (_compare || _interleaved)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Text(
+                          tr('Второй перевод:', 'Second translation:'),
+                          style: TextStyle(fontSize: 13, color: p.muted),
+                        ),
+                        const SizedBox(width: 12),
+                        _comparePicker(p),
+                      ],
+                    ),
+                  ),
+                const Divider(),
+                sw(
+                  tr('Сноски', 'Footnotes'),
+                  '',
+                  settings.layerFootnotes,
+                  (v) => settings.update(() => settings.layerFootnotes = v),
+                ),
+                sw(
+                  tr('Параллельные места', 'Cross-references'),
+                  '',
+                  settings.layerXrefs,
+                  (v) => settings.update(() => settings.layerXrefs = v),
+                ),
+                sw(
+                  tr('Номера Стронга', 'Strong’s numbers'),
+                  '',
+                  settings.layerStrongs,
+                  (v) => settings.update(() => settings.layerStrongs = v),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Text(
+                    tr(
+                      'Метки отображаются в режиме «Изучение».',
+                      'Marks are shown in Study mode.',
+                    ),
+                    style: TextStyle(fontSize: 12, color: p.muted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Меню «Ещё» (ADR 0015): история, переход к стиху, вёрстка,
+  /// закладка главы, копировать главу, шрифт и тема.
+  void _moreSheet() {
+    final p = context.palette;
+    Widget item(IconData i, String l, VoidCallback f) => ListTile(
+      dense: true,
+      leading: Icon(i, size: 20, color: p.muted),
+      title: Text(l, style: const TextStyle(fontSize: 14)),
+      onTap: () {
+        Navigator.of(context).pop();
+        f();
+      },
+    );
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            item(Icons.history, tr('История чтения', 'Reading history'), () {
+              Navigator.of(context).push(fastRoute(const HistoryScreen()));
+            }),
+            item(
+              Icons.my_location_outlined,
+              tr('Перейти к стиху…', 'Go to verse…'),
+              _gotoVerseDialog,
+            ),
+            item(
+              Icons.view_agenda_outlined,
+              tr('Вёрстка', 'Layout'),
+              _layoutSheet,
+            ),
+            item(
+              Icons.bookmark_add_outlined,
+              tr('Закладка на главу', 'Bookmark chapter'),
+              _bookmarkChapter,
+            ),
+            item(
+              Icons.copy_outlined,
+              tr('Копировать главу', 'Copy chapter'),
+              _copyChapter,
+            ),
+            item(
+              Icons.text_fields,
+              tr('Шрифт и тема', 'Font and theme'),
+              () => Navigator.of(
+                context,
+              ).push(fastRoute(const SettingsScreen())),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Выбор вёрстки главы — из меню «Ещё».
+  void _layoutSheet() {
+    final p = context.palette;
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (m, ru, en) in [
+              (LayoutMode.paragraphs, 'Абзацы', 'Paragraphs'),
+              (LayoutMode.versePerLine, 'Стих на строку', 'Verse per line'),
+              (LayoutMode.book, 'Книга лентой', 'Book feed'),
+            ])
+              ListTile(
+                dense: true,
+                leading: settings.layoutMode == m
+                    ? Icon(Icons.check, size: 18, color: p.accent)
+                    : const SizedBox(width: 18),
+                title: Text(tr(ru, en)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  settings.update(() => settings.layoutMode = m);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Быстрый переход по тапу на заголовок: книга → глава (ADR 0015).
+  void _quickNav() {
+    final p = context.palette;
+    final books = _module?.books ?? const <BookDoc>[];
+    String? sel;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.62,
+            child: sel == null
+                ? ListView(
+                    children: [
+                      for (final b in books)
+                        ListTile(
+                          dense: true,
+                          leading: b.code == _code
+                              ? Icon(Icons.check, size: 18, color: p.accent)
+                              : const SizedBox(width: 18),
+                          title: Text(b.title),
+                          onTap: () {
+                            if (b.chapters <= 1) {
+                              Navigator.of(ctx).pop();
+                              _jumpTo(b.code, 1);
+                            } else {
+                              setSheet(() => sel = b.code);
+                            }
+                          },
+                        ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, size: 20),
+                            onPressed: () => setSheet(() => sel = null),
+                          ),
+                          Expanded(
+                            child: Text(
+                              _titleOf(sel!),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        child: GridView.count(
+                          crossAxisCount: 6,
+                          padding: const EdgeInsets.all(12),
+                          children: [
+                            for (var i = 1;
+                                i <=
+                                    (books
+                                        .firstWhere((b) => b.code == sel)
+                                        .chapters);
+                                i++)
+                              InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () {
+                                  Navigator.of(ctx).pop();
+                                  _jumpTo(sel!, i);
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: sel == _code && i == _ch
+                                        ? p.accent.withValues(alpha: 0.16)
+                                        : null,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: p.edge),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '$i',
+                                    style: TextStyle(
+                                      fontWeight: sel == _code && i == _ch
+                                          ? FontWeight.w700
+                                          : FontWeight.w400,
+                                      color: sel == _code && i == _ch
+                                          ? p.accent
+                                          : p.ink,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
     );
+  }
+
+  /// Переход «книга, глава» — тот же сброс состояния, что у _go.
+  void _jumpTo(String code, int ch) {
+    _stopTts();
+    _rebuild(() {
+      _code = code;
+      _ch = ch;
+      _selectedVerse = null;
+      _notesOpen = false;
+      _blockKeys.clear();
+      _bookVerseKeys.clear();
+    });
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    progress.markRead(code, ch);
+    progress.setPosition(code, ch);
+    history.touch(_moduleId, code, ch);
+    _loadVerseEntries();
+    for (final m in _mods.values) {
+      _ensureChapter(m, code, ch);
+    }
+  }
+
+  /// Диалог «Перейти к стиху…» — номер стиха текущей главы.
+  Future<void> _gotoVerseDialog() async {
+    final ctrl = TextEditingController();
+    final v = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Перейти к стиху', 'Go to verse')),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: '${_titleOf(_code)} $_ch:N',
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (t) => Navigator.of(ctx).pop(int.tryParse(t)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr('Отмена', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(int.tryParse(ctrl.text)),
+            child: Text(tr('Перейти', 'Go')),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    final max = _module?.verseCount(_code, _ch) ?? 0;
+    if (v == null || v < 1 || v > max) return;
+    _rebuild(() => _selectedVerse = v);
+    progress.setVerse(_code, _ch, v);
+    _scrollToVerse(v);
+  }
+
+  /// Закладка на главу целиком — mark-запись с verse=0.
+  Future<void> _bookmarkChapter() async {
+    await bridgeEntryAdd(
+      kind: 'mark',
+      module: _moduleId,
+      book: _code,
+      chapter: _ch,
+      verse: 0,
+      text: '',
+      context: '${_titleOf(_code)} $_ch',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('Закладка добавлена', 'Bookmark added')),
+        ),
+      );
+    }
+  }
+
+  /// Плоский текст главы в буфер обмена.
+  Future<void> _copyChapter() async {
+    final ch = _module?.chapter(_code, _ch);
+    if (ch == null) return;
+    final verses = _plainVerses(ch);
+    final buf = StringBuffer('${_titleOf(_code)} $_ch\n\n');
+    for (final e in verses.entries) {
+      buf.writeln('${e.key} ${e.value}');
+    }
+    buf.write('(${kModules[_moduleId] ?? _moduleId})');
+    await Clipboard.setData(ClipboardData(text: buf.toString()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('Глава скопирована', 'Chapter copied'))),
+      );
+    }
   }
 
   /// Мини-плеер чтения вслух: «стих N», ‹ › перемотка по стихам,
