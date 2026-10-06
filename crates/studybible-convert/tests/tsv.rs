@@ -53,6 +53,21 @@ fn tsv_rejects_bad_lines() {
 }
 
 #[test]
+fn tsv_variants_group_readings() {
+    let src = "GEN 1:1\t0-1\tв-начале\t1\tMT SP\n\
+               GEN 1:1\t0-1\tв-началах\t0\tLXX\n\
+               GEN 1:5\t2\tдругое\t0\t\n";
+    let vs = tsv::parse_variants(src).unwrap();
+    assert_eq!(vs.len(), 2);
+    assert_eq!(vs[0].readings.len(), 2);
+    assert!(vs[0].readings[0].is_base);
+    assert_eq!(vs[0].readings[0].witnesses, ["MT", "SP"]);
+    assert_eq!(vs[1].readings.len(), 1);
+    assert_eq!(vs[1].token_from, 2);
+    assert_eq!(vs[1].token_to, 2); // одиночный токен без «-»
+}
+
+#[test]
 fn tsv_verse_segment_letters_ignored() {
     // «GEN 1:1a» — часть стиха отбрасывается до номера.
     let books = tsv::parse("GEN 1:1a\tבְּרֵאשִׁית\tв-начале\n").unwrap();

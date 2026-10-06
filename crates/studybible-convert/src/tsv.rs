@@ -158,3 +158,89 @@ pub fn parse(src: &str) -> Result<Vec<usfm::Book>, usfm::Error> {
     }
     Ok(out)
 }
+
+// ---------- критический аппарат (variants.tsv) ----------
+
+/// Чтение варианта: текст и сиглы свидетелей (ADR 0016).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ReadingInput {
+    pub text: String,
+    /// true — чтение основного текста.
+    pub is_base: bool,
+    pub witnesses: Vec<String>,
+}
+
+/// Вариант для записи: место (стих + диапазон токенов) и чтения.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VariantInput {
+    pub book: BookCode,
+    pub chapter: u16,
+    pub verse: u16,
+    pub token_from: u16,
+    pub token_to: u16,
+    pub readings: Vec<ReadingInput>,
+}
+
+/// Разобрать TSV аппарата: `REF <TAB> от-до <TAB> чтение <TAB> 0|1
+/// <TAB> свидетели-через-пробел`. Строки с одной ссылкой и диапазоном —
+/// чтения одного варианта.
+pub fn parse_variants(src: &str) -> Result<Vec<VariantInput>, usfm::Error> {
+    let mut out: Vec<VariantInput> = Vec::new();
+    for (ln, line) in src.lines().enumerate() {
+        let line = line.trim_end();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let f: Vec<&str> = line.split('\t').collect();
+        if f.len() < 3 {
+            return Err(usfm::Error(format!(
+                "TSV аппарата, строка {}: меньше 3 полей: «{line}»",
+                ln + 1
+            )));
+        }
+        let (book, chapter, verse) = parse_ref(f[0]).map_err(|e| {
+            usfm::Error(format!("TSV строка {}: {}", ln + 1, e.0))
+        })?;
+        let (from_s, to_s) = f[1].trim().split_once('-').unwrap_or((f[1], f[1]));
+        let token_from: u16 = from_s
+            .trim()
+            .parse()
+            .map_err(|_| usfm::Error(format!("TSV строка {}: токен «{from_s}»", ln + 1)))?;
+        let token_to: u16 = to_s
+            .trim()
+            .parse()
+            .map_err(|_| usfm::Error(format!("TSV строка {}: токен «{to_s}»", ln + 1)))?;
+        let reading = ReadingInput {
+            text: f[2].trim().to_string(),
+            is_base: matches!(f.get(3).map(|s| s.trim()), Some("1") | Some("base")),
+            witnesses: f
+                .get(4)
+                .map(|s| {
+                    s.split_whitespace()
+                        .map(String::from)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default(),
+        };
+        // То же место и диапазон — чтение того же варианта.
+        if let Some(v) = out.iter_mut().find(|v| {
+            v.book == book
+                && v.chapter == chapter
+                && v.verse == verse
+                && v.token_from == token_from
+                && v.token_to == token_to
+        }) {
+            v.readings.push(reading);
+        } else {
+            out.push(VariantInput {
+                book,
+                chapter,
+                verse,
+                token_from,
+                token_to,
+                readings: vec![reading],
+            });
+        }
+    }
+    Ok(out)
+}

@@ -327,6 +327,7 @@ extension _ChapterRenderer on _ReadingScreenState {
             selectedVerse: _selectedVerse,
             controller: c,
             onRef: _goToRef,
+            variants: ch.variants,
           ),
         ),
       );

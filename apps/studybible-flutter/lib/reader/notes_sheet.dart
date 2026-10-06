@@ -15,11 +15,15 @@ class NotesSheet extends StatelessWidget {
     required this.selectedVerse,
     required this.controller,
     required this.onRef,
+    this.variants = const [],
   });
 
   final List<({int verse, NoteSpanDoc note})> notes;
   final int? selectedVerse;
   final ScrollController controller;
+
+  /// Варианты критического аппарата главы (ADR 0016).
+  final List<VariantDoc> variants;
 
   /// Тап по распознанной библейской ссылке в тексте сноски.
   final void Function(Ref) onRef;
@@ -27,7 +31,7 @@ class NotesSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    if (notes.isEmpty) {
+    if (notes.isEmpty && variants.isEmpty) {
       return Center(
         child: Text(
           tr('В этой главе нет сносок', 'No footnotes in this chapter'),
@@ -38,8 +42,65 @@ class NotesSheet extends StatelessWidget {
     return ListView.builder(
       controller: controller,
       padding: const EdgeInsets.all(16),
-      itemCount: notes.length,
+      itemCount: notes.length + (variants.isEmpty ? 0 : variants.length + 1),
       itemBuilder: (context, i) {
+        // Секция аппарата — после сносок (ADR 0016).
+        if (i >= notes.length) {
+          final vi = i - notes.length - 1;
+          if (vi < 0) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Text(
+                tr('Критический аппарат', 'Critical apparatus'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: p.muted,
+                ),
+              ),
+            );
+          }
+          final v = variants[vi];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr(
+                    'ст.${v.verse} · слова ${v.tokenFrom}–${v.tokenTo}',
+                    'v.${v.verse} · words ${v.tokenFrom}–${v.tokenTo}',
+                  ),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: p.accent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                for (final r in v.readings)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      [
+                        r.text.isEmpty ? '—' : r.text,
+                        if (r.isBase) tr('(осн.)', '(base)'),
+                        if (r.witnesses.isNotEmpty) r.witnesses.join(' '),
+                      ].join(' '),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: p.ink,
+                        fontWeight: r.isBase
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }
         final n = notes[i].note;
         final sel = selectedVerse != null && notes[i].verse == selectedVerse;
         return Container(

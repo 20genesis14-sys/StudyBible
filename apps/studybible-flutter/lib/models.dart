@@ -139,13 +139,65 @@ class ChapterDoc {
   final int number;
   final List<BlockDoc> blocks;
 
-  ChapterDoc({required this.number, required this.blocks});
+  /// Варианты критического аппарата главы (ADR 0016).
+  final List<VariantDoc> variants;
+
+  ChapterDoc({
+    required this.number,
+    required this.blocks,
+    this.variants = const [],
+  });
 
   factory ChapterDoc.fromJson(Map<String, dynamic> j) => ChapterDoc(
     number: j['n'] as int,
     blocks: (j['blocks'] as List)
         .map((b) => BlockDoc.fromJson(b as Map<String, dynamic>))
         .toList(),
+    variants:
+        (j['variants'] as List?)
+            ?.map((v) => VariantDoc.fromJson(v as Map<String, dynamic>))
+            .toList() ??
+        const [],
+  );
+}
+
+/// Вариант аппарата: место (стих + диапазон токенов) и чтения.
+class VariantDoc {
+  final int verse;
+  final int tokenFrom;
+  final int tokenTo;
+  final List<ReadingDoc> readings;
+
+  VariantDoc({
+    required this.verse,
+    required this.tokenFrom,
+    required this.tokenTo,
+    required this.readings,
+  });
+
+  factory VariantDoc.fromJson(Map<String, dynamic> j) => VariantDoc(
+    verse: j['verse'] as int,
+    tokenFrom: j['from'] as int,
+    tokenTo: j['to'] as int,
+    readings: (j['readings'] as List)
+        .map((r) => ReadingDoc.fromJson(r as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+/// Чтение варианта: текст, признак базисного, сиглы свидетелей.
+class ReadingDoc {
+  final String text;
+  final bool isBase;
+  final List<String> witnesses;
+
+  ReadingDoc({required this.text, required this.isBase, required this.witnesses});
+
+  factory ReadingDoc.fromJson(Map<String, dynamic> j) => ReadingDoc(
+    text: j['t'] as String? ?? '',
+    isBase: j['base'] as bool? ?? false,
+    witnesses:
+        (j['w'] as List?)?.map((e) => e as String).toList() ?? const [],
   );
 }
 

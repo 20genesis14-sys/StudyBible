@@ -255,7 +255,46 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
     }
     st.close();
 
-    return jsonEncode({'n': chapter, 'blocks': out});
+    // ADR 0016: аппарат главы, если таблица есть (у старых .sb — нет).
+    var variants = <Map<String, dynamic>>[];
+    try {
+      final vs = db.select(
+        'SELECT id, verse, token_from, token_to FROM variants '
+        'WHERE book=? AND chapter=? ORDER BY verse, token_from',
+        [book, chapter],
+      );
+      for (final v in vs) {
+        final readings = [
+          for (final r in db.select(
+            'SELECT id, text, is_base FROM readings '
+            'WHERE variant_id=? ORDER BY seq',
+            [v['id']],
+          ))
+            {
+              't': r['text'],
+              'base': (r['is_base'] as num) != 0,
+              'w': [
+                for (final s in db.select(
+                  'SELECT siglum FROM witnesses WHERE reading_id=? '
+                  'ORDER BY siglum',
+                  [r['id']],
+                ))
+                  s['siglum'],
+              ],
+            },
+        ];
+        variants.add({
+          'verse': v['verse'],
+          'from': v['token_from'],
+          'to': v['token_to'],
+          'readings': readings,
+        });
+      }
+    } catch (_) {
+      // Нет таблиц аппарата — модуль без variants.
+    }
+
+    return jsonEncode({'n': chapter, 'blocks': out, 'variants': variants});
   } catch (e) {
     debugPrint('[bridge] chapter_doc $path $book:$chapter: $e');
     return null;

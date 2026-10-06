@@ -121,7 +121,26 @@ pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Opt
         return Ok(None);
     };
     let blocks: Vec<Value> = ch.blocks.iter().map(block_json).collect();
-    Ok(Some(json!({"n": ch.number, "blocks": blocks}).to_string()))
+    // ADR 0016: критический аппарат главы, если таблица есть.
+    let variants: Vec<Value> = m
+        .variants(code, number)?
+        .iter()
+        .map(|v| {
+            json!({
+                "verse": v.verse,
+                "from": v.token_from,
+                "to": v.token_to,
+                "readings": v.readings.iter().map(|r| json!({
+                    "t": r.text,
+                    "base": r.is_base,
+                    "w": r.witnesses,
+                })).collect::<Vec<_>>(),
+            })
+        })
+        .collect();
+    Ok(Some(
+        json!({"n": ch.number, "blocks": blocks, "variants": variants}).to_string(),
+    ))
 }
 
 // --- сериализация потока чтения (зеркало export.rs) ---

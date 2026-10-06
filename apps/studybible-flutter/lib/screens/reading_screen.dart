@@ -353,6 +353,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                                   selectedVerse: _selectedVerse,
                                   controller: ScrollController(),
                                   onRef: _goToRef,
+                                  variants: ch?.variants ?? const [],
                                 ),
                               ),
                             ],

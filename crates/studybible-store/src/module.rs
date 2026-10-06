@@ -227,6 +227,17 @@ CREATE TABLE tokens(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 CREATE TABLE alignment(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
                        token_seq INTEGER NOT NULL, block INTEGER NOT NULL, span INTEGER NOT NULL,
                        PRIMARY KEY(book, chapter, verse, token_seq));
+-- ADR 0016 (необязательные): критический аппарат. Вариант — место
+-- (стих + диапазон токенов); у каждого варианта — чтения, у чтения —
+-- свидетели (рукописи/версии по сиглам).
+CREATE TABLE variants(id INTEGER PRIMARY KEY,
+                      book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                      token_from INTEGER NOT NULL, token_to INTEGER NOT NULL);
+CREATE TABLE readings(id INTEGER PRIMARY KEY, variant_id INTEGER NOT NULL,
+                      seq INTEGER NOT NULL, text TEXT NOT NULL DEFAULT '',
+                      is_base INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE witnesses(reading_id INTEGER NOT NULL, siglum TEXT NOT NULL,
+                       PRIMARY KEY(reading_id, siglum));
 ";
 
 /// Слово уровня токена (таблица `tokens`, ADR 0016).
@@ -426,6 +437,48 @@ impl ModuleWriter {
         Ok(())
     }
 
+    /// Добавить вариант критического аппарата (таблицы
+    /// `variants`/`readings`/`witnesses`, ADR 0016). `readings` — все
+    /// чтения варианта по порядку; `is_base` помечает чтение основного
+    /// текста.
+    pub fn add_variant(
+        &self,
+        book: BookCode,
+        chapter: u16,
+        verse: u16,
+        token_from: u16,
+        token_to: u16,
+        readings: &[Reading],
+    ) -> Result<()> {
+        let vid: i64 = {
+            let mut st = self.conn.prepare_cached(
+                "INSERT INTO variants(book, chapter, verse, token_from, token_to)
+                 VALUES(?1, ?2, ?3, ?4, ?5) RETURNING id",
+            )?;
+            st.query_row(
+                params![book.as_str(), chapter, verse, token_from, token_to],
+                |r| r.get(0),
+            )?
+        };
+        let mut rs = self.conn.prepare_cached(
+            "INSERT INTO readings(variant_id, seq, text, is_base) VALUES(?1, ?2, ?3, ?4)
+             RETURNING id",
+        )?;
+        let mut ws = self
+            .conn
+            .prepare_cached("INSERT INTO witnesses VALUES(?1, ?2)")?;
+        for (seq, rd) in readings.iter().enumerate() {
+            let rid: i64 = rs.query_row(
+                params![vid, seq, rd.text, rd.is_base],
+                |r| r.get(0),
+            )?;
+            for sig in &rd.witnesses {
+                ws.execute(params![rid, sig])?;
+            }
+        }
+        Ok(())
+    }
+
     /// Сколько токенов записано (для `meta.features = tokens`).
     pub fn tokens_written(&self) -> usize {
         self.tokens
@@ -458,6 +511,7 @@ pub struct Module {
     /// Необязательные таблицы ADR 0016, которые есть в файле.
     has_tokens: bool,
     has_alignment: bool,
+    has_variants: bool,
 }
 
 /// Связь токена со спаном потока чтения (таблица `alignment`, ADR 0016).
@@ -468,6 +522,28 @@ pub struct Alignment {
     /// `blocks.seq` и `spans.seq` спана, из которого выведен токен.
     pub block: u16,
     pub span: u16,
+}
+
+/// Чтение варианта (таблица `readings` + `witnesses`, ADR 0016).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Reading {
+    pub text: String,
+    /// true — чтение основного текста (базисное).
+    pub is_base: bool,
+    /// Сиглы свидетелей: рукописи, версии (`MT`, `LXX`, `01`…).
+    pub witnesses: Vec<String>,
+}
+
+/// Место разночтения со всеми чтениями (таблица `variants`, ADR 0016).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Variant {
+    pub book: String,
+    pub chapter: u16,
+    pub verse: u16,
+    /// Диапазон токенов стиха [token_from ..= token_to].
+    pub token_from: u16,
+    pub token_to: u16,
+    pub readings: Vec<Reading>,
 }
 
 impl Module {
@@ -528,6 +604,7 @@ impl Module {
         Ok(Self {
             has_tokens: has("tokens")?,
             has_alignment: has("alignment")?,
+            has_variants: has("variants")?,
             conn,
             meta,
         })
@@ -671,6 +748,67 @@ impl Module {
         let mut out = Vec::new();
         for a in rows {
             out.push(a?);
+        }
+        Ok(out)
+    }
+
+    /// Варианты аппарата главы с чтениями и свидетелями.
+    /// Пусто — у модулей без таблицы `variants`.
+    pub fn variants(&self, book: BookCode, chapter: u16) -> Result<Vec<Variant>> {
+        if !self.has_variants {
+            return Ok(vec![]);
+        }
+        let mut vs = self.conn.prepare(
+            "SELECT id, verse, token_from, token_to FROM variants
+             WHERE book=?1 AND chapter=?2 ORDER BY verse, token_from",
+        )?;
+        let mut rs = self.conn.prepare(
+            "SELECT id, seq, text, is_base FROM readings
+             WHERE variant_id=?1 ORDER BY seq",
+        )?;
+        let mut ws = self.conn.prepare(
+            "SELECT siglum FROM witnesses WHERE reading_id=?1 ORDER BY siglum",
+        )?;
+        let variants = vs.query_map(params![book.as_str(), chapter], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for v in variants {
+            let (_id, verse, tf, tt) = v?;
+            let readings = rs.query_map(params![_id], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, bool>(3)?,
+                ))
+            })?;
+            let mut rd_list = Vec::new();
+            for rd in readings {
+                let (rid, text, is_base) = rd?;
+                let sigs = ws.query_map(params![rid], |r| r.get::<_, String>(0))?;
+                let mut witnesses = Vec::new();
+                for s in sigs {
+                    witnesses.push(s?);
+                }
+                rd_list.push(Reading {
+                    text,
+                    is_base,
+                    witnesses,
+                });
+            }
+            out.push(Variant {
+                book: book.as_str().to_string(),
+                chapter,
+                verse: verse as u16,
+                token_from: tf as u16,
+                token_to: tt as u16,
+                readings: rd_list,
+            });
         }
         Ok(out)
     }

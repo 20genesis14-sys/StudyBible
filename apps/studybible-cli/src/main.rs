@@ -125,7 +125,12 @@ fn build(args: &[String]) -> Result<(), String> {
         let format = m.get("format").and_then(|f| f.as_str()).unwrap_or("usfm");
         let src = data.join("sources").join(&meta.source);
         let file = out.join(format!("{}.sb", meta.id));
-        let stats = build_module(&src, &file, &meta, format)?;
+        // Необязательный TSV аппарата рядом с источником (ADR 0016).
+        let variants = m
+            .get("variants")
+            .and_then(|x| x.as_str())
+            .map(|v| src.join(v));
+        let stats = build_module(&src, &file, &meta, format, variants.as_deref())?;
         println!(
             "{}: {} книг, {} глав, {} стихов → {}",
             meta.id,
@@ -195,7 +200,13 @@ struct Stats {
     verses: usize,
 }
 
-fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Stats, String> {
+fn build_module(
+    src: &Path,
+    out: &Path,
+    meta: &Meta,
+    format: &str,
+    variants: Option<&Path>,
+) -> Result<Stats, String> {
     let exts: &[&str] = match format {
         "usfm" => &["usfm"],
         "osis" => &["osis", "xml"],
@@ -295,6 +306,30 @@ fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Sta
         meta.kind.as_str()
     };
     w.set_meta("kind", kind).map_err(|e| e.to_string())?;
+
+    // Аппарат вариантов из TSV (ADR 0016).
+    if let Some(vf) = variants {
+        let text = std::fs::read_to_string(vf).map_err(|e| format!("{}: {e}", vf.display()))?;
+        let list = tsv::parse_variants(&text).map_err(|e| format!("{}: {}", vf.display(), e.0))?;
+        for v in &list {
+            let readings: Vec<studybible_store::Reading> = v
+                .readings
+                .iter()
+                .map(|r| studybible_store::Reading {
+                    text: r.text.clone(),
+                    is_base: r.is_base,
+                    witnesses: r.witnesses.clone(),
+                })
+                .collect();
+            w.add_variant(v.book, v.chapter, v.verse, v.token_from, v.token_to, &readings)
+                .map_err(|e| e.to_string())?;
+        }
+        if !list.is_empty() && !features.iter().any(|x| x == "variants") {
+            features.push("variants".into());
+            w.set_meta("features", &features.join(","))
+                .map_err(|e| e.to_string())?;
+        }
+    }
     w.finish().map_err(|e| e.to_string())?;
     Ok(stats)
 }

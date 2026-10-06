@@ -248,6 +248,53 @@ fn kind_features_rights_roundtrip() {
 }
 
 #[test]
+fn variants_roundtrip() {
+    // ADR 0016: вариант с двумя чтениями и свидетелями.
+    use studybible_store::Reading;
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    let b = usfm::parse(SRC).unwrap();
+    let mut w = ModuleWriter::create(&p, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    w.add_variant(
+        b.code,
+        1,
+        1,
+        0,
+        1,
+        &[
+            Reading {
+                text: "в-начале".into(),
+                is_base: true,
+                witnesses: vec!["MT".into(), "SP".into()],
+            },
+            Reading {
+                text: "в-началах".into(),
+                is_base: false,
+                witnesses: vec!["LXX".into()],
+            },
+        ],
+    )
+    .unwrap();
+    w.finish().unwrap();
+
+    let m = Module::open(&p).unwrap();
+    let vs = m.variants(b.code, 1).unwrap();
+    assert_eq!(vs.len(), 1);
+    let v = &vs[0];
+    assert_eq!((v.verse, v.token_from, v.token_to), (1, 0, 1));
+    assert_eq!(v.readings.len(), 2);
+    assert!(v.readings[0].is_base);
+    assert_eq!(v.readings[0].witnesses, ["MT", "SP"]);
+    assert_eq!(v.readings[1].witnesses, ["LXX"]);
+    // Нет таблицы у старых модулей — пустой список, не ошибка.
+    assert!(m.variants(b.code, 2).unwrap().is_empty());
+}
+
+#[test]
 fn create_twice_fails() {
     // Повторная запись поверх существующего файла — ошибка схемы.
     let dir = tempfile::tempdir().unwrap();
