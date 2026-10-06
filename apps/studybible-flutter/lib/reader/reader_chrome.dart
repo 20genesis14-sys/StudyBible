@@ -751,7 +751,11 @@ extension _ReaderChrome on _ReadingScreenState {
                       ),
                       Expanded(
                         child: GridView.count(
-                          crossAxisCount: 6,
+                          // Плотнее: клетка главы ~вдвое меньше
+                          // (десктоп 12, телефон 8 в строке).
+                          crossAxisCount:
+                              MediaQuery.of(ctx).size.width >= 700 ? 12 : 8,
+                          childAspectRatio: 1.2,
                           padding: const EdgeInsets.all(12),
                           children: [
                             for (var i = 1;
