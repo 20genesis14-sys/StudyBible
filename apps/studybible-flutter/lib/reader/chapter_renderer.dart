@@ -179,25 +179,36 @@ extension _ChapterRenderer on _ReadingScreenState {
           : (caller.isNotEmpty && caller != '+' && caller != '*'
                 ? caller
                 : _fnLetters[noteIdx % _fnLetters.length]);
-      return TextSpan(
-        text: mark,
-        style: TextStyle(
-          fontSize: 11 * settings.fontScale,
-          fontWeight: FontWeight.w800,
-          color: p.accent,
-          fontFeatures: const [FontFeature.superscripts()],
-        ),
-        semanticsLabel: s.kind == 'x'
-            ? tr('Параллельные места', 'Cross-references')
-            : tr('Сноска $mark', 'Footnote $mark'),
-        // Тап → карточка сноски (ADR 0015), «Все сноски» — список главы.
-        recognizer: _tap(
-          () => showNoteCard(
+      // Зона нажатия ~28×28 dp — иначе надстрочный «°»/буква на
+      // телефоне почти не нажимается. Отступ снизу имитирует
+      // надстрочное положение, кегль чуть больше для читаемости.
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => showNoteCard(
             context,
             note: s,
             verse: vCtx ?? 0,
             onRef: _goToRef,
             onShowAll: _openNotes,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 4, right: 4, bottom: 10),
+            child: Semantics(
+              label: s.kind == 'x'
+                  ? tr('Параллельные места', 'Cross-references')
+                  : tr('Сноска $mark', 'Footnote $mark'),
+              child: Text(
+                mark,
+                style: TextStyle(
+                  fontSize: 13 * settings.fontScale,
+                  fontWeight: FontWeight.w800,
+                  color: p.accent,
+                  fontFeatures: const [FontFeature.superscripts()],
+                ),
+              ),
+            ),
           ),
         ),
       );
