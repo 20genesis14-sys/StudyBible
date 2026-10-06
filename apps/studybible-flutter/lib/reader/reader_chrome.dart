@@ -276,7 +276,6 @@ extension _ReaderChrome on _ReadingScreenState {
                   ] else ...[
                     const Spacer(),
                     _modeSwitch(p),
-                    _searchPill(p),
                   ],
                 ],
               ),
@@ -287,33 +286,67 @@ extension _ReaderChrome on _ReadingScreenState {
     );
   }
 
-  /// Поле-пилюля «Поиск…» в верхней панели: тап открывает экран
-  /// поиска по текущему модулю.
-  Widget _searchPill(Palette p) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () =>
-            Navigator.of(context)
-                .push(fastRoute(SearchScreen(moduleId: _moduleId))),
-        child: Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: p.edge.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(20),
-          ),
+  /// Плавающее поле поиска над нижней панелью (мобильная раскладка):
+  /// не закрывает экран, клавиатура поднимается поверх. Enter или
+  /// кнопка-стрелка — переход на экран результатов с запросом.
+  Widget _searchField(Palette p) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return Positioned(
+      left: 12,
+      right: 12,
+      // Над нижней панелью (инсет + высота кнопок ~66) и над
+      // мини-плеером TTS, если он есть.
+      bottom: bottomInset + 66 + (_ttsPlaying ? 64 : 0),
+      child: Material(
+        color: p.card,
+        elevation: 6,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           child: Row(
             children: [
-              Icon(Icons.search, size: 17, color: p.muted),
+              Icon(Icons.search, size: 18, color: p.muted),
               const SizedBox(width: 8),
-              Text(
-                tr('Поиск по тексту', 'Search the text'),
-                style: TextStyle(fontSize: 13, color: p.muted),
+              Expanded(
+                child: TextField(
+                  controller: _searchCtrl,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  style: TextStyle(fontSize: 14, color: p.ink),
+                  decoration: InputDecoration(
+                    hintText: tr('Поиск по тексту', 'Search the text'),
+                    hintStyle: TextStyle(color: p.muted),
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _openSearch(),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, size: 18, color: p.muted),
+                tooltip: tr('Закрыть', 'Close'),
+                onPressed: () => _rebuild(() => _searchOpen = false),
+              ),
+              IconButton(
+                icon: Icon(Icons.arrow_forward, size: 18, color: p.accent),
+                tooltip: tr('Искать', 'Search'),
+                onPressed: _openSearch,
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _openSearch() {
+    final q = _searchCtrl.text.trim();
+    _rebuild(() => _searchOpen = false);
+    Navigator.of(context).push(
+      fastRoute(
+        SearchScreen(
+          moduleId: _moduleId,
+          initialQuery: q.isEmpty ? null : q,
         ),
       ),
     );
@@ -409,6 +442,15 @@ extension _ReaderChrome on _ReadingScreenState {
                 tr('Слушать', 'Listen'),
                 _ttsPlaying,
                 () => _toggleTts(),
+              ),
+              btn(
+                Icons.search,
+                tr('Поиск', 'Search'),
+                _searchOpen,
+                () => _rebuild(() {
+                  _searchOpen = !_searchOpen;
+                  if (!_searchOpen) _searchCtrl.clear();
+                }),
               ),
               btn(Icons.more_horiz, tr('Ещё', 'More'), false, _moreSheet),
             ],

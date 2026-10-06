@@ -77,6 +77,11 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// по тапу на тексте.
   bool _barVisible = true;
 
+  /// Мобильный поиск: плавающее поле над нижней панелью (кнопка
+  /// «Поиск» рядом с «Ещё»).
+  bool _searchOpen = false;
+  final _searchCtrl = TextEditingController();
+
   /// Второй перевод в режиме сравнения.
   late String _compareModuleId = _moduleId == 'engwebp' ? 'russyn' : 'engwebp';
   final ScrollController _compareScroll = ScrollController();
@@ -180,6 +185,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
     }
     _tapRecognizers.clear();
     _ttsService.dispose();
+    _searchCtrl.dispose();
     _scroll.dispose();
     _compareScroll.dispose();
     super.dispose();
@@ -387,6 +393,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
                     ),
                   ),
                 ),
+              // Плавающее поле поиска — над нижней панелью, не
+              // закрывает текст (мобильная раскладка).
+              if (!wide && _searchOpen) _searchField(p),
               // Мини-плеер чтения вслух: пауза/перемотка по стихам,
               // плавает над нижней панелью и остаётся, когда панели
               // спрятаны прокруткой.
