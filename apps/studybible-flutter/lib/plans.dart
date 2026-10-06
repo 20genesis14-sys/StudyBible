@@ -70,14 +70,13 @@ int planTodayIndex(String planStart) {
   // даты ('2026-13-45' → январь 2027), что даст ложный отрицательный
   // индекс. Требуем ровно yyyy-mm-dd и roundtrip.
   if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(planStart)) return -1;
-  final s = DateTime.tryParse(planStart);
-  if (s == null) return -1;
+  // Формат гарантирован — parse не может вернуть null здесь.
+  final s = DateTime.parse(planStart);
   final back =
       '${s.year.toString().padLeft(4, '0')}-'
       '${s.month.toString().padLeft(2, '0')}-'
       '${s.day.toString().padLeft(2, '0')}';
   if (back != planStart) return -1;
-  if (s == null) return -1;
   final now = DateTime.now();
   return DateTime(now.year, now.month, now.day)
       .difference(DateTime(s.year, s.month, s.day))

@@ -665,25 +665,28 @@ extension _ReaderChrome on _ReadingScreenState {
           child: SizedBox(
             height: MediaQuery.of(ctx).size.height * 0.62,
             child: sel == null
-                ? ListView(
-                    children: [
-                      for (final b in books)
-                        ListTile(
-                          dense: true,
-                          leading: b.code == _code
-                              ? Icon(Icons.check, size: 18, color: p.accent)
-                              : const SizedBox(width: 18),
-                          title: Text(b.title),
-                          onTap: () {
+                ? Padding(
+                    padding: const EdgeInsets.all(12),
+                    // Та же цветная сетка книг, что в разделе «Библия»,
+                    // только компактная: группы — цветом плитки.
+                    child: GridView.count(
+                      crossAxisCount:
+                          MediaQuery.of(ctx).size.width >= 700 ? 8 : 4,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 1.9,
+                      children: [
+                        for (final b in books)
+                          _bookTile(ctx, p, b, () {
                             if (b.chapters <= 1) {
                               Navigator.of(ctx).pop();
                               _jumpTo(b.code, 1);
                             } else {
                               setSheet(() => sel = b.code);
                             }
-                          },
-                        ),
-                    ],
+                          }),
+                      ],
+                    ),
                   )
                 : Column(
                     children: [
@@ -748,6 +751,46 @@ extension _ReaderChrome on _ReadingScreenState {
                       ),
                     ],
                   ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Плитка книги в листе быстрого перехода: цвет группы (как в
+  /// разделе «Библия»), рамка у текущей книги.
+  Widget _bookTile(BuildContext ctx, Palette p, BookDoc b, VoidCallback onTap) {
+    final group = kCatalog
+        .where((e) => e.$1 == b.code)
+        .map((e) => e.$3)
+        .firstOrNull;
+    final theme = appThemeOf(context);
+    final cur = b.code == _code;
+    return Material(
+      color: group != null ? groupColor(group, theme) : p.card,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: cur ? Border.all(color: p.onAccent, width: 2.5) : null,
+          ),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Text(
+            kShortName[b.code] ?? b.title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: group == null || theme != AppTheme.light
+                  ? p.onAccent
+                  : Colors.white,
+              fontSize: 12,
+              fontWeight: cur ? FontWeight.w800 : FontWeight.w600,
+            ),
           ),
         ),
       ),
