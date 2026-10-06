@@ -19,8 +19,13 @@ pub fn feed(h: &mut Sha256, book: BookCode, chapter: u16, ch: &Chapter) {
                 Span::Text { text, style, attrs } => {
                     h.update(format!("t{style}\u{1}{attrs}\u{1}{text}\u{0}"));
                 }
-                Span::Note { kind, caller, text } => {
-                    h.update(format!("n{kind}{caller}\u{1}{text}\u{0}"));
+                Span::Note {
+                    kind,
+                    caller,
+                    text,
+                    attrs,
+                } => {
+                    h.update(format!("n{kind}{caller}\u{1}{attrs}\u{1}{text}\u{0}"));
                 }
             }
         }

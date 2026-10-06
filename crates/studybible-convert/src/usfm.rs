@@ -225,6 +225,11 @@ pub fn parse(src: &str) -> Result<Book, Error> {
                 let (caller, first) = first_word(text);
                 let mut note = String::new();
                 let mut skip = false;
+                // Привязка к части стиха (ADR 0016, п. 8): буква части
+                // из ссылки \fr/\xo («1:1a» → «a»), цитируемый текст
+                // привязки — из \fq/\xq.
+                let mut part = String::new();
+                let mut anchor = String::new();
                 let add = |s: &str, skip: bool, note: &mut String| {
                     if !skip {
                         note.push_str(s);
@@ -236,6 +241,17 @@ pub fn parse(src: &str) -> Result<Book, Error> {
                     let inner = t.marker.unwrap_or("").trim_start_matches('+');
                     if !inner.ends_with('*') {
                         skip = matches!(inner, "fr" | "xo" | "fv");
+                        if matches!(inner, "fr" | "xo") {
+                            let (r, _) = first_word(t.text);
+                            let mut chars = r.chars().rev();
+                            if let Some(c) = chars.next().filter(|c| c.is_ascii_lowercase())
+                                && chars.next().is_some_and(|d| d.is_ascii_digit())
+                            {
+                                part = c.to_string();
+                            }
+                        } else if matches!(inner, "fq" | "fqa" | "xq") {
+                            anchor.push_str(t.text);
+                        }
                     }
                     add(t.text, skip, &mut note);
                     i += 1;
@@ -245,10 +261,19 @@ pub fn parse(src: &str) -> Result<Book, Error> {
                 i += 1;
                 if let Some(ch) = chapter.as_mut() {
                     let kind = if name == "x" { 'x' } else { 'f' };
+                    let anchor = anchor.trim().replace('"', "'");
+                    let mut attrs = String::new();
+                    if !part.is_empty() {
+                        attrs.push_str(&format!("part=\"{part}\" "));
+                    }
+                    if !anchor.is_empty() {
+                        attrs.push_str(&format!("q=\"{anchor}\""));
+                    }
                     current_block(ch).spans.push(Span::Note {
                         kind,
                         caller: caller.to_string(),
                         text: normalize(&note).trim().to_string(),
+                        attrs: attrs.trim().to_string(),
                     });
                     push_text(ch, trailing, &styles);
                 }
@@ -388,12 +413,20 @@ impl Book {
                             };
                             let _ = write!(out, "\\{style} {text}{a}\\{style}*");
                         }
-                        Span::Note { kind, caller, text } => {
+                        Span::Note {
+                            kind,
+                            caller,
+                            text,
+                            attrs,
+                        } => {
                             let _ = write!(
                                 out,
                                 "\\{kind} {caller} \\{}t {text}\\{kind}*",
                                 if *kind == 'x' { 'x' } else { 'f' }
                             );
+                            // Привязка к части стиха (attrs) обратно в USFM
+                            // не разворачивается — одностороннее чтение.
+                            let _ = attrs;
                         }
                     }
                 }

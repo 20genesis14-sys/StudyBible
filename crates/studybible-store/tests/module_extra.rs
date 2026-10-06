@@ -137,6 +137,42 @@ fn unknown_span_kind_skipped() {
 }
 
 #[test]
+fn note_attrs_roundtrip() {
+    // ADR 0016, п. 8: привязка сноски к части стиха пишется в spans.attrs
+    // и читается обратно без потерь.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    let b = usfm::parse(
+        "\\id GEN\n\\c 1\n\\v 1 Начало\\f + \\fr 1:1a \\fq в начале \\ft сноска\\f* конец.\n",
+    )
+    .unwrap();
+    let mut w = ModuleWriter::create(&p, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    w.finish().unwrap();
+
+    let m = Module::open(&p).unwrap();
+    let ch = m
+        .chapter(BookCode::new("GEN").unwrap(), 1)
+        .unwrap()
+        .unwrap();
+    let attrs = ch
+        .blocks
+        .iter()
+        .flat_map(|b| &b.spans)
+        .find_map(|s| match s {
+            Span::Note {
+                kind: 'f', attrs, ..
+            } => Some(attrs.clone()),
+            _ => None,
+        })
+        .expect("сноска");
+    assert_eq!(attrs, "part=\"a\" q=\"в начале\"");
+}
+
+#[test]
 fn open_missing_file() {
     let dir = tempfile::tempdir().unwrap();
     let p = dir.path().join("нет.sb");

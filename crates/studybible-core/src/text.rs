@@ -27,6 +27,11 @@ pub enum Span {
         kind: char,
         caller: String,
         text: String,
+        /// Атрибуты привязки к части стиха (ADR 0016, п. 8):
+        /// `q="…"` — цитируемый текст привязки (USFM `\fq`/`\xq`,
+        /// OSIS `<catchWord>`), `part="a"` — буква части стиха
+        /// (USFM `\fr`/`\xo`, `1:1a`). Пусто — ссылка на целый стих.
+        attrs: String,
     },
 }
 

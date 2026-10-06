@@ -46,7 +46,9 @@ fn footnote_caller_and_trailing() {
         .iter()
         .flat_map(|b| &b.spans)
         .find_map(|s| match s {
-            Span::Note { kind, caller, text } => Some((*kind, caller.clone(), text.clone())),
+            Span::Note {
+                kind, caller, text, ..
+            } => Some((*kind, caller.clone(), text.clone())),
             _ => None,
         })
         .expect("сноска");
@@ -73,6 +75,61 @@ fn crossref_note() {
         })
         .expect("перекрёстная ссылка");
     assert_eq!(note, "Быт 2:2");
+}
+
+#[test]
+fn note_part_and_anchor() {
+    // ADR 0016, п. 8: \fr «1:1a» → part="a", \fq → q-привязка.
+    let b = usfm::parse(
+        "\\id GEN\n\\c 1\n\\v 1 Начало\\f + \\fr 1:1a \\fq в начале \\ft сноска\\f* конец.",
+    )
+    .unwrap();
+    let ch = b.chapter(1).unwrap();
+    let note = ch
+        .blocks
+        .iter()
+        .flat_map(|b| &b.spans)
+        .find_map(|s| match s {
+            Span::Note {
+                kind: 'f',
+                attrs,
+                text,
+                ..
+            } => Some((attrs.clone(), text.clone())),
+            _ => None,
+        })
+        .expect("сноска");
+    assert_eq!(note.0, "part=\"a\" q=\"в начале\"");
+    assert!(note.1.contains("в начале") && note.1.contains("сноска"));
+
+    // Перекрёстная ссылка: \xo «2:3b» → part="b", \xq → q.
+    let b = usfm::parse("\\id GEN\n\\c 1\n\\v 1 Стих\\x - \\xo 2:3b \\xq слово \\xt Быт 2:3\\x*.")
+        .unwrap();
+    let attrs = b
+        .chapter(1)
+        .unwrap()
+        .blocks
+        .iter()
+        .flat_map(|b| &b.spans)
+        .find_map(|s| match s {
+            Span::Note {
+                kind: 'x', attrs, ..
+            } => Some(attrs.clone()),
+            _ => None,
+        })
+        .expect("ссылка");
+    assert_eq!(attrs, "part=\"b\" q=\"слово\"");
+
+    // Без буквы части — attrs пуст.
+    let b = usfm::parse("\\id GEN\n\\c 1\n\\v 1 Т\\f + \\fr 1:1 \\ft с\\f*.").unwrap();
+    let has = b
+        .chapter(1)
+        .unwrap()
+        .blocks
+        .iter()
+        .flat_map(|b| &b.spans)
+        .any(|s| matches!(s, Span::Note { attrs, .. } if !attrs.is_empty()));
+    assert!(!has);
 }
 
 #[test]

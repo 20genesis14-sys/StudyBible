@@ -43,6 +43,15 @@ fn attr(e: &BytesStart, name: &str) -> Option<String> {
     })
 }
 
+/// Значение `q="…"` из строки attrs спана (цитата привязки, ADR 0016).
+fn attr_q(attrs: &str) -> Option<&str> {
+    let pat = "q=\"";
+    let i = attrs.find(pat)? + pat.len();
+    let rest = &attrs[i..];
+    let end = rest.find('"')?;
+    Some(&rest[..end])
+}
+
 /// Последний сегмент osisID (`Gen.1.1` → `1`); объединённые стихи — по первому.
 fn id_num(id: &str) -> Option<u16> {
     id.split_whitespace()
@@ -112,8 +121,10 @@ struct Parser {
     styles: Vec<(String, String)>,
     /// Атрибуты открытого `<w>`.
     w_attrs: Option<String>,
-    /// Собираемая сноска: (вид, метка, текст).
-    note: Option<(char, String, String)>,
+    /// Собираемая сноска: (вид, метка, текст, цитата привязки catchWord).
+    note: Option<(char, String, String, String)>,
+    /// Текст сейчас идёт в `<catchWord>` внутри сноски (ADR 0016, п. 8).
+    in_catch: bool,
     /// Заголовок книги в сборе: (ключ header, текст).
     title: Option<(String, String)>,
     /// Глубина открытого `title` — текст внутри него идёт в текущий блок,
@@ -263,7 +274,27 @@ impl Parser {
             _ => 'f',
         };
         let caller = attr(e, "n").unwrap_or_else(|| "+".into());
-        self.note = Some((kind, caller, String::new()));
+        self.note = Some((kind, caller, String::new(), String::new()));
+    }
+
+    /// Закрыть сноску и положить спан в поток. `<catchWord>` —
+    /// в `attrs` (`q="…"`), остальной текст — видимый текст сноски.
+    fn close_note(&mut self) {
+        let (kind, caller, buf, anchor) = self.note.take().expect("сноска");
+        if let Some(ch) = self.chapter.as_mut() {
+            let anchor = anchor.trim().replace('"', "'");
+            let attrs = if anchor.is_empty() {
+                String::new()
+            } else {
+                format!("q=\"{anchor}\"")
+            };
+            usfm::current_block(ch).spans.push(Span::Note {
+                kind,
+                caller,
+                text: normalize(&buf).trim().to_string(),
+                attrs,
+            });
+        }
     }
 
     fn open_style(&mut self, e: &BytesStart, elem: &str, style: String) {
@@ -281,8 +312,12 @@ impl Parser {
             buf.push_str(s);
             return;
         }
-        if let Some((_, _, buf)) = self.note.as_mut() {
-            buf.push_str(s);
+        if let Some((_, _, buf, anchor)) = self.note.as_mut() {
+            if self.in_catch {
+                anchor.push_str(s);
+            } else {
+                buf.push_str(s);
+            }
             return;
         }
         let Some(ch) = self.chapter.as_mut() else {
@@ -316,7 +351,12 @@ impl Parser {
             return Ok(());
         }
         if self.note.is_some() {
-            return Ok(()); // элементы внутри сноски — только текст
+            // <catchWord> внутри сноски — цитата привязки (ADR 0016);
+            // прочие элементы — только текст.
+            if name == "catchWord" {
+                self.in_catch = true;
+            }
+            return Ok(());
         }
         match name.as_str() {
             "header" | "figure" | "index" | "titlePage" => self.skip = 1,
@@ -419,14 +459,7 @@ impl Parser {
             "l" => self.new_block(&line_marker(e)),
             "note" => {
                 self.open_note(e);
-                let (kind, caller, buf) = self.note.take().expect("сноска");
-                if let Some(ch) = self.chapter.as_mut() {
-                    usfm::current_block(ch).spans.push(Span::Note {
-                        kind,
-                        caller,
-                        text: normalize(&buf).trim().to_string(),
-                    });
-                }
+                self.close_note();
             }
             "milestone" => match attr(e, "type").as_deref() {
                 Some("x-usfm-marker") => {
@@ -448,17 +481,12 @@ impl Parser {
             return;
         }
         if self.note.is_some() {
-            if name == "note" {
-                let (kind, caller, buf) = self.note.take().expect("сноска");
-                if let Some(ch) = self.chapter.as_mut() {
-                    usfm::current_block(ch).spans.push(Span::Note {
-                        kind,
-                        caller,
-                        text: normalize(&buf).trim().to_string(),
-                    });
-                }
+            match name.as_str() {
+                "note" => self.close_note(),
+                "catchWord" => self.in_catch = false,
+                _ => {} // прочие концы внутри сноски игнорируются
             }
-            return; // прочие концы внутри сноски игнорируются
+            return;
         }
         match name.as_str() {
             "div" => {
@@ -564,7 +592,12 @@ fn spans_osis(out: &mut String, spans: &[Span], osis: &str, chapter: u16, open: 
                     }
                 }
             }
-            Span::Note { kind, caller, text } => {
+            Span::Note {
+                kind,
+                caller,
+                text,
+                attrs,
+            } => {
                 let (ty, inner) = if *kind == 'x' {
                     (
                         "crossReference",
@@ -572,6 +605,12 @@ fn spans_osis(out: &mut String, spans: &[Span], osis: &str, chapter: u16, open: 
                     )
                 } else {
                     ("x-footnote", escape(text).into_owned())
+                };
+                // Цитата привязки — обратно в <catchWord> (ADR 0016).
+                let inner = if let Some(q) = attr_q(attrs) {
+                    format!("<catchWord>{}</catchWord>{inner}", escape(q))
+                } else {
+                    inner
                 };
                 let _ = write!(
                     out,

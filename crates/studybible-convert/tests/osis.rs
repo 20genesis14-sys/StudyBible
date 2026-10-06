@@ -7,7 +7,9 @@ fn notes(spans: &[Span]) -> Vec<(char, String, String)> {
     spans
         .iter()
         .filter_map(|s| match s {
-            Span::Note { kind, caller, text } => Some((*kind, caller.clone(), text.clone())),
+            Span::Note {
+                kind, caller, text, ..
+            } => Some((*kind, caller.clone(), text.clone())),
             _ => None,
         })
         .collect()
@@ -39,7 +41,9 @@ fn canon(ch: &Chapter) -> Vec<(String, Vec<String>)> {
                         let t = text.trim_end();
                         (!t.is_empty()).then(|| format!("t:{style}|{attrs}|{t}"))
                     }
-                    Span::Note { kind, caller, text } => Some(format!("n:{kind}:{caller}:{text}")),
+                    Span::Note {
+                        kind, caller, text, ..
+                    } => Some(format!("n:{kind}:{caller}:{text}")),
                 })
                 .collect();
             (b.marker.clone(), spans)
@@ -111,6 +115,28 @@ fn footnote_and_crossref() {
         all.iter().any(|(k, _, t)| *k == 'x' && t == "Быт 1:1"),
         "текст <reference> внутри ссылки сохраняется"
     );
+}
+
+#[test]
+fn note_catchword_anchor() {
+    // ADR 0016, п. 8: <catchWord> → attrs q="…", в текст не идёт.
+    let src = r#"<osis><osisText><div type="book" osisID="Gen"><title>Бытие</title>
+<chapter osisID="Gen.1"><p><verse osisID="Gen.1.1" sID="Gen.1.1"/>В начале<note n="a">сноска <catchWord>В начале</catchWord> конец.</note><verse eID="Gen.1.1"/></p></chapter>
+</div></osisText></osis>"#;
+    let b = &osis::parse(src).unwrap()[0];
+    let ch = b.chapter(1).unwrap();
+    let (attrs, text) = ch
+        .blocks
+        .iter()
+        .flat_map(|b| &b.spans)
+        .find_map(|s| match s {
+            Span::Note { attrs, text, .. } => Some((attrs.clone(), text.clone())),
+            _ => None,
+        })
+        .expect("сноска");
+    assert_eq!(attrs, "q=\"В начале\"");
+    // Текст <catchWord> в сноску не попадает — он ушёл в привязку.
+    assert_eq!(text, "сноска конец.");
 }
 
 #[test]

@@ -280,8 +280,10 @@ const Map<String, String> _enBooks = {
 
 /// Паттерн «Книга Гл:Ст»: книга — буквенный префикс (1-3 слова, допускает
 /// ведущую цифру и пробел), далее глава, двоеточие, стих или диапазон.
+/// Буква части стиха («1:1a», ADR 0016) входит в подсветку ссылки,
+/// навигация идёт на целый стих.
 final RegExp _pattern = RegExp(
-  r'((?:[1-4]\s*)?(?:[A-ZА-ЯЁ][a-zа-яё\.]*(?:\s+[a-zа-яё\.]+){0,2}))\s+(\d{1,3})\s*[:：,]\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?',
+  r'((?:[1-4]\s*)?(?:[A-ZА-ЯЁ][a-zа-яё\.]*(?:\s+[a-zа-яё\.]+){0,2}))\s+(\d{1,3})\s*[:：,]\s*(\d{1,3}[a-e]?)(?:\s*[-–—]\s*(\d{1,3}[a-e]?))?',
   unicode: true,
 );
 
@@ -302,8 +304,12 @@ List<RefMatch> findRefs(String text) {
     final book = _bookOf(m.group(1)!);
     if (book == null) continue;
     final ch = int.tryParse(m.group(2)!) ?? 0;
-    final vs = int.tryParse(m.group(3)!) ?? 0;
-    final ve = m.group(4) != null ? int.tryParse(m.group(4)!) : null;
+    // Буква части стиха (1:1a) — в подсветке, для навигации отрезается.
+    final vs =
+        int.tryParse(m.group(3)!.replaceAll(RegExp('[a-e]\$'), '')) ?? 0;
+    final ve = m.group(4) != null
+        ? int.tryParse(m.group(4)!.replaceAll(RegExp('[a-e]\$'), ''))
+        : null;
     if (ch <= 0 || vs <= 0) continue;
     out.add(RefMatch(Ref(book, ch, vs, ve), m.start, m.end));
   }

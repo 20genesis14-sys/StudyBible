@@ -179,8 +179,13 @@ fn span_json(s: &Span) -> Value {
         Span::Text { text, style, attrs } => {
             json!({"t": text, "s": style, "a": attrs})
         }
-        Span::Note { kind, caller, text } => {
-            json!({"n": kind.to_string(), "c": caller, "t": text})
+        Span::Note {
+            kind,
+            caller,
+            text,
+            attrs,
+        } => {
+            json!({"n": kind.to_string(), "c": caller, "t": text, "a": attrs})
         }
     }
 }

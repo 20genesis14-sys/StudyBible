@@ -225,7 +225,12 @@ Map<String, dynamic> _spanJson(Map<String, Object?> r) {
     case 't':
       return {'t': r['text'], 's': r['style'], 'a': r['attrs']};
     default: // 'f' | 'x'
-      return {'n': r['kind'], 'c': r['caller'], 't': r['text']};
+      return {
+        'n': r['kind'],
+        'c': r['caller'],
+        't': r['text'],
+        'a': r['attrs'], // привязка к части стиха (ADR 0016)
+      };
   }
 }
 

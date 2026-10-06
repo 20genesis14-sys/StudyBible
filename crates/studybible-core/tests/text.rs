@@ -77,6 +77,7 @@ fn verse_texts_excludes_non_verse_content() {
                     kind: 'f',
                     caller: "+".into(),
                     text: "сноска".into(),
+                    attrs: String::new(),
                 },
                 text_span(", продолжение"),
                 Span::Verse(2),

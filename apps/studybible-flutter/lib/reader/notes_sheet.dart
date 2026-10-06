@@ -122,7 +122,10 @@ class NotesSheet extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
-                        tr('ст.${notes[i].verse}', 'v.${notes[i].verse}'),
+                        tr(
+                          'ст.${notes[i].verse}${n.part ?? ''}',
+                          'v.${notes[i].verse}${n.part ?? ''}',
+                        ),
                         style: TextStyle(
                           fontSize: 10,
                           color: sel ? p.accent : p.muted,
@@ -294,8 +297,26 @@ class _NoteCardState extends State<_NoteCard> {
                   if (widget.verse > 0) ...[
                     const SizedBox(width: 6),
                     Text(
-                      tr('· ст. ${widget.verse}', '· v. ${widget.verse}'),
+                      tr(
+                        '· ст. ${widget.verse}${note.part ?? ''}',
+                        '· v. ${widget.verse}${note.part ?? ''}',
+                      ),
                       style: TextStyle(fontSize: 13, color: p.muted),
+                    ),
+                  ],
+                  // Цитата привязки к части стиха (ADR 0016, п. 8).
+                  if (note.anchor != null && note.anchor!.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        tr('· «${note.anchor}»', '· “${note.anchor}”'),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic,
+                          color: p.muted,
+                        ),
+                      ),
                     ),
                   ],
                 ],

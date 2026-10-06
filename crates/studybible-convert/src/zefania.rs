@@ -269,6 +269,7 @@ impl Parser {
                         kind: 'f',
                         caller: "+".into(),
                         text: normalize(&buf).trim().to_string(),
+                        attrs: String::new(),
                     });
                 }
             }

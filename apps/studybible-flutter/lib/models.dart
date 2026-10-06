@@ -236,6 +236,7 @@ sealed class SpanDoc {
         kind: j['n'] as String, // 'f' сноска, 'x' параллельное место
         caller: j['c'] as String? ?? '',
         text: j['t'] as String? ?? '',
+        attrs: j['a'] as String? ?? '', // 'part="a" q="…"' (ADR 0016)
       );
     }
     return TextSpanDoc(
@@ -272,11 +273,27 @@ class NoteSpanDoc extends SpanDoc {
   final String kind; // 'f' | 'x'
   final String caller;
   final String text;
+
+  /// Атрибуты привязки к части стиха (ADR 0016): `part="a"`,
+  /// `q="цитируемый текст"`. Пусто — ссылка на целый стих.
+  final String attrs;
   const NoteSpanDoc({
     required this.kind,
     required this.caller,
     required this.text,
+    this.attrs = '',
   }) : super._();
+
+  String? _attr(String key) {
+    final m = RegExp('$key="([^"]*)"').firstMatch(attrs);
+    return m?.group(1);
+  }
+
+  /// Буква части стиха ('a' из «1:1a»), если задана.
+  String? get part => _attr('part');
+
+  /// Цитируемый текст привязки (\fq/\xq, catchWord), если задан.
+  String? get anchor => _attr('q');
 }
 
 /// Простой текст стихов [v]..[vEnd] главы [ch] — без сносок,

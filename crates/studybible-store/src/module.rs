@@ -404,7 +404,12 @@ impl ModuleWriter {
                             "",
                             text
                         ])?,
-                        Span::Note { kind, caller, text } => ss.execute(params![
+                        Span::Note {
+                            kind,
+                            caller,
+                            text,
+                            attrs,
+                        } => ss.execute(params![
                             book.as_str(),
                             ch.number,
                             seq,
@@ -412,7 +417,7 @@ impl ModuleWriter {
                             kind.to_string(),
                             rusqlite::types::Null,
                             "",
-                            "",
+                            attrs,
                             caller,
                             text
                         ])?,
@@ -680,6 +685,7 @@ impl Module {
                         kind: kind.chars().next().unwrap_or('f'),
                         caller,
                         text,
+                        attrs,
                     },
                     _ => continue,
                 });

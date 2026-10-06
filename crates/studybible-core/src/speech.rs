@@ -76,6 +76,7 @@ mod tests {
                             kind: 'f',
                             caller: "+".into(),
                             text: "сноска".into(),
+                            attrs: String::new(),
                         },
                         Span::Verse(2),
                         Span::Text {
