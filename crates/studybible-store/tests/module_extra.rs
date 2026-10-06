@@ -179,6 +179,66 @@ fn books_ordered() {
     assert_eq!(codes, ["GEN", "EXO"]);
 }
 
+const SRC_WORDS: &str = "\\id GEN\n\\h Бытие\n\\toc1 Бытие\n\
+\\c 1\n\\p\n\\v 1 \\w Вначале|strong=\"H7225\" lemma=\"בראשית\"\\w* \
+\\w сотворил|strong=\"H1254\" morph=\"qalive\"\\w* Бог.\n\
+\\v 2 \\w Земля|gr=\"אָרֶץ\"\\w* же.\n";
+
+#[test]
+fn tokens_written_and_read() {
+    // ADR 0016: токены выводятся из спанов с attrs/стилем 'w' —
+    // конвертеру не нужно отдельного кода.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    let b = usfm::parse(SRC_WORDS).unwrap();
+    let mut w = ModuleWriter::create(&p, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    assert!(w.tokens_written() > 0);
+    w.finish().unwrap();
+
+    let m = Module::open(&p).unwrap();
+    let toks = m.tokens(BookCode::new("GEN").unwrap(), 1).unwrap();
+    assert!(toks.len() >= 3, "токены записаны: {toks:?}");
+    assert_eq!(toks[0].verse, 1);
+    assert_eq!(toks[0].seq, 0);
+    assert_eq!(toks[0].surface, "Вначале");
+    assert_eq!(toks[0].strong, "H7225");
+    assert_eq!(toks[0].lemma, "בראשית");
+    // Пара подстрочника: gr — слово оригинала, текст — глосса.
+    let last = toks.last().unwrap();
+    assert_eq!(last.verse, 2);
+    assert_eq!(last.surface, "אָרֶץ");
+    assert_eq!(last.gloss, "Земля");
+}
+
+#[test]
+fn kind_features_rights_roundtrip() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    let b = usfm::parse(SRC).unwrap();
+    let mut meta = meta();
+    meta.kind = "interlinear".into();
+    meta.features = vec!["strongs".into(), "tokens".into()];
+    meta.rights = vec!["no-distribute".into(), "no-ai".into()];
+    let mut w = ModuleWriter::create(&p, &meta).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    w.finish().unwrap();
+    let m = Module::open(&p).unwrap();
+    assert_eq!(m.meta().kind, "interlinear");
+    assert_eq!(m.meta().features, ["strongs", "tokens"]);
+    assert_eq!(m.meta().rights, ["no-distribute", "no-ai"]);
+    // Новые ключи не протекают в extra.
+    assert!(!m.meta().extra.contains_key("kind"));
+    assert!(!m.meta().extra.contains_key("features"));
+    assert!(!m.meta().extra.contains_key("rights"));
+}
+
 #[test]
 fn create_twice_fails() {
     // Повторная запись поверх существующего файла — ошибка схемы.

@@ -276,6 +276,7 @@ fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Sta
         (has_strongs, "strongs"),
         (has_morph, "morph"),
         (has_gloss_pairs, "alignment"),
+        (w.tokens_written() > 0, "tokens"),
     ] {
         if f.0 && !features.iter().any(|x| x == f.1) {
             features.push(f.1.into());

@@ -215,12 +215,71 @@ CREATE TABLE spans(book TEXT NOT NULL, chapter INTEGER NOT NULL, block INTEGER N
                    PRIMARY KEY(book, chapter, block, seq));
 CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
                     text TEXT NOT NULL, PRIMARY KEY(book, chapter, verse));
+-- ADR 0016 (необязательная): слова уровня токена. У простого модуля
+-- таблица остаётся пустой; у старых .sb может отсутствовать вовсе.
+CREATE TABLE tokens(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                    seq INTEGER NOT NULL, surface TEXT NOT NULL DEFAULT '',
+                    lemma TEXT NOT NULL DEFAULT '', strong TEXT NOT NULL DEFAULT '',
+                    morph TEXT NOT NULL DEFAULT '', gloss TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY(book, chapter, verse, seq));
 ";
+
+/// Слово уровня токена (таблица `tokens`, ADR 0016).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Token {
+    pub verse: u16,
+    /// Порядок внутри стиха.
+    pub seq: u16,
+    /// Форма слова: для пар подстрочника (`gr="…"`) — слово оригинала,
+    /// иначе текст спана.
+    pub surface: String,
+    pub lemma: String,
+    pub strong: String,
+    pub morph: String,
+    /// Переводная глосса (для пар подстрочника — текст спана).
+    pub gloss: String,
+}
+
+/// Достать `key="значение"` из строки атрибутов спана.
+fn attr<'a>(attrs: &'a str, key: &str) -> Option<&'a str> {
+    let pat = format!("{key}=\"");
+    let i = attrs.find(&pat)? + pat.len();
+    let rest = &attrs[i..];
+    let j = rest.find('"')?;
+    Some(&rest[..j])
+}
+
+/// Токен из спана текста: слово несёт attrs (`strong`, `lemma`, `morph`)
+/// или помечено стилем `w`. Возвращает None для обычного текста.
+fn token_of(verse: u16, seq: u16, text: &str, style: &str, attrs: &str) -> Option<Token> {
+    if style != "w" && attrs.is_empty() {
+        return None;
+    }
+    // Пара подстрочника: attrs.gr — слово оригинала, текст — глосса.
+    // Текст спана может нести хвостовой пробел — токен хранит слово чистым.
+    let (surface, gloss) = match attr(attrs, "gr") {
+        Some(gr) => (gr.trim().to_string(), text.trim().to_string()),
+        None => (
+            text.trim().to_string(),
+            attr(attrs, "gloss").unwrap_or("").trim().to_string(),
+        ),
+    };
+    Some(Token {
+        verse,
+        seq,
+        surface,
+        lemma: attr(attrs, "lemma").unwrap_or("").to_string(),
+        strong: attr(attrs, "strong").unwrap_or("").to_string(),
+        morph: attr(attrs, "morph").unwrap_or("").to_string(),
+        gloss,
+    })
+}
 
 /// Запись нового модуля. Хэш содержимого накапливается в `add_chapter`, в `finish` пишется в `meta`.
 pub struct ModuleWriter {
     conn: Connection,
     hash: sha2::Sha256,
+    tokens: usize,
 }
 
 impl ModuleWriter {
@@ -230,6 +289,7 @@ impl ModuleWriter {
         let w = Self {
             conn,
             hash: crate::hash::new(),
+            tokens: 0,
         };
         w.conn.execute_batch("BEGIN")?;
         {
@@ -271,9 +331,34 @@ impl ModuleWriter {
             let mut ss = self.conn.prepare_cached(
                 "INSERT INTO spans VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )?;
+            let mut ts = self.conn.prepare_cached(
+                "INSERT INTO tokens VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            )?;
+            let mut cur_verse: u16 = 0;
+            let mut tok_seq: u16 = 0;
             for (seq, b) in ch.blocks.iter().enumerate() {
                 bs.execute(params![book.as_str(), ch.number, seq, b.marker])?;
                 for (i, s) in b.spans.iter().enumerate() {
+                    if let Span::Verse(n) = s {
+                        cur_verse = *n;
+                        tok_seq = 0;
+                    } else if let Span::Text { text, style, attrs } = s
+                        && let Some(t) = token_of(cur_verse, tok_seq, text, style, attrs)
+                    {
+                        ts.execute(params![
+                            book.as_str(),
+                            ch.number,
+                            t.verse,
+                            t.seq,
+                            t.surface,
+                            t.lemma,
+                            t.strong,
+                            t.morph,
+                            t.gloss
+                        ])?;
+                        self.tokens += 1;
+                        tok_seq += 1;
+                    }
                     match s {
                         Span::Verse(n) => ss.execute(params![
                             book.as_str(),
@@ -325,6 +410,11 @@ impl ModuleWriter {
         Ok(())
     }
 
+    /// Сколько токенов записано (для `meta.features = tokens`).
+    pub fn tokens_written(&self) -> usize {
+        self.tokens
+    }
+
     /// Дописать или заменить ключ `meta` после `create`
     /// (автоматически определённые возможности — ADR 0016).
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
@@ -349,6 +439,8 @@ impl ModuleWriter {
 pub struct Module {
     conn: Connection,
     meta: Meta,
+    /// Необязательные таблицы ADR 0016, которые есть в файле.
+    has_tokens: bool,
 }
 
 impl Module {
@@ -398,7 +490,17 @@ impl Module {
         if let Some(req) = meta.required.first() {
             return Err(ModuleError::UnsupportedFeature(req.clone()));
         }
-        Ok(Self { conn, meta })
+        // Необязательные таблицы могут отсутствовать у старых модулей.
+        let has_tokens: bool = conn.query_row(
+            "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='tokens'",
+            [],
+            |r| r.get::<_, i64>(0),
+        )? > 0;
+        Ok(Self {
+            conn,
+            meta,
+            has_tokens,
+        })
     }
 
     pub fn meta(&self) -> &Meta {
@@ -488,6 +590,34 @@ impl Module {
             ch.blocks.push(block);
         }
         Ok((!empty).then_some(ch))
+    }
+
+    /// Токены главы (слова с attrs / стилем `w`). Пустой список —
+    /// у модулей без таблицы `tokens`.
+    pub fn tokens(&self, book: BookCode, chapter: u16) -> Result<Vec<Token>> {
+        if !self.has_tokens {
+            return Ok(vec![]);
+        }
+        let mut st = self.conn.prepare(
+            "SELECT verse, seq, surface, lemma, strong, morph, gloss
+             FROM tokens WHERE book=?1 AND chapter=?2 ORDER BY verse, seq",
+        )?;
+        let rows = st.query_map(params![book.as_str(), chapter], |r| {
+            Ok(Token {
+                verse: r.get::<_, i64>(0)? as u16,
+                seq: r.get::<_, i64>(1)? as u16,
+                surface: r.get(2)?,
+                lemma: r.get(3)?,
+                strong: r.get(4)?,
+                morph: r.get(5)?,
+                gloss: r.get(6)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for t in rows {
+            out.push(t?);
+        }
+        Ok(out)
     }
 
     /// Плоский текст стиха (из кэшированной таблицы `verses`).

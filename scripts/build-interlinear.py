@@ -90,6 +90,15 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
         CREATE TABLE verses (book TEXT NOT NULL, chapter INTEGER NOT NULL,
                              verse INTEGER NOT NULL, text TEXT NOT NULL,
                              PRIMARY KEY (book, chapter, verse));
+        -- ADR 0016: токены — слово оригинала в surface, глосса в gloss.
+        CREATE TABLE tokens (book TEXT NOT NULL, chapter INTEGER NOT NULL,
+                             verse INTEGER NOT NULL, seq INTEGER NOT NULL,
+                             surface TEXT NOT NULL DEFAULT '',
+                             lemma TEXT NOT NULL DEFAULT '',
+                             strong TEXT NOT NULL DEFAULT '',
+                             morph TEXT NOT NULL DEFAULT '',
+                             gloss TEXT NOT NULL DEFAULT '',
+                             PRIMARY KEY (book, chapter, verse, seq));
     ''')
     book_titles = {
         'MAT': 'Matthew', 'MRK': 'Mark', 'LUK': 'Luke', 'JHN': 'John',
@@ -131,6 +140,9 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
                 db.execute('INSERT INTO spans VALUES (?,?,?,?,?,?,?,?,?,?)',
                            (code, ch, seq_in_ch, i, 't', None, 'w', attrs, '',
                             en + ' '))
+                # Токен: слово оригинала в surface, переводная глосса в gloss.
+                db.execute('INSERT INTO tokens VALUES (?,?,?,?,?,?,?,?,?)',
+                           (code, ch, v, i - 1, gr, '', '', '', en))
                 n_words += 1
     meta = {
         'format_version': '1', 'id': mod_id, 'title': title,
@@ -140,6 +152,9 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
         'attribution': 'int_E. → int-en (gloss/greek/pairs)',
         'source': 'int-en', 'content_hash': digest.hexdigest(),
         'required': '', 'interlinear': '1',
+        # ADR 0016: тип, возможности и права (личный модуль — не раздавать).
+        'kind': 'interlinear', 'features': 'tokens,alignment',
+        'rights': 'no-distribute,no-net,no-ai,no-plugins',
     }
     db.executemany('INSERT INTO meta VALUES (?,?)', meta.items())
     db.commit()
