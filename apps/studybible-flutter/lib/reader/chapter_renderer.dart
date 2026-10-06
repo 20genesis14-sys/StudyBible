@@ -27,12 +27,22 @@ extension _ChapterRenderer on _ReadingScreenState {
     _ => readingFontFamily(settings.readingFont),
   };
 
-  TextStyle _baseStyle(Palette p) => TextStyle(
-    fontFamily: _textFont(),
-    fontSize: 17 * settings.fontScale,
-    color: p.ink,
-    height: 1.66,
-  );
+  /// Кегль чтения по умолчанию — 20,5 sp (ADR 0015). Для
+  /// вариативной Literata оптический размер следует за кеглем.
+  static const double _readingSize = 20.5;
+
+  TextStyle _baseStyle(Palette p) {
+    final family = _textFont();
+    return TextStyle(
+      fontFamily: family,
+      fontSize: _readingSize * settings.fontScale,
+      color: p.ink,
+      height: 1.62,
+      fontVariations: family == 'Literata'
+          ? [FontVariation('opsz', _readingSize * settings.fontScale)]
+          : null,
+    );
+  }
 
   /// Цвет номеров стихов — киноварь (ADR 0015): единый акцент чтения,
   /// цвет группы книги остаётся только на плитках сетки.

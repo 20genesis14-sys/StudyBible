@@ -77,6 +77,10 @@ class SettingsScreen extends StatelessWidget {
                                 label: Text('Gentium'),
                               ),
                               ButtonSegment(
+                                value: ReadingFont.ptSerif,
+                                label: Text('PT Serif'),
+                              ),
+                              ButtonSegment(
                                 value: ReadingFont.system,
                                 label: Text(tr('Системный', 'System')),
                               ),
@@ -174,6 +178,19 @@ class SettingsScreen extends StatelessWidget {
                           selected: {settings.columnWidth},
                           onSelectionChanged: (s) => settings.update(
                             () => settings.columnWidth = s.first,
+                          ),
+                        ),
+                      ),
+                      _row(
+                        p,
+                        tr(
+                          'Полные имена книг в сетке',
+                          'Full book names in grid',
+                        ),
+                        Switch(
+                          value: settings.bookFullNames,
+                          onChanged: (v) => settings.update(
+                            () => settings.bookFullNames = v,
                           ),
                         ),
                       ),

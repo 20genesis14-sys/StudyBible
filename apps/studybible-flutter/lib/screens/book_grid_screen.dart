@@ -26,14 +26,20 @@ class _BookGridScreenState extends State<BookGridScreen> {
     super.initState();
     _reloadModule();
     // Смена основного перевода (чип сверху/настройки) —
-    // перезагружаем модуль для имён книг и поиска.
-    settings.addListener(_reloadModule);
+    // перезагружаем модуль для имён книг и поиска; смена опции
+    // «полные имена» — просто перерисовка.
+    settings.addListener(_onSettings);
   }
 
   @override
   void dispose() {
-    settings.removeListener(_reloadModule);
+    settings.removeListener(_onSettings);
     super.dispose();
+  }
+
+  void _onSettings() {
+    _reloadModule();
+    if (mounted) setState(() {});
   }
 
   String _loadedId = '';
@@ -66,11 +72,18 @@ class _BookGridScreenState extends State<BookGridScreen> {
     // из сетки прячем — тап на них вёл в пустую главу.
     bool inModule(String code) =>
         _module == null || _module!.bookByCode(code) != null;
+    // Опция «полные имена книг» (ADR 0015): имя из модуля,
+    // иначе краткое из каталога.
+    String nameOf(String code) => settings.bookFullNames
+        ? (_module?.bookByCode(code)?.title ?? kShortName[code] ?? code)
+        : (kShortName[code] ?? code);
     final otVisible = ot
         .where((e) => inModule(e.$1) && _matches(e.$1))
+        .map((e) => (e.$1, nameOf(e.$1), e.$3))
         .toList();
     final ntVisible = nt
         .where((e) => inModule(e.$1) && _matches(e.$1))
+        .map((e) => (e.$1, nameOf(e.$1), e.$3))
         .toList();
     // Книги модуля вне каталога 66 (второканонические, напр. в LXX):
     // отдельной секцией внизу сетки.
@@ -335,12 +348,21 @@ class _BookTile extends StatelessWidget {
             Navigator.of(context)
                 .push(fastRoute(ChapterGridScreen(bookCode: entry.$1))),
         child: Center(
-          child: Text(
-            entry.$2,
-            style: TextStyle(
-              color: dark ? p.onAccent : Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: wide ? 16 : 13,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              entry.$2,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: dark ? p.onAccent : Colors.white,
+                fontWeight: FontWeight.w600,
+                // Полные имена длиннее — кегль снижаем, но не ниже 11 sp.
+                fontSize: wide
+                    ? 16
+                    : (settings.bookFullNames ? 11.5 : 13),
+              ),
             ),
           ),
         ),

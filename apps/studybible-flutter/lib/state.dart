@@ -37,6 +37,9 @@ enum ReadingFont {
 
   /// Системный (Roboto/по умолчанию платформы).
   system,
+
+  /// PT Serif — книжная антиква (ADR 0015).
+  ptSerif,
 }
 
 /// Имя семейства из pubspec (null — системный).
@@ -44,6 +47,7 @@ String? readingFontFamily(ReadingFont f) => switch (f) {
   ReadingFont.literata => 'Literata',
   ReadingFont.gentium => 'GentiumBookPlus',
   ReadingFont.system => null,
+  ReadingFont.ptSerif => 'PTSerif',
 };
 
 class Settings extends ChangeNotifier {
@@ -66,6 +70,9 @@ class Settings extends ChangeNotifier {
 
   /// Шрифт текста главы.
   ReadingFont readingFont = ReadingFont.literata;
+
+  /// Полные имена книг на плитках сетки «Библия» (ADR 0015, ≥ 11 sp).
+  bool bookFullNames = false;
 
   /// Показывать выбор стиха после выбора главы (тумблер из ТЗ).
   bool versePickerEnabled = false;
@@ -99,6 +106,7 @@ class Settings extends ChangeNotifier {
         layerXrefs = j['layerXrefs'] as bool? ?? true;
         layerStrongs = j['layerStrongs'] as bool? ?? true;
         readingFont = ReadingFont.values[j['readingFont'] as int? ?? 0];
+        bookFullNames = j['bookFullNames'] as bool? ?? false;
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
         lang = j['lang'] as String? ?? 'ru';
         defaultModule = j['defaultModule'] as String? ?? 'russyn';
@@ -122,6 +130,7 @@ class Settings extends ChangeNotifier {
       'layerXrefs': layerXrefs,
       'layerStrongs': layerStrongs,
       'readingFont': readingFont.index,
+      'bookFullNames': bookFullNames,
       'versePickerEnabled': versePickerEnabled,
       'lang': lang,
       'defaultModule': defaultModule,

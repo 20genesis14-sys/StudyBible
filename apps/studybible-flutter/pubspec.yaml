@@ -75,17 +75,23 @@ flutter:
     - assets/modules/
 
   fonts:
+    # Вариативная Literata (opsz + wght, ADR 0015): оптический размер
+    # подстраивается под кегль через fontVariations в _baseStyle.
     - family: Literata
       fonts:
-        - asset: assets/fonts/Literata-Regular.ttf
-        - asset: assets/fonts/Literata-Italic.ttf
+        - asset: assets/fonts/Literata-var.ttf
+        - asset: assets/fonts/Literata-Italic-var.ttf
           style: italic
-        - asset: assets/fonts/Literata-W500.ttf
-          weight: 500
-        - asset: assets/fonts/Literata-W600.ttf
-          weight: 600
-        - asset: assets/fonts/Literata-W700.ttf
+    - family: PTSerif
+      fonts:
+        - asset: assets/fonts/PTSerif-Regular.ttf
+        - asset: assets/fonts/PTSerif-Italic.ttf
+          style: italic
+        - asset: assets/fonts/PTSerif-Bold.ttf
           weight: 700
+        - asset: assets/fonts/PTSerif-BoldItalic.ttf
+          weight: 700
+          style: italic
     - family: GentiumBookPlus
       fonts:
         - asset: assets/fonts/GentiumBookPlus-Regular.ttf

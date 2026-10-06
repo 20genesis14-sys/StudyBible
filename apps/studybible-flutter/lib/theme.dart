@@ -64,8 +64,13 @@ const Map<BookGroup, int> _groupDark = {
   BookGroup.other: 0xFFA8A29E,
 };
 
-Color groupColor(BookGroup g, AppTheme t) =>
-    Color((t == AppTheme.light ? _groupLight : _groupDark)[g]!);
+Color groupColor(BookGroup g, AppTheme t) {
+  final c = Color((t == AppTheme.light ? _groupLight : _groupDark)[g]!);
+  // ADR 0015: насыщенность плиток сетки снижена на ~18 % — цвета
+  // групп остаются различимы, но не кричат над бумагой.
+  final h = HSLColor.fromColor(c);
+  return h.withSaturation((h.saturation * 0.82).clamp(0.0, 1.0)).toColor();
+}
 
 /// Набор цветов темы, которого нет в стандартной ColorScheme.
 class Palette {
