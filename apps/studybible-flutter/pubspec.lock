@@ -295,7 +295,7 @@ packages:
     source: hosted
     version: "3.4.5"
   flutter_lints:
-    dependency: "direct dev"
+    dependency: "direct overridden"
     description:
       name: flutter_lints
       sha256: "3105dc8492f6183fb076ccf1f351ac3d60564bff92e20bfc4af9cc1651f4e7e1"
@@ -473,12 +473,11 @@ packages:
     source: hosted
     version: "0.19.5"
   native_toolchain_rust:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: native_toolchain_rust
-      sha256: dc8e5f20c0cb7052372bc302f075607086d86354b37199e89ec9d3d35589e519
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/native_toolchain_rust"
+      relative: true
+    source: path
     version: "1.0.7"
   objective_c:
     dependency: transitive

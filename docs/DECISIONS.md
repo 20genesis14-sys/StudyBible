@@ -591,3 +591,7 @@ Markdown — только экспорт.
 - Сроки: № 11 (замеры времён) и № 22 (профилировка слабого железа) —
   последний шаг перед релизом; № 31 (диктофон на web) — когда-нибудь,
   без срока.
+- Линковка моста под Android API (№ 29 закрыт): `native_toolchain_rust`
+  вендорен в `third_party/native_toolchain_rust` с `apiTarget='21'`,
+  `dependency_overrides` в pubspec; контроль собранного APK —
+  `scripts/check-apk-api.ps1`.

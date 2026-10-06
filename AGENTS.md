@@ -28,6 +28,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 
 Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`.
 Нужны: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
+После сборки APK проверить целевой API нативных библиотек:
+`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
+(мост обязан быть не выше minSdk; сборка — с `PUB_CACHE=D:\StudyBible-tools\pub-cache` и `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
 В ядре clippy запрещает `std::fs` и `std::thread::sleep` (`crates/studybible-core/clippy.toml`).
 
 ## Данные
