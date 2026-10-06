@@ -1,0 +1,21 @@
+[package]
+name = "studybible-accent"
+description = "Автоударения русского текста: нейромодель RUAccent nn_accent на tract (ADR 0017)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Чистый Rust-инференс ONNX: вторая копия onnxruntime рядом с
+# sherpa-onnx дала бы конфликт нативных библиотек (ADR 0017).
+tract-onnx = "=0.23.8"
+
+[dev-dependencies]
+# Тесты читают сжатые ассеты (lexicon.tsv.gz, yo_words.tsv.gz).
+flate2 = "1.1"
+
+[lints]
+workspace = true

@@ -5,9 +5,11 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_tts/flutter_tts.dart';
 
+import '../state.dart' show settings;
 import 'voice_backend.dart';
 
 class SystemVoiceBackend extends VoiceBackend {
@@ -33,6 +35,11 @@ class SystemVoiceBackend extends VoiceBackend {
       if (engines is List && engines.isEmpty) {
         throw StateError('no tts engine');
       }
+      // Выбранный в настройках движок (Android) — до setLanguage.
+      if (defaultTargetPlatform == TargetPlatform.android &&
+          settings.systemEngine.isNotEmpty) {
+        await tts.setEngine(settings.systemEngine);
+      }
     }
     final langOk = await tts.isLanguageAvailable(language);
     if (langOk != true) {
@@ -41,6 +48,25 @@ class SystemVoiceBackend extends VoiceBackend {
     _language = language;
     _rate = rate;
     await tts.setLanguage(language);
+    // Выбранный голос 'name|locale' (getVoices) — только если его
+    // locale совпадает с языком чтения (иначе русский голос
+    // включился бы на английском модуле); если движок его отклонил —
+    // остаёмся на голосе языка по умолчанию.
+    if (!kIsWeb && settings.systemVoice.isNotEmpty) {
+      final i = settings.systemVoice.indexOf('|');
+      if (i > 0) {
+        final name = settings.systemVoice.substring(0, i);
+        final locale = settings.systemVoice.substring(i + 1);
+        final lang = language.replaceAll('_', '-').toLowerCase();
+        if (locale.replaceAll('_', '-').toLowerCase().startsWith(
+              lang.substring(0, lang.length >= 2 ? 2 : lang.length),
+            )) {
+          try {
+            await tts.setVoice({'name': name, 'locale': locale});
+          } catch (_) {}
+        }
+      }
+    }
     // rate — множитель поверх привычных 0.45 (речь и так медленнее).
     await tts.setSpeechRate((0.45 * rate).clamp(0.1, 1.0));
     await tts.setVolume(1.0);

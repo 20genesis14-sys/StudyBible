@@ -4,6 +4,7 @@ members = [
     "crates/studybible-core",
     "crates/studybible-convert",
     "crates/studybible-store",
+    "crates/studybible-accent",
     "apps/studybible-cli",
     # FFI-мост Flutter↔ядро (flutter_rust_bridge); живёт внутри приложения.
     "apps/studybible-flutter/rust",

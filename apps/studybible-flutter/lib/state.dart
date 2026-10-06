@@ -113,6 +113,17 @@ class Settings extends ChangeNotifier {
   /// Пословная подсветка читаемого стиха (у neural — оценочная).
   bool voiceWords = false;
 
+  /// Автоударения русского текста нейромоделью (только бэкенд
+  /// neural; ADR 0017 «Фронтенд языка»).
+  bool voiceAccent = true;
+
+  /// Системный TTS-движок (Android): имя пакета, '' — по умолчанию.
+  String systemEngine = '';
+
+  /// Голос системного движка: 'name|locale' (как у flutter_tts
+  /// getVoices), '' — голос по умолчанию для языка.
+  String systemVoice = '';
+
   /// Основной перевод — модуль, открываемый по умолчанию.
   String defaultModule = 'russyn';
 
@@ -176,6 +187,9 @@ class Settings extends ChangeNotifier {
         neuralVoices = j['neuralVoices'] as String? ?? '';
         voiceRate = (j['voiceRate'] as num? ?? 1.0).toDouble();
         voiceWords = j['voiceWords'] as bool? ?? false;
+        voiceAccent = j['voiceAccent'] as bool? ?? true;
+        systemEngine = j['systemEngine'] as String? ?? '';
+        systemVoice = j['systemVoice'] as String? ?? '';
         defaultModule = j['defaultModule'] as String? ?? 'russyn';
       }
     } catch (_) {
@@ -210,6 +224,9 @@ class Settings extends ChangeNotifier {
       'neuralVoices': neuralVoices,
       'voiceRate': voiceRate,
       'voiceWords': voiceWords,
+      'voiceAccent': voiceAccent,
+      'systemEngine': systemEngine,
+      'systemVoice': systemVoice,
       'defaultModule': defaultModule,
     });
     try {

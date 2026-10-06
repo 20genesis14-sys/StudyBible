@@ -50,6 +50,28 @@ void main() {
       expect(s.readerMode, ReaderMode.reading);
       expect(s.layerFootnotes, isTrue);
     });
+
+    test('настройки голоса: дефолты новых полей', () async {
+      final s = Settings();
+      await s.load();
+      // Автоударения включены по умолчанию, движок/голос — системные.
+      expect(s.voiceAccent, isTrue);
+      expect(s.systemEngine, '');
+      expect(s.systemVoice, '');
+    });
+
+    test('поля голоса пишутся update (без load — только память)', () {
+      // Не загружаем: _loaded=false → update не сохраняет в userdata.
+      final s = Settings();
+      s.update(() {
+        s.voiceAccent = false;
+        s.systemEngine = 'com.example.tts';
+        s.systemVoice = 'v|ru-RU';
+      });
+      expect(s.voiceAccent, isFalse);
+      expect(s.systemEngine, 'com.example.tts');
+      expect(s.systemVoice, 'v|ru-RU');
+    });
   });
 
   group('ReadProgress', () {

@@ -9,6 +9,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
@@ -20,6 +21,7 @@ import 'native_bridge.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/rust/api/module.dart' as api_module;
 import 'src/rust/api/userdata.dart' as api_userdata;
+import 'src/rust/api/voice.dart' as api_voice;
 
 /// Инициализация RustLib — один раз на процесс.
 Future<void>? _init;
@@ -140,7 +142,18 @@ String dataDir() {
 String? _mobileDataDir;
 
 String _modulesDir() => '${dataDir()}${Platform.pathSeparator}modules';
-String _userdataPath() => '${dataDir()}${Platform.pathSeparator}userdata.db';
+
+/// Под flutter test (FLUTTER_TEST=true) пользовательская БД уходит
+/// во временный каталог — тесты не трогают реальный userdata.db.
+String _userdataPath() {
+  if (Platform.environment['FLUTTER_TEST'] == 'true') {
+    final d = Directory(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}studybible-test',
+    )..createSync(recursive: true);
+    return '${d.path}${Platform.pathSeparator}userdata.db';
+  }
+  return '${dataDir()}${Platform.pathSeparator}userdata.db';
+}
 
 /// Модули .sb в каталоге данных; пусто, если каталога нет или мост упал.
 Future<List<SbModuleInfo>> bridgeListModules() async {
@@ -354,3 +367,28 @@ Future<List<SearchHit>> bridgeModuleSearch(
       ),
   ];
 }
+
+// ---------- автоударения (RUAccent, нейробэкенд; ADR 0017) ----------
+
+/// Загрузить модель акцентуации из ассетов (один раз на процесс —
+/// мемоизируется вызывающей стороной). Ошибки моста — молча:
+/// чтение идёт без ударений.
+Future<void> bridgeAccentInit(
+  Uint8List model,
+  String vocab,
+  Uint8List yoGz,
+  Uint8List lexiconGz,
+) => _guard(
+  'accentInit',
+  () => api_voice.accentInit(
+    model: model,
+    vocab: vocab,
+    yoGz: yoGz,
+    lexiconGz: lexiconGz,
+  ),
+);
+
+/// Текст с ударениями U+0301 и ё по словарю; при любой ошибке —
+/// исходный текст (чтение не должно падать из-за ударений).
+Future<String> bridgeAccentText(String text) async =>
+    await _guard('accentText', () => api_voice.accentText(text: text)) ?? text;

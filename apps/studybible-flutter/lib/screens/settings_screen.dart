@@ -1,6 +1,8 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 import '../data.dart';
 import '../l10n.dart';
@@ -664,11 +666,40 @@ class _VoicesCard extends StatefulWidget {
 
 class _VoicesCardState extends State<_VoicesCard> {
   List<VoicePack> _packs = const [];
+  List<String> _engines = const [];
+  List<Map<String, String>> _voices = const [];
+  final _tts = FlutterTts();
 
   @override
   void initState() {
     super.initState();
     _packs = scanVoices();
+    _loadSystemVoices();
+  }
+
+  /// Движки (Android) и голоса текущего языка системного синтеза —
+  /// пользователь может поставить качественный движок (RuVoice,
+  /// голоса Google) и выбрать его здесь (ADR 0017).
+  Future<void> _loadSystemVoices() async {
+    if (kIsWeb) return;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final e = await _tts.getEngines;
+        if (e is List) _engines = e.map((x) => '$x').toList();
+      }
+      final v = await _tts.getVoices;
+      if (v is List) {
+        _voices = [
+          for (final m in v)
+            if (m is Map &&
+                '${m['locale']}'.toLowerCase().startsWith('ru'))
+              {'name': '${m['name']}', 'locale': '${m['locale']}'},
+        ];
+      }
+    } catch (_) {
+      // Нет TTS-стека — списки остаются пустыми, карточка молчит.
+    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _import(Future<String?> Function() pick) async {
@@ -735,6 +766,97 @@ class _VoicesCardState extends State<_VoicesCard> {
                   )
                 : null,
           ),
+        ListTile(
+          dense: true,
+          title: Text(tr('Автоударения (русский)', 'Auto accents (Russian)')),
+          subtitle: Text(
+            tr(
+              'Нейромодель ставит ударения в тексте синтеза',
+              'Neural model places stress marks in synthesis text',
+            ),
+            style: TextStyle(fontSize: 12, color: p.muted),
+          ),
+          trailing: Switch(
+            value: settings.voiceAccent,
+            onChanged: (v) => settings.update(() => settings.voiceAccent = v),
+          ),
+        ),
+        if (_engines.isNotEmpty || _voices.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Text(
+              tr('Системный движок', 'System engine'),
+              style: TextStyle(fontSize: 14, color: p.ink),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Text(
+              tr(
+                'Для естественного русского голоса установите системный движок высокого качества (например, RuVoice на основе Silero или голоса Google) и выберите его здесь',
+                'For a natural Russian voice install a high-quality system engine (e.g. RuVoice based on Silero or Google voices) and pick it here',
+              ),
+              style: TextStyle(fontSize: 12, color: p.muted),
+            ),
+          ),
+          if (_engines.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _engines.contains(settings.systemEngine)
+                    ? settings.systemEngine
+                    : '',
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(tr('По умолчанию', 'Default')),
+                  ),
+                  for (final e in _engines)
+                    DropdownMenuItem(value: e, child: Text(e)),
+                ],
+                onChanged: (v) async {
+                  settings.update(() => settings.systemEngine = v ?? '');
+                  // Движок сменился — голоса спрашиваем у него.
+                  if (v != null && v.isNotEmpty) {
+                    try {
+                      await _tts.setEngine(v);
+                    } catch (_) {}
+                  }
+                  await _loadSystemVoices();
+                },
+              ),
+            ),
+          if (_voices.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _voices.any(
+                          (v) => '${v['name']}|${v['locale']}' ==
+                              settings.systemVoice,
+                        )
+                    ? settings.systemVoice
+                    : '',
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(tr('Голос по умолчанию', 'Default voice')),
+                  ),
+                  for (final v in _voices)
+                    DropdownMenuItem(
+                      value: '${v['name']}|${v['locale']}',
+                      child: Text(
+                        '${v['name']} (${v['locale']})',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (v) =>
+                    settings.update(() => settings.systemVoice = v ?? ''),
+              ),
+            ),
+        ],
         OverflowBar(
           alignment: MainAxisAlignment.end,
           children: [

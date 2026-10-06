@@ -16,8 +16,11 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 flutter_rust_bridge = "=2.13.0"
 studybible-core.workspace = true
 studybible-store.workspace = true
+studybible-accent = { path = "../../../crates/studybible-accent" }
 anyhow = "1"
 serde_json = "1.0.151"
+# Словари акцентора в ассетах сжаты gzip.
+flate2 = "1.1"
 
 # Повторяем clippy-правило workspace (наследование нельзя сочетать
 # с локальным rust-разделом — Cargo запрещает смешивать формы).

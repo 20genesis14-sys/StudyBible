@@ -78,6 +78,9 @@ flutter:
   assets:
     - assets/data/
     - assets/modules/
+    # Фронтенд языка нейрочтения (ADR 0017): модель автоударений
+    # RUAccent (MIT), посимвольный словарь и словарь ё-слов.
+    - assets/voice/ru/
 
   fonts:
     # Вариативная Literata (opsz + wght, ADR 0015): оптический размер

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:studybible/voice/phrases.dart';
 import 'package:studybible/voice/pronounce.dart';
 import 'package:studybible/voice/voice_pack.dart';
 import 'package:studybible/voice/voice_registry_io.dart';
@@ -193,6 +194,35 @@ void main() {
       final d = PronounceDict.merged(dir.path);
       expect(d.apply('Синай'), 'Сина́й');
       expect(d.apply('обычный текст'), 'обычный текст');
+    });
+  });
+
+  group('splitPhrases (паузы нейрочтения)', () {
+    test('разделители и их паузы; знак остаётся в фразе', () {
+      final p = splitPhrases('а, б; в: г. д! е? ж');
+      expect(p.map((x) => x.text), ['а,', ' б;', ' в:', ' г.', ' д!', ' е?', ' ж']);
+      expect(p.map((x) => x.pauseMs), [120, 220, 220, 350, 350, 350, 0]);
+    });
+
+    test('последняя фраза — пауза 0 даже со знаком', () {
+      final p = splitPhrases('да будет свет.');
+      expect(p.single.pauseMs, 0);
+      expect(p.single.text, 'да будет свет.');
+    });
+
+    test('подряд идущие разделители — одна фраза («!?», «…»)', () {
+      final p = splitPhrases('что?! ну...');
+      expect(p.length, 2);
+      expect(p[0].text, 'что?!');
+      expect(p[0].pauseMs, 350);
+      expect(p[1].text, ' ну...');
+      expect(p[1].pauseMs, 0);
+    });
+
+    test('пустые куски отбрасываются, текст без знаков — одна фраза', () {
+      expect(splitPhrases(''), isEmpty);
+      expect(splitPhrases('   '), isEmpty);
+      expect(splitPhrases('просто текст').single.text, 'просто текст');
     });
   });
 }

@@ -5,6 +5,7 @@
 
 pub mod module;
 pub mod userdata;
+pub mod voice;
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {

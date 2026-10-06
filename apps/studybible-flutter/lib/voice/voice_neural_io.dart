@@ -11,8 +11,12 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
+import '../native_bridge_io.dart' show bridgeAccentInit, bridgeAccentText;
+import '../state.dart' show settings;
+import 'phrases.dart';
 import 'pronounce.dart';
 import 'voice_backend.dart';
 import 'voice_pack.dart';
@@ -62,16 +66,43 @@ void _ttsIsolate(SendPort toMain) {
         }
       case 'gen':
         try {
-          final a = tts!.generate(
-            text: m['text'] as String,
-            sid: m['sid'] as int,
-            speed: m['speed'] as double,
-          );
+          // Фразы с паузами (ADR 0017): каждая синтезируется отдельно,
+          // между ними — тишина нужной длины; итог — один PCM.
+          final parts =
+              (m['phrases'] as List).cast<Map>().toList(growable: false);
+          final chunks = <Float32List>[];
+          var rate = 0;
+          var total = 0;
+          final silences = <int>[];
+          for (final (i, p) in parts.indexed) {
+            final a = tts!.generate(
+              text: p['t'] as String,
+              sid: m['sid'] as int,
+              speed: m['speed'] as double,
+            );
+            rate = a.sampleRate;
+            chunks.add(a.samples);
+            total += a.samples.length;
+            final pauseMs = p['p'] as int;
+            if (pauseMs > 0 && i < parts.length - 1) {
+              final n = a.sampleRate * pauseMs ~/ 1000;
+              silences.add(n);
+              total += n;
+            } else {
+              silences.add(0);
+            }
+          }
+          final pcm = Float32List(total);
+          var off = 0;
+          for (final (i, c) in chunks.indexed) {
+            pcm.setRange(off, off + c.length, c);
+            off += c.length + silences[i]; // нули — уже тишина
+          }
           toMain.send({
             'id': id,
             'ok': true,
-            'rate': a.sampleRate,
-            'pcm': TransferableTypedData.fromList([a.samples]),
+            'rate': rate,
+            'pcm': TransferableTypedData.fromList([pcm]),
           });
         } catch (e) {
           toMain.send({'id': id, 'ok': false, 'error': '$e'});
@@ -172,11 +203,47 @@ class NeuralVoiceBackend extends VoiceBackend {
       throw StateError('neural init: ${r?['error'] ?? 'no isolate'}');
     }
     _dict = PronounceDict.merged(pack.dir);
+    _accent = pack.language == 'ru' &&
+        settings.voiceAccent &&
+        await _loadAccentor();
     _ready = true;
   }
 
-  /// Текст для синтеза: словарь произношения (только звучание).
-  String _say(String text) => _dict.apply(text);
+  /// Применять ли автоударения (модель RUAccent — только русский,
+  /// отключается настройкой; к системному движку не применяется).
+  bool _accent = false;
+
+  /// Загрузка акцентора — один раз на процесс (ассеты ~3 МБ, модель
+  /// тяжёлая); повторные prepare ждут тот же future.
+  static Future<bool>? _accentorReady;
+
+  /// Модель акцентуации из ассетов → мост (один раз на процесс;
+  /// без файлов/при ошибке читаем без ударений).
+  static Future<bool> _loadAccentor() => _accentorReady ??= () async {
+    try {
+      final model = await rootBundle.load('assets/voice/ru/accent.onnx');
+      final vocab = await rootBundle.loadString('assets/voice/ru/vocab.txt');
+      final yo = await rootBundle.load('assets/voice/ru/yo_words.tsv.gz');
+      final lexicon = await rootBundle.load('assets/voice/ru/lexicon.tsv.gz');
+      await bridgeAccentInit(
+        model.buffer.asUint8List(),
+        vocab,
+        yo.buffer.asUint8List(),
+        lexicon.buffer.asUint8List(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }();
+
+  /// Текст для синтеза: словарь произношения (приоритет — слово
+  /// с U+0301 нейросеть не трогает), затем автоударения и ё.
+  /// Подсветка слов идёт по исходному тексту — смещения не съезжают.
+  Future<String> _say(String text) async {
+    final t = _dict.apply(text);
+    return _accent ? bridgeAccentText(t) : t;
+  }
 
   /// Синтез фразы → WAV. Кэш prefetch: повторный запрос текста
   /// возвращается мгновенно; запрос, идущий в изоляте, дожидается
@@ -192,7 +259,10 @@ class NeuralVoiceBackend extends VoiceBackend {
     try {
       final r = await _isoCall({
         'cmd': 'gen',
-        'text': text,
+        'phrases': [
+          for (final p in splitPhrases(text))
+            {'t': p.text, 'p': p.pauseMs},
+        ],
         'sid': _sid,
         'speed': _speed,
       });
@@ -212,13 +282,15 @@ class NeuralVoiceBackend extends VoiceBackend {
 
   @override
   void prefetch(String text) {
-    final say = _say(text);
-    if (!_ready || _cache.containsKey(say)) return;
+    if (!_ready) return;
     // Фоновой предсинтез; кэш ограничен — главы не накапливаются.
-    _synth(say).then((clip) {
-      if (clip == null || _cache.containsKey(say)) return;
-      if (_cache.length > 6) _cache.remove(_cache.keys.first);
-      _cache[say] = clip;
+    _say(text).then((say) {
+      if (!_ready || _cache.containsKey(say)) return null;
+      return _synth(say).then((clip) {
+        if (clip == null || _cache.containsKey(say)) return;
+        if (_cache.length > 6) _cache.remove(_cache.keys.first);
+        _cache[say] = clip;
+      });
     });
   }
 
@@ -228,7 +300,7 @@ class NeuralVoiceBackend extends VoiceBackend {
     _curText = text;
     _wspans = wordSpans(text);
     _curWord = -1;
-    final clip = await _synth(_say(text));
+    final clip = await _synth(await _say(text));
     if (ep != _epoch) return true; // оборвано во время синтеза
     if (clip == null) return false;
     _curDur = clip.duration;
