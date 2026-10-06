@@ -1,13 +1,17 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:async';
 
 import '../l10n.dart';
+import '../state.dart';
 import '../tts_media.dart';
+import '../voice/voice_backend.dart';
+import '../voice/voice_pick.dart';
 
 /// Сервис чтения главы вслух.
 ///
-/// Состояние плеера и очередь стихов изолированы здесь; экран даёт
-/// колбэки для перерисовки, прокрутки к стиху и показа ошибок.
+/// Состояние плеера, очередь стихов и медиа-сессия изолированы здесь;
+/// бэкенд (`system`/`neural`, ADR 0017) только «говорит фразу».
+/// Экран даёт колбэки для перерисовки, прокрутки к стиху и показа
+/// ошибок.
 class ReaderTtsService {
   ReaderTtsService({
     required this.isActive,
@@ -32,10 +36,16 @@ class ReaderTtsService {
   /// Заголовок медиа-сессии для текущей главы.
   final String Function() titleOf;
 
-  FlutterTts? _tts;
+  VoiceBackend? _backend;
+  StreamSubscription<WordMark>? _wordsSub;
   bool _playing = false;
   bool _paused = false;
+  bool _midPaused = false;
   int? _verse;
+
+  /// Текущее слово читаемого стиха (пословная подсветка, настройка
+  /// «Подсветка слов»; null — бэкенд не сообщает позицию).
+  WordMark? _word;
 
   /// Очередь чтения: стих -> текст, и текущая позиция в ней.
   List<MapEntry<int, String>> _list = const [];
@@ -43,52 +53,36 @@ class ReaderTtsService {
 
   /// Поколение запуска TTS — отменяет цикл чтения при стопе/смене главы.
   int _epoch = 0;
-  String _language = 'ru-RU';
 
   bool get playing => _playing;
   bool get paused => _paused;
   int? get verse => _verse;
+  WordMark? get word => _word;
   List<MapEntry<int, String>> get list => _list;
   int get index => _index;
+
+  /// id активного бэкенда ('system'/'neural') — для значка в плеере.
+  String? get backendId => _backend?.id;
 
   Future<void> start({
     required String language,
     required List<MapEntry<int, String>> verses,
   }) async {
     if (verses.isEmpty) return;
-    final tts = _tts ??= FlutterTts();
-    try {
-      // На Android без объявления TTS_SERVICE в queries и без
-      // движка синтез молча не работает — сообщаем явно.
-      if (!kIsWeb) {
-        final engines = await tts.getEngines;
-        if (engines is List && engines.isEmpty) {
-          throw StateError('no tts engine');
-        }
-      }
-      // Голос для языка может быть не скачан — проверяем явно,
-      // иначе speak() завершается мгновенно и глава «пролетает».
-      final langOk = await tts.isLanguageAvailable(language);
-      if (langOk != true) {
-        throw StateError('no voice for $language');
-      }
-      await tts.setLanguage(language);
-      await tts.setSpeechRate(0.45);
-      await tts.setVolume(1.0);
-      await tts.setPitch(1.0);
-      await tts.awaitSpeakCompletion(true);
-    } catch (_) {
-      if (isActive()) {
-        onError(
-          tr(
-            'Синтез речи недоступен: проверьте TTS-движок и голос языка в настройках Android',
-            'Speech synthesis unavailable: check the TTS engine and voice in Android settings',
-          ),
-        );
-      }
+    final pick = await pickVoiceBackend(language);
+    if (pick.backend == null) {
+      if (isActive() && pick.error != null) onError(pick.error!);
       return;
     }
-    _language = language;
+    _backend?.dispose();
+    _backend = pick.backend;
+    _wordsSub?.cancel();
+    _wordsSub = _backend!.words?.listen((w) {
+      if (!settings.voiceWords) return;
+      if (_word?.start == w.start && _word?.end == w.end) return;
+      _word = w;
+      if (isActive()) onChanged();
+    });
     _list = verses;
     await readAloud.ensurePermission();
     readAloud.setCallbacks(
@@ -104,15 +98,13 @@ class ReaderTtsService {
   /// Цикл чтения с позиции [start] в очереди. Каждый запуск —
   /// новое поколение: старый цикл гаснет на ближайшей итерации.
   Future<void> speakFrom(int start) async {
-    final tts = _tts;
-    if (tts == null || _list.isEmpty) return;
+    final backend = _backend;
+    if (backend == null || _list.isEmpty) return;
     final epoch = ++_epoch;
-    // flutter_tts с QUEUE_FLUSH + awaitSpeakCompletion отклоняет
-    // новый speak() (возвращает 0), пока играет прежний стих —
-    // поэтому сначала останавливаем текущее воспроизведение.
-    await tts.stop();
+    await backend.stop();
     _playing = true;
     _paused = false;
+    _midPaused = false;
     onChanged();
     var failed = false;
     var i = start;
@@ -121,30 +113,33 @@ class ReaderTtsService {
       _index = i;
       final e = _list[i];
       _verse = e.key;
+      _word = null;
       onChanged();
       _pushMediaState(e.key, i);
       onVerse(e.key);
-      // speak() возвращает 0, если движок не принял фразу —
-      // ловим, иначе глава молча «пролетает» до конца.
-      var r = await tts.speak(e.value);
-      if (r == 0 && _epoch == epoch) {
+      // Предсинтез следующего стиха пока звучит текущий —
+      // переходы без паузы движка (нейробэкенд; у system — no-op).
+      final fut = backend.speak(e.value);
+      if (i + 1 < _list.length) backend.prefetch(_list[i + 1].value);
+      var ok = await fut;
+      if (!ok && _epoch == epoch) {
         // Может ещё идти остановка прерванного стиха —
         // даём движку секундный шанс перед объявлением отказа.
         await Future.delayed(const Duration(milliseconds: 250));
-        if (_epoch == epoch) r = await tts.speak(e.value);
+        if (_epoch == epoch) ok = await backend.speak(e.value);
       }
-      if (r == 0) {
+      if (!ok) {
         failed = true;
         break;
       }
     }
     // Проверка поколения: отменённый stop()/перемоткой speak()
-    // тоже возвращает 0 — это не отказ движка, ошибку не показываем.
+    // тоже возвращает false — это не отказ движка, ошибку не показываем.
     if (failed && isActive() && _epoch == epoch) {
       onError(
         tr(
-          'Движок синтеза не принял текст: проверьте голос $_language в настройках Android',
-          'Speech engine rejected the text: check the $_language voice in Android settings',
+          'Движок синтеза не принял текст — проверьте настройку голоса',
+          'Speech engine rejected the text — check the voice setting',
         ),
       );
     }
@@ -165,8 +160,15 @@ class ReaderTtsService {
 
   void pause() {
     if (!_playing || _paused) return;
-    _epoch++; // прерывает цикл чтения
-    _tts?.stop();
+    if (_backend?.canPause ?? false) {
+      // Нейробэкенд ставит аудио на паузу посреди фразы — resume
+      // продолжает с места, стих не перечитывается.
+      _midPaused = true;
+      _backend!.pause();
+    } else {
+      _epoch++; // прерывает цикл чтения
+      _backend?.stop();
+    }
     _paused = true;
     onChanged();
     _pushMediaState(_verse, _index);
@@ -174,7 +176,15 @@ class ReaderTtsService {
 
   void resume() {
     if (!_playing || !_paused) return;
-    speakFrom(_index); // текущий стих заново с начала
+    if (_midPaused) {
+      _paused = false;
+      _midPaused = false;
+      _backend?.resume();
+      onChanged();
+      _pushMediaState(_verse, _index);
+    } else {
+      speakFrom(_index); // текущий стих заново с начала
+    }
   }
 
   /// Переход ползунком плеера на стих с индексом [i]: на паузе
@@ -185,6 +195,7 @@ class ReaderTtsService {
     if (_paused) {
       _index = i;
       _verse = _list[i].key;
+      _dropMidPause();
       onChanged();
       _pushMediaState(_verse, i);
       onVerse(_verse!);
@@ -202,6 +213,7 @@ class ReaderTtsService {
     if (_paused) {
       _index = i;
       _verse = _list[i].key;
+      _dropMidPause();
       onChanged();
       _pushMediaState(_verse, i);
       onVerse(_verse!);
@@ -210,21 +222,36 @@ class ReaderTtsService {
     }
   }
 
+  /// Перемотка на паузе у нейробэкенда обрывает приостановленное
+  /// аудио прошлого стиха — иначе resume продолжил бы чужой текст
+  /// с уже сдвинутой позицией.
+  void _dropMidPause() {
+    if (!_midPaused) return;
+    _midPaused = false;
+    _backend?.stop();
+  }
+
   void stop() {
     _epoch++;
-    _tts?.stop();
+    _wordsSub?.cancel();
+    _wordsSub = null;
+    _backend?.stop();
     readAloud.clear();
     if (isActive()) {
       _playing = false;
       _paused = false;
+      _midPaused = false;
       _verse = null;
+      _word = null;
       onChanged();
     }
   }
 
   void dispose() {
     _epoch++;
-    _tts?.stop();
+    _wordsSub?.cancel();
+    _backend?.dispose();
+    _backend = null;
     readAloud.clear();
   }
 }

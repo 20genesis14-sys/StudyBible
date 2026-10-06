@@ -100,8 +100,45 @@ class Settings extends ChangeNotifier {
   /// Язык интерфейса: 'ru' | 'en'.
   String lang = 'ru';
 
+  /// Движок чтения вслух: 'auto' | 'system' | 'neural' (ADR 0017).
+  String voiceEngine = 'auto';
+
+  /// Выбор нейроголоса по языку: 'ru:pack-id,en:pack-id'.
+  String neuralVoices = '';
+
+  /// Скорость чтения 0.6–1.6 (множитель; у neural — speed VITS,
+  /// у system — поверх привычных 0.45).
+  double voiceRate = 1.0;
+
+  /// Пословная подсветка читаемого стиха (у neural — оценочная).
+  bool voiceWords = false;
+
   /// Основной перевод — модуль, открываемый по умолчанию.
   String defaultModule = 'russyn';
+
+  /// id голосового пакета для двухбуквенного языка ('ru','en'); '' — нет.
+  String voiceFor(String lang) {
+    for (final e in neuralVoices.split(',')) {
+      final i = e.indexOf(':');
+      if (i > 0 && e.substring(0, i) == lang) return e.substring(i + 1);
+    }
+    return '';
+  }
+
+  /// Записать выбор голоса для языка ('' — снять выбор).
+  void setVoiceFor(String lang, String id) {
+    final m = <String, String>{};
+    for (final e in neuralVoices.split(',')) {
+      final i = e.indexOf(':');
+      if (i > 0) m[e.substring(0, i)] = e.substring(i + 1);
+    }
+    if (id.isEmpty) {
+      m.remove(lang);
+    } else {
+      m[lang] = id;
+    }
+    neuralVoices = m.entries.map((e) => '${e.key}:${e.value}').join(',');
+  }
 
   /// Признак завершённой загрузки: до неё сохранять нельзя —
   /// иначе дефолты затёрли бы сохранённые значения.
@@ -135,6 +172,10 @@ class Settings extends ChangeNotifier {
         xrefModule = j['xrefModule'] as String? ?? '';
         compareModules = j['compareModules'] as String? ?? '';
         lang = j['lang'] as String? ?? 'ru';
+        voiceEngine = j['voiceEngine'] as String? ?? 'auto';
+        neuralVoices = j['neuralVoices'] as String? ?? '';
+        voiceRate = (j['voiceRate'] as num? ?? 1.0).toDouble();
+        voiceWords = j['voiceWords'] as bool? ?? false;
         defaultModule = j['defaultModule'] as String? ?? 'russyn';
       }
     } catch (_) {
@@ -165,6 +206,10 @@ class Settings extends ChangeNotifier {
       'xrefModule': xrefModule,
       'compareModules': compareModules,
       'lang': lang,
+      'voiceEngine': voiceEngine,
+      'neuralVoices': neuralVoices,
+      'voiceRate': voiceRate,
+      'voiceWords': voiceWords,
       'defaultModule': defaultModule,
     });
     try {

@@ -70,6 +70,10 @@ extension _ChapterRenderer on _ReadingScreenState {
     var noteIdx = 0;
     final took = <int>{};
     final out = <InlineSpan>[];
+    // _spansOf строит только основной текст главы — словесная
+    // подсветка здесь разрешена (сравнение идёт через _verseSpans
+    // с hlWord=false и контекст выключает).
+    _ttsWordCtx = true;
     for (final s in b.spans) {
       var anchor = false;
       if (s is VerseSpanDoc) {
@@ -93,10 +97,35 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// их легко спутать с цифрами/буквами слова).
   static const _fnLetters = 'abcdefghjkmnpqrstuvwxyz';
 
+  /// Пословная подсветка читаемого стиха (ADR 0017): слово движка
+  /// приходит в смещениях «плоского» текста стиха (трим по краям);
+  /// при построении спанов считаем сырой сдвиг по конкатенации
+  /// текстов стиха и ведущие пробелы, чтобы красить точные символы.
+  /// Поля курсора живут в _ReadingScreenState (в extension им
+  /// не место): _ttsInVerse/_ttsRaw/_ttsLead/_ttsLeadDone.
+
+  /// Текущее слово — только если включена настройка подсветки слов.
+  WordMark? get _ttsWord => settings.voiceWords ? _ttsService.word : null;
+
   /// Спаны одного стиха (versePerLine / строчное сравнение):
   /// сноски нумеруются буквами a, b, c… внутри стиха.
-  List<InlineSpan> _verseSpans(List<SpanDoc> spans, Palette p, int v) {
+  /// [hlWord] — этот стих принадлежит основному тексту главы
+  /// (для колонки сравнения — false: чужие смещения слов к чужому
+  /// тексту неприменимы).
+  List<InlineSpan> _verseSpans(
+    List<SpanDoc> spans,
+    Palette p,
+    int v, {
+    bool hlWord = false,
+  }) {
     var ni = 0;
+    _ttsWordCtx = hlWord && v == _ttsVerse && _ttsWord != null;
+    if (_ttsWordCtx) {
+      _ttsInVerse = true;
+      _ttsRaw = 0;
+      _ttsLead = 0;
+      _ttsLeadDone = false;
+    }
     return [
       for (final s in spans)
         if (s is! VerseSpanDoc)
@@ -114,6 +143,15 @@ extension _ChapterRenderer on _ReadingScreenState {
   ]) {
     final inChapter = chCtx == null || chCtx == _ch;
     if (s is VerseSpanDoc) {
+      // Курсор пословной подсветки: внутри читаемого стиха считаем
+      // сырой сдвиг текстовых спанов (стих может тянуться через
+      // несколько блоков — счётчик не сбрасывается по границе блока).
+      _ttsInVerse = inChapter && _ttsVerse == s.verse;
+      if (_ttsInVerse) {
+        _ttsRaw = 0;
+        _ttsLead = 0;
+        _ttsLeadDone = false;
+      }
       // Пробелы внутри спана — мишень тапа шире самой цифры.
       // Маркеры: выделение — янтарный фон номера, заметка — точка-маркер,
       // TTS — акцентный фон читаемого стиха.
@@ -217,25 +255,65 @@ extension _ChapterRenderer on _ReadingScreenState {
     }
     final t = s as TextSpanDoc;
     final strong = t.strong;
-    return TextSpan(
-      text: t.text,
-      style: TextStyle(
-        color: t.style == 'wj' ? p.jesus : p.ink,
-        fontStyle: t.style == 'add' ? FontStyle.italic : null,
-        decoration: _study && settings.layerStrongs && strong != null
-            ? TextDecoration.underline
-            : null,
-        decorationStyle: TextDecorationStyle.dotted,
-        decorationColor: p.muted,
-        // Фон читаемого вслух стиха (null!=null-защита: без TTS не красим).
-        backgroundColor: inChapter && _ttsVerse != null && vCtx == _ttsVerse
-            ? p.accent.withValues(alpha: 0.14)
-            : null,
-      ),
-      recognizer: _study && settings.layerStrongs && strong != null
-          ? _tap(() => _showStrong(strong, t.text))
+    final style = TextStyle(
+      color: t.style == 'wj' ? p.jesus : p.ink,
+      fontStyle: t.style == 'add' ? FontStyle.italic : null,
+      decoration: _study && settings.layerStrongs && strong != null
+          ? TextDecoration.underline
+          : null,
+      decorationStyle: TextDecorationStyle.dotted,
+      decorationColor: p.muted,
+      // Фон читаемого вслух стиха (null!=null-защита: без TTS не красим).
+      backgroundColor: inChapter && _ttsVerse != null && vCtx == _ttsVerse
+          ? p.accent.withValues(alpha: 0.14)
           : null,
     );
+    final recognizer = _study && settings.layerStrongs && strong != null
+        ? _tap(() => _showStrong(strong, t.text))
+        : null;
+    // Пословная подсветка: смещения движка — в «плоском» тексте стиха
+    // (без краевых пробелов); переводим в сырой сдвиг по спанам и
+    // красим участок сильнее фона стиха.
+    if (_ttsWordCtx &&
+        _ttsInVerse &&
+        inChapter &&
+        vCtx == _ttsVerse &&
+        t.text.isNotEmpty) {
+      if (!_ttsLeadDone) {
+        final lead = t.text.length - t.text.trimLeft().length;
+        _ttsLead += lead;
+        if (lead < t.text.length) _ttsLeadDone = true;
+      }
+      final raw = _ttsRaw;
+      _ttsRaw += t.text.length;
+      final w = _ttsWord;
+      if (w != null) {
+        final ws = (w.start + _ttsLead - raw).clamp(0, t.text.length);
+        final we = (w.end + _ttsLead - raw).clamp(0, t.text.length);
+        if (we > ws) {
+          return TextSpan(
+            style: style,
+            recognizer: recognizer,
+            children: [
+              if (ws > 0) TextSpan(text: t.text.substring(0, ws)),
+              TextSpan(
+                text: t.text.substring(ws, we),
+                style: TextStyle(
+                  backgroundColor: p.accent.withValues(alpha: 0.45),
+                ),
+              ),
+              if (we < t.text.length)
+                TextSpan(text: t.text.substring(we)),
+            ],
+          );
+        }
+      }
+    } else if (_ttsInVerse && _ttsWordCtx) {
+      // Счётчик идёт по спанам читаемого стиха и без подсветки —
+      // иначе позиция слова собьётся у следующих спанов.
+      _ttsRaw += t.text.length;
+    }
+    return TextSpan(text: t.text, style: style, recognizer: recognizer);
   }
 
   /// Переход по ссылке из сноски («Быт 1:1»): новый экран чтения,

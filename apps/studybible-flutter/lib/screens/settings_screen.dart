@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,6 +6,9 @@ import '../data.dart';
 import '../l10n.dart';
 import '../state.dart';
 import '../theme.dart';
+import '../voice/voice_import.dart';
+import '../voice/voice_pack.dart';
+import '../voice/voice_registry.dart';
 
 /// Настройки прототипа: темы, шрифт, вёрстка, колонка, выбор стиха.
 class SettingsScreen extends StatelessWidget {
@@ -389,6 +393,74 @@ class SettingsScreen extends StatelessWidget {
                     },
                   ),
                 ),
+                _section(p, tr('Чтение вслух', 'Read aloud')),
+                _card(
+                  p,
+                  Column(
+                    children: [
+                      _row(
+                        p,
+                        tr('Движок', 'Engine'),
+                        SegmentedButton<String>(
+                          segments: [
+                            ButtonSegment(
+                              value: 'auto',
+                              label: Text(tr('Авто', 'Auto')),
+                            ),
+                            ButtonSegment(
+                              value: 'system',
+                              label: Text(tr('Системный', 'System')),
+                            ),
+                            ButtonSegment(
+                              value: 'neural',
+                              label: Text(tr('Нейросеть', 'Neural')),
+                            ),
+                          ],
+                          selected: {settings.voiceEngine},
+                          onSelectionChanged: (s) => settings.update(
+                            () => settings.voiceEngine = s.first,
+                          ),
+                        ),
+                      ),
+                      _row(
+                        p,
+                        tr('Скорость', 'Speed'),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'x${settings.voiceRate.toStringAsFixed(2)}',
+                              style: TextStyle(color: p.muted, fontSize: 13),
+                            ),
+                            SizedBox(
+                              width: 180,
+                              child: Slider(
+                                value: settings.voiceRate,
+                                min: 0.6,
+                                max: 1.6,
+                                divisions: 10,
+                                onChanged: (v) => settings.update(
+                                  () => settings.voiceRate = v,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _row(
+                        p,
+                        tr('Подсветка слов', 'Word highlight'),
+                        Switch(
+                          value: settings.voiceWords,
+                          onChanged: (v) => settings.update(
+                            () => settings.voiceWords = v,
+                          ),
+                        ),
+                      ),
+                      if (!kIsWeb) const _VoicesCard(),
+                    ],
+                  ),
+                ),
                 _section(p, tr('Прогресс', 'Progress')),
                 _card(
                   p,
@@ -578,4 +650,107 @@ class SettingsScreen extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Установленные голосовые пакеты и их импорт (ADR 0017): тап по
+/// годному пакету назначает его голосом своего языка, повторный —
+/// снимает выбор. Негодные пакеты видны с причиной.
+class _VoicesCard extends StatefulWidget {
+  const _VoicesCard();
+
+  @override
+  State<_VoicesCard> createState() => _VoicesCardState();
+}
+
+class _VoicesCardState extends State<_VoicesCard> {
+  List<VoicePack> _packs = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _packs = scanVoices();
+  }
+
+  Future<void> _import(Future<String?> Function() pick) async {
+    final r = await pick();
+    if (!mounted) return;
+    if (r != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r)));
+    }
+    setState(() => _packs = scanVoices());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: Text(
+            tr('Нейроголоса (голосовые пакеты)', 'Neural voices (voice packs)'),
+            style: TextStyle(fontSize: 14, color: p.ink),
+          ),
+        ),
+        if (_packs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              tr(
+                'Нет пакетов. Скачайте vits-piper-* со страницы релизов sherpa-onnx (k2-fsa) и импортируйте архив или папку.',
+                'No packs. Download vits-piper-* from sherpa-onnx releases (k2-fsa) and import the archive or folder.',
+              ),
+              style: TextStyle(fontSize: 13, color: p.muted),
+            ),
+          ),
+        for (final v in _packs)
+          ListTile(
+            dense: true,
+            leading: Icon(
+              v.usable
+                  ? Icons.record_voice_over_outlined
+                  : Icons.error_outline,
+              size: 18,
+            ),
+            title: Text(v.name),
+            subtitle: Text(
+              [
+                v.language,
+                v.id,
+                if (v.speakers > 1) '${v.speakers} дикт.',
+                ...v.issues,
+              ].join(' · '),
+            ),
+            enabled: v.usable,
+            trailing: settings.voiceFor(v.language) == v.id
+                ? Icon(Icons.check, color: p.accent, size: 18)
+                : null,
+            onTap: v.usable
+                ? () => settings.update(
+                    () => settings.setVoiceFor(
+                      v.language,
+                      settings.voiceFor(v.language) == v.id ? '' : v.id,
+                    ),
+                  )
+                : null,
+          ),
+        OverflowBar(
+          alignment: MainAxisAlignment.end,
+          children: [
+            TextButton.icon(
+              icon: const Icon(Icons.archive_outlined, size: 18),
+              label: Text(tr('Архив…', 'Archive…')),
+              onPressed: () => _import(importVoicePackArchive),
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.folder_open, size: 18),
+              label: Text(tr('Папку…', 'Folder…')),
+              onPressed: () => _import(importVoicePackFolder),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }

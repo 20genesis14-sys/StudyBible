@@ -23,6 +23,7 @@ import '../reader/tts_service.dart';
 import '../refs.dart';
 import '../state.dart';
 import '../theme.dart';
+import '../voice/voice_backend.dart' show WordMark;
 import '../workspace/workspace_model.dart';
 import 'history_screen.dart';
 import 'search_screen.dart';
@@ -122,6 +123,17 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   /// Позиция ползунка плеера во время перетаскивания (null — не тащат).
   int? _ttsDrag;
+
+  /// Курсор пословной подсветки (ADR 0017): при построении спанов
+  /// читаемого стиха считается сырой сдвиг по тексту и ведущие
+  /// пробелы — смещения движка относятся к обрезанному тексту.
+  /// _ttsWordCtx разрешает подсветку только в основном тексте
+  /// (в колонке сравнения чужие смещения неприменимы).
+  bool _ttsInVerse = false;
+  bool _ttsWordCtx = false;
+  int _ttsRaw = 0;
+  int _ttsLead = 0;
+  bool _ttsLeadDone = false;
 
   /// «Жидкое стекло» панелей: минимальный блюр (текст сквозь панель
   /// читается), лёгкая заливка и светлый блик по краю, обращённому

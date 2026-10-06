@@ -1159,7 +1159,9 @@ extension _ReaderChrome on _ReadingScreenState {
                     ),
                     Expanded(
                       child: Text(
-                        v == null ? '' : tr('стих $v', 'verse $v'),
+                        v == null
+                            ? ''
+                            : tr('стих $v', 'verse $v') + _ttsBackendTag(),
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 13, color: p.muted),
@@ -1205,6 +1207,13 @@ extension _ReaderChrome on _ReadingScreenState {
       ),
     );
   }
+
+  /// Метка активного голосового движка в мини-плеере (ADR 0017):
+  /// «· нейро» при sherpa_onnx, «· сист.» при платформенном TTS.
+  String _ttsBackendTag() => switch (_ttsService.backendId) {
+    'neural' => tr(' · нейро', ' · neural'),
+    _ => tr(' · сист.', ' · sys'),
+  };
 
   /// Единый отступ контента под плавающей верхней панелью:
   /// строка состояния + прогресс (2) + ряд кнопок (~48) + зазор.
