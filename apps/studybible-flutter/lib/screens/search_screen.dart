@@ -114,17 +114,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    tr(
-                      'По переводу: ${kModules[_moduleId] ?? _moduleId}',
-                      'In: ${kModules[_moduleId] ?? _moduleId}',
-                    ),
-                    style: TextStyle(fontSize: 11, color: p.muted),
-                  ),
-                ),
+
               ],
             ),
           ),
