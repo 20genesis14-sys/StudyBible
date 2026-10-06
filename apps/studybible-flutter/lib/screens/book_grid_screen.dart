@@ -19,7 +19,6 @@ class BookGridScreen extends StatefulWidget {
 
 class _BookGridScreenState extends State<BookGridScreen> {
   ModuleDoc? _module;
-  String _query = '';
 
   @override
   void initState() {
@@ -52,16 +51,6 @@ class _BookGridScreenState extends State<BookGridScreen> {
     });
   }
 
-  bool _matches(String code) {
-    if (_query.isEmpty) return true;
-    final q = _query.toLowerCase();
-    final short = kShortName[code] ?? '';
-    if (short.toLowerCase().contains(q)) return true;
-    if (code.toLowerCase().contains(q)) return true;
-    final title = _module?.bookByCode(code)?.title.toLowerCase() ?? '';
-    return title.contains(q);
-  }
-
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -78,18 +67,18 @@ class _BookGridScreenState extends State<BookGridScreen> {
         ? (_module?.bookByCode(code)?.title ?? kShortName[code] ?? code)
         : (kShortName[code] ?? code);
     final otVisible = ot
-        .where((e) => inModule(e.$1) && _matches(e.$1))
+        .where((e) => inModule(e.$1))
         .map((e) => (e.$1, nameOf(e.$1), e.$3))
         .toList();
     final ntVisible = nt
-        .where((e) => inModule(e.$1) && _matches(e.$1))
+        .where((e) => inModule(e.$1))
         .map((e) => (e.$1, nameOf(e.$1), e.$3))
         .toList();
     // Книги модуля вне каталога 66 (второканонические, напр. в LXX):
     // отдельной секцией внизу сетки.
     final catalogCodes = {for (final e in kCatalog) e.$1};
     final extraVisible = (_module?.books ?? const <BookDoc>[])
-        .where((b) => !catalogCodes.contains(b.code) && _matches(b.code))
+        .where((b) => !catalogCodes.contains(b.code))
         .map((b) => (b.code, b.title, BookGroup.other))
         .toList();
 
@@ -120,34 +109,7 @@ class _BookGridScreenState extends State<BookGridScreen> {
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  wide ? 80 : 16,
-                  10,
-                  wide ? 80 : 16,
-                  8,
-                ),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: tr('Поиск книги…', 'Search books…'),
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    isDense: true,
-                    filled: true,
-                    fillColor: p.card,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: p.edge),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: p.edge),
-                    ),
-                  ),
-                  onChanged: (v) => setState(() => _query = v.trim()),
-                ),
-              ),
-            ),
+
             if (otVisible.isNotEmpty) ...[
               _header(kSectionOt, wide),
               _grid(otVisible, wide),

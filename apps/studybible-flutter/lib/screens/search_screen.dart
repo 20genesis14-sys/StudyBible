@@ -28,7 +28,9 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _query = TextEditingController();
-  late String _moduleId = widget.moduleId ?? mainModuleId();
+  // Поиск — по переводу, из которого открыли экран (или основному);
+  // выбор перевода внутри поиска убран по решению UX.
+  late final String _moduleId = widget.moduleId ?? mainModuleId();
   List<SearchHit> _hits = const [];
   bool _busy = false;
   String? _notice;
@@ -112,21 +114,15 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Выбор перевода — отдельной строкой на всю ширину:
-                // в одной строке поле поиска сжималось до нечитаемого.
-                SizedBox(
-                  width: double.infinity,
-                  child: DropdownMenu<String>(
-                    initialSelection: kModules.containsKey(_moduleId)
-                        ? _moduleId
-                        : kModules.keys.first,
-                    expandedInsets: EdgeInsets.zero,
-                    dropdownMenuEntries: [
-                      for (final e in kModules.entries)
-                        DropdownMenuEntry(value: e.key, label: e.value),
-                    ],
-                    onSelected: (v) => setState(() => _moduleId = v!),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    tr(
+                      'По переводу: ${kModules[_moduleId] ?? _moduleId}',
+                      'In: ${kModules[_moduleId] ?? _moduleId}',
+                    ),
+                    style: TextStyle(fontSize: 11, color: p.muted),
                   ),
                 ),
               ],
