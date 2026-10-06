@@ -194,6 +194,7 @@ pub async fn entries_list(
 }
 
 /// Добавить запись к стиху модуля; возвращает id записи.
+#[allow(clippy::too_many_arguments)]
 pub async fn entry_add(
     path: String,
     kind: String,

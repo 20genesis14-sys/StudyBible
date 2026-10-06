@@ -6,3 +6,8 @@
 *.sb
 *.idx
 /StudyBible-data/
+
+# Артефакты сборки, которые кладём в корень для ручной проверки.
+*.apk
+*.aab
+/StudyBible-windows-debug/
