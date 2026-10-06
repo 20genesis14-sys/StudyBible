@@ -1253,6 +1253,7 @@ extension _ReaderChrome on _ReadingScreenState {
           ),
         ),
         const PopupMenuDivider(height: 4),
+        mi('copy', Icons.copy_outlined, tr('Копировать', 'Copy')),
         mi(
           'hl',
           _highlights.containsKey(v)
@@ -1274,21 +1275,20 @@ extension _ReaderChrome on _ReadingScreenState {
               : Icons.bookmark_outline,
           tr('Закладка', 'Bookmark'),
         ),
+        // «Сравнить» — стих во всех переводах (экран; список
+        // переводов — в настройках).
+        mi('cmp', Icons.compare_arrows, tr('Сравнить', 'Compare')),
         mi(
           'tags',
           _tagEntries.containsKey(v) ? Icons.label : Icons.label_outline,
           tr('Теги', 'Tags'),
         ),
-        // «Сравнить» — стих во всех переводах (экран; список
-        // переводов — в настройках).
-        mi('cmp', Icons.compare_arrows, tr('Сравнить', 'Compare')),
         if (hasNotes)
           mi(
             'refs',
             Icons.library_books_outlined,
             tr('Параллельные', 'Cross-refs'),
           ),
-        mi('copy', Icons.copy_outlined, tr('Копировать', 'Copy')),
         mi('share', Icons.share_outlined, tr('Поделиться', 'Share')),
       ],
     );
