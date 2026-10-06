@@ -58,9 +58,28 @@ extension _ReaderPane on _ReadingScreenState {
                 contextMenuBuilder: _selectionMenu,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: _interleaved
-                      ? _buildInterleaved(ch, p)
-                      : _buildChapter(ch, p),
+                  children: [
+                    // Заголовок «Книга · Глава N» в начале главы —
+                    // тот же, что на peek-странице листания (иначе он
+                    // виден только во время свайпа и «пропадает»).
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 12),
+                      child: Text(
+                        '${_titleOf(_code)} · '
+                        '${tr('Глава $_ch', 'Chapter $_ch')}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: readingFontFamily(settings.readingFont),
+                          fontSize: 19 * settings.fontScale,
+                          fontWeight: FontWeight.w800,
+                          color: _verseColor(p),
+                        ),
+                      ),
+                    ),
+                    ..._interleaved
+                        ? _buildInterleaved(ch, p)
+                        : _buildChapter(ch, p),
+                  ],
                 ),
               ),
             ),
