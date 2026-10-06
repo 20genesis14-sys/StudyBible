@@ -29,6 +29,14 @@ class _Handler extends BaseAudioHandler {
   @override
   Future<void> skipToPrevious() async => onPrevCb?.call();
 
+  /// Приложение смахнули из «недавних» — чтение останавливаем,
+  /// иначе уведомление и состояние плеера остаются висеть.
+  @override
+  Future<void> onTaskRemoved() async {
+    onStopCb?.call();
+    await super.onTaskRemoved();
+  }
+
   @override
   Future<void> stop() async {
     if (!selfStop) {
