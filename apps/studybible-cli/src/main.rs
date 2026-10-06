@@ -7,7 +7,7 @@ use std::process::ExitCode;
 mod speech;
 
 use speech::TtsSpeech;
-use studybible_convert::{osis, tsv, usfm, zefania};
+use studybible_convert::{biblequote, , mybible, osis, tsv, usfm, zefania};
 use studybible_core::speech::Speech;
 use studybible_core::text::Span;
 use studybible_core::{BookCatalog, BookCode, NameProfile, Versification, reference};
@@ -16,6 +16,9 @@ use studybible_store::{Kind, Meta, Module, ModuleWriter, SearchIndex, UserData};
 const USAGE: &str = "studybible — консольная оболочка StudyBible
 
   studybible module build [--defs data/modules.json] [--data <корень данных>] [--out <папка>]
+                                       — форматы источников: usfm, osis, zefania, tsv,
+                                         entries, , mybible (*.SQLite3),
+                                         biblequote (каталог с bibleqt.ini или .zip)
   studybible module info <файл.sb>
   studybible module verse <файл.sb> <КОД> <глава:стих>
   studybible module check <файл.sb|.sbz>              — проверить модуль
@@ -245,6 +248,10 @@ fn build_module(
         "zefania" => &["xml"],
         "tsv" => &["tsv"],
         "entries" => &["tsv"], // словарь: TSV «заголовок → текст» (ADR 0016)
+        "" => &[""], // пакет  (ADR 0016)
+        "mybible" => &["sqlite3"], // *.SQLite3 MyBible (ADR 0016 п. 14)
+        // bibleqt.ini в каталоге источника либо .zip модуля.
+        "biblequote" => &["ini", "zip"],
         other => return Err(format!("modules.json: неизвестный format «{other}»")),
     };
     let mut files: Vec<PathBuf> = std::fs::read_dir(src)
@@ -252,7 +259,7 @@ fn build_module(
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {
             p.extension()
-                .is_some_and(|x| exts.contains(&x.to_str().unwrap_or("")))
+                .is_some_and(|x| exts.contains(&x.to_str().unwrap_or("").to_lowercase().as_str()))
         })
         .collect();
     files.sort();
@@ -269,8 +276,9 @@ fn build_module(
 
     let mut stats = Stats::default();
 
-    // Модуль-словарь: без книг и глав, весь контент — статьи entries.
-    if format == "entries" {
+    // Модуль-словарь: без книг и глав, весь контент — статьи entries
+    // (формат TSV «entries» или MyBible *.dictionary.SQLite3).
+    if format == "entries" || meta.kind == "dictionary" {
         let tmp = out.with_file_name(format!(
             "{}.building",
             out.file_name().unwrap_or_default().to_string_lossy()
@@ -279,8 +287,15 @@ fn build_module(
         let w = ModuleWriter::create(&tmp, meta).map_err(|e| e.to_string())?;
         let mut ord = 0u32;
         for f in files.iter() {
-            let text = std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
-            for e in tsv::parse_entries(&text).map_err(|e| format!("{}: {}", f.display(), e.0))? {
+            let list = if format == "mybible" {
+                mybible::parse_dictionary_file(f)
+                    .map_err(|e| format!("{}: {}", f.display(), e.0))?
+            } else {
+                let text =
+                    std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
+                tsv::parse_entries(&text).map_err(|e| format!("{}: {}", f.display(), e.0))?
+            };
+            for e in list {
                 ord += 1;
                 w.add_entry(ord, &e.headword, &e.norm, &e.text)
                     .map_err(|e| e.to_string())?;
@@ -318,7 +333,29 @@ fn build_module(
     let mut has_morph = false;
     let mut has_gloss_pairs = false; // спаны с gr="…" — пары подстрочника
     let mut ord = 0u16;
+    // BibleQuote: каталог с bibleqt.ini разбирается один раз, хотя
+    // файлов-источников может быть несколько.
+    let mut bq_done: std::collections::BTreeSet<PathBuf> = std::collections::BTreeSet::new();
     for f in files.iter() {
+        // MyBible: сопутствующие файлы (*.commentaries./ *.dictionary.SQLite3)
+        // — отдельные модули; в чужой роли пропускаем.
+        if format == "mybible" {
+            let name = f
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            let is_comm = name.contains(".commentaries.");
+            let is_dict = name.contains(".dictionary.");
+            let want = match meta.kind.as_str() {
+                "commentary" => is_comm,
+                "dictionary" => is_dict,
+                _ => !is_comm && !is_dict,
+            };
+            if !want {
+                continue;
+            }
+        }
         //  — бинарный пакет (ZIP+SQLite), читается по пути, не текстом.
         // kind="commentary" → модуль комментариев из VerseCommentary (ADR 0016 п. 13).
         let books = if format == "" {
@@ -326,6 +363,34 @@ fn build_module(
                 ::parse_commentary_file(f).map_err(|e| format!("{}: {}", f.display(), e.0))?
             } else {
                 ::parse_file(f).map_err(|e| format!("{}: {}", f.display(), e.0))?
+            }
+        } else if format == "mybible" {
+            // *.SQLite3 MyBible; kind="commentary" → *.commentaries.SQLite3
+            // (kind="dictionary" обработан веткой entries выше).
+            if meta.kind == "commentary" {
+                mybible::parse_commentary_file(f)
+                    .map_err(|e| format!("{}: {}", f.display(), e.0))?
+            } else {
+                mybible::parse_file(f).map_err(|e| format!("{}: {}", f.display(), e.0))?
+            }
+        } else if format == "biblequote" {
+            // .zip модуля или bibleqt.ini в каталоге: для ini берём
+            // каталог; один каталог разбирается один раз.
+            let p = if f.extension().is_some_and(|x| x.eq_ignore_ascii_case("ini")) {
+                f.parent().unwrap_or(f.as_path())
+            } else {
+                f.as_path()
+            };
+            if bq_done.contains(p) {
+                vec![]
+            } else {
+                bq_done.insert(p.to_path_buf());
+                if meta.kind == "commentary" {
+                    biblequote::parse_commentary_dir(p)
+                        .map_err(|e| format!("{}: {}", p.display(), e.0))?
+                } else {
+                    biblequote::parse_dir(p).map_err(|e| format!("{}: {}", p.display(), e.0))?
+                }
             }
         } else {
             let text = std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
