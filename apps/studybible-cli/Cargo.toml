@@ -19,6 +19,8 @@ studybible-store.workspace = true
 serde_json = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 tts = "0.26.3"
+brotli = "9.0.0"
+zstd = "0.14.0"
 
 [dev-dependencies]
 tempfile = "3"

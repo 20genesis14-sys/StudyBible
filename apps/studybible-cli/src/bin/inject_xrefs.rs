@@ -70,9 +70,7 @@ fn fmt_ref(a: VerseKey, b: VerseKey, cat: &BookCatalog, profile: NameProfile) ->
 fn main() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.len() < 3 {
-        return Err(
-            "inject_xrefs <модуль.sb> <cross_references.txt> <ru|en> [top N]".into(),
-        );
+        return Err("inject_xrefs <модуль.sb> <cross_references.txt> <ru|en> [top N]".into());
     }
     let path = Path::new(&args[0]);
     let top: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(TOP_N);
@@ -94,12 +92,12 @@ fn main() -> Result<(), String> {
         .ok_or_else(|| format!("нет версификации '{}'", m.meta().versification))?;
     let eng_v = Versification::builtin("eng").unwrap();
     let cat = BookCatalog::builtin();
-    let in_module: BTreeSet<String> =
-        m.books()
-            .map_err(|e| e.to_string())?
-            .iter()
-            .map(|(c, _)| c.as_str().to_string())
-            .collect();
+    let in_module: BTreeSet<String> = m
+        .books()
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(|(c, _)| c.as_str().to_string())
+        .collect();
 
     // Ссылки из файла: from → [(to_start, to_end, votes)].
     let text = std::fs::read_to_string(&args[1]).map_err(|e| format!("{}: {e}", args[1]))?;

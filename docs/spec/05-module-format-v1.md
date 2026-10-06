@@ -89,6 +89,18 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 Точные столбцы и индексы фиксируются при реализации, до заморозки 1.0.
 Инструменты: `studybible module check`, `studybible module pack`, шаблоны TSV.
 
+### Соответствие чужих форматов
+
+| Формат | Текст и стихи | Стронг/лемма/морф. | Сноски | Ссылки | Аппарат |
+|---|---|---|---|---|---|
+| OSIS | `<div type="chapter">`, `<verse>` | `<w lemma strong morph>` → `tokens` | `<note>` → `f`, `<catchWord>` → привязка | `<reference>` в `<note type="crossReference">` → `x` | `<rdg>`/`<note type="critical">` → `variants` |
+| USFM | `\c`, `\v`, блоки `\p \q \s \d` | `\w …\|strong="…" lemma="…" x-morph="…"\w*` → `tokens` | `\f … \f*`, `\fq` → привязка | `\x … \x*`, `\xo`, `\xq` → `x` + привязка | отдельный TSV автора |
+| Zefania | `<BIBLEBOOK><CHAPTER><VERS>` | `<gr str="…">`/`<gr morph="…">` → `tokens` | `<NOTE>` → `f` | атрибуты ссылок → `x` | нет |
+| MyBible | `verses` + теги `<S>####</S>` | `<S>` → `tokens.strong` | `<f>` → `f` | `<x>`/TSK → `x` | нет |
+| BibleQuote | теги глав/стихов в htm | теги `<S>` → `tokens.strong` | сноски htm → `f` | ссылки htm → `x` | нет |
+
+Правило: что источник не даёт — не выдумывается; таблица просто не пишется.
+
 ## Эволюция формата
 
 Менять или удалять существующие поля нельзя. Новое — только необязательные таблицы

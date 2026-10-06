@@ -1,5 +1,6 @@
 //! Консольная оболочка StudyBible: сборка и проверка модулей.
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -17,6 +18,8 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
   studybible module build [--defs data/modules.json] [--data <корень данных>] [--out <папка>]
   studybible module info <файл.sb>
   studybible module verse <файл.sb> <КОД> <глава:стих>
+  studybible module check <файл.sb|.sbz>              — проверить модуль
+  studybible module pack <файл.sb> [--codec zstd|brotli] [--out <файл.sbz>]
   studybible read <файл.sb> \"<ссылка>\"          — глава или диапазон («Быт 1», «Ин 3:16-18»)
   studybible search <файл.sb> \"<запрос>\" [--cache <файл>] [--limit N]
   studybible user add note|mark|hl <модуль> <КОД> <гл:ст> [текст...] [--db <файл>]
@@ -35,6 +38,8 @@ fn main() -> ExitCode {
             Some("build") => run(build(&args[2..])),
             Some("info") => run(info(&args[2..])),
             Some("verse") => run(verse(&args[2..])),
+            Some("check") => run(check(&args[2..])),
+            Some("pack") => run(pack(&args[2..])),
             _ => usage(),
         },
         Some("read") => run(read(&args[1..])),
@@ -247,9 +252,7 @@ fn build_module(
         // OSIS/Zefania-файл может нести несколько книг, USFM — одну.
         let books = match format {
             "osis" => osis::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
-            "zefania" => {
-                zefania::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?
-            }
+            "zefania" => zefania::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
             "tsv" => tsv::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?,
             _ => vec![usfm::parse(&text).map_err(|e| format!("{}: {e}", f.display()))?],
         };
@@ -301,7 +304,11 @@ fn build_module(
     }
     // kind: из modules.json; иначе interlinear при глосс-парах, иначе bible.
     let kind = if meta.kind.is_empty() {
-        if has_gloss_pairs { "interlinear" } else { "bible" }
+        if has_gloss_pairs {
+            "interlinear"
+        } else {
+            "bible"
+        }
     } else {
         meta.kind.as_str()
     };
@@ -321,8 +328,15 @@ fn build_module(
                     witnesses: r.witnesses.clone(),
                 })
                 .collect();
-            w.add_variant(v.book, v.chapter, v.verse, v.token_from, v.token_to, &readings)
-                .map_err(|e| e.to_string())?;
+            w.add_variant(
+                v.book,
+                v.chapter,
+                v.verse,
+                v.token_from,
+                v.token_to,
+                &readings,
+            )
+            .map_err(|e| e.to_string())?;
         }
         if !list.is_empty() && !features.iter().any(|x| x == "variants") {
             features.push("variants".into());
@@ -356,6 +370,115 @@ fn info(args: &[String]) -> Result<(), String> {
     println!("rights: {}", meta.rights.join(","));
     println!("content_hash: {}", meta.content_hash);
     println!("books: {}", m.books().map_err(|e| e.to_string())?.len());
+    Ok(())
+}
+
+/// Открыть `.sb` или `.sbz` (распаковка во временный файл; удаляется
+/// вместе с обёрткой — соединение SQLite держит файл открытым).
+struct Opened {
+    module: Module,
+    tmp: Option<PathBuf>,
+}
+
+fn open_any(path: &Path) -> Result<Opened, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    if studybible_store::sbz::is_sbz(&bytes) {
+        let raw = studybible_store::sbz::unpack(&bytes)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        let tmp = std::env::temp_dir().join(format!(
+            "sb-{}-{}.sb",
+            path.file_stem().unwrap_or_default().to_string_lossy(),
+            std::process::id()
+        ));
+        std::fs::write(&tmp, &raw).map_err(|e| format!("{}: {e}", tmp.display()))?;
+        let module = Module::open(&tmp).map_err(|e| e.to_string());
+        return match module {
+            Ok(m) => Ok(Opened {
+                module: m,
+                tmp: Some(tmp),
+            }),
+            Err(e) => {
+                let _ = std::fs::remove_file(&tmp);
+                Err(e)
+            }
+        };
+    }
+    Ok(Opened {
+        module: Module::open(path).map_err(|e| e.to_string())?,
+        tmp: None,
+    })
+}
+
+impl Drop for Opened {
+    fn drop(&mut self) {
+        if let Some(p) = self.tmp.take() {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+}
+
+/// `module check`: полная валидация (Module::open проверяет сигнатуру,
+/// схему и required) + сводка для автора. Принимает `.sb` и `.sbz`.
+fn check(args: &[String]) -> Result<(), String> {
+    let file = module_arg(args)?;
+    let opened = open_any(&file)?;
+    let m = &opened.module;
+    let meta = m.meta();
+    println!("{}: модуль в порядке", file.display());
+    println!("  id: {} · {}", meta.id, meta.title);
+    if !meta.kind.is_empty() {
+        println!("  kind: {}", meta.kind);
+    }
+    if !meta.features.is_empty() {
+        println!("  features: {}", meta.features.join(", "));
+    }
+    if !meta.rights.is_empty() {
+        println!("  rights: {}", meta.rights.join(", "));
+    }
+    println!("  книг: {}", m.books().map_err(|e| e.to_string())?.len());
+    Ok(())
+}
+
+/// `module pack`: `.sb` → `.sbz` (zstd по умолчанию, brotli по флагу).
+fn pack(args: &[String]) -> Result<(), String> {
+    let src = module_arg(args)?;
+    let codec = flag(args, "--codec").unwrap_or_else(|| "zstd".into());
+    let (id, name): (u8, &str) = match codec.as_str() {
+        "zstd" => (0, "zstd"),
+        "brotli" => (1, "brotli"),
+        other => return Err(format!("неизвестный кодек «{other}» (zstd|brotli)")),
+    };
+    let out = flag(args, "--out")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| src.with_extension("sbz"));
+    let raw = std::fs::read(&src).map_err(|e| format!("{}: {e}", src.display()))?;
+    // Пакуем только валидный модуль — иначе ошибка всплывёт у получателя.
+    Module::open(&src).map_err(|e| format!("{}: {e}", src.display()))?;
+    let mut header = Vec::with_capacity(5);
+    header.extend_from_slice(studybible_store::sbz::MAGIC);
+    header.push(id);
+    let body = match name {
+        "zstd" => {
+            zstd::stream::encode_all(std::io::Cursor::new(&raw), 19).map_err(|e| e.to_string())?
+        }
+        _ => {
+            let mut buf = Vec::new();
+            brotli::CompressorWriter::new(&mut buf, 4096, 11, 22)
+                .write_all(&raw)
+                .map_err(|e| e.to_string())?;
+            buf
+        }
+    };
+    let mut file = header;
+    file.extend_from_slice(&body);
+    std::fs::write(&out, &file).map_err(|e| format!("{}: {e}", out.display()))?;
+    println!(
+        "{} → {} ({} · {:.0}% от размера)",
+        src.display(),
+        out.display(),
+        name,
+        body.len() as f64 * 100.0 / raw.len().max(1) as f64
+    );
     Ok(())
 }
 

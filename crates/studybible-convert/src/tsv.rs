@@ -48,7 +48,9 @@ fn parse_ref(s: &str) -> Result<(BookCode, u16, u16), usfm::Error> {
         .trim()
         .parse()
         .map_err(|_| usfm::Error(format!("TSV: глава «{ch_s}»")))?;
-    let v_s = v_s.trim().trim_end_matches(|c: char| c.is_ascii_lowercase());
+    let v_s = v_s
+        .trim()
+        .trim_end_matches(|c: char| c.is_ascii_lowercase());
     let v: u16 = v_s
         .parse()
         .map_err(|_| usfm::Error(format!("TSV: стих «{v_s}»")))?;
@@ -79,9 +81,8 @@ pub fn parse(src: &str) -> Result<Vec<usfm::Book>, usfm::Error> {
                 ln + 1
             )));
         }
-        let (book, chapter, verse) = parse_ref(f[0]).map_err(|e| {
-            usfm::Error(format!("TSV строка {}: {}", ln + 1, e.0))
-        })?;
+        let (book, chapter, verse) =
+            parse_ref(f[0]).map_err(|e| usfm::Error(format!("TSV строка {}: {}", ln + 1, e.0)))?;
         rows.push(Row {
             book,
             chapter,
@@ -100,8 +101,7 @@ pub fn parse(src: &str) -> Result<Vec<usfm::Book>, usfm::Error> {
     // Группировка: книга → глава → стих → пары. Порядок книг — по первому
     // появлению в файле; главы и стихи — по номерам.
     let mut order: Vec<BookCode> = Vec::new();
-    let mut books: BTreeMap<String, BTreeMap<u16, BTreeMap<u16, Vec<&Row>>>> =
-        BTreeMap::new();
+    let mut books: BTreeMap<String, BTreeMap<u16, BTreeMap<u16, Vec<&Row>>>> = BTreeMap::new();
     for r in &rows {
         let key = r.book.as_str().to_string();
         if !books.contains_key(&key) {
@@ -198,9 +198,8 @@ pub fn parse_variants(src: &str) -> Result<Vec<VariantInput>, usfm::Error> {
                 ln + 1
             )));
         }
-        let (book, chapter, verse) = parse_ref(f[0]).map_err(|e| {
-            usfm::Error(format!("TSV строка {}: {}", ln + 1, e.0))
-        })?;
+        let (book, chapter, verse) =
+            parse_ref(f[0]).map_err(|e| usfm::Error(format!("TSV строка {}: {}", ln + 1, e.0)))?;
         let (from_s, to_s) = f[1].trim().split_once('-').unwrap_or((f[1], f[1]));
         let token_from: u16 = from_s
             .trim()
@@ -215,11 +214,7 @@ pub fn parse_variants(src: &str) -> Result<Vec<VariantInput>, usfm::Error> {
             is_base: matches!(f.get(3).map(|s| s.trim()), Some("1") | Some("base")),
             witnesses: f
                 .get(4)
-                .map(|s| {
-                    s.split_whitespace()
-                        .map(String::from)
-                        .collect::<Vec<_>>()
-                })
+                .map(|s| s.split_whitespace().map(String::from).collect::<Vec<_>>())
                 .unwrap_or_default(),
         };
         // То же место и диапазон — чтение того же варианта.

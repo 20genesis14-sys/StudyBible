@@ -13,10 +13,10 @@
 //! → заголовок раздела `s1`, `BR` → перевод строки, `PROLOG`/`TITLE`
 //! книги → заголовок `h`. Прочие элементы прозрачны (текст проходит).
 
-use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 use quick_xml::XmlVersion;
 use quick_xml::escape::unescape;
+use quick_xml::events::{BytesStart, Event};
 
 use studybible_core::text::{Block, BlockKind, Chapter, Span};
 use studybible_core::{BookCatalog, BookOrder, NameProfile};

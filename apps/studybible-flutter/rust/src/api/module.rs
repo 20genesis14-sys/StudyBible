@@ -24,17 +24,45 @@ pub struct ModuleInfo {
     pub path: String,
 }
 
-/// Сканировать каталог и вернуть модули .sb, которые открываются.
+/// Открыть модуль `.sb` или `.sbz` (ADR 0016): сжатый файл один раз
+/// распаковывается в кэш `<имя>.unpacked.sb` рядом и дальше читается
+/// как обычная база. Кэш пересоздаётся, если источник новее.
+fn open_any(path: &Path) -> Result<Module> {
+    let bytes = std::fs::read(path).with_context(|| format!("не читается {}", path.display()))?;
+    if !studybible_store::sbz::is_sbz(&bytes) {
+        return Ok(Module::open(path)?);
+    }
+    let cache = Path::new(&format!("{}.unpacked.sb", path.display())).to_path_buf();
+    let fresh = std::fs::metadata(&cache)
+        .and_then(|c| std::fs::metadata(path).map(|s| (c, s)))
+        .map(|(c, s)| {
+            c.modified().unwrap_or(std::time::UNIX_EPOCH)
+                >= s.modified().unwrap_or(std::time::UNIX_EPOCH)
+        })
+        .unwrap_or(false);
+    if !fresh {
+        let raw = studybible_store::sbz::unpack(&bytes)
+            .with_context(|| format!("{}: распаковка .sbz", path.display()))?;
+        std::fs::write(&cache, &raw)
+            .with_context(|| format!("не пишется кэш {}", cache.display()))?;
+    }
+    Ok(Module::open(&cache)?)
+}
+
+/// Сканировать каталог и вернуть модули .sb/.sbz, которые открываются.
 /// Битые и посторонние файлы пропускаются — они не должны ронять UI.
 pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
     let mut out = Vec::new();
     let entries = std::fs::read_dir(&dir).with_context(|| format!("не читается каталог {dir}"))?;
     for e in entries.flatten() {
         let path = e.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("sb") {
+        let ext = path.extension().and_then(|s| s.to_str());
+        // Кэш распаковки (`*.sbz.unpacked.sb`) в список не берём.
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if !matches!(ext, Some("sb") | Some("sbz")) || name.ends_with(".unpacked.sb") {
             continue;
         }
-        if let Ok(m) = Module::open(&path) {
+        if let Ok(m) = open_any(&path) {
             let meta = m.meta();
             out.push(ModuleInfo {
                 id: meta.id.clone(),
@@ -51,7 +79,7 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
 /// Документ модуля в формате export.rs, но без глав: `chapters` пуст —
 /// их UI подтягивает лениво через [`chapter_doc`].
 pub async fn module_doc(path: String) -> Result<String> {
-    let m = Module::open(Path::new(&path))?;
+    let m = open_any(Path::new(&path))?;
     let meta = m.meta();
 
     // Число глав по каждой книге.
@@ -114,7 +142,7 @@ pub async fn module_doc(path: String) -> Result<String> {
 /// Глава в формате export.rs: `{"n":..,"blocks":[..]}`.
 /// `None`, если такой главы в модуле нет.
 pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Option<String>> {
-    let m = Module::open(Path::new(&path))?;
+    let m = open_any(Path::new(&path))?;
     let code = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
     let number = u16::try_from(chapter).map_err(|_| anyhow!("глава {chapter}"))?;
     let Some(ch) = m.chapter(code, number)? else {
@@ -192,7 +220,7 @@ pub async fn module_search(
     query: String,
     limit: i64,
 ) -> Result<Vec<SearchHitInfo>> {
-    let m = Module::open(Path::new(&module_path))?;
+    let m = open_any(Path::new(&module_path))?;
     let idx = studybible_store::SearchIndex::open(Path::new(&cache_path), &m)?;
     let hits = idx.search(&query, usize::try_from(limit).unwrap_or(usize::MAX))?;
     Ok(hits

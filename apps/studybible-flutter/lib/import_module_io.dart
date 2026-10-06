@@ -1,5 +1,6 @@
-/// Импорт .sb-модуля через file_picker: копирует файл в каталог
+/// Импорт .sb/.sbz-модуля через file_picker: копирует файл в каталог
 /// модулей приложения, после чего rescanModules() подхватывает его.
+/// Сжатый .sbz распаковывается мостом при первом открытии (ADR 0016).
 library;
 
 import 'dart:io';
@@ -12,9 +13,9 @@ import 'native_bridge_io.dart' show dataDir;
 /// Возвращает текст результата для SnackBar или null при отмене.
 Future<String?> importSbModule() async {
   final files = await FilePicker.pickFiles(
-    dialogTitle: tr('Выберите модуль .sb', 'Choose a .sb module'),
+    dialogTitle: tr('Выберите модуль .sb/.sbz', 'Choose a .sb/.sbz module'),
     type: FileType.custom,
-    allowedExtensions: ['sb'],
+    allowedExtensions: ['sb', 'sbz'],
   );
   final file = files.firstOrNull;
   if (file == null) return null;

@@ -347,12 +347,12 @@ impl ModuleWriter {
             let mut ss = self.conn.prepare_cached(
                 "INSERT INTO spans VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             )?;
-            let mut ts = self.conn.prepare_cached(
-                "INSERT INTO tokens VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            )?;
-            let mut al = self.conn.prepare_cached(
-                "INSERT INTO alignment VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
-            )?;
+            let mut ts = self
+                .conn
+                .prepare_cached("INSERT INTO tokens VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)")?;
+            let mut al = self
+                .conn
+                .prepare_cached("INSERT INTO alignment VALUES(?1, ?2, ?3, ?4, ?5, ?6)")?;
             let mut cur_verse: u16 = 0;
             let mut tok_seq: u16 = 0;
             for (seq, b) in ch.blocks.iter().enumerate() {
@@ -375,14 +375,7 @@ impl ModuleWriter {
                             t.morph,
                             t.gloss
                         ])?;
-                        al.execute(params![
-                            book.as_str(),
-                            ch.number,
-                            t.verse,
-                            t.seq,
-                            seq,
-                            i
-                        ])?;
+                        al.execute(params![book.as_str(), ch.number, t.verse, t.seq, seq, i])?;
                         self.tokens += 1;
                         tok_seq += 1;
                     }
@@ -468,10 +461,7 @@ impl ModuleWriter {
             .conn
             .prepare_cached("INSERT INTO witnesses VALUES(?1, ?2)")?;
         for (seq, rd) in readings.iter().enumerate() {
-            let rid: i64 = rs.query_row(
-                params![vid, seq, rd.text, rd.is_base],
-                |r| r.get(0),
-            )?;
+            let rid: i64 = rs.query_row(params![vid, seq, rd.text, rd.is_base], |r| r.get(0))?;
             for sig in &rd.witnesses {
                 ws.execute(params![rid, sig])?;
             }
@@ -766,9 +756,9 @@ impl Module {
             "SELECT id, seq, text, is_base FROM readings
              WHERE variant_id=?1 ORDER BY seq",
         )?;
-        let mut ws = self.conn.prepare(
-            "SELECT siglum FROM witnesses WHERE reading_id=?1 ORDER BY siglum",
-        )?;
+        let mut ws = self
+            .conn
+            .prepare("SELECT siglum FROM witnesses WHERE reading_id=?1 ORDER BY siglum")?;
         let variants = vs.query_map(params![book.as_str(), chapter], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
