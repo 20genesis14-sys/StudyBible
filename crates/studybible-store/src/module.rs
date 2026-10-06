@@ -72,10 +72,20 @@ pub struct Meta {
     pub content_hash: String,
     /// Обязательные возможности; неизвестная — модуль не открывается.
     pub required: Vec<String>,
+    /// Тип модуля (ADR 0016): bible | interlinear | commentary |
+    /// dictionary | layer | critical. Пусто у старых модулей — читается
+    /// как `bible`.
+    pub kind: String,
+    /// Необязательные возможности (ADR 0016): strongs, morph, tokens,
+    /// alignment, variants.
+    pub features: Vec<String>,
+    /// Флаги прав (ADR 0016, вопрос 15): no-distribute, no-net, no-ai,
+    /// no-plugins. Пусто = всё разрешено.
+    pub rights: Vec<String>,
     pub extra: BTreeMap<String, String>,
 }
 
-const META_KEYS: [&str; 11] = [
+const META_KEYS: [&str; 14] = [
     "id",
     "title",
     "language",
@@ -87,6 +97,9 @@ const META_KEYS: [&str; 11] = [
     "license",
     "attribution",
     "source",
+    "kind",
+    "features",
+    "rights",
 ];
 
 impl Meta {
@@ -110,6 +123,17 @@ impl Meta {
         .into_iter()
         .map(|(k, v)| (k.to_string(), v))
         .collect();
+        // Необязательные ключи пишем только непустыми — простой модуль
+        // не несёт лишних записей (ADR 0016).
+        if !self.kind.is_empty() {
+            v.push(("kind".into(), self.kind.clone()));
+        }
+        if !self.features.is_empty() {
+            v.push(("features".into(), self.features.join(",")));
+        }
+        if !self.rights.is_empty() {
+            v.push(("rights".into(), self.rights.join(",")));
+        }
         v.extend(self.extra.iter().map(|(k, v)| (k.clone(), v.clone())));
         v
     }
@@ -136,6 +160,25 @@ impl Meta {
             content_hash: m.get("content_hash").cloned().unwrap_or_default(),
             required: m
                 .get("required")
+                .map(|s| {
+                    s.split(',')
+                        .filter(|x| !x.is_empty())
+                        .map(String::from)
+                        .collect()
+                })
+                .unwrap_or_default(),
+            kind: m.get("kind").cloned().unwrap_or_default(),
+            features: m
+                .get("features")
+                .map(|s| {
+                    s.split(',')
+                        .filter(|x| !x.is_empty())
+                        .map(String::from)
+                        .collect()
+                })
+                .unwrap_or_default(),
+            rights: m
+                .get("rights")
                 .map(|s| {
                     s.split(',')
                         .filter(|x| !x.is_empty())
@@ -279,6 +322,16 @@ impl ModuleWriter {
             vs.execute(params![book.as_str(), ch.number, n, text])?;
         }
         crate::hash::feed(&mut self.hash, book, ch.number, ch);
+        Ok(())
+    }
+
+    /// Дописать или заменить ключ `meta` после `create`
+    /// (автоматически определённые возможности — ADR 0016).
+    pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO meta VALUES(?1, ?2)",
+            params![key, value],
+        )?;
         Ok(())
     }
 

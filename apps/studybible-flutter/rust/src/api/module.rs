@@ -100,6 +100,10 @@ pub async fn module_doc(path: String) -> Result<String> {
         "title": meta.title,
         "language": meta.language,
         "versification": meta.versification,
+        // ADR 0016: тип и возможности модуля (пусто у старых .sb).
+        "kind": meta.kind,
+        "features": meta.features,
+        "rights": meta.rights,
         "books": books,
         "verse_counts": verse_counts,
         "chapters": {},

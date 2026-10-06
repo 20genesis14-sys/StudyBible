@@ -19,6 +19,18 @@ class ModuleDoc {
   final String id;
   final String title;
   final String language;
+
+  /// Тип модуля (ADR 0016): bible/interlinear/commentary/dictionary/
+  /// layer/critical. Пусто у старых документов — читается как bible.
+  final String kind;
+
+  /// Необязательные возможности: strongs, morph, tokens, alignment,
+  /// variants. Пусто — либо старый модуль, либо простой текст.
+  final List<String> features;
+
+  /// Флаги прав (ADR 0016): no-distribute, no-net, no-ai, no-plugins.
+  final List<String> rights;
+
   final List<BookDoc> books;
   final Map<String, ChapterDoc> chapters;
 
@@ -36,16 +48,32 @@ class ModuleDoc {
     required this.id,
     required this.title,
     required this.language,
+    this.kind = 'bible',
+    this.features = const [],
+    this.rights = const [],
     required this.books,
     required this.chapters,
     required this.verseCounts,
     this.chapterLoader,
   });
 
+  /// true, если модуль объявляет возможность [f] (или у старого
+  /// модуля список пуст — тогда UI ничего не прячет).
+  bool hasFeature(String f) => features.isEmpty || features.contains(f);
+
   factory ModuleDoc.fromJson(Map<String, dynamic> j) => ModuleDoc(
     id: j['id'] as String,
     title: j['title'] as String,
     language: j['language'] as String? ?? '',
+    kind: (j['kind'] as String?)?.isNotEmpty == true
+        ? j['kind'] as String
+        : 'bible',
+    features:
+        (j['features'] as List?)?.map((e) => e as String).toList() ??
+        const [],
+    rights:
+        (j['rights'] as List?)?.map((e) => e as String).toList() ??
+        const [],
     books: (j['books'] as List)
         .map((b) => BookDoc.fromJson(b as Map<String, dynamic>))
         .toList(),

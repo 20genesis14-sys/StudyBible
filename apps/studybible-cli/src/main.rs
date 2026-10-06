@@ -150,6 +150,21 @@ fn meta_from(v: &serde_json::Value) -> Result<Meta, String> {
             return Err(format!("modules.json: нет «{k}»"));
         }
     }
+    // Список возможностей: строка "a,b" или массив ["a","b"].
+    let list = |k: &str| -> Vec<String> {
+        match v.get(k) {
+            Some(serde_json::Value::String(s)) => s
+                .split(',')
+                .filter(|x| !x.trim().is_empty())
+                .map(|x| x.trim().to_string())
+                .collect(),
+            Some(serde_json::Value::Array(a)) => a
+                .iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect(),
+            _ => vec![],
+        }
+    };
     Ok(Meta {
         id: get("id"),
         source: get("source"),
@@ -166,6 +181,9 @@ fn meta_from(v: &serde_json::Value) -> Result<Meta, String> {
         version: get("version"),
         license: get("license"),
         attribution: get("attribution"),
+        kind: get("kind"),
+        features: list("features"),
+        rights: list("rights"),
         ..Meta::default()
     })
 }
@@ -206,6 +224,11 @@ fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Sta
 
     let mut stats = Stats::default();
     let mut w = ModuleWriter::create(out, meta).map_err(|e| e.to_string())?;
+    // Автоопределение возможностей по содержимому (ADR 0016): автору
+    // не нужно знать, что внутри — конвертер помечает сам.
+    let mut has_strongs = false;
+    let mut has_morph = false;
+    let mut has_gloss_pairs = false; // спаны с gr="…" — пары подстрочника
     let mut ord = 0u16;
     for f in files.iter() {
         let text = std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
@@ -232,10 +255,43 @@ fn build_module(src: &Path, out: &Path, meta: &Meta, format: &str) -> Result<Sta
             chapters.sort_by_key(|c| c.number);
             for ch in &chapters {
                 stats.verses += ch.verse_texts().len();
+                if !(has_strongs && has_morph && has_gloss_pairs) {
+                    for b in &ch.blocks {
+                        for s in &b.spans {
+                            if let Span::Text { attrs, .. } = s {
+                                has_strongs |= attrs.contains("strong=");
+                                has_morph |= attrs.contains("morph=");
+                                has_gloss_pairs |= attrs.contains("gr=");
+                            }
+                        }
+                    }
+                }
                 w.add_chapter(book.code, ch).map_err(|e| e.to_string())?;
             }
         }
     }
+    // Дозаписать определённые возможности и тип модуля.
+    let mut features = meta.features.clone();
+    for f in [
+        (has_strongs, "strongs"),
+        (has_morph, "morph"),
+        (has_gloss_pairs, "alignment"),
+    ] {
+        if f.0 && !features.iter().any(|x| x == f.1) {
+            features.push(f.1.into());
+        }
+    }
+    if !features.is_empty() {
+        w.set_meta("features", &features.join(","))
+            .map_err(|e| e.to_string())?;
+    }
+    // kind: из modules.json; иначе interlinear при глосс-парах, иначе bible.
+    let kind = if meta.kind.is_empty() {
+        if has_gloss_pairs { "interlinear" } else { "bible" }
+    } else {
+        meta.kind.as_str()
+    };
+    w.set_meta("kind", kind).map_err(|e| e.to_string())?;
     w.finish().map_err(|e| e.to_string())?;
     Ok(stats)
 }
@@ -257,6 +313,9 @@ fn info(args: &[String]) -> Result<(), String> {
     println!("version: {}", meta.version);
     println!("license: {}", meta.license);
     println!("source: {}", meta.source);
+    println!("kind: {}", meta.kind);
+    println!("features: {}", meta.features.join(","));
+    println!("rights: {}", meta.rights.join(","));
     println!("content_hash: {}", meta.content_hash);
     println!("books: {}", m.books().map_err(|e| e.to_string())?.len());
     Ok(())

@@ -167,11 +167,18 @@ Future<String?> bridgeModuleDoc(String path) async {
         '${r['book']}:${r['chapter']}': (r['v'] as num).toInt(),
     };
 
+    // ADR 0016: тип и возможности модуля (у старых .sb ключей нет).
+    List<String> list(String? v) =>
+        v == null || v.isEmpty ? const [] : v.split(',');
+
     return jsonEncode({
       'id': meta['id'] ?? '',
       'title': meta['title'] ?? '',
       'language': meta['language'] ?? '',
       'versification': meta['versification'] ?? '',
+      'kind': meta['kind'] ?? '',
+      'features': list(meta['features']),
+      'rights': list(meta['rights']),
       'books': books,
       'verse_counts': verseCounts,
       'chapters': <String, dynamic>{},

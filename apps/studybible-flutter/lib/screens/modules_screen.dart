@@ -98,7 +98,9 @@ class _ModulesScreenState extends State<ModulesScreen> {
               title: Text(e.value, style: TextStyle(color: p.ink)),
               subtitle: Text(
                 [
-                  if (kModuleTags.containsKey(e.key)) kModuleTags[e.key]!,
+                  // ADR 0016: метка из таблицы или из kind/features
+                  // уже загруженного документа.
+                  ?moduleTag(e.key),
                   'id: ${e.key}',
                 ].join('  ·  '),
                 style: TextStyle(fontSize: 12, color: p.muted),

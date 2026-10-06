@@ -133,6 +133,23 @@ const Map<String, String> kModuleTags = {
   'int_en': 'подстрочник · глосса над WH-греческим',
 };
 
+/// Метка модуля для списка (ADR 0016): сначала жёсткая таблица
+/// (знакомые модули), затем выводимая из kind/features уже
+/// загруженного документа. null — метки нет.
+String? moduleTag(String id) {
+  if (kModuleTags.containsKey(id)) return kModuleTags[id];
+  final doc = _cache[id];
+  if (doc == null) return null;
+  final parts = <String>[
+    if (doc.kind == 'interlinear') 'подстрочник',
+    if (doc.kind == 'commentary') 'комментарии',
+    if (doc.kind == 'dictionary') 'словарь',
+    if (doc.features.contains('strongs')) 'Стронг',
+    if (doc.features.contains('variants')) 'аппарат',
+  ];
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
 /// Основной перевод пользователя: настройка или первый доступный
 /// модуль (защита от id, которого нет на этой платформе).
 String mainModuleId() {

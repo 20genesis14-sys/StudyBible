@@ -584,12 +584,16 @@ extension _ReaderChrome on _ReadingScreenState {
                   settings.layerXrefs,
                   (v) => settings.update(() => settings.layerXrefs = v),
                 ),
-                sw(
-                  tr('Номера Стронга', 'Strong’s numbers'),
-                  '',
-                  settings.layerStrongs,
-                  (v) => settings.update(() => settings.layerStrongs = v),
-                ),
+                // По ADR 0016 слой Стронга показываем только когда
+                // модуль объявляет features=strongs (у старых модулей
+                // список пуст — переключатель остаётся).
+                if (_module?.hasFeature('strongs') ?? true)
+                  sw(
+                    tr('Номера Стронга', 'Strong’s numbers'),
+                    '',
+                    settings.layerStrongs,
+                    (v) => settings.update(() => settings.layerStrongs = v),
+                  ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                   child: Text(
