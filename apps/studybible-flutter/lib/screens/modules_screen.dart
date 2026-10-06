@@ -11,6 +11,7 @@ import '../data.dart';
 import '../lexicon.dart';
 import '../state.dart';
 import '../theme.dart';
+import 'dict_screen.dart';
 import '../import_module_stub.dart'
     if (dart.library.io) '../import_module_io.dart';
 
@@ -95,6 +96,16 @@ class _ModulesScreenState extends State<ModulesScreen> {
             ),
             child: ListTile(
               leading: Icon(Icons.menu_book_outlined, color: p.accent),
+              // Словарный модуль открывает экран словаря (ADR 0016).
+              onTap: () async {
+                final doc = await loadModule(e.key);
+                if (!context.mounted || doc.kind != 'dictionary') return;
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DictScreen(moduleId: e.key),
+                  ),
+                );
+              },
               title: Text(e.value, style: TextStyle(color: p.ink)),
               subtitle: Text(
                 [

@@ -447,6 +447,53 @@ Future<bool> bridgeEntryRemove(String id) async {
   return true;
 }
 
+// ---------- словарь (entries, ADR 0016) ----------
+
+/// Страница заголовков словаря; prefix — строчный префикс norm.
+Future<List<DictEntryInfo>> bridgeDictEntries(
+  String path, {
+  int offset = 0,
+  int limit = 200,
+  String prefix = '',
+}) async {
+  try {
+    final db = await _openDb(path);
+    final rows = db.select(
+      "SELECT ord, headword FROM entries WHERE norm LIKE ? || '%' "
+      'ORDER BY ord LIMIT ? OFFSET ?',
+      [prefix.toLowerCase(), limit, offset],
+    );
+    return [
+      for (final r in rows)
+        DictEntryInfo(
+          ord: (r['ord'] as num).toInt(),
+          headword: '${r['headword']}',
+        ),
+    ];
+  } catch (_) {
+    return const []; // таблицы entries нет — модуль не словарь
+  }
+}
+
+/// Статья словаря по ord; null — нет такой.
+Future<DictArticleInfo?> bridgeDictEntry(String path, int ord) async {
+  try {
+    final db = await _openDb(path);
+    final rows = db.select(
+      'SELECT headword, text FROM entries WHERE ord=?',
+      [ord],
+    );
+    if (rows.isEmpty) return null;
+    return DictArticleInfo(
+      ord: ord,
+      headword: '${rows.first['headword']}',
+      text: '${rows.first['text']}',
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 // ---------- поиск ----------
 
 /// Простой поиск подстроки по тексту стихов модуля (web-фоллбэк

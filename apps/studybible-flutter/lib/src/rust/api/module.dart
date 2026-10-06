@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `block_json`, `span_json`
+// These functions are ignored because they are not marked as `pub`: `block_json`, `open_any`, `span_json`
 
-/// Сканировать каталог и вернуть модули .sb, которые открываются.
+/// Сканировать каталог и вернуть модули .sb/.sbz, которые открываются.
 /// Битые и посторонние файлы пропускаются — они не должны ронять UI.
 Future<List<ModuleInfo>> listModules({required String dir}) =>
     RustLib.instance.api.crateApiModuleListModules(dir: dir);
@@ -31,6 +31,26 @@ Future<String?> chapterDoc({
   chapter: chapter,
 );
 
+/// Страница заголовков словаря (ord, headword) от `offset`,
+/// фильтр по префиксу строчной формы `norm`.
+Future<List<DictEntry>> dictEntries({
+  required String path,
+  required PlatformInt64 offset,
+  required PlatformInt64 limit,
+  required String prefix,
+}) => RustLib.instance.api.crateApiModuleDictEntries(
+  path: path,
+  offset: offset,
+  limit: limit,
+  prefix: prefix,
+);
+
+/// Статья словаря по `ord`; `None` — нет такой.
+Future<DictArticle?> dictEntry({
+  required String path,
+  required PlatformInt64 ord,
+}) => RustLib.instance.api.crateApiModuleDictEntry(path: path, ord: ord);
+
 /// Искать в модуле. `cache_path` — файл индекса рядом с модулем
 /// (по соглашению CLI — `<module>.idx`); при несовпадении ключа
 /// индекс перестраивается автоматически.
@@ -45,6 +65,51 @@ Future<List<SearchHitInfo>> moduleSearch({
   query: query,
   limit: limit,
 );
+
+/// Полная статья словаря.
+class DictArticle {
+  final PlatformInt64 ord;
+  final String headword;
+  final String text;
+
+  const DictArticle({
+    required this.ord,
+    required this.headword,
+    required this.text,
+  });
+
+  @override
+  int get hashCode => ord.hashCode ^ headword.hashCode ^ text.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DictArticle &&
+          runtimeType == other.runtimeType &&
+          ord == other.ord &&
+          headword == other.headword &&
+          text == other.text;
+}
+
+/// Заголовок словарной статьи для списка.
+class DictEntry {
+  /// Порядок в словаре — ключ для `dict_entry`.
+  final PlatformInt64 ord;
+  final String headword;
+
+  const DictEntry({required this.ord, required this.headword});
+
+  @override
+  int get hashCode => ord.hashCode ^ headword.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DictEntry &&
+          runtimeType == other.runtimeType &&
+          ord == other.ord &&
+          headword == other.headword;
+}
 
 /// Модуль .sb, найденный в каталоге данных.
 class ModuleInfo {

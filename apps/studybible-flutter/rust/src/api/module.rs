@@ -205,6 +205,56 @@ fn block_json(b: &Block) -> Value {
     })
 }
 
+// --- словарь (таблица entries, ADR 0016) ---
+
+/// Заголовок словарной статьи для списка.
+pub struct DictEntry {
+    /// Порядок в словаре — ключ для `dict_entry`.
+    pub ord: i64,
+    pub headword: String,
+}
+
+/// Полная статья словаря.
+pub struct DictArticle {
+    pub ord: i64,
+    pub headword: String,
+    pub text: String,
+}
+
+/// Страница заголовков словаря (ord, headword) от `offset`,
+/// фильтр по префиксу строчной формы `norm`.
+pub async fn dict_entries(
+    path: String,
+    offset: i64,
+    limit: i64,
+    prefix: String,
+) -> Result<Vec<DictEntry>> {
+    let m = open_any(Path::new(&path))?;
+    let list = m.entries(
+        u64::try_from(offset).unwrap_or(0),
+        u64::try_from(limit).unwrap_or(100),
+        &prefix,
+    )?;
+    Ok(list
+        .iter()
+        .map(|(ord, headword)| DictEntry {
+            ord: i64::from(*ord),
+            headword: headword.clone(),
+        })
+        .collect())
+}
+
+/// Статья словаря по `ord`; `None` — нет такой.
+pub async fn dict_entry(path: String, ord: i64) -> Result<Option<DictArticle>> {
+    let m = open_any(Path::new(&path))?;
+    let ord_u32 = u32::try_from(ord).map_err(|_| anyhow!("ord {ord}"))?;
+    Ok(m.entry(ord_u32)?.map(|(headword, text)| DictArticle {
+        ord,
+        headword,
+        text,
+    }))
+}
+
 // --- поиск по FTS-индексу модуля ---
 
 /// Результат поиска для UI (зеркало `store::search::Hit`).

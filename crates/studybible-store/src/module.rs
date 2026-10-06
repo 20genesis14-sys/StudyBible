@@ -238,6 +238,11 @@ CREATE TABLE readings(id INTEGER PRIMARY KEY, variant_id INTEGER NOT NULL,
                       is_base INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE witnesses(reading_id INTEGER NOT NULL, siglum TEXT NOT NULL,
                        PRIMARY KEY(reading_id, siglum));
+-- ADR 0016 (необязательная): словарные статьи для kind=dictionary.
+-- ord — порядок в словаре; norm — строчная форма для поиска.
+CREATE TABLE entries(ord INTEGER PRIMARY KEY, headword TEXT NOT NULL,
+                     norm TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '');
+CREATE INDEX entries_norm ON entries(norm);
 ";
 
 /// Слово уровня токена (таблица `tokens`, ADR 0016).
@@ -474,6 +479,23 @@ impl ModuleWriter {
         Ok(())
     }
 
+    /// Добавить словарную статью (таблица `entries`, ADR 0016).
+    /// `ord` — порядок в словаре (обычно номер строки входа).
+    /// `norm` — строчная форма заголовка для поиска; пусто — берётся
+    /// сам заголовок в нижнем регистре.
+    pub fn add_entry(&self, ord: u32, headword: &str, norm: &str, text: &str) -> Result<()> {
+        let norm = if norm.is_empty() {
+            headword.to_lowercase()
+        } else {
+            norm.to_string()
+        };
+        self.conn.execute(
+            "INSERT INTO entries(ord, headword, norm, text) VALUES(?1, ?2, ?3, ?4)",
+            params![ord, headword, norm, text],
+        )?;
+        Ok(())
+    }
+
     /// Сколько токенов записано (для `meta.features = tokens`).
     pub fn tokens_written(&self) -> usize {
         self.tokens
@@ -507,6 +529,7 @@ pub struct Module {
     has_tokens: bool,
     has_alignment: bool,
     has_variants: bool,
+    has_entries: bool,
 }
 
 /// Связь токена со спаном потока чтения (таблица `alignment`, ADR 0016).
@@ -600,6 +623,7 @@ impl Module {
             has_tokens: has("tokens")?,
             has_alignment: has("alignment")?,
             has_variants: has("variants")?,
+            has_entries: has("entries")?,
             conn,
             meta,
         })
@@ -807,6 +831,53 @@ impl Module {
             });
         }
         Ok(out)
+    }
+
+    /// Число словарных статей (таблица `entries`, ADR 0016).
+    /// 0 у модулей без словаря.
+    pub fn entries_count(&self) -> Result<u64> {
+        if !self.has_entries {
+            return Ok(0);
+        }
+        Ok(self
+            .conn
+            .query_row("SELECT count(*) FROM entries", [], |r| r.get::<_, i64>(0))?
+            as u64)
+    }
+
+    /// Страница словаря: (ord, заголовок) от `offset`, не больше `limit`.
+    /// `prefix` — фильтр по началу `norm` (строчная форма).
+    pub fn entries(&self, offset: u64, limit: u64, prefix: &str) -> Result<Vec<(u32, String)>> {
+        if !self.has_entries {
+            return Ok(vec![]);
+        }
+        let mut st = self.conn.prepare(
+            "SELECT ord, headword FROM entries
+             WHERE norm LIKE ?1 || '%' ORDER BY ord LIMIT ?2 OFFSET ?3",
+        )?;
+        let rows = st.query_map(params![prefix.to_lowercase(), limit, offset], |r| {
+            Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?))
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    /// Статья словаря по `ord`: (заголовок, текст). None — нет такой.
+    pub fn entry(&self, ord: u32) -> Result<Option<(String, String)>> {
+        if !self.has_entries {
+            return Ok(None);
+        }
+        let mut st = self
+            .conn
+            .prepare("SELECT headword, text FROM entries WHERE ord=?1")?;
+        let mut rows = st.query(params![ord])?;
+        match rows.next()? {
+            Some(r) => Ok(Some((r.get::<_, String>(0)?, r.get::<_, String>(1)?))),
+            None => Ok(None),
+        }
     }
 
     /// Плоский текст стиха (из кэшированной таблицы `verses`).

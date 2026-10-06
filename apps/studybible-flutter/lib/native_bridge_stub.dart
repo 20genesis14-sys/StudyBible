@@ -100,6 +100,17 @@ Future<bool> bridgeEntryRemove(String id) async {
   return _stubEntries.length != before;
 }
 
+// ---------- словарь (стаб — пусто) ----------
+
+Future<List<DictEntryInfo>> bridgeDictEntries(
+  String path, {
+  int offset = 0,
+  int limit = 200,
+  String prefix = '',
+}) async => const [];
+
+Future<DictArticleInfo?> bridgeDictEntry(String path, int ord) async => null;
+
 // ---------- поиск (стаб — пусто) ----------
 
 Future<List<SearchHit>> bridgeModuleSearch(

@@ -239,3 +239,52 @@ pub fn parse_variants(src: &str) -> Result<Vec<VariantInput>, usfm::Error> {
     }
     Ok(out)
 }
+
+// ---------- словарь (entries TSV) ----------
+
+/// Словарная статья из TSV (ADR 0016).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct EntryInput {
+    /// Заголовок статьи (как показывать).
+    pub headword: String,
+    /// Строчная форма для поиска; пусто — выводится из заголовка.
+    pub norm: String,
+    /// Текст статьи (может содержать `\n` — абзацы).
+    pub text: String,
+}
+
+/// Разобрать TSV словаря: `заголовок <TAB> текст [<TAB> норм-форма]`.
+/// Порядок строк = порядок в словаре (`ord`). Пустые строки и `#` —
+/// комментарии.
+pub fn parse_entries(src: &str) -> Result<Vec<EntryInput>, usfm::Error> {
+    let mut out = Vec::new();
+    for (ln, line) in src.lines().enumerate() {
+        let line = line.trim_end();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let f: Vec<&str> = line.split('\t').collect();
+        if f.len() < 2 {
+            return Err(usfm::Error(format!(
+                "TSV словаря, строка {}: меньше 2 полей: «{line}»",
+                ln + 1
+            )));
+        }
+        let headword = f[0].trim();
+        if headword.is_empty() {
+            return Err(usfm::Error(format!(
+                "TSV словаря, строка {}: пустой заголовок",
+                ln + 1
+            )));
+        }
+        out.push(EntryInput {
+            headword: headword.to_string(),
+            text: f[1].trim().to_string(),
+            norm: f.get(2).map(|s| s.trim().to_string()).unwrap_or_default(),
+        });
+    }
+    if out.is_empty() {
+        return Err(usfm::Error("TSV словаря: нет статей".into()));
+    }
+    Ok(out)
+}

@@ -34,7 +34,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  DictArticle dco_decode_box_autoadd_dict_article(dynamic raw);
+
+  @protected
+  DictArticle dco_decode_dict_article(dynamic raw);
+
+  @protected
+  DictEntry dco_decode_dict_entry(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  List<DictEntry> dco_decode_list_dict_entry(dynamic raw);
 
   @protected
   List<ModuleInfo> dco_decode_list_module_info(dynamic raw);
@@ -53,6 +65,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  DictArticle? dco_decode_opt_box_autoadd_dict_article(dynamic raw);
 
   @protected
   SearchHitInfo dco_decode_search_hit_info(dynamic raw);
@@ -76,7 +91,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  DictArticle sse_decode_box_autoadd_dict_article(SseDeserializer deserializer);
+
+  @protected
+  DictArticle sse_decode_dict_article(SseDeserializer deserializer);
+
+  @protected
+  DictEntry sse_decode_dict_entry(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<DictEntry> sse_decode_list_dict_entry(SseDeserializer deserializer);
 
   @protected
   List<ModuleInfo> sse_decode_list_module_info(SseDeserializer deserializer);
@@ -99,6 +126,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  DictArticle? sse_decode_opt_box_autoadd_dict_article(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SearchHitInfo sse_decode_search_hit_info(SseDeserializer deserializer);
@@ -128,7 +160,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_dict_article(
+    DictArticle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_dict_article(DictArticle self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_dict_entry(DictEntry self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_dict_entry(
+    List<DictEntry> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_module_info(
@@ -159,6 +209,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_dict_article(
+    DictArticle? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_search_hit_info(SearchHitInfo self, SseSerializer serializer);

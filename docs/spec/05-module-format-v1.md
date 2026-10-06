@@ -63,7 +63,14 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 Ничего из этого не обязательно и не идёт в `required`.
 
 - `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` | `layer` | `critical`.
-- `meta.features`: `strongs,morph,tokens,alignment,variants` (через запятую).
+- `meta.features`: `strongs,morph,tokens,alignment,variants,entries` (через запятую).
+- `entries(ord INTEGER PRIMARY KEY, headword TEXT NOT NULL,
+  norm TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '')` —
+  словарные статьи для `kind=dictionary`: `ord` — порядок в словаре,
+  `norm` — строчная форма заголовка для поиска (индексы по `headword`
+  и `norm`). Модуль-словарь может не иметь книг и глав — `books` пустая.
+  Вход автора — TSV `заголовок  текст` (`format="entries"` в
+  modules.json; `norm` можно задать третьим столбцом).
 - `tokens(book, chapter, verse, seq, surface, lemma, strong, morph, gloss)` —
   слова оригинала. Источник: OSIS `<w lemma morph>`, USFM `\w …|strong lemma x-morph\w*`,
   теги Стронга MyBible/BibleQuote. Заполняет конвертер.

@@ -74,3 +74,29 @@ fn tsv_verse_segment_letters_ignored() {
     let ch = &books[0].chapters[0];
     assert!(matches!(ch.blocks[0].spans[0], Span::Verse(1)));
 }
+
+// --- словарь (format=entries) ---
+
+#[test]
+fn tsv_entries_parse() {
+    let src = "# словарь\n\
+               Авраам\tОтец множества.\tавраам\n\
+               Агарь\tСлужанка Сары.\n\
+               \n\
+               Ваал\tХанаанское божество.\n";
+    let es = tsv::parse_entries(src).unwrap();
+    assert_eq!(es.len(), 3);
+    assert_eq!(es[0].headword, "Авраам");
+    assert_eq!(es[0].text, "Отец множества.");
+    assert_eq!(es[0].norm, "авраам");
+    // norm можно не давать — выведется из заголовка при записи.
+    assert_eq!(es[1].norm, "");
+}
+
+#[test]
+fn tsv_entries_reject_bad() {
+    assert!(tsv::parse_entries("").is_err());
+    assert!(tsv::parse_entries("# только комментарии\n").is_err());
+    assert!(tsv::parse_entries("одно поле без таба\n").is_err());
+    assert!(tsv::parse_entries("\tтекст без заголовка\n").is_err());
+}

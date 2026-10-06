@@ -292,6 +292,41 @@ Future<bool> bridgeEntryRemove(String id) async =>
     ) ==
     true;
 
+// ---------- словарь (entries, ADR 0016) ----------
+
+/// Страница заголовков словаря; prefix — строчный префикс norm.
+Future<List<DictEntryInfo>> bridgeDictEntries(
+  String path, {
+  int offset = 0,
+  int limit = 200,
+  String prefix = '',
+}) async {
+  final list = await _guard(
+    'dictEntries',
+    () => api_module.dictEntries(
+      path: path,
+      offset: offset,
+      limit: limit,
+      prefix: prefix,
+    ),
+  );
+  return [
+    for (final e in list ?? const <api_module.DictEntry>[])
+      DictEntryInfo(ord: e.ord.toInt(), headword: e.headword),
+  ];
+}
+
+/// Статья словаря по ord; null — нет такой или модуль не словарь.
+Future<DictArticleInfo?> bridgeDictEntry(String path, int ord) async {
+  final a = await _guard(
+    'dictEntry',
+    () => api_module.dictEntry(path: path, ord: ord),
+  );
+  return a == null
+      ? null
+      : DictArticleInfo(ord: a.ord.toInt(), headword: a.headword, text: a.text);
+}
+
 // ---------- поиск ----------
 
 /// Поиск по FTS-индексу модуля; кэш-файл — `<module>.idx` рядом.

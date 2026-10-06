@@ -232,6 +232,7 @@ fn build_module(
         "osis" => &["osis", "xml"],
         "zefania" => &["xml"],
         "tsv" => &["tsv"],
+        "entries" => &["tsv"], // словарь: TSV «заголовок → текст» (ADR 0016)
         other => return Err(format!("modules.json: неизвестный format «{other}»")),
     };
     let mut files: Vec<PathBuf> = std::fs::read_dir(src)
@@ -255,6 +256,42 @@ fn build_module(
     }
 
     let mut stats = Stats::default();
+
+    // Модуль-словарь: без книг и глав, весь контент — статьи entries.
+    if format == "entries" {
+        let tmp = out.with_file_name(format!(
+            "{}.building",
+            out.file_name().unwrap_or_default().to_string_lossy()
+        ));
+        let _ = std::fs::remove_file(&tmp);
+        let w = ModuleWriter::create(&tmp, meta).map_err(|e| e.to_string())?;
+        let mut ord = 0u32;
+        for f in files.iter() {
+            let text = std::fs::read_to_string(f).map_err(|e| format!("{}: {e}", f.display()))?;
+            for e in tsv::parse_entries(&text).map_err(|e| format!("{}: {}", f.display(), e.0))? {
+                ord += 1;
+                w.add_entry(ord, &e.headword, &e.norm, &e.text)
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+        let mut features = meta.features.clone();
+        if !features.iter().any(|x| x == "entries") {
+            features.push("entries".into());
+        }
+        w.set_meta("features", &features.join(","))
+            .map_err(|e| e.to_string())?;
+        let kind = if meta.kind.is_empty() {
+            "dictionary"
+        } else {
+            meta.kind.as_str()
+        };
+        w.set_meta("kind", kind).map_err(|e| e.to_string())?;
+        stats.verses = ord as usize; // статей
+        w.finish().map_err(|e| e.to_string())?;
+        std::fs::rename(&tmp, out).map_err(|e| format!("{}: {e}", out.display()))?;
+        return Ok(stats);
+    }
+
     // Пишем во временный файл и переименовываем в конце — неудачная
     // сборка не трогает готовый модуль, повторная сборка перезаписывает.
     let tmp = out.with_file_name(format!(

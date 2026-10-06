@@ -59,3 +59,25 @@ class SearchHit {
     required this.snippet,
   });
 }
+
+/// Заголовок словарной статьи (зеркало api::DictEntry, ADR 0016).
+class DictEntryInfo {
+  /// Порядок в словаре — ключ для `bridgeDictEntry`.
+  final int ord;
+  final String headword;
+
+  const DictEntryInfo({required this.ord, required this.headword});
+}
+
+/// Статья словаря (зеркало api::DictArticle).
+class DictArticleInfo {
+  final int ord;
+  final String headword;
+  final String text;
+
+  const DictArticleInfo({
+    required this.ord,
+    required this.headword,
+    required this.text,
+  });
+}

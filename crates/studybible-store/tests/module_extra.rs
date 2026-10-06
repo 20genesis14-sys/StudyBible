@@ -334,6 +334,32 @@ fn variants_roundtrip() {
 }
 
 #[test]
+fn entries_roundtrip() {
+    // ADR 0016: словарь — статьи по порядку, поиск по norm-префиксу.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("dict.sb");
+    let w = ModuleWriter::create(&p, &meta()).unwrap();
+    w.add_entry(1, "Авраам", "", "Отец множества.").unwrap();
+    w.add_entry(2, "Агарь", "", "Служанка Сары.").unwrap();
+    w.add_entry(3, "Ваал", "", "Ханаанское божество.").unwrap();
+    w.finish().unwrap();
+
+    let m = Module::open(&p).unwrap();
+    assert_eq!(m.entries_count().unwrap(), 3);
+    let all = m.entries(0, 10, "").unwrap();
+    assert_eq!(all[0], (1, "Авраам".to_string()));
+    // Префикс по norm (нижний регистр).
+    let av = m.entries(0, 10, "а").unwrap();
+    assert_eq!(av.len(), 2);
+    assert_eq!(m.entries(0, 10, "в").unwrap().len(), 1);
+    // Статья по ord.
+    let (h, t) = m.entry(2).unwrap().unwrap();
+    assert_eq!(h, "Агарь");
+    assert!(t.contains("Сары"));
+    assert!(m.entry(99).unwrap().is_none());
+}
+
+#[test]
 fn create_twice_fails() {
     // Повторная запись поверх существующего файла — ошибка схемы.
     let dir = tempfile::tempdir().unwrap();
