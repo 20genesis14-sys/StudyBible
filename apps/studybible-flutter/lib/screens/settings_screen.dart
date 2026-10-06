@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data.dart';
 import '../l10n.dart';
@@ -16,7 +17,26 @@ class SettingsScreen extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         final p = context.palette;
-        return Center(
+        // Scaffold + AppBar нужны, когда экран открыт поверх
+        // (push с Главной): без них фон чёрный и «назад» нечем.
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.escape): () =>
+                Navigator.of(context).maybePop(),
+          },
+          child: Focus(
+            autofocus: true,
+            child: Scaffold(
+              backgroundColor: p.background,
+              appBar: AppBar(
+                backgroundColor: p.background,
+                title: Text(
+                  tr('Настройки', 'Settings'),
+                  style: TextStyle(color: p.ink),
+                ),
+                iconTheme: IconThemeData(color: p.ink),
+              ),
+              body: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: wide ? 760 : double.infinity),
             child: ListView(
@@ -369,6 +389,9 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+              ),
             ),
           ),
         );
