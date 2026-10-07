@@ -83,17 +83,26 @@ class Settings extends ChangeNotifier {
   Timer? _nightTimer;
 
   /// Периодический пересчёт автоночи: тема меняется сама на
-  /// границе интервала, без открытого экрана настроек.
-  /// Событие шлётся только при реальной смене эффективной темы.
-  void startAutoNight() {
-    _nightTimer ??= Timer.periodic(const Duration(minutes: 1), (_) {
-      final e = effectiveTheme;
-      if (e != _lastEffective) {
-        _lastEffective = e;
-        notifyListeners();
-      }
-    });
+  /// границе интервала. Таймер живёт только пока режим включён —
+  /// вызывается после загрузки и каждого [update].
+  void _syncNightTimer() {
+    if (autoNight && _nightTimer == null) {
+      _lastEffective = effectiveTheme;
+      _nightTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+        final e = effectiveTheme;
+        if (e != _lastEffective) {
+          _lastEffective = e;
+          notifyListeners();
+        }
+      });
+    } else if (!autoNight && _nightTimer != null) {
+      _nightTimer!.cancel();
+      _nightTimer = null;
+    }
   }
+
+  /// Точка входа при старте приложения (после [load]).
+  void startAutoNight() => _syncNightTimer();
 
   /// Масштаб шрифта: 0.8 – 1.6, шаг настройки.
   double fontScale = 1.0;
@@ -246,6 +255,7 @@ class Settings extends ChangeNotifier {
       // Битый JSON/ошибка моста — работаем на значениях по умолчанию.
     }
     _loaded = true;
+    _syncNightTimer();
     notifyListeners();
   }
 
@@ -307,6 +317,7 @@ class Settings extends ChangeNotifier {
 
   void update(void Function() fn) {
     fn();
+    _syncNightTimer();
     notifyListeners();
     if (_loaded) _save();
   }
