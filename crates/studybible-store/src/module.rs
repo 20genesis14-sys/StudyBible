@@ -838,14 +838,29 @@ impl Module {
     /// Нужен для `.sbz`: сжатый файл распаковывается в ОЗУ, распакованной
     /// копии на диске нет. `path` — логический путь источника (для отображения).
     pub fn open_bytes(path: &Path, bytes: &[u8]) -> Result<Self> {
-        let mut conn = Connection::open_in_memory()?;
+        if bytes.is_empty() {
+            return Err(ModuleError::BadFormat("пустой модуль".into()));
+        }
         let sz = bytes.len();
-        // SAFETY: sqlite3_malloc выделяет буфер размером sz; копируем в него
+        // sqlite3_malloc принимает int: больший размер не выделить,
+        // а усечение дало бы буфер меньше копируемых байт.
+        let alloc: i32 = match i32::try_from(sz) {
+            Ok(n) if sz <= crate::sbz::MAX_UNPACKED => n,
+            _ => {
+                return Err(ModuleError::BadFormat(format!(
+                    "модуль больше {} МиБ",
+                    crate::sbz::MAX_UNPACKED >> 20
+                )));
+            }
+        };
+        let mut conn = Connection::open_in_memory()?;
+        // SAFETY: sqlite3_malloc выделяет буфер ровно на sz байт
+        // (sz > 0 и помещается в i32 — проверено выше); копируем в него
         // байты модуля и передаём владение в OwnedData — с флагом
         // FREEONCLOSE SQLite освободит буфер через sqlite3_free при
         // закрытии соединения. Указатели не пересекаются (новый буфер).
         let data = unsafe {
-            let ptr = rusqlite::ffi::sqlite3_malloc(sz.try_into().unwrap_or(i32::MAX));
+            let ptr = rusqlite::ffi::sqlite3_malloc(alloc);
             if ptr.is_null() {
                 return Err(ModuleError::BadFormat("deserialize: нет памяти".into()));
             }
@@ -872,7 +887,7 @@ impl Module {
                 "application_id={app_id:#x}"
             )));
         }
-        for table in ["meta", "books", "blocks", "spans", "verses"] {
+        for table in ["meta", "books", "book_headers", "blocks", "spans", "verses"] {
             let n: i64 = conn.query_row(
                 "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name=?1",
                 params![table],
@@ -983,10 +998,10 @@ impl Module {
         )?;
         let rows = st.query_map(params![bid, chapter], |r| {
             Ok(Mark {
-                verse: r.get::<_, i64>(0)? as u16,
-                seq: r.get::<_, i64>(1)? as u16,
-                offset_ms: r.get::<_, i64>(2)? as u32,
-                dur_ms: r.get::<_, Option<i64>>(3)?.map(|d| d as u32),
+                verse: r.get::<_, u16>(0)?,
+                seq: r.get::<_, u16>(1)?,
+                offset_ms: r.get::<_, u32>(2)?,
+                dur_ms: r.get::<_, Option<u32>>(3)?,
                 text: r.get(4)?,
             })
         })?;
@@ -1043,7 +1058,7 @@ impl Module {
                 .conn
                 .prepare("SELECT verse, text FROM verses WHERE book_id=?1 AND chapter=?2")?;
             vt.query_map(params![bid, chapter], |r| {
-                Ok((r.get::<_, i64>(0)? as u16, r.get::<_, String>(1)?))
+                Ok((r.get::<_, u16>(0)?, r.get::<_, String>(1)?))
             })?
             .collect::<rusqlite::Result<_>>()?
         };
@@ -1099,10 +1114,12 @@ impl Module {
                     "v" => block.spans.push(Span::Verse(num.unwrap_or_default())),
                     "t" => {
                         let text = match (verse, start, len) {
-                            (Some(v), Some(st), Some(ln)) => vtexts
-                                .get(&v)
-                                .and_then(|t| t.get(st as usize..(st + ln) as usize))
-                                .unwrap_or_default()
+                            (Some(v), Some(st), Some(ln)) => slice_of(&vtexts, v, st, ln)
+                                .ok_or_else(|| {
+                                    ModuleError::BadFormat(format!(
+                                        "{book} {chapter}:{v}: срез ({st},{ln}) вне текста стиха"
+                                    ))
+                                })?
                                 .to_string(),
                             _ => text,
                         };
@@ -1137,8 +1154,8 @@ impl Module {
         )?;
         let rows = st.query_map(params![bid, chapter], |r| {
             Ok(Token {
-                verse: r.get::<_, i64>(0)? as u16,
-                seq: r.get::<_, i64>(1)? as u16,
+                verse: r.get::<_, u16>(0)?,
+                seq: r.get::<_, u16>(1)?,
                 surface: r.get(2)?,
                 lemma: r.get(3)?,
                 strong: r.get(4)?,
@@ -1168,10 +1185,10 @@ impl Module {
         )?;
         let rows = st.query_map(params![bid, chapter], |r| {
             Ok(Alignment {
-                verse: r.get::<_, i64>(0)? as u16,
-                token_seq: r.get::<_, i64>(1)? as u16,
-                block: r.get::<_, i64>(2)? as u16,
-                span: r.get::<_, i64>(3)? as u16,
+                verse: r.get::<_, u16>(0)?,
+                token_seq: r.get::<_, u16>(1)?,
+                block: r.get::<_, u16>(2)?,
+                span: r.get::<_, u16>(3)?,
             })
         })?;
         let mut out = Vec::new();
@@ -1204,9 +1221,9 @@ impl Module {
         let variants = vs.query_map(params![bid, chapter], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
-                r.get::<_, i64>(1)?,
-                r.get::<_, i64>(2)?,
-                r.get::<_, i64>(3)?,
+                r.get::<_, u16>(1)?,
+                r.get::<_, u16>(2)?,
+                r.get::<_, u16>(3)?,
             ))
         })?;
         let mut out = Vec::new();
@@ -1236,9 +1253,9 @@ impl Module {
             out.push(Variant {
                 book: book.as_str().to_string(),
                 chapter,
-                verse: verse as u16,
-                token_from: tf as u16,
-                token_to: tt as u16,
+                verse,
+                token_from: tf,
+                token_to: tt,
                 readings: rd_list,
             });
         }
@@ -1265,10 +1282,16 @@ impl Module {
         }
         let mut st = self.conn.prepare(
             "SELECT ord, headword FROM entries
-             WHERE norm LIKE ?1 || '%' ORDER BY ord LIMIT ?2 OFFSET ?3",
+             WHERE norm LIKE ?1 || '%' ESCAPE '\\' ORDER BY ord LIMIT ?2 OFFSET ?3",
         )?;
-        let rows = st.query_map(params![prefix.to_lowercase(), limit, offset], |r| {
-            Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?))
+        // `%`/`_`/`\` в префиксе — буквально, не шаблон LIKE.
+        let pat = prefix
+            .to_lowercase()
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_");
+        let rows = st.query_map(params![pat, limit, offset], |r| {
+            Ok((r.get::<_, u32>(0)?, r.get::<_, String>(1)?))
         })?;
         let mut out = Vec::new();
         for r in rows {
@@ -1305,6 +1328,19 @@ impl Module {
             .map(|o| o.map(|t| studybible_core::text::collapse_spaces(&t)))
             .map_err(Into::into)
     }
+}
+
+/// Байтовый срез `(start, len)` текста стиха `v`; None — стиха нет,
+/// смещения отрицательные, переполняются или режут символ UTF-8.
+fn slice_of(
+    vtexts: &std::collections::HashMap<u16, String>,
+    v: u16,
+    start: i64,
+    len: i64,
+) -> Option<&str> {
+    let st = usize::try_from(start).ok()?;
+    let end = st.checked_add(usize::try_from(len).ok()?)?;
+    vtexts.get(&v)?.get(st..end)
 }
 
 use rusqlite::OptionalExtension;

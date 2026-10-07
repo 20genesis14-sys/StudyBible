@@ -428,3 +428,111 @@ fn create_twice_fails() {
     build(&p);
     assert!(ModuleWriter::create(&p, &meta()).is_err());
 }
+
+#[test]
+fn open_bytes_roundtrip_readonly() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let raw = std::fs::read(&p).unwrap();
+    let m = Module::open_bytes(&p, &raw).unwrap();
+    let g = BookCode::new("GEN").unwrap();
+    assert_eq!(m.verse_text(g, 1, 2).unwrap(), Some("Второй.".into()));
+    // Только чтение: запись в десериализованную базу запрещена.
+    assert!(
+        m.conn()
+            .execute("INSERT INTO meta VALUES('x', 'y')", [])
+            .is_err()
+    );
+}
+
+#[test]
+fn open_bytes_empty_and_garbage_rejected() {
+    let p = std::path::Path::new("mem.sbz");
+    assert!(matches!(
+        Module::open_bytes(p, &[]),
+        Err(ModuleError::BadFormat(_))
+    ));
+    assert!(Module::open_bytes(p, b"not a sqlite database at all").is_err());
+}
+
+#[test]
+fn sbz_unpack_limit() {
+    use studybible_store::sbz;
+    let data = vec![b'a'; 4096];
+    let mut z = sbz::MAGIC.to_vec();
+    z.push(0);
+    z.extend(ruzstd::encoding::compress_to_vec(
+        &data[..],
+        ruzstd::encoding::CompressionLevel::Fastest,
+    ));
+    assert_eq!(sbz::unpack(&z).unwrap(), data);
+    assert_eq!(sbz::unpack_limited(&z, 4096).unwrap().len(), 4096);
+    assert!(matches!(
+        sbz::unpack_limited(&z, 4095),
+        Err(sbz::SbzError::TooLarge)
+    ));
+}
+
+#[test]
+fn bad_span_slice_is_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let conn = Connection::open(&p).unwrap();
+    conn.execute(
+        "UPDATE spans SET start = 100000 WHERE kind = 't' AND verse = 1 AND chapter = 1",
+        [],
+    )
+    .unwrap();
+    drop(conn);
+    let m = Module::open(&p).unwrap();
+    assert!(matches!(
+        m.chapter(BookCode::new("GEN").unwrap(), 1),
+        Err(ModuleError::BadFormat(_))
+    ));
+}
+
+#[test]
+fn out_of_range_numbers_are_errors() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let conn = Connection::open(&p).unwrap();
+    conn.execute("INSERT INTO marks VALUES(1, 1, 70000, 0, 0, NULL, '')", [])
+        .unwrap();
+    drop(conn);
+    let m = Module::open(&p).unwrap();
+    assert!(m.marks(BookCode::new("GEN").unwrap(), 1).is_err());
+}
+
+#[test]
+fn entries_prefix_is_literal() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("dict.sb");
+    let w = ModuleWriter::create(&p, &meta()).unwrap();
+    w.add_entry(1, "100%", "", "").unwrap();
+    w.add_entry(2, "1000", "", "").unwrap();
+    w.add_entry(3, "a_b", "", "").unwrap();
+    w.add_entry(4, "axb", "", "").unwrap();
+    w.finish().unwrap();
+    let m = Module::open(&p).unwrap();
+    assert_eq!(m.entries(0, 10, "100%").unwrap(), vec![(1, "100%".into())]);
+    assert_eq!(m.entries(0, 10, "a_").unwrap(), vec![(3, "a_b".into())]);
+    assert_eq!(m.entries(0, 10, "10").unwrap().len(), 2);
+}
+
+#[test]
+fn missing_book_headers_table_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let conn = Connection::open(&p).unwrap();
+    conn.execute("DROP TABLE book_headers", []).unwrap();
+    drop(conn);
+    match Module::open(&p) {
+        Err(ModuleError::BadFormat(s)) => assert!(s.contains("book_headers"), "{s}"),
+        Err(e) => panic!("ожидался BadFormat, получено {e}"),
+        Ok(_) => panic!("модуль без book_headers открылся"),
+    }
+}

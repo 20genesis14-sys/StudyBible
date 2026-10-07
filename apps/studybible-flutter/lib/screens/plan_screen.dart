@@ -368,8 +368,6 @@ class _PlanScreenState extends State<PlanScreen> {
     final labels = isEn
         ? const ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
         : const ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-    const labelsEn = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-    final ru = tr('x', 'y') == 'x';
     return Row(
       children: [
         for (var i = 0; i < 7; i++)
@@ -377,7 +375,7 @@ class _PlanScreenState extends State<PlanScreen> {
             child: Column(
               children: [
                 Text(
-                  (ru ? labels : labelsEn)[i],
+                  labels[i],
                   style: TextStyle(fontSize: 11, color: p.muted),
                 ),
                 const SizedBox(height: 4),

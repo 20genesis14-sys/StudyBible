@@ -13,6 +13,11 @@ pub const MAGIC: &[u8; 4] = b"SBZ1";
 /// Длина заголовка: magic + байт кодека.
 pub const HEADER_LEN: usize = 5;
 
+/// Предел распакованного размера (1 ГиБ): защита от «бомбы сжатия».
+/// Крупнейший модуль сейчас ~120 МБ; значение помещается в `i32`
+/// (нужно `sqlite3_malloc` в `Module::open_bytes`).
+pub const MAX_UNPACKED: usize = 1 << 30;
+
 /// Кодек сжатия из заголовка `.sbz`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Codec {
@@ -65,6 +70,8 @@ pub enum SbzError {
     UnsupportedCodec(Codec),
     /// Кодек есть, но данные битые.
     Corrupt(&'static str, String),
+    /// Распакованное содержимое больше [`MAX_UNPACKED`].
+    TooLarge,
 }
 
 impl std::fmt::Display for SbzError {
@@ -75,6 +82,7 @@ impl std::fmt::Display for SbzError {
                 write!(f, "кодек {} (id {}) не поддерживается", c.name(), c.id())
             }
             Self::Corrupt(c, e) => write!(f, "повреждённый поток {c}: {e}"),
+            Self::TooLarge => write!(f, "распакованный модуль больше {} МиБ", MAX_UNPACKED >> 20),
         }
     }
 }
@@ -88,27 +96,38 @@ pub fn is_sbz(bytes: &[u8]) -> bool {
 
 /// Распаковать `.sbz` → содержимое `.sb` (SQLite).
 pub fn unpack(bytes: &[u8]) -> Result<Vec<u8>, SbzError> {
+    unpack_limited(bytes, MAX_UNPACKED)
+}
+
+/// Распаковать с пределом `max` байт; больше — [`SbzError::TooLarge`].
+pub fn unpack_limited(bytes: &[u8], max: usize) -> Result<Vec<u8>, SbzError> {
     if bytes.len() < HEADER_LEN || !is_sbz(bytes) {
         return Err(SbzError::NotSbz);
     }
     let codec = Codec::from_id(bytes[4]);
     let payload = &bytes[HEADER_LEN..];
+    // Читаем не больше max+1 байт: лишний байт — признак превышения.
+    let read = |dec: &mut dyn std::io::Read, name: &'static str| {
+        use std::io::Read as _;
+        let mut out = Vec::new();
+        dec.take(max as u64 + 1)
+            .read_to_end(&mut out)
+            .map_err(|e| SbzError::Corrupt(name, e.to_string()))?;
+        if out.len() > max {
+            return Err(SbzError::TooLarge);
+        }
+        Ok(out)
+    };
     match codec {
         Codec::Zstd => {
-            let mut out = Vec::new();
             let mut dec = ruzstd::decoding::StreamingDecoder::new(payload)
                 .map_err(|e| SbzError::Corrupt("zstd", e.to_string()))?;
-            std::io::copy(&mut dec, &mut out)
-                .map_err(|e| SbzError::Corrupt("zstd", e.to_string()))?;
-            Ok(out)
+            read(&mut dec, "zstd")
         }
-        Codec::Brotli => {
-            let mut out = Vec::new();
-            let mut dec = brotli_decompressor::Decompressor::new(payload, 4096);
-            std::io::copy(&mut dec, &mut out)
-                .map_err(|e| SbzError::Corrupt("brotli", e.to_string()))?;
-            Ok(out)
-        }
+        Codec::Brotli => read(
+            &mut brotli_decompressor::Decompressor::new(payload, 4096),
+            "brotli",
+        ),
         other => Err(SbzError::UnsupportedCodec(other)),
     }
 }
