@@ -35,7 +35,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 
 ## Данные
 
-Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (по умолчанию `C:\StudyBible-data`).
+Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (у пользователя `D:\StudyBible-data`;
+`C:\StudyBible-data` — остаточный каталог, держит только -модули).
+Для Dart-тестов моста выставлять явно: `STUDYBIBLE_DATA=D:\StudyBible-data`.
 Каталог намеренно не внутри репозитория: тексты переводов нельзя выкладывать на GitHub вместе с кодом.
 
 ```
@@ -55,5 +57,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1      
 
 - Оболочка по умолчанию (bash) — WSL Ubuntu; сборку и проверки Windows запускать в PowerShell.
 
+- Весь проект на диске `D:`: репозиторий `D:\StudyBible`, данные `D:\StudyBible-data`,
+  инструменты `D:\StudyBible-tools`.
 - Windows; Rust 1.98.1 (cargo, rustup установлены).
+- Flutter SDK 3.47.6 — `D:\StudyBible-tools\flutter` (в PATH нет, вызывать
+  `D:\StudyBible-tools\flutter\bin\flutter`); Android SDK — `D:\StudyBible-tools\android-sdk`.
+- Python — `C:\Users\Ольга\AppData\Local\Programs\Python\Python311\python.exe`
+  (команда `python` не работает — алиас Microsoft Store).
 - Git 2.55.0 (`C:\Program Files\Git\cmd\git.exe`). В уже открытых оболочках PATH может быть старым — перечитать его из реестра или открыть новую оболочку.
