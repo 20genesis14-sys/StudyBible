@@ -22,6 +22,7 @@ import 'package:typed_data/typed_buffers.dart';
 import 'package:web/web.dart' as web;
 
 import 'native_bridge.dart';
+import 'search_norm.dart' show normSearchQuery, normVersion;
 
 /// Открытые (свободные по лицензии) модули, которые скрипт кладёт
 /// в web/modules/. Личные модули пользователя сюда не попадают.
@@ -496,58 +497,9 @@ Future<DictArticleInfo?> bridgeDictEntry(String path, int ord) async {
 
 // ---------- поиск ----------
 
-/// Версия правил нормализации, с которой сопоставляется встроенная
-/// `fts` модуля (`meta.norm_version`, ADR 0016 п. 11); «2» — конечные
-/// буквы иврита, маккеф → пробел, ς→σ.
-const String _normVersion = '2';
-
-/// Нормализация запроса под колонку `fts.norm` — лёгкий аналог
-/// `core::normalize::for_search` (регистр, ё→е, снятие диакритики,
-/// конечные формы иврита, маккеф, конечная сигма).
-String _normSearchQuery(String s) {
-  final b = StringBuffer();
-  for (final c in s.toLowerCase().split('')) {
-    switch (c) {
-      case 'ё':
-        b.write('е');
-      case 'ѣ':
-        b.write('е');
-      case 'і':
-        b.write('и');
-      case 'ѳ':
-        b.write('ф');
-      case 'ѵ':
-        b.write('и');
-      // Конечные формы иврита → обычные буквы.
-      case 'ך':
-        b.write('כ');
-      case 'ם':
-        b.write('מ');
-      case 'ן':
-        b.write('נ');
-      case 'ף':
-        b.write('פ');
-      case 'ץ':
-        b.write('צ');
-      // Маккеф — разделитель слов.
-      case '־':
-        b.write(' ');
-      // Конечная сигма → обычная (Σ уже даёт σ).
-      case 'ς':
-        b.write('σ');
-      default:
-        b.write(c);
-    }
-  }
-  // Combining-диапазоны (ударения, огласовки) снимаем.
-  return b.toString().replaceAll(
-    RegExp('[\\u0300-\\u036F\\u0483-\\u0489\\u0591-\\u05BD\\u0610-\\u061A'
-        '\\u064B-\\u065F\\u0670\\u1AB0-\\u1AFF\\u1DC0-\\u1DFF'
-        '\\u20D0-\\u20FF\\uFE20-\\uFE2F\\u00AD\\u05BF\\u05C1\\u05C2'
-        '\\u05C4\\u05C5\\u05C7]'),
-    '',
-  );
-}
+// Нормализация запроса и её версия — lib/search_norm.dart
+// (вынесена для юнит-тестов; правила — лёгкий аналог
+// `core::normalize::for_search`, см. там).
 
 /// Поиск по модулю: есть встроенная FTS5-таблица `fts` (ADR 0016) —
 /// MATCH-запрос прямо по ней; иначе — LIKE-скан по спанам.
@@ -570,9 +522,9 @@ Future<List<SearchHit>> bridgeModuleSearch(
         : const [];
     final ftsOk = (hasFts.first['n'] as num) > 0 &&
         normVer.isNotEmpty &&
-        '${normVer.first['v']}' == _normVersion;
+        '${normVer.first['v']}' == normVersion;
     if (ftsOk) {
-      final terms = _normSearchQuery(q)
+      final terms = normSearchQuery(q)
           .split(RegExp(r'\s+'))
           .where((w) => w.isNotEmpty)
           .map((w) => '"${w.replaceAll('"', '""')}"')
