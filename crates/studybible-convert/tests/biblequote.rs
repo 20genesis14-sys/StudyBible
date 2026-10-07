@@ -2,6 +2,7 @@
 //! кодировка cp1251.
 
 use encoding_rs::WINDOWS_1251;
+use std::io::Write;
 use studybible_convert::biblequote;
 use studybible_core::text::Span;
 
@@ -85,6 +86,124 @@ fn parses_cp1251_books_strong() {
     assert!(h && g);
 }
 
+/// Тот же модуль, упакованный в .zip: Source::Zip читает ini и htm.
+#[test]
+fn parses_zip_module() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = bq_dir();
+    let zip_path = dir.path().join("mod.zip");
+    let f = std::fs::File::create(&zip_path).unwrap();
+    let mut z = zip::ZipWriter::new(f);
+    let opt = zip::write::SimpleFileOptions::default();
+    for name in ["bibleqt.ini", "first.htm", "jhn.htm"] {
+        z.start_file(name, opt).unwrap();
+        z.write_all(&std::fs::read(src.path().join(name)).unwrap())
+            .unwrap();
+    }
+    z.finish().unwrap();
+
+    let books = biblequote::parse_dir(&zip_path).unwrap();
+    assert_eq!(books.len(), 2);
+    assert_eq!(books[0].code.as_str(), "GEN");
+    assert_eq!(books[0].verse_text(1, 2).unwrap(), "Земля же была пуста.");
+}
+
+/// UTF-8 с BOM и cp1251 без BOM определяются автоматически.
+#[test]
+fn encoding_utf8_bom_vs_cp1251() {
+    let ini = "BibleName = Модуль\nBible = Y\nChapterSign = <h4>\nVerseSign = <sup>\nBookQty = 1\n\n\
+               [Бытие]\nPathName = g.htm\nFullName = Бытие\nShortName = Быт\nChapterQty = 1\n";
+    let htm = "<h4>1</h4>\n<sup>1</sup>Текст стиха.\n";
+
+    // UTF-8 с BOM: ini и htm.
+    let dir_utf = tempfile::tempdir().unwrap();
+    let mut bom = b"\xef\xbb\xbf".to_vec();
+    bom.extend_from_slice(ini.as_bytes());
+    std::fs::write(dir_utf.path().join("bibleqt.ini"), &bom).unwrap();
+    let mut bom2 = b"\xef\xbb\xbf".to_vec();
+    bom2.extend_from_slice(htm.as_bytes());
+    std::fs::write(dir_utf.path().join("g.htm"), &bom2).unwrap();
+    let books = biblequote::parse_dir(dir_utf.path()).unwrap();
+    assert_eq!(books[0].code.as_str(), "GEN");
+    assert_eq!(books[0].verse_text(1, 1).unwrap(), "Текст стиха.");
+
+    // cp1251 без BOM (не валидный UTF-8 → windows-1251).
+    let dir_1251 = tempfile::tempdir().unwrap();
+    write1251(dir_1251.path(), "bibleqt.ini", ini);
+    write1251(dir_1251.path(), "g.htm", htm);
+    let books = biblequote::parse_dir(dir_1251.path()).unwrap();
+    assert_eq!(books[0].verse_text(1, 1).unwrap(), "Текст стиха.");
+}
+
+/// BibleQuote 7: книги — повторяющиеся группы ключей без [секций]
+/// (новая книга — от каждого PathName), как у реального Генри.
+#[test]
+fn ini7_key_groups() {
+    let dir = tempfile::tempdir().unwrap();
+    write1251(
+        dir.path(),
+        "bibleqt.ini",
+        "BibleName = Ini7\nBible = Y\nChapterSign = <h4>\nVerseSign = <sup>\nBookQty = 2\n\n\
+         PathName = g.htm\nFullName = Бытие\nShortName = Быт\nChapterQty = 1\n\n\
+         PathName = j.htm\nFullName = Евангелие от Иоанна\nShortName = Ин\nChapterQty = 1\n",
+    );
+    write1251(dir.path(), "g.htm", "<h4>1</h4><sup>1</sup>Первая книга.");
+    write1251(
+        dir.path(),
+        "j.htm",
+        "<h4>1</h4><sup>1</sup>Последняя книга.",
+    );
+    let books = biblequote::parse_dir(dir.path()).unwrap();
+    assert_eq!(books.len(), 2);
+    assert_eq!(books[0].code.as_str(), "GEN");
+    assert_eq!(books[1].code.as_str(), "JHN");
+}
+
+/// ChapterZero=Y: предисловие книги дописывается в первую секцию
+/// первой главы, а не теряется.
+#[test]
+fn commentary_chapter_zero_intro() {
+    let dir = tempfile::tempdir().unwrap();
+    write1251(
+        dir.path(),
+        "bibleqt.ini",
+        "BibleName = Комментарий\nBible = N\nChapterSign = <h4>\nChapterZero = Y\nBookQty = 1\n\n\
+         [Бытие]\nPathName = g.htm\nFullName = Бытие\nShortName = Быт\nChapterQty = 1\n",
+    );
+    write1251(
+        dir.path(),
+        "g.htm",
+        "<h4>Предисловие</h4>Слово введения.\n<h4>Глава 1</h4>\n<h4>Стих 1</h4>Комментарий.",
+    );
+    let books = biblequote::parse_commentary_dir(dir.path()).unwrap();
+    let ch = &books[0].chapters[0];
+    assert_eq!(ch.number, 1);
+    let t = ch.verse_text(1).unwrap();
+    assert!(t.contains("введения"), "{t:?}");
+    assert!(t.contains("Комментарий"), "{t:?}");
+}
+
+/// Английские маркеры секций «Verses a-b» / «Verse a» — как русские.
+#[test]
+fn commentary_english_markers() {
+    let dir = tempfile::tempdir().unwrap();
+    write1251(
+        dir.path(),
+        "bibleqt.ini",
+        "BibleName = Commentary\nBible = N\nChapterSign = <h4>\nBookQty = 1\n\n\
+         [Genesis]\nPathName = g.htm\nFullName = Бытие\nShortName = Быт\nChapterQty = 1\n",
+    );
+    write1251(
+        dir.path(),
+        "g.htm",
+        "<h4>Chapter 1</h4>\n<h4>Verses 1-5</h4>English comment.\n<h4>Verse 6</h4>Sixth.",
+    );
+    let books = biblequote::parse_commentary_dir(dir.path()).unwrap();
+    let ch = &books[0].chapters[0];
+    assert!(ch.verse_text(1).unwrap().contains("English comment"));
+    assert!(ch.verse_text(6).unwrap().contains("Sixth"));
+}
+
 #[test]
 fn unknown_book_is_error() {
     let dir = tempfile::tempdir().unwrap();
@@ -136,6 +255,7 @@ fn henry_zip_real() {
     let books = biblequote::parse_commentary_dir(p).unwrap();
     assert_eq!(books.len(), 66);
     let mut seen_codes = std::collections::BTreeSet::new();
+    let mut records = 0usize;
     for b in &books {
         assert!(seen_codes.insert(b.code), "дубль книги {}", b.code.as_str());
         for ch in &b.chapters {
@@ -143,6 +263,7 @@ fn henry_zip_real() {
             for blk in &ch.blocks {
                 for s in &blk.spans {
                     if let Span::Verse(v) = s {
+                        records += 1;
                         assert!(
                             seen.insert(*v),
                             "дубль {}:{}:{}",
@@ -155,4 +276,6 @@ fn henry_zip_real() {
             }
         }
     }
+    eprintln!("Henry: {records} записей");
+    assert_eq!(records, 4248, "число комментариев-записей Генри");
 }

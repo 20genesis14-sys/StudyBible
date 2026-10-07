@@ -1891,7 +1891,8 @@ dependencies = [
  "studybible-store",
  "tempfile",
  "tts",
- "zstd",
+ "zip",
+ "zstd 0.14.0",
 ]
 
 [[package]]
