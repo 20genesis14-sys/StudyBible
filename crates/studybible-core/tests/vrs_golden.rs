@@ -8,6 +8,10 @@
 //!   VRS_GOLDEN=write cargo test -p studybible-core --test vrs_golden
 //! (см. data/tests/README.md).
 
+// Запрет std::fs (clippy.toml крейта) — для src/, где io идёт через
+// порт хранилища; тест читает/пишет эталонный JSON напрямую.
+#![allow(clippy::disallowed_methods)]
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
