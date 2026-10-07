@@ -64,12 +64,17 @@ List<VoicePack> scanVoices([String? dir]) {
         models.first;
 
     // Piper-конфиг <модель>.onnx.json: язык, дикторы, имя.
+    // Битый JSON — не «отсутствие конфига», а поломка пакета:
+    // без корректного конфига sherpa-onnx модель не поднимет.
     var piper = <String, Object?>{};
+    var piperBroken = false;
     final pj = File('$model.json');
     if (pj.existsSync()) {
       try {
         piper = jsonDecode(pj.readAsStringSync()) as Map<String, Object?>;
-      } catch (_) {}
+      } catch (_) {
+        piperBroken = true;
+      }
     }
     // Пользовательские переопределения.
     var meta = <String, Object?>{};
@@ -83,6 +88,7 @@ List<VoicePack> scanVoices([String? dir]) {
     final tokens = _find(dir, (n) => n == 'tokens.txt');
     final dataDir = _find(dir, (n) => n == 'espeak-ng-data');
     final issues = <String>[
+      if (piperBroken) 'битый ${model.split(Platform.pathSeparator).last}.json',
       if (tokens == null) 'нет tokens.txt',
       if (dataDir == null && !hasShared) 'нет espeak-ng-data',
     ];
