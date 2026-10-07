@@ -274,8 +274,13 @@ impl Accentor {
             return word.to_string();
         }
         let lower = word.to_lowercase();
-        // Словарные подмены (ё, лексикон) переносят регистр первой буквы.
+        // Словарные подмены (ё, лексикон) переносят регистр: слово
+        // целиком ЗАГЛАВНЫМИ — вся замена заглавными, иначе только
+        // первая буква (Title Case).
         let dict_rep = |rep: &str| {
+            if word.chars().any(|c| c.is_uppercase()) && !word.chars().any(|c| c.is_lowercase()) {
+                return rep.to_uppercase();
+            }
             let mut orig = word.chars();
             match (orig.next(), rep.chars().next()) {
                 (Some(first), Some(rep_first)) if first.is_uppercase() => {
