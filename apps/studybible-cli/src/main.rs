@@ -26,6 +26,9 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
   studybible module verse <файл.sb> <КОД> <глава:стих>
   studybible module check <файл.sb|.sbz>              — проверить модуль
   studybible module rehash <файл.sb>                  — пересчитать content_hash после правок .sb
+  studybible module index <файл.sb>                 — встроить FTS5-индекс (таблица `fts`) в готовый .sb
+                                        без пересборки из источника; обновляет features,
+                                        norm_version и content_hash
   studybible module pack <файл.sb> [--codec zstd|brotli] [--out <файл.sbz>]
   studybible read <файл.sb> \"<ссылка>\"          — глава или диапазон («Быт 1», «Ин 3:16-18»)
   studybible search <файл.sb> \"<запрос>\" [--cache <файл>] [--limit N]
@@ -47,6 +50,7 @@ fn main() -> ExitCode {
             Some("verse") => run(verse(&args[2..])),
             Some("check") => run(check(&args[2..])),
             Some("rehash") => run(rehash(&args[2..])),
+            Some("index") => run(index(&args[2..])),
             Some("pack") => run(pack(&args[2..])),
             _ => usage(),
         },
@@ -820,6 +824,107 @@ fn rehash(args: &[String]) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
     println!("{}: хэш обновлён → {}", m.meta().id, hash);
+    Ok(())
+}
+
+/// `module index`: встроить FTS5-индекс в существующий .sb —
+/// та же схема и нормализация, что у встроенного при сборке
+/// (`ModuleWriter::build_search_index`); после вставки — features
+/// и norm_version в meta и пересчёт content_hash (вопрос № 11).
+fn index(args: &[String]) -> Result<(), String> {
+    let path = module_arg(args)?;
+    if studybible_store::sbz::is_sbz(
+        &std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?,
+    ) {
+        return Err("индекс встраивается в .sb; .sbz пересоберите (module pack)".into());
+    }
+    let conn = rusqlite::Connection::open(&path).map_err(|e| e.to_string())?;
+    let has: i64 = conn
+        .query_row(
+            "SELECT count(*) FROM sqlite_master
+              WHERE name='fts' AND sql LIKE '%VIRTUAL TABLE%'",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if has > 0 {
+        println!("{}: индекс уже встроен", path.display());
+        return Ok(());
+    }
+    conn.execute_batch(
+        "CREATE VIRTUAL TABLE fts USING fts5(
+             book UNINDEXED, chapter UNINDEXED, verse UNINDEXED, norm,
+             tokenize='unicode61');",
+    )
+    .map_err(|e| e.to_string())?;
+    let mut n = 0usize;
+    {
+        let mut rd = conn
+            .prepare(
+                "SELECT b.code, v.chapter, v.verse, v.text FROM verses v
+                 JOIN books b ON b.book_id = v.book_id",
+            )
+            .map_err(|e| e.to_string())?;
+        let mut ins = conn
+            .prepare_cached("INSERT INTO fts VALUES(?1, ?2, ?3, ?4)")
+            .map_err(|e| e.to_string())?;
+        let rows = rd
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, u16>(1)?,
+                    r.get::<_, u16>(2)?,
+                    r.get::<_, String>(3)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (book, ch, v, text) = row.map_err(|e| e.to_string())?;
+            ins.execute(params![
+                book,
+                ch,
+                v,
+                studybible_core::normalize::for_search(&studybible_core::text::collapse_spaces(
+                    &text
+                ))
+            ])
+            .map_err(|e| e.to_string())?;
+            n += 1;
+        }
+    }
+    let mut features: String = conn
+        .query_row("SELECT value FROM meta WHERE key='features'", [], |r| {
+            r.get(0)
+        })
+        .unwrap_or_default();
+    if !features.split(',').any(|f| f.trim() == "fts") {
+        if !features.is_empty() {
+            features.push(',');
+        }
+        features.push_str("fts");
+        conn.execute(
+            "INSERT OR REPLACE INTO meta VALUES('features', ?1)",
+            params![features],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    conn.execute(
+        "INSERT OR REPLACE INTO meta VALUES('norm_version', ?1)",
+        params![studybible_store::search::TOKENIZER_VERSION],
+    )
+    .map_err(|e| e.to_string())?;
+    drop(conn);
+    // Пересчёт хэша — тот же путь, что у `module rehash`.
+    let m = Module::open(&path).map_err(|e| e.to_string())?;
+    let hash = m.compute_content_hash().map_err(|e| e.to_string())?;
+    rusqlite::Connection::open(&path)
+        .map_err(|e| e.to_string())?
+        .execute(
+            "UPDATE meta SET value=?1 WHERE key='content_hash'",
+            params![hash],
+        )
+        .map_err(|e| e.to_string())?;
+    println!("{}: встроен индекс fts ({} стихов)", path.display(), n);
     Ok(())
 }
 

@@ -13,7 +13,9 @@ use crate::module::{Module, ModuleError};
 /// строится заново, а встроенная `fts` модуля с другой версией
 /// (`meta.norm_version`) игнорируется в пользу кэша (ADR 0016 п. 11).
 /// «2» — конечные буквы иврита, маккеф и конечная сигма (вопрос № 14).
-pub(crate) const TOKENIZER_VERSION: &str = "2";
+/// Публично: `module index` встраивает индекс в готовый .sb и пишет
+/// эту же версию в `meta.norm_version`.
+pub const TOKENIZER_VERSION: &str = "2";
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
