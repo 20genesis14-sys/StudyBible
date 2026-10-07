@@ -55,6 +55,15 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
         if !matches!(ext, Some("sb") | Some("sbz")) {
             continue;
         }
+        // Рядом лежит несжатый брат — .sbz пропускаем: открытие .sbz
+        // для списка — полная распаковка zstd в память, это доминирует
+        // во времени сканирования (12.10.2026, замер ~5 с на 16 .sbz).
+        if ext == Some("sbz") {
+            let sb = path.with_extension("sb");
+            if sb.exists() {
+                continue;
+            }
+        }
         if let Ok(m) = open_any(&path) {
             let meta = m.meta();
             out.push(ModuleInfo {
