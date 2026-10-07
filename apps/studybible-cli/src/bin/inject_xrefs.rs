@@ -214,6 +214,17 @@ fn main() -> Result<(), String> {
         n_ins += 1;
     }
     tx.commit().map_err(|e| e.to_string())?;
-    println!("{}: вставлено {n_ins} ссылок-x (top {top})", m.meta().id);
+    // Ссылки — часть потока чтения: content_hash обязан их покрывать
+    // (spec/05 С-12). Пересчитываем по читаемому потоку и пишем в meta.
+    let hash = m.compute_content_hash().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE meta SET value=?1 WHERE key='content_hash'",
+        rusqlite::params![hash],
+    )
+    .map_err(|e| e.to_string())?;
+    println!(
+        "{}: вставлено {n_ins} ссылок-x (top {top}), хэш пересчитан",
+        m.meta().id
+    );
     Ok(())
 }

@@ -25,6 +25,7 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
   studybible module info <файл.sb>
   studybible module verse <файл.sb> <КОД> <глава:стих>
   studybible module check <файл.sb|.sbz>              — проверить модуль
+  studybible module rehash <файл.sb>                  — пересчитать content_hash после правок .sb
   studybible module pack <файл.sb> [--codec zstd|brotli] [--out <файл.sbz>]
   studybible read <файл.sb> \"<ссылка>\"          — глава или диапазон («Быт 1», «Ин 3:16-18»)
   studybible search <файл.sb> \"<запрос>\" [--cache <файл>] [--limit N]
@@ -45,6 +46,7 @@ fn main() -> ExitCode {
             Some("info") => run(info(&args[2..])),
             Some("verse") => run(verse(&args[2..])),
             Some("check") => run(check(&args[2..])),
+            Some("rehash") => run(rehash(&args[2..])),
             Some("pack") => run(pack(&args[2..])),
             _ => usage(),
         },
@@ -799,6 +801,28 @@ fn pack_file(src: &Path, codec: &str, out: Option<PathBuf>) -> Result<PathBuf, S
 }
 
 /// `module pack`: `.sb` → `.sbz` (zstd по умолчанию, brotli по флагу).
+/// Пересчёт meta.content_hash по читаемому потоку (spec/05 С-12) —
+/// для модулей, правленых после сборки (inject_xrefs и т. п.).
+/// Работает только с распакованным .sb на диске.
+fn rehash(args: &[String]) -> Result<(), String> {
+    let path = module_arg(args)?;
+    let m = Module::open(&path).map_err(|e| e.to_string())?;
+    let hash = m.compute_content_hash().map_err(|e| e.to_string())?;
+    if m.meta().content_hash == hash {
+        println!("{}: хэш уже актуален", m.meta().id);
+        return Ok(());
+    }
+    rusqlite::Connection::open(&path)
+        .map_err(|e| e.to_string())?
+        .execute(
+            "UPDATE meta SET value=?1 WHERE key='content_hash'",
+            params![hash],
+        )
+        .map_err(|e| e.to_string())?;
+    println!("{}: хэш обновлён → {}", m.meta().id, hash);
+    Ok(())
+}
+
 fn pack(args: &[String]) -> Result<(), String> {
     let src = module_arg(args)?;
     let codec = flag(args, "--codec").unwrap_or_else(|| "zstd".into());

@@ -29,6 +29,21 @@ foreach ($s in $manifest.sources) {
     $dest = Join-Path $srcDir $s.id
     if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
     Expand-Archive -Path $zip -DestinationPath $dest
+    # "flatten": true — архив содержит единственную папку-обёртку
+    # (OSHB-v.2.2/, el-x-koine_ugnt/): поднимаем её содержимое в <id>.
+    if ($s.flatten) {
+        $kids = @(Get-ChildItem $dest)
+        if ($kids.Count -eq 1 -and $kids[0].PSIsContainer) {
+            Move-Item (Join-Path $kids[0].FullName '*') $dest
+            Remove-Item $kids[0].FullName
+        }
+    }
+    # "remove": список файлов внутри распаковки, не являющихся входом
+    # конвертера (напр. VerseMap.xml у OSHB — это не OSIS-текст).
+    foreach ($junk in @($s.remove)) {
+        $p = Join-Path $dest $junk
+        if (Test-Path $p) { Remove-Item -Force $p }
+    }
     Write-Host "ok  $($s.id) $hash"
 }
 

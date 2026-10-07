@@ -270,7 +270,10 @@ same.
   `f`/`x` → `"n{kind}{caller}\x01{attrs}\x01{text}\x00"`. Books and
   chapters go in `books.ord` order, chapters ascending. The hash is
   part of the search-cache key; a reader MUST keep it as an opaque
-  string and need not recompute it.
+  string and need not recompute it. A tool that edits a built `.sb`
+  (e.g. `inject_xrefs`) MUST recompute the hash over the readable
+  stream (`Module::compute_content_hash`, the `module rehash`
+  command).
 - **S-13.** `for_search` (search normalization, `norm_version="2"`):
   lowercase, `ё`→`е`, pre-reform Cyrillic `ѣ`→`е`, `і`→`и`, `ѳ`→`ф`,
   `ѵ`→`и`; removal of soft hyphens U+00AD and combining marks from a

@@ -1042,6 +1042,31 @@ impl Module {
             .map_err(Into::into)
     }
 
+    /// Пересчёт `meta.content_hash` по читаемому потоку (spec/05 С-12).
+    /// Нужен инструментам, правящим уже собранный модуль (inject_xrefs):
+    /// хэш обязан покрывать их правки. Совпадает с тем, что пишет
+    /// `ModuleWriter`, если поток после чтения идентичен исходному.
+    pub fn compute_content_hash(&self) -> Result<String> {
+        let mut h = crate::hash::new();
+        for (code, _) in self.books()? {
+            let bid = self
+                .bid(code)
+                .ok_or_else(|| ModuleError::BadFormat(format!("{code}: нет book_id")))?;
+            let mut st = self
+                .conn
+                .prepare("SELECT DISTINCT chapter FROM blocks WHERE book_id=?1 ORDER BY chapter")?;
+            let chapters: Vec<u16> = st
+                .query_map(params![bid], |r| r.get(0))?
+                .collect::<rusqlite::Result<_>>()?;
+            for n in chapters {
+                if let Some(ch) = self.chapter(code, n)? {
+                    crate::hash::feed(&mut h, code, n, &ch);
+                }
+            }
+        }
+        Ok(crate::hash::hex(h.finalize()))
+    }
+
     /// Поток чтения главы.
     ///
     /// `v`-маркеров у обычных стихов в файле нет (компактная схема,

@@ -56,6 +56,18 @@ fn hash_golden() {
 }
 
 #[test]
+fn recompute_hash_matches_writer() {
+    // spec/05 С-12: пересчёт по читаемому потоку воспроизводит
+    // хэш записывателя — это гарантия для инструментов вроде
+    // inject_xrefs, правящих готовый .sb.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let m = Module::open(&p).unwrap();
+    assert_eq!(m.compute_content_hash().unwrap(), m.meta().content_hash);
+}
+
+#[test]
 fn hash_ignores_meta_but_counts_structure() {
     let dir = tempfile::tempdir().unwrap();
     let p1 = dir.path().join("a.sb");

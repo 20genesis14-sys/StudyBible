@@ -61,6 +61,42 @@
                         "page":  "https://ebible.org/find/details.php?id=engbsb",
                         "license":  "public domain",
                         "sha256":  "b77cc2d5161b03610204e2564934135b955ea87e534fd5ec7db336048699483b"
+                    },
+                    {
+                        "id":  "oshb",
+                        "title":  "Open Scriptures Hebrew Bible (OSHB v2.2)",
+                        "language":  "he",
+                        "format":  "osis",
+                        "url":  "https://github.com/openscriptures/morphhb/releases/download/v.2.2/OSHB-v.2.2.zip",
+                        "page":  "https://github.com/openscriptures/morphhb",
+                        "license":  "CC-BY",
+                        "flatten":  true,
+                        "remove":  ["VerseMap.xml"],
+                        "sha256":  "02f8711a4bd6ee322e7009beae158a51a63ca61ec4e90250ae261149c616c399",
+                        "note": "wlc/*.xml — OSIS с lemma+morph; VerseMap.xml — не книга, удаляется"
+                    },
+                    {
+                        "id":  "ugnt",
+                        "title":  "unfoldingWord Greek NT (USFM3)",
+                        "language":  "el",
+                        "format":  "usfm",
+                        "url":  "https://git.door43.org/unfoldingWord/el-x-koine_ugnt/archive/master.zip",
+                        "page":  "https://git.door43.org/unfoldingWord/el-x-koine_ugnt",
+                        "license":  "CC-BY-SA 4.0",
+                        "flatten":  true,
+                        "sha256":  "21e1f0e570f2b8185a44ee9dc821f371919278a0b1821edf29afba9efa2d1436",
+                        "note": "master-ветка; пин по sha256 — при обновлении источника запустить fetch-data.ps1 -Pin"
+                    },
+                    {
+                        "id":  "openbible-xrefs",
+                        "title":  "OpenBible cross references (~340 тыс. пар, TSV)",
+                        "language":  "en",
+                        "format":  "tsv",
+                        "url":  "https://a.openbible.info/data/cross-references.zip",
+                        "page":  "https://www.openbible.info/labs/cross-references/",
+                        "license":  "CC-BY 4.0",
+                        "sha256":  "19aafdf923275142d0849fb02c7d9965a8d1a9dafc691e9abbe146fa31895c73",
+                        "note": "не модуль: вход для inject_xrefs (apps/studybible-cli/src/bin/inject_xrefs.rs)"
                     }
                 ]
 }
