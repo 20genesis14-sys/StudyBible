@@ -89,10 +89,7 @@ extension _ReaderChrome on _ReadingScreenState {
             _interleaved = !_interleaved;
             if (_interleaved) _compare = false;
           });
-          final second = _mods[_compareModuleId];
-          if (_interleaved && second != null) {
-            _ensureChapter(second, _code, _ch);
-          }
+          if (_interleaved) _initCompareModules();
           workspace.updateSnapshot(_paneSnapshot());
         },
       ),
@@ -563,13 +560,27 @@ extension _ReaderChrome on _ReadingScreenState {
                     _interleaved = v;
                     if (v) {
                       _compare = false;
-                      final m = _mods[_compareModuleId];
-                      if (m != null) _ensureChapter(m, _code, _ch);
+                      _initCompareModules();
                     }
                     workspace.updateSnapshot(_paneSnapshot());
                   }),
                 ),
-                if (_compare || _interleaved)
+                if (_interleaved)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr('Переводы сравнения:', 'Compare translations:'),
+                          style: TextStyle(fontSize: 13, color: p.muted),
+                        ),
+                        const SizedBox(height: 6),
+                        _interleavedPicker(p),
+                      ],
+                    ),
+                  )
+                else if (_compare)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(

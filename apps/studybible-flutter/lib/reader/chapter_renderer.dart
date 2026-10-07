@@ -1136,9 +1136,15 @@ extension _ChapterRenderer on _ReadingScreenState {
   }
 
   /// Лента подстрочника: каждое слово — колонка «слово оригинала /
-  /// краткая глосса». Для иврита — RTL.
-  Widget _interlinearLine(List<TextSpanDoc> words, Palette p) {
-    final lang = _mods[_compareModuleId]?.language ?? '';
+  /// краткая глосса». Для иврита — RTL. [label] — ярлык перевода
+  /// при нескольких строках сравнения.
+  Widget _interlinearLine(
+    List<TextSpanDoc> words,
+    Palette p, [
+    String? lang,
+    String? label,
+  ]) {
+    lang ??= '';
     final rtl = lang == 'he' || lang == 'hbo' || lang == 'arc';
     final font = switch (lang) {
       'he' || 'hbo' || 'arc' => 'NotoSerifHebrew',
@@ -1181,11 +1187,32 @@ extension _ChapterRenderer on _ReadingScreenState {
           ),
       ],
     );
-    return Directionality(
+    final body = Directionality(
       textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
       child: wrap,
     );
+    if (label == null) return body;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _moduleTag(label, p),
+        Expanded(child: body),
+      ],
+    );
   }
+
+  /// Ярлык перевода перед строкой сравнения (режим 3+).
+  Widget _moduleTag(String label, Palette p) => Padding(
+    padding: const EdgeInsets.only(right: 6, top: 1),
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 10 * settings.fontScale,
+        fontWeight: FontWeight.w700,
+        color: p.accent.withValues(alpha: 0.7),
+      ),
+    ),
+  );
 
   /// Краткая глосса слова: слово оригинала из пары подстрочника
   /// (attrs gr="…"), иначе определение из словаря Стронга, иначе
@@ -1217,14 +1244,15 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// один раз на комбинацию «книга:глава:основной->второй»
   /// (вопрос 8). Результат — в [_conv]; главы второго модуля,
   /// куда ведут соответствия, догружаются лениво.
-  void _ensureConv() {
+  void _ensureConv([String? targetId]) {
+    final id = targetId ?? _compareModuleId;
     final main = _module;
-    final second = _mods[_compareModuleId];
+    final second = _mods[id];
     if (main == null || second == null) return;
-    final key = '$_code:$_ch:$_moduleId->$_compareModuleId';
-    if (_convKey == key) return;
-    _convKey = key;
-    _conv = null;
+    final key = '$_code:$_ch:$_moduleId->$id';
+    if (_convKeys[id] == key) return;
+    _convKeys[id] = key;
+    _convs[id] = null;
     final fv = main.versification;
     final tv = second.versification;
     // Версификация неизвестна или та же — короткий путь без моста.
@@ -1243,15 +1271,18 @@ extension _ChapterRenderer on _ReadingScreenState {
           }
         }
       }
-      if (mounted && _convKey == key) _rebuild(() => _conv = map);
+      if (mounted && _convKeys[id] == key) {
+        _rebuild(() => _convs[id] = map);
+      }
     }();
   }
 
-  /// Координаты стиха [v] основного перевода во втором — из кэша
-  /// конверсии; до её готовности (или при одинаковых версификациях) —
-  /// тот же номер.
-  List<CvPoint> _targetsOf(int v) =>
-      _conv?[v] ?? [(book: _code, chapter: _ch, verse: v)];
+  /// Координаты стиха [v] основного перевода в модуле [targetId]
+  /// (по умолчанию — второй перевод) — из кэша конверсии; до её
+  /// готовности (или при одинаковых версификациях) — тот же номер.
+  List<CvPoint> _targetsOf(int v, [String? targetId]) =>
+      _convs[targetId ?? _compareModuleId]?[v] ??
+      [(book: _code, chapter: _ch, verse: v)];
 
   /// Тексты стихов второго перевода по координатам [targets]:
   /// каждая — со своим номером в собственной версификации.
@@ -1294,28 +1325,39 @@ extension _ChapterRenderer on _ReadingScreenState {
   }
 
   /// Строчное сравнение: стих основного перевода, под ним —
-  /// соответствующий (по версификации) стих второго перевода
-  /// (приглушённый). Если во втором модуле есть слова с номерами
-  /// Стронга (оригиналы OSHB/UGNT), вторая строка рисуется как
-  /// подстрочник: слово оригинала + глосса.
+  /// соответствующие (по версификации) стихи каждого перевода из
+  /// [_compareIds] (список модулей слоя, ADR 0020). У модуля со
+  /// словами Стронга (оригиналы OSHB/UGNT) строка рисуется как
+  /// подстрочник слово-к-слову.
   List<Widget> _buildInterleaved(ChapterDoc ch, Palette p) {
-    final secondMod = _mods[_compareModuleId];
-    final second = secondMod?.chapter(_code, _ch);
-    if (second == null && secondMod != null) {
-      _ensureChapter(secondMod, _code, _ch);
+    final ids = _compareIds;
+    // Кэши по каждому модулю: плоский текст / слова по главам
+    // ('книга:глава' -> ...), чтобы соответствия в соседних главах
+    // не пересчитывались.
+    final mods = <String, ModuleDoc>{};
+    final plainCaches = <String, Map<String, Map<int, String>>>{};
+    final wordCaches = <String, Map<String, Map<int, List<TextSpanDoc>>>>{};
+    final interlinears = <String>{};
+    for (final id in ids) {
+      final m = _mods[id];
+      if (m == null) {
+        _load(id);
+        continue;
+      }
+      _ensureConv(id);
+      final ch2 = m.chapter(_code, _ch);
+      if (ch2 == null) {
+        _ensureChapter(m, _code, _ch);
+        continue;
+      }
+      mods[id] = m;
+      final pc = {'$_code:$_ch': _plainVerses(ch2)};
+      final wc = {'$_code:$_ch': _wordSpans(ch2)};
+      plainCaches[id] = pc;
+      wordCaches[id] = wc;
+      if (wc['$_code:$_ch']!.isNotEmpty) interlinears.add(id);
     }
-    if (secondMod != null) _ensureConv();
-    // Плоский текст / слова по главам второго модуля — кэш на главу,
-    // чтобы соответствия в соседних главах не пересчитывались.
-    final plainCache = <String, Map<int, String>>{};
-    final wordCache = <String, Map<int, List<TextSpanDoc>>>{};
-    if (second != null) {
-      plainCache['$_code:$_ch'] = _plainVerses(second);
-      wordCache['$_code:$_ch'] = _wordSpans(second);
-    }
-    final secondWords = wordCache['$_code:$_ch'] ?? const {};
-    final interlinear = secondWords.isNotEmpty;
-    if (interlinear) _ensureLex();
+    if (interlinears.isNotEmpty) _ensureLex();
     final out = <Widget>[];
     final verses = <int, List<SpanDoc>>{};
     final order = <int>[];
@@ -1367,16 +1409,23 @@ extension _ChapterRenderer on _ReadingScreenState {
     // Надписание (стих 0, вопрос 9): отдельная строка над первым
     // стихом — подпись «надписание» и текст стиха 0 каждой части
     // сравнения (у второго — по конверсии, нет стиха 0 — прочерк).
-    final supSecond = secondMod == null
-        ? const <({CvPoint point, String text})>[]
-        : _secondTexts(secondMod, plainCache, _targetsOf(0));
+    final supSeconds = [
+      for (final id in ids)
+        (
+          id: id,
+          texts: mods[id] == null
+              ? const <({CvPoint point, String text})>[]
+              : _secondTexts(mods[id]!, plainCaches[id]!, _targetsOf(0, id)),
+        ),
+    ];
     final supMain = [
       for (final s in verses[0] ?? const <SpanDoc>[])
         if (s is TextSpanDoc) s.text,
     ].join().trim();
-    final hasSup = supMain.isNotEmpty || supSecond.isNotEmpty;
+    final hasSup =
+        supMain.isNotEmpty || supSeconds.any((s) => s.texts.isNotEmpty);
     if (hasSup) {
-      out.add(_superscriptionRow(supMain, supSecond, p));
+      out.add(_superscriptionRow(supMain, supSeconds, p));
     }
     for (final v in order) {
       if (v == 0 && hasSup) continue;
@@ -1447,39 +1496,56 @@ extension _ChapterRenderer on _ReadingScreenState {
                   ),
                 ],
               ),
-              // Второй перевод: соответствие по версификации,
-              // приглушённое; у модулей оригинала — подстрочник
-              // слово-к-слову (тоже по конвертированной ссылке).
-              if (interlinear)
-                Padding(
-                  padding: const EdgeInsets.only(left: 30, top: 2, bottom: 4),
-                  child: _interlinearLine(
-                    secondMod == null
-                        ? const []
-                        : _secondWordsOf(
-                            secondMod,
-                            wordCache,
-                            _targetsOf(v),
+              // Строки переводов сравнения: соответствия по
+              // версификации, приглушённые; у модулей оригинала —
+              // подстрочник слово-к-слову (по конвертированной ссылке).
+              // При двух и более модулях — ярлык имени перевода.
+              for (final id in ids)
+                interlinears.contains(id)
+                    ? Padding(
+                        padding: const EdgeInsets.only(
+                          left: 30,
+                          top: 2,
+                          bottom: 4,
+                        ),
+                        child: _interlinearLine(
+                          _secondWordsOf(
+                            mods[id]!,
+                            wordCaches[id]!,
+                            _targetsOf(v, id),
                           ),
-                    p,
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(left: 30, top: 2, bottom: 4),
-                  child: Text.rich(
-                    TextSpan(
-                      style: TextStyle(
-                        fontFamily: readingFontFamily(settings.readingFont),
-                        fontSize: 15 * settings.fontScale,
-                        color: p.muted,
-                        fontStyle: FontStyle.italic,
-                        height: 1.5,
+                          p,
+                          mods[id]!.language,
+                          ids.length > 1 ? moduleName(id) : null,
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.only(
+                          left: 30,
+                          top: 2,
+                          bottom: 4,
+                        ),
+                        child: Text.rich(
+                          TextSpan(
+                            style: TextStyle(
+                              fontFamily: readingFontFamily(
+                                settings.readingFont,
+                              ),
+                              fontSize: 15 * settings.fontScale,
+                              color: p.muted,
+                              fontStyle: FontStyle.italic,
+                              height: 1.5,
+                            ),
+                            children: _secondLineSpans(
+                              v,
+                              mods[id],
+                              plainCaches[id] ?? const {},
+                              p,
+                              ids.length > 1 ? moduleName(id) : null,
+                            ),
+                          ),
+                        ),
                       ),
-                      children: _secondLineSpans(v, secondMod, plainCache, p),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -1497,21 +1563,38 @@ extension _ChapterRenderer on _ReadingScreenState {
     int v,
     ModuleDoc? secondMod,
     Map<String, Map<int, String>> plainCache,
-    Palette p,
-  ) {
+    Palette p, [
+    String? label,
+  ]) {
     final items = secondMod == null
         ? const <({CvPoint point, String text})>[]
-        : _secondTexts(secondMod, plainCache, _targetsOf(v));
-    if (items.isEmpty) {
-      return [const TextSpan(text: '…')];
-    }
+        : _secondTexts(
+            secondMod,
+            plainCache,
+            _targetsOf(v, secondMod.id),
+          );
     final prefixStyle = TextStyle(
       fontSize: 11 * settings.fontScale,
       color: p.muted.withValues(alpha: 0.7),
       fontStyle: FontStyle.normal,
       fontWeight: FontWeight.w600,
     );
+    if (items.isEmpty) {
+      return [
+        if (label != null)
+          TextSpan(
+            text: '$label ',
+            style: prefixStyle.copyWith(color: p.accent.withValues(alpha: 0.7)),
+          ),
+        const TextSpan(text: '…'),
+      ];
+    }
     return [
+      if (label != null)
+        TextSpan(
+          text: '$label ',
+          style: prefixStyle.copyWith(color: p.accent.withValues(alpha: 0.7)),
+        ),
       for (var i = 0; i < items.length; i++) ...[
         if (items[i].point.chapter != _ch || items[i].point.verse != v)
           TextSpan(
@@ -1527,17 +1610,14 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// Строка надписания (стих 0, вопрос 9, вариант А): подпись
   /// «надписание» + текст стиха 0 основного и второго перевода
   /// (у перевода без стиха 0 — прочерк).
+  /// Строка надписания (стих 0, вопрос 9, вариант А): подпись
+  /// «надписание» + текст стиха 0 основного и каждого перевода
+  /// сравнения (у перевода без стиха 0 — прочерк).
   Widget _superscriptionRow(
     String mainText,
-    List<({CvPoint point, String text})> secondTexts,
+    List<({String id, List<({CvPoint point, String text})> texts})> seconds,
     Palette p,
   ) {
-    final secondText = secondTexts.isEmpty
-        ? '—'
-        : [
-            for (final t in secondTexts)
-              '${t.point.chapter}:${t.point.verse} ${t.text}',
-          ].join(' ');
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
       child: Column(
@@ -1557,16 +1637,23 @@ extension _ChapterRenderer on _ReadingScreenState {
             Text(mainText, style: _baseStyle(p))
           else
             Text('—', style: TextStyle(color: p.muted)),
-          Text(
-            secondText,
-            style: TextStyle(
-              fontFamily: readingFontFamily(settings.readingFont),
-              fontSize: 15 * settings.fontScale,
-              color: p.muted,
-              fontStyle: FontStyle.italic,
-              height: 1.5,
+          for (final s in seconds)
+            Text(
+              s.texts.isEmpty
+                  ? '—'
+                  : [
+                      if (seconds.length > 1) '[${moduleName(s.id)}]',
+                      for (final t in s.texts)
+                        '${t.point.chapter}:${t.point.verse} ${t.text}',
+                    ].join(' '),
+              style: TextStyle(
+                fontFamily: readingFontFamily(settings.readingFont),
+                fontSize: 15 * settings.fontScale,
+                color: p.muted,
+                fontStyle: FontStyle.italic,
+                height: 1.5,
+              ),
             ),
-          ),
         ],
       ),
     );

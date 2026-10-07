@@ -100,14 +100,14 @@ class _ReadingScreenState extends State<ReadingScreen> {
   late String _compareModuleId = _moduleId == 'engwebp' ? 'russyn' : 'engwebp';
   final ScrollController _compareScroll = ScrollController();
 
-  /// Кэш конверсии версификаций для текущей главы: стих основного
-  /// перевода -> соответствующие координаты во втором (вопрос 8).
-  /// null — одинаковые версификации или ещё не посчитано (тогда
-  /// используется тот же номер — короткий путь).
-  Map<int, List<CvPoint>>? _conv;
+  /// Кэши конверсии версификаций по каждому модулю сравнения:
+  /// targetId -> карта «стих основного -> координаты в target»
+  /// (вопрос 8). null-значение — одинаковые версификации или ещё
+  /// не посчитано (тогда используется тот же номер — короткий путь).
+  final Map<String, Map<int, List<CvPoint>>?> _convs = {};
 
-  /// Ключ кэша конверсии: 'книга:глава:основной->второй'.
-  String _convKey = '';
+  /// Ключи кэшей конверсии: targetId -> 'книга:глава:основной->target'.
+  final Map<String, String> _convKeys = {};
 
   /// Защита от обратного вызова при синхронной прокрутке колонок.
   bool _syncingScroll = false;
@@ -179,7 +179,21 @@ class _ReadingScreenState extends State<ReadingScreen> {
   Map<String, Object?> _paneSnapshot() => {
     'interleaved': _interleaved,
     'cmp': _compareModuleId,
+    'cmps': _compareIds.join(','),
   };
+
+  /// Модули строчного сравнения по порядку показа (основной
+  /// исключён); пустой список настроек — старый одиночный второй
+  /// перевод. Слой compare как вклад (ADR 0020): `modules: [...]`.
+  List<String> get _compareIds {
+    final ids = settings.interleavedList
+        .where((id) => id != _moduleId)
+        .toList();
+    if (ids.isEmpty && _compareModuleId != _moduleId) {
+      ids.add(_compareModuleId);
+    }
+    return ids;
+  }
 
   /// Применить позицию рабочего места к экрану — единый переход для
   /// свайпов, ссылок и шагов «назад/вперёд»: перевод, глава, снимок
@@ -195,6 +209,8 @@ class _ReadingScreenState extends State<ReadingScreen> {
       _notesOpen = false;
       _interleaved = loc.pane['interleaved'] as bool? ?? _interleaved;
       if (cmp != null && cmp != _moduleId) _compareModuleId = cmp;
+      final cmps = loc.pane['cmps'] as String?;
+      if (cmps != null) settings.interleavedModules = cmps;
       _blockKeys.clear();
       _bookVerseKeys.clear();
     });

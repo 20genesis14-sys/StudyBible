@@ -50,6 +50,7 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 _section(p, tr('Оформление', 'Appearance')),
                 _themePicker(p),
+                _autoNightRow(context, p),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -570,6 +571,81 @@ class SettingsScreen extends StatelessWidget {
       },
     );
     return padding != null ? Padding(padding: padding, child: inner) : inner;
+  }
+
+  /// Авто-ночной режим по времени: переключатель, интервал ночи
+  /// и тёмная тема для ночи (дневная — обычный выбор выше).
+  Widget _autoNightRow(BuildContext context, Palette p) {
+    String fmt(int m) =>
+        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+    Future<void> pickTime(bool start) async {
+      final cur = start ? settings.nightStart : settings.nightEnd;
+      final t = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
+      );
+      if (t == null) return;
+      settings.update(() {
+        if (start) {
+          settings.nightStart = t.hour * 60 + t.minute;
+        } else {
+          settings.nightEnd = t.hour * 60 + t.minute;
+        }
+      });
+    }
+
+    return Column(
+      children: [
+        SwitchListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            tr('Ночная тема по времени', 'Night theme by time'),
+            style: TextStyle(fontSize: 14, color: p.ink),
+          ),
+          subtitle: Text(
+            '${fmt(settings.nightStart)} – ${fmt(settings.nightEnd)}',
+            style: TextStyle(fontSize: 12, color: p.muted),
+          ),
+          value: settings.autoNight,
+          onChanged: (v) => settings.update(() => settings.autoNight = v),
+        ),
+        if (settings.autoNight)
+          Row(
+            children: [
+              TextButton(
+                onPressed: () => pickTime(true),
+                child: Text(fmt(settings.nightStart)),
+              ),
+              Text('—', style: TextStyle(color: p.muted)),
+              TextButton(
+                onPressed: () => pickTime(false),
+                child: Text(fmt(settings.nightEnd)),
+              ),
+              const Spacer(),
+              SegmentedButton<AppTheme>(
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                ),
+                segments: [
+                  ButtonSegment(
+                    value: AppTheme.dark,
+                    label: Text(tr('Тёмная', 'Dark')),
+                  ),
+                  const ButtonSegment(
+                    value: AppTheme.amoled,
+                    label: Text('AMOLED'),
+                  ),
+                ],
+                selected: {settings.nightTheme},
+                onSelectionChanged: (s) =>
+                    settings.update(() => settings.nightTheme = s.first),
+              ),
+            ],
+          ),
+      ],
+    );
   }
 
   Widget _themePicker(Palette p) {

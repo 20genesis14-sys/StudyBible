@@ -5,6 +5,7 @@
 /// в каталоге данных); на web — только в памяти.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -54,6 +55,46 @@ String? readingFontFamily(ReadingFont f) => switch (f) {
 class Settings extends ChangeNotifier {
   AppTheme theme = AppTheme.light;
 
+  /// Авто-ночной режим по времени (roadmap): [theme] остаётся
+  /// дневной темой пользователя; ночью действует [nightTheme].
+  bool autoNight = false;
+
+  /// Границы ночи в минутах суток (по умолчанию 22:00–07:00);
+  /// интервал через полночь поддержан.
+  int nightStart = 22 * 60;
+  int nightEnd = 7 * 60;
+
+  /// Тема, подставляемая ночью (тёмная или AMOLED).
+  AppTheme nightTheme = AppTheme.dark;
+
+  /// Действующая тема с учётом автоночного режима — то, что
+  /// показывает MaterialApp; выбор пользователя хранит [theme].
+  AppTheme get effectiveTheme {
+    if (!autoNight) return theme;
+    final now = DateTime.now();
+    final m = now.hour * 60 + now.minute;
+    final night = nightStart <= nightEnd
+        ? (m >= nightStart && m < nightEnd)
+        : (m >= nightStart || m < nightEnd);
+    return night ? nightTheme : theme;
+  }
+
+  AppTheme? _lastEffective;
+  Timer? _nightTimer;
+
+  /// Периодический пересчёт автоночи: тема меняется сама на
+  /// границе интервала, без открытого экрана настроек.
+  /// Событие шлётся только при реальной смене эффективной темы.
+  void startAutoNight() {
+    _nightTimer ??= Timer.periodic(const Duration(minutes: 1), (_) {
+      final e = effectiveTheme;
+      if (e != _lastEffective) {
+        _lastEffective = e;
+        notifyListeners();
+      }
+    });
+  }
+
   /// Масштаб шрифта: 0.8 – 1.6, шаг настройки.
   double fontScale = 1.0;
 
@@ -96,6 +137,10 @@ class Settings extends ChangeNotifier {
   /// Переводы на экране «стих во всех переводах»
   /// (через запятую; '' — все установленные).
   String compareModules = '';
+
+  /// Переводы строчного сравнения 3+ (через запятую, в порядке
+  /// показа; '' — старый одиночный второй перевод, ADR 0020).
+  String interleavedModules = '';
 
   /// Язык интерфейса: 'ru' | 'en'.
   String lang = 'ru';
@@ -166,6 +211,10 @@ class Settings extends ChangeNotifier {
       if (e != null && e.context.isNotEmpty) {
         final j = jsonDecode(e.context) as Map<String, dynamic>;
         theme = AppTheme.values[j['theme'] as int? ?? 0];
+        autoNight = j['autoNight'] as bool? ?? false;
+        nightStart = j['nightStart'] as int? ?? 22 * 60;
+        nightEnd = j['nightEnd'] as int? ?? 7 * 60;
+        nightTheme = AppTheme.values[j['nightTheme'] as int? ?? 1];
         fontScale = (j['fontScale'] as num? ?? 1.0).toDouble();
         footScale = (j['footScale'] as num? ?? 1.0).toDouble();
         xrefScale = (j['xrefScale'] as num? ?? 1.0).toDouble();
@@ -182,6 +231,7 @@ class Settings extends ChangeNotifier {
         planStart = j['planStart'] as String? ?? '';
         xrefModule = j['xrefModule'] as String? ?? '';
         compareModules = j['compareModules'] as String? ?? '';
+        interleavedModules = j['interleavedModules'] as String? ?? '';
         lang = j['lang'] as String? ?? 'ru';
         voiceEngine = j['voiceEngine'] as String? ?? 'auto';
         neuralVoices = j['neuralVoices'] as String? ?? '';
@@ -203,6 +253,10 @@ class Settings extends ChangeNotifier {
   Future<void> _save() async {
     final j = jsonEncode({
       'theme': theme.index,
+      'autoNight': autoNight,
+      'nightStart': nightStart,
+      'nightEnd': nightEnd,
+      'nightTheme': nightTheme.index,
       'fontScale': fontScale,
       'footScale': footScale,
       'xrefScale': xrefScale,
@@ -219,6 +273,7 @@ class Settings extends ChangeNotifier {
       'planStart': planStart,
       'xrefModule': xrefModule,
       'compareModules': compareModules,
+      'interleavedModules': interleavedModules,
       'lang': lang,
       'voiceEngine': voiceEngine,
       'neuralVoices': neuralVoices,
@@ -278,6 +333,13 @@ class Settings extends ChangeNotifier {
   /// Модуль для текстов в карточках параллельных мест.
   String get xrefModuleOrMain =>
       xrefModule.isEmpty ? mainModuleId() : xrefModule;
+
+  /// Модули строчного сравнения в порядке показа (только
+  /// установленные; '' — пустой список, решение у читалки).
+  List<String> get interleavedList => interleavedModules
+      .split(',')
+      .where(kModules.containsKey)
+      .toList();
 }
 
 /// Единственный экземпляр настроек.

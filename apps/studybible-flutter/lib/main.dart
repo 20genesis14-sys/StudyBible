@@ -37,7 +37,7 @@ class StudyBibleApp extends StatelessWidget {
         return MaterialApp(
           title: tr('Учебная Библия', 'Study Bible'),
           debugShowCheckedModeBanner: false,
-          theme: buildThemeData(settings.theme),
+          theme: buildThemeData(settings.effectiveTheme),
           // Плавная смена темы: все цвета перетекают за ~200 мс
           // (раньше тема переключалась скачком и «дёргалась»).
           // builder оборачивает Navigator — затрагивает и открытые
@@ -72,6 +72,7 @@ class _HomeShellState extends State<HomeShell> {
     // Поднять сохранённые настройки и прогресс
     // (userdata.db через мост; на web — no-op).
     settings.load();
+    settings.startAutoNight();
     progress.load();
     // Стек позиций рабочего места — на фоне, старт всегда на
     // «Доме» (ADR 0019); сессия доступна сразу при входе в чтение.

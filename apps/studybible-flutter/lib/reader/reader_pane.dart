@@ -303,6 +303,101 @@ extension _ReaderPane on _ReadingScreenState {
     );
   }
 
+  /// Чипы переводов строчного сравнения (3+, ADR 0020): список
+  /// модулей слоя compare в порядке показа; «+» — лист выбора.
+  Widget _interleavedPicker(Palette p) {
+    final ids = _compareIds;
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        for (final id in ids)
+          InputChip(
+            label: Text(moduleName(id), style: const TextStyle(fontSize: 12)),
+            visualDensity: VisualDensity.compact,
+            onDeleted: () {
+              final rest = ids.where((e) => e != id).toList();
+              if (rest.isEmpty) {
+                // Без переводов сравнение выключено целиком.
+                _rebuild(() => _interleaved = false);
+                workspace.updateSnapshot(_paneSnapshot());
+              } else {
+                _setInterleavedModules(rest);
+              }
+            },
+          ),
+        ActionChip(
+          avatar: const Icon(Icons.add, size: 16),
+          label: Text(tr('Перевод', 'Module'), style: const TextStyle(fontSize: 12)),
+          visualDensity: VisualDensity.compact,
+          onPressed: _interleavedModulesSheet,
+        ),
+      ],
+    );
+  }
+
+  /// Инициализировать список сравнения старым одиночным вторым
+  /// переводом при первом включении (пустая настройка).
+  void _initCompareModules() {
+    if (settings.interleavedModules.isNotEmpty) {
+      for (final id in settings.interleavedList) {
+        _load(id);
+        final m = _mods[id];
+        if (m != null) _ensureChapter(m, _code, _ch);
+      }
+      return;
+    }
+    settings.update(() => settings.interleavedModules = _compareModuleId);
+    final m = _mods[_compareModuleId];
+    if (m != null) _ensureChapter(m, _code, _ch);
+  }
+
+  /// Записать список модулей сравнения (снимок панели + настройки).
+  void _setInterleavedModules(List<String> ids) {
+    settings.update(() => settings.interleavedModules = ids.join(','));
+    for (final id in ids) {
+      _load(id);
+      final m = _mods[id];
+      if (m != null) _ensureChapter(m, _code, _ch);
+    }
+    workspace.updateSnapshot(_paneSnapshot());
+    _rebuild(() {});
+  }
+
+  /// Лист выбора переводов сравнения: чек-лист модулей, порядок —
+  /// порядок включения (перестановка — после релиза).
+  void _interleavedModulesSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheet) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final e in kModules.entries)
+                if (e.key != _moduleId)
+                  CheckboxListTile(
+                    dense: true,
+                    value: _compareIds.contains(e.key),
+                    title: Text(e.value),
+                    onChanged: (v) {
+                      final ids = _compareIds;
+                      if (v == true) {
+                        ids.add(e.key);
+                      } else {
+                        ids.remove(e.key);
+                      }
+                      _setInterleavedModules(ids);
+                      setSheet(() {});
+                    },
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _compareBody(Palette p) {
     final secondMod = _mods[_compareModuleId];
     return Container(
