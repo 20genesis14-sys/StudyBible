@@ -2,6 +2,23 @@ part of '../screens/reading_screen.dart';
 
 /// Панели и элементы управления экрана чтения.
 extension _ReaderChrome on _ReadingScreenState {
+  /// Флаги слоёв по id вклада (ADR 0020): реестр задаёт порядок и
+  /// доступность, настройки хранят состояние. Неизвестный id — мягкий
+  /// пропуск (слой неизвестного плагина в сохранённой раскладке).
+  bool _layerFlag(String id) => switch (id) {
+    'layer.footnotes' => settings.layerFootnotes,
+    'layer.xrefs' => settings.layerXrefs,
+    'layer.strongs' => settings.layerStrongs,
+    _ => false,
+  };
+
+  void _setLayerFlag(String id, bool v) => switch (id) {
+    'layer.footnotes' => settings.layerFootnotes = v,
+    'layer.xrefs' => settings.layerXrefs = v,
+    'layer.strongs' => settings.layerStrongs = v,
+    _ => null,
+  };
+
   List<Widget> _toolActions(
     Palette p, {
     bool search = true,
@@ -11,7 +28,6 @@ extension _ReaderChrome on _ReadingScreenState {
     // Понятный свой цвет на действие (нижняя мобильная панель).
     Color cc(bool on, Color fixed) => on ? p.accent : (large ? fixed : p.muted);
     const cTranslate = Color(0xFF5C6BC0); // indigo
-    const cCompare = Color(0xFF00897B); // teal
     const cInterl = Color(0xFFF9A825); // amber
     const cTts = Color(0xFF43A047); // green
     const cHistory = Color(0xFF8D6E63); // brown
@@ -546,28 +562,17 @@ extension _ReaderChrome on _ReadingScreenState {
                     ),
                   ),
                 const Divider(),
-                sw(
-                  tr('Сноски', 'Footnotes'),
-                  '',
-                  settings.layerFootnotes,
-                  (v) => settings.update(() => settings.layerFootnotes = v),
-                ),
-                sw(
-                  tr('Параллельные места', 'Cross-references'),
-                  '',
-                  settings.layerXrefs,
-                  (v) => settings.update(() => settings.layerXrefs = v),
-                ),
-                // По ADR 0016 слой Стронга показываем только когда
-                // модуль объявляет features=strongs (у старых модулей
-                // список пуст — переключатель остаётся).
-                if (_module?.hasFeature('strongs') ?? true)
-                  sw(
-                    tr('Номера Стронга', 'Strong’s numbers'),
-                    '',
-                    settings.layerStrongs,
-                    (v) => settings.update(() => settings.layerStrongs = v),
-                  ),
+                // Слои-флаги перебираются из реестра вкладов (ADR 0020):
+                // порядок и фильтр requires — у реестра, состояние — у
+                // настроек. `layer.compare` обработан выше отдельно.
+                for (final c in contributions
+                    .ofKind(ContributionKind.layer)
+                    .where((c) => c.id != 'layer.compare'))
+                  if (c.availableFor(_module))
+                    sw(c.title, c.subtitle, _layerFlag(c.id), (v) {
+                      settings.update(() => _setLayerFlag(c.id, v));
+                      setSheet(() {});
+                    }),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                   child: Text(

@@ -25,6 +25,7 @@ import '../state.dart';
 import '../vrs.dart';
 import '../theme.dart';
 import '../voice/voice_backend.dart' show WordMark;
+import '../workspace/contributions.dart';
 import '../workspace/workspace_model.dart';
 import 'history_screen.dart';
 import 'search_screen.dart';
@@ -164,8 +165,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
   String? _selectedText;
 
   final _tapRecognizers = <TapGestureRecognizer>{};
-  int? _lastTapVerse;
-  DateTime? _lastTapAt;
   Map<String, LexiconEntry>? _lex;
 
   ModuleDoc? get _module => _mods[_moduleId];

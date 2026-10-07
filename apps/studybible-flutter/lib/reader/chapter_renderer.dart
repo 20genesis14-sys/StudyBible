@@ -380,8 +380,6 @@ extension _ChapterRenderer on _ReadingScreenState {
     }
     final ch = _module?.chapter(_code, _ch);
     final wide = MediaQuery.of(context).size.width >= 700;
-    _lastTapVerse = v;
-    _lastTapAt = DateTime.now();
     progress.setVerse(_code, _ch, v);
     _rebuild(() {
       _selectedVerse = v;
