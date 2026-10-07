@@ -51,6 +51,24 @@ Future<DictArticle?> dictEntry({
   required PlatformInt64 ord,
 }) => RustLib.instance.api.crateApiModuleDictEntry(path: path, ord: ord);
 
+/// Перевести стих между версификациями Paratext через org:
+/// `from_vrs`/`to_vrs` — имена файлов (`rsc`, `eng`, `vul`, …).
+/// Одинаковые версификации — короткий путь без разбора.
+/// Пусто — стиху нет соответствия в целевой версификации.
+Future<List<CvPoint>> convertVerse({
+  required String book,
+  required PlatformInt64 chapter,
+  required PlatformInt64 verse,
+  required String fromVrs,
+  required String toVrs,
+}) => RustLib.instance.api.crateApiModuleConvertVerse(
+  book: book,
+  chapter: chapter,
+  verse: verse,
+  fromVrs: fromVrs,
+  toVrs: toVrs,
+);
+
 /// Искать в модуле. `cache_path` — файл индекса рядом с модулем
 /// (по соглашению CLI — `<module>.idx`); при несовпадении ключа
 /// индекс перестраивается автоматически.
@@ -65,6 +83,33 @@ Future<List<SearchHitInfo>> moduleSearch({
   query: query,
   limit: limit,
 );
+
+/// Координата стиха — результат конверсии между версификациями.
+/// Книга возвращается тоже: часть отображений `.vrs` меняет её
+/// (Даниил-греческий DAG↔DAN/SUS/BEL и т. п.).
+class CvPoint {
+  final String book;
+  final PlatformInt64 chapter;
+  final PlatformInt64 verse;
+
+  const CvPoint({
+    required this.book,
+    required this.chapter,
+    required this.verse,
+  });
+
+  @override
+  int get hashCode => book.hashCode ^ chapter.hashCode ^ verse.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CvPoint &&
+          runtimeType == other.runtimeType &&
+          book == other.book &&
+          chapter == other.chapter &&
+          verse == other.verse;
+}
 
 /// Полная статья словаря.
 class DictArticle {

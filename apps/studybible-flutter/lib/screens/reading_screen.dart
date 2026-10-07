@@ -22,6 +22,7 @@ import '../reader/reader_dialogs.dart';
 import '../reader/tts_service.dart';
 import '../refs.dart';
 import '../state.dart';
+import '../vrs.dart';
 import '../theme.dart';
 import '../voice/voice_backend.dart' show WordMark;
 import '../workspace/workspace_model.dart';
@@ -95,6 +96,15 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// Второй перевод в режиме сравнения.
   late String _compareModuleId = _moduleId == 'engwebp' ? 'russyn' : 'engwebp';
   final ScrollController _compareScroll = ScrollController();
+
+  /// Кэш конверсии версификаций для текущей главы: стих основного
+  /// перевода -> соответствующие координаты во втором (вопрос 8).
+  /// null — одинаковые версификации или ещё не посчитано (тогда
+  /// используется тот же номер — короткий путь).
+  Map<int, List<CvPoint>>? _conv;
+
+  /// Ключ кэша конверсии: 'книга:глава:основной->второй'.
+  String _convKey = '';
 
   /// Защита от обратного вызова при синхронной прокрутке колонок.
   bool _syncingScroll = false;

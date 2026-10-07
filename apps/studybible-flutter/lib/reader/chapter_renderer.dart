@@ -231,6 +231,8 @@ extension _ChapterRenderer on _ReadingScreenState {
             note: s,
             verse: vCtx ?? 0,
             onRef: _goToRef,
+            fromVrs: _module?.versification ?? '',
+            onOpenModule: _goToRefModule,
             onShowAll: _openNotes,
           ),
           child: Padding(
@@ -326,6 +328,22 @@ extension _ChapterRenderer on _ReadingScreenState {
           chapter: r.chapter,
           verse: r.verse,
           moduleId: _moduleId,
+        ),
+      ),
+    );
+  }
+
+  /// Переход к конвертированному месту в другом переводе (тап по
+  /// тексту параллельного места из xrefModule — координата уже в
+  /// версификации этого перевода).
+  void _goToRefModule(Ref r, String moduleId) {
+    Navigator.of(context).push(
+      fastRoute(
+        ReadingScreen(
+          bookCode: r.book,
+          chapter: r.chapter,
+          verse: r.verse,
+          moduleId: moduleId,
         ),
       ),
     );
@@ -1213,22 +1231,107 @@ extension _ChapterRenderer on _ReadingScreenState {
     });
   }
 
-  /// Строчное сравнение: стих основного перевода, под ним — тот же
-  /// стих второго перевода (приглушённый). Если во втором модуле
-  /// есть слова с номерами Стронга (оригиналы OSHB/UGNT), вторая
-  /// строка рисуется как подстрочник: слово оригинала + глосса.
-  List<Widget> _buildInterleaved(ChapterDoc ch, Palette p) {
-    final second = _mods[_compareModuleId]?.chapter(_code, _ch);
-    if (second == null) {
-      final m = _mods[_compareModuleId];
-      if (m != null) _ensureChapter(m, _code, _ch);
+  /// Пересчитать кэш конверсии версификаций для текущей главы —
+  /// один раз на комбинацию «книга:глава:основной->второй»
+  /// (вопрос 8). Результат — в [_conv]; главы второго модуля,
+  /// куда ведут соответствия, догружаются лениво.
+  void _ensureConv() {
+    final main = _module;
+    final second = _mods[_compareModuleId];
+    if (main == null || second == null) return;
+    final key = '$_code:$_ch:$_moduleId->$_compareModuleId';
+    if (_convKey == key) return;
+    _convKey = key;
+    _conv = null;
+    final fv = main.versification;
+    final tv = second.versification;
+    // Версификация неизвестна или та же — короткий путь без моста.
+    if (fv.isEmpty || tv.isEmpty || fv == tv) return;
+    final maxV = main.verseCount(_code, _ch);
+    () async {
+      final map = <int, List<CvPoint>>{};
+      for (var v = 0; v <= maxV; v++) {
+        map[v] = await convertVerse(_code, _ch, v, fv, tv);
+      }
+      // Соответствия в других главах — подгрузить эти главы.
+      for (final pts in map.values) {
+        for (final p in pts) {
+          if (p.book != _code || p.chapter != _ch) {
+            await second.ensureChapter(p.book, p.chapter);
+          }
+        }
+      }
+      if (mounted && _convKey == key) _rebuild(() => _conv = map);
+    }();
+  }
+
+  /// Координаты стиха [v] основного перевода во втором — из кэша
+  /// конверсии; до её готовности (или при одинаковых версификациях) —
+  /// тот же номер.
+  List<CvPoint> _targetsOf(int v) =>
+      _conv?[v] ?? [(book: _code, chapter: _ch, verse: v)];
+
+  /// Тексты стихов второго перевода по координатам [targets]:
+  /// каждая — со своим номером в собственной версификации.
+  /// Стихи без текста пропускаются.
+  List<({CvPoint point, String text})> _secondTexts(
+    ModuleDoc second,
+    Map<String, Map<int, String>> plainCache,
+    List<CvPoint> targets,
+  ) {
+    final out = <({CvPoint point, String text})>[];
+    for (final t in targets) {
+      final plain = plainCache.putIfAbsent('${t.book}:${t.chapter}', () {
+        final c = second.chapter(t.book, t.chapter);
+        return c == null ? const {} : _plainVerses(c);
+      });
+      final txt = plain[t.verse];
+      if (txt != null && txt.isNotEmpty) {
+        out.add((point: t, text: txt));
+      }
     }
-    final secondVerses = second == null
-        ? const <int, String>{}
-        : _plainVerses(second);
-    final secondWords = second == null
-        ? const <int, List<TextSpanDoc>>{}
-        : _wordSpans(second);
+    return out;
+  }
+
+  /// Слова подстрочника второго модуля по координатам [targets]
+  /// (несколько соответствующих стихов — слова идут подряд).
+  List<TextSpanDoc> _secondWordsOf(
+    ModuleDoc second,
+    Map<String, Map<int, List<TextSpanDoc>>> wordCache,
+    List<CvPoint> targets,
+  ) {
+    final out = <TextSpanDoc>[];
+    for (final t in targets) {
+      final words = wordCache.putIfAbsent('${t.book}:${t.chapter}', () {
+        final c = second.chapter(t.book, t.chapter);
+        return c == null ? const {} : _wordSpans(c);
+      });
+      out.addAll(words[t.verse] ?? const []);
+    }
+    return out;
+  }
+
+  /// Строчное сравнение: стих основного перевода, под ним —
+  /// соответствующий (по версификации) стих второго перевода
+  /// (приглушённый). Если во втором модуле есть слова с номерами
+  /// Стронга (оригиналы OSHB/UGNT), вторая строка рисуется как
+  /// подстрочник: слово оригинала + глосса.
+  List<Widget> _buildInterleaved(ChapterDoc ch, Palette p) {
+    final secondMod = _mods[_compareModuleId];
+    final second = secondMod?.chapter(_code, _ch);
+    if (second == null && secondMod != null) {
+      _ensureChapter(secondMod, _code, _ch);
+    }
+    if (secondMod != null) _ensureConv();
+    // Плоский текст / слова по главам второго модуля — кэш на главу,
+    // чтобы соответствия в соседних главах не пересчитывались.
+    final plainCache = <String, Map<int, String>>{};
+    final wordCache = <String, Map<int, List<TextSpanDoc>>>{};
+    if (second != null) {
+      plainCache['$_code:$_ch'] = _plainVerses(second);
+      wordCache['$_code:$_ch'] = _wordSpans(second);
+    }
+    final secondWords = wordCache['$_code:$_ch'] ?? const {};
     final interlinear = secondWords.isNotEmpty;
     if (interlinear) _ensureLex();
     final out = <Widget>[];
@@ -1279,7 +1382,22 @@ extension _ChapterRenderer on _ReadingScreenState {
         }
       }
     }
+    // Надписание (стих 0, вопрос 9): отдельная строка над первым
+    // стихом — подпись «надписание» и текст стиха 0 каждой части
+    // сравнения (у второго — по конверсии, нет стиха 0 — прочерк).
+    final supSecond = secondMod == null
+        ? const <({CvPoint point, String text})>[]
+        : _secondTexts(secondMod, plainCache, _targetsOf(0));
+    final supMain = [
+      for (final s in verses[0] ?? const <SpanDoc>[])
+        if (s is TextSpanDoc) s.text,
+    ].join().trim();
+    final hasSup = supMain.isNotEmpty || supSecond.isNotEmpty;
+    if (hasSup) {
+      out.add(_superscriptionRow(supMain, supSecond, p));
+    }
     for (final v in order) {
+      if (v == 0 && hasSup) continue;
       _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
       final hl = _highlights.containsKey(v);
@@ -1347,24 +1465,36 @@ extension _ChapterRenderer on _ReadingScreenState {
                   ),
                 ],
               ),
-              // Второй перевод: та же строчка, приглушённая;
-              // у модулей оригинала — подстрочник слово-к-слову.
+              // Второй перевод: соответствие по версификации,
+              // приглушённое; у модулей оригинала — подстрочник
+              // слово-к-слову (тоже по конвертированной ссылке).
               if (interlinear)
                 Padding(
                   padding: const EdgeInsets.only(left: 30, top: 2, bottom: 4),
-                  child: _interlinearLine(secondWords[v] ?? const [], p),
+                  child: _interlinearLine(
+                    secondMod == null
+                        ? const []
+                        : _secondWordsOf(
+                            secondMod,
+                            wordCache,
+                            _targetsOf(v),
+                          ),
+                    p,
+                  ),
                 )
               else
                 Padding(
                   padding: const EdgeInsets.only(left: 30, top: 2, bottom: 4),
-                  child: Text(
-                    secondVerses[v] ?? '…',
-                    style: TextStyle(
-                      fontFamily: readingFontFamily(settings.readingFont),
-                      fontSize: 15 * settings.fontScale,
-                      color: p.muted,
-                      fontStyle: FontStyle.italic,
-                      height: 1.5,
+                  child: Text.rich(
+                    TextSpan(
+                      style: TextStyle(
+                        fontFamily: readingFontFamily(settings.readingFont),
+                        fontSize: 15 * settings.fontScale,
+                        color: p.muted,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                      ),
+                      children: _secondLineSpans(v, secondMod, plainCache, p),
                     ),
                   ),
                 ),
@@ -1374,6 +1504,90 @@ extension _ChapterRenderer on _ReadingScreenState {
       );
     }
     return out;
+  }
+
+  /// Спаны второй строки сравнения для стиха [v]: каждый
+  /// соответствующий стих второго перевода — со своим номером
+  /// «глава:стих» маленьким приглушённым префиксом, когда номер
+  /// отличается от основного; при равном — без префикса.
+  /// Пустое соответствие — «…» (как раньше при отсутствии стиха).
+  List<InlineSpan> _secondLineSpans(
+    int v,
+    ModuleDoc? secondMod,
+    Map<String, Map<int, String>> plainCache,
+    Palette p,
+  ) {
+    final items = secondMod == null
+        ? const <({CvPoint point, String text})>[]
+        : _secondTexts(secondMod, plainCache, _targetsOf(v));
+    if (items.isEmpty) {
+      return [const TextSpan(text: '…')];
+    }
+    final prefixStyle = TextStyle(
+      fontSize: 11 * settings.fontScale,
+      color: p.muted.withValues(alpha: 0.7),
+      fontStyle: FontStyle.normal,
+      fontWeight: FontWeight.w600,
+    );
+    return [
+      for (var i = 0; i < items.length; i++) ...[
+        if (items[i].point.chapter != _ch || items[i].point.verse != v)
+          TextSpan(
+            text: '${items[i].point.chapter}:${items[i].point.verse} ',
+            style: prefixStyle,
+          ),
+        TextSpan(text: items[i].text),
+        if (i + 1 < items.length) const TextSpan(text: ' '),
+      ],
+    ];
+  }
+
+  /// Строка надписания (стих 0, вопрос 9, вариант А): подпись
+  /// «надписание» + текст стиха 0 основного и второго перевода
+  /// (у перевода без стиха 0 — прочерк).
+  Widget _superscriptionRow(
+    String mainText,
+    List<({CvPoint point, String text})> secondTexts,
+    Palette p,
+  ) {
+    final secondText = secondTexts.isEmpty
+        ? '—'
+        : [
+            for (final t in secondTexts)
+              '${t.point.chapter}:${t.point.verse} ${t.text}',
+          ].join(' ');
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('надписание', 'superscription'),
+            style: TextStyle(
+              fontSize: 11 * settings.fontScale,
+              color: p.muted,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 2),
+          if (mainText.isNotEmpty)
+            Text(mainText, style: _baseStyle(p))
+          else
+            Text('—', style: TextStyle(color: p.muted)),
+          Text(
+            secondText,
+            style: TextStyle(
+              fontFamily: readingFontFamily(settings.readingFont),
+              fontSize: 15 * settings.fontScale,
+              color: p.muted,
+              fontStyle: FontStyle.italic,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _plainText(BlockDoc b) => [

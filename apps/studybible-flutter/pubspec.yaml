@@ -84,6 +84,7 @@ flutter:
   # Данные, выгруженные из модулей .sb (apps/studybible-cli/src/bin/export.rs)
   assets:
     - assets/data/
+    - assets/data/vrs/
     - assets/modules/
     # Фронтенд языка нейрочтения (ADR 0017): модель автоударений
     # RUAccent (MIT), посимвольный словарь и словарь ё-слов.

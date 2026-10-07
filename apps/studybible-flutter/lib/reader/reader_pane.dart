@@ -120,7 +120,7 @@ extension _ReaderPane on _ReadingScreenState {
     }
     if (_compare && !wide) {
       // мобильная: переключатель перевода сверху
-      final second = _mods[_compareModuleId]?.chapter(_code, _ch);
+      final secondMod = _mods[_compareModuleId];
       return Column(
         children: [
           Padding(
@@ -172,7 +172,7 @@ extension _ReaderPane on _ReadingScreenState {
           ),
           Expanded(
             child: _mobilePane == 'second'
-                ? _simpleChapter(second, p)
+                ? _compareColumn(secondMod, p)
                 : content,
           ),
         ],
@@ -248,7 +248,7 @@ extension _ReaderPane on _ReadingScreenState {
   }
 
   Widget _compareBody(Palette p) {
-    final ch = _mods[_compareModuleId]?.chapter(_code, _ch);
+    final secondMod = _mods[_compareModuleId];
     return Container(
       width: 460,
       decoration: BoxDecoration(
@@ -262,19 +262,132 @@ extension _ReaderPane on _ReadingScreenState {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: _comparePicker(p),
           ),
-          Expanded(child: _simpleChapter(ch, p, _compareScroll)),
+          Expanded(child: _compareColumn(secondMod, p, _compareScroll)),
         ],
       ),
     );
   }
 
-  /// Упрощённый текст для второй панели (без интерактива).
-  Widget _simpleChapter(
-    ChapterDoc? ch,
+  /// Колонка сравнения: каждый стих второго перевода — под
+  /// соответствующим ему стихом основного (сопоставление через
+  /// версификацию, вопрос 8). Стихи без соответствия во второй
+  /// главе дописываются в конец со своими номерами.
+  Widget _compareColumn(
+    ModuleDoc? secondMod,
     Palette p, [
     ScrollController? controller,
   ]) {
-    if (ch == null) {
+    if (secondMod == null) {
+      return Center(
+        child: Text(
+          tr('не выгружена', 'not available'),
+          style: TextStyle(color: p.muted),
+        ),
+      );
+    }
+    _ensureConv();
+    final second = secondMod.chapter(_code, _ch);
+    if (second == null) {
+      _ensureChapter(secondMod, _code, _ch);
+      return Center(
+        child: Text(
+          tr('не выгружена', 'not available'),
+          style: TextStyle(color: p.muted),
+        ),
+      );
+    }
+    final plainCache = <String, Map<int, String>>{
+      '$_code:$_ch': _plainVerses(second),
+    };
+    final numStyle = TextStyle(fontSize: 11 * settings.fontScale, color: p.muted);
+    final textStyle = TextStyle(
+      fontFamily: readingFontFamily(settings.readingFont),
+      fontSize: 14 * settings.fontScale,
+      color: p.ink,
+      height: 1.55,
+    );
+    Widget row(String num, String text) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text.rich(
+        TextSpan(
+          style: textStyle,
+          children: [
+            if (num.isNotEmpty) TextSpan(text: '$num ', style: numStyle),
+            TextSpan(text: text),
+          ],
+        ),
+      ),
+    );
+
+    final used = <String>{};
+    final rows = <Widget>[];
+    // Надписание (стих 0) — отдельной строкой с подписью (вопрос 9).
+    final sup = _secondTexts(secondMod, plainCache, _targetsOf(0));
+    final mainCh = _module?.chapter(_code, _ch);
+    final mainHas0 =
+        mainCh != null && _plainVerses(mainCh).containsKey(0);
+    if (sup.isNotEmpty || mainHas0) {
+      for (final t in sup) {
+        used.add('${t.point.book}:${t.point.chapter}:${t.point.verse}');
+      }
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr('надписание', 'superscription'),
+                style: TextStyle(
+                  fontSize: 10 * settings.fontScale,
+                  color: p.muted,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              Text(
+                sup.isEmpty
+                    ? '—'
+                    : [for (final t in sup) t.text].join(' '),
+                style: textStyle.copyWith(fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    // Стихи основного → соответствия во втором (номер префиксом,
+    // при другой главе — «глава:стих»).
+    if (mainCh != null) {
+      final mv = _plainVerses(mainCh).keys.toList()
+        ..sort()
+        ..remove(0);
+      for (final v in mv) {
+        for (final it in _secondTexts(
+          secondMod,
+          plainCache,
+          _targetsOf(v),
+        )) {
+          used.add('${it.point.book}:${it.point.chapter}:${it.point.verse}');
+          rows.add(
+            row(
+              it.point.chapter == _ch && it.point.verse == v
+                  ? '${it.point.verse}'
+                  : '${it.point.chapter}:${it.point.verse}',
+              it.text,
+            ),
+          );
+        }
+      }
+    }
+    // Стихи второй главы, оставшиеся без соответствия, — в конец.
+    for (final e in (plainCache['$_code:$_ch']!.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key)))) {
+      if (e.key == 0) continue;
+      if (used.contains('$_code:$_ch:${e.key}')) continue;
+      rows.add(row('${e.key}', e.value));
+    }
+    if (rows.isEmpty) {
       return Center(
         child: Text(
           tr('не выгружена', 'not available'),
@@ -285,57 +398,7 @@ extension _ReaderPane on _ReadingScreenState {
     return ListView(
       controller: controller,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      children: [
-        for (final b in ch.blocks)
-          if (b.kind == BlockKind.heading)
-            Padding(
-              padding: const EdgeInsets.only(top: 12, bottom: 6),
-              child: Text(
-                _plainText(b),
-                style: TextStyle(
-                  fontFamily: readingFontFamily(settings.readingFont),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13 * settings.fontScale,
-                  color: p.ink,
-                ),
-              ),
-            )
-          else if (b.kind != BlockKind.blank)
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: 8,
-                left: b.kind == BlockKind.poetry ? 20 : 0,
-              ),
-              child: Text.rich(
-                TextSpan(
-                  style: TextStyle(
-                    fontFamily: readingFontFamily(settings.readingFont),
-                    fontSize: 14 * settings.fontScale,
-                    color: p.ink,
-                    height: 1.55,
-                  ),
-                  children: [
-                    for (final s in b.spans)
-                      if (s is VerseSpanDoc)
-                        TextSpan(
-                          text: '${s.verse} ',
-                          style: TextStyle(
-                            fontSize: 11 * settings.fontScale,
-                            color: p.muted,
-                          ),
-                        )
-                      else if (s is TextSpanDoc)
-                        TextSpan(
-                          text: s.text,
-                          style: TextStyle(
-                            color: s.style == 'wj' ? p.jesus : p.ink,
-                          ),
-                        ),
-                  ],
-                ),
-              ),
-            ),
-      ],
+      children: rows,
     );
   }
 

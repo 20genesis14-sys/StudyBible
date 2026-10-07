@@ -9,8 +9,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result, anyhow};
 use serde_json::{Map, Value, json};
-use studybible_core::BookCode;
 use studybible_core::text::{Block, BlockKind, Span};
+use studybible_core::{BookCode, VerseKey, Versification};
 use studybible_store::Module;
 
 /// Модуль .sb, найденный в каталоге данных.
@@ -253,6 +253,55 @@ pub async fn dict_entry(path: String, ord: i64) -> Result<Option<DictArticle>> {
         headword,
         text,
     }))
+}
+
+// --- версификации (сравнение переводов, ADR 0015/вопрос 8) ---
+
+/// Координата стиха — результат конверсии между версификациями.
+/// Книга возвращается тоже: часть отображений `.vrs` меняет её
+/// (Даниил-греческий DAG↔DAN/SUS/BEL и т. п.).
+pub struct CvPoint {
+    pub book: String,
+    pub chapter: i64,
+    pub verse: i64,
+}
+
+/// Перевести стих между версификациями Paratext через org:
+/// `from_vrs`/`to_vrs` — имена файлов (`rsc`, `eng`, `vul`, …).
+/// Одинаковые версификации — короткий путь без разбора.
+/// Пусто — стиху нет соответствия в целевой версификации.
+pub async fn convert_verse(
+    book: String,
+    chapter: i64,
+    verse: i64,
+    from_vrs: String,
+    to_vrs: String,
+) -> Result<Vec<CvPoint>> {
+    if from_vrs == to_vrs {
+        return Ok(vec![CvPoint {
+            book,
+            chapter,
+            verse,
+        }]);
+    }
+    let code = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
+    let from =
+        Versification::builtin(&from_vrs).ok_or_else(|| anyhow!("версификация {from_vrs}"))?;
+    let to = Versification::builtin(&to_vrs).ok_or_else(|| anyhow!("версификация {to_vrs}"))?;
+    let k = VerseKey::new(
+        code,
+        u16::try_from(chapter).map_err(|_| anyhow!("глава {chapter}"))?,
+        u16::try_from(verse).map_err(|_| anyhow!("стих {verse}"))?,
+    );
+    Ok(from
+        .convert(to, k)
+        .iter()
+        .map(|p| CvPoint {
+            book: p.book.as_str().to_string(),
+            chapter: i64::from(p.chapter),
+            verse: i64::from(p.verse),
+        })
+        .collect())
 }
 
 // --- поиск по FTS-индексу модуля ---

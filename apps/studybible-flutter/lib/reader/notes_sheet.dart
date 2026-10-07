@@ -6,6 +6,7 @@ import '../models.dart';
 import '../refs.dart';
 import '../state.dart';
 import '../theme.dart';
+import '../vrs.dart';
 
 /// Список сносок и параллельных мест главы.
 class NotesSheet extends StatelessWidget {
@@ -176,11 +177,19 @@ class NotesSheet extends StatelessWidget {
 /// Карточка одной сноски/параллельного места по тапу на маркер
 /// (ADR 0015). Показывает текст с активными ссылками; кнопка
 /// «Все сноски» открывает полный список главы.
+///
+/// [fromVrs] — версификация модуля-источника ссылки (в ней
+/// записаны координаты в тексте сноски); тексты параллельных
+/// мест берутся из settings.xrefModule по конвертированным
+/// координатам, а [onOpenModule] (если задан) навигирует к
+/// конвертированному месту в этом же переводе.
 void showNoteCard(
   BuildContext context, {
   required NoteSpanDoc note,
   required int verse,
   required void Function(Ref) onRef,
+  String fromVrs = '',
+  void Function(Ref, String moduleId)? onOpenModule,
   VoidCallback? onShowAll,
 }) {
   showModalBottomSheet(
@@ -189,6 +198,11 @@ void showNoteCard(
     builder: (ctx) => _NoteCard(
       note: note,
       verse: verse,
+      fromVrs: fromVrs,
+      onOpenModule: (r, mid) {
+        Navigator.of(ctx).pop();
+        onOpenModule!(r, mid);
+      },
       onRef: (r) {
         Navigator.of(ctx).pop();
         onRef(r);
@@ -210,11 +224,15 @@ class _NoteCard extends StatefulWidget {
   final NoteSpanDoc note;
   final int verse;
   final void Function(Ref) onRef;
+  final String fromVrs;
+  final void Function(Ref, String moduleId)? onOpenModule;
   final VoidCallback? onShowAll;
   const _NoteCard({
     required this.note,
     required this.verse,
     required this.onRef,
+    this.fromVrs = '',
+    this.onOpenModule,
     this.onShowAll,
   });
 
@@ -223,27 +241,64 @@ class _NoteCard extends StatefulWidget {
 }
 
 class _NoteCardState extends State<_NoteCard> {
-  /// ref → текст стиха(ов); null-элементы — не найдено в переводе.
-  late final Future<List<({Ref ref, String label, String? text})>> _texts =
-      _load();
+  /// Перевод текстов параллельных мест (xrefModule или основной).
+  String _mid = '';
+  /// ref → текст стиха(ов) + навигационная цель; null-элементы —
+  /// не найдено в переводе.
+  late final Future<List<({Ref ref, Ref nav, String label, String? text})>>
+  _texts = _load();
 
-  Future<List<({Ref ref, String label, String? text})>> _load() async {
+  /// Координаты ссылки [r] (в версификации модуля-источника,
+  /// fromVrs) в версификации перевода [m]: каждый стих диапазона
+  /// конвертируется, совпадения дедуплицируются.
+  Future<List<CvPoint>> _targets(ModuleDoc m, Ref r) async {
+    final end = r.verseEnd;
+    final out = <CvPoint>[];
+    final seen = <String>{};
+    for (var v = r.verse; v <= end; v++) {
+      final pts =
+          widget.fromVrs.isEmpty || m.versification.isEmpty
+          ? [(book: r.book, chapter: r.chapter, verse: v)]
+          : await convertVerse(
+              r.book,
+              r.chapter,
+              v,
+              widget.fromVrs,
+              m.versification,
+            );
+      for (final p in pts) {
+        if (seen.add('${p.book}:${p.chapter}:${p.verse}')) out.add(p);
+      }
+    }
+    return out;
+  }
+
+  Future<List<({Ref ref, Ref nav, String label, String? text})>>
+  _load() async {
     final refs = findRefs(widget.note.text);
     if (refs.isEmpty) return const [];
     final mid = settings.xrefModule.isEmpty
         ? mainModuleId()
         : settings.xrefModule;
     final m = await loadModule(mid);
-    final out = <({Ref ref, String label, String? text})>[];
+    _mid = mid;
+    final out = <({Ref ref, Ref nav, String label, String? text})>[];
     final seen = <String>{};
     for (final rm in refs) {
       final r = rm.ref;
       final key = '${r.book}:${r.chapter}:${r.verse}-${r.verseEnd}';
       if (!seen.add(key)) continue;
       final label = widget.note.text.substring(rm.start, rm.end);
-      final ch = await m.ensureChapter(r.book, r.chapter);
-      final t = ch == null ? null : verseText(ch, r.verse, r.verseEnd);
-      out.add((ref: r, label: label, text: t == null || t.isEmpty ? null : t));
+      final targets = await _targets(m, r);
+      final t = targets.isEmpty ? null : await convertedVerseText(m, targets);
+      final nav = targets.isEmpty
+          ? r
+          : Ref(
+              targets.first.book,
+              targets.first.chapter,
+              targets.first.verse,
+            );
+      out.add((ref: r, nav: nav, label: label, text: t));
     }
     return out;
   }
@@ -371,7 +426,14 @@ class _NoteCardState extends State<_NoteCard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             GestureDetector(
-                              onTap: () => widget.onRef(it.ref),
+                              onTap: () {
+                                final open = widget.onOpenModule;
+                                if (open != null) {
+                                  open(it.nav, _mid);
+                                } else {
+                                  widget.onRef(it.ref);
+                                }
+                              },
                               child: Text(
                                 it.label,
                                 style: TextStyle(

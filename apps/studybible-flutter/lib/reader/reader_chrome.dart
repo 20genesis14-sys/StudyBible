@@ -1329,7 +1329,12 @@ extension _ReaderChrome on _ReadingScreenState {
         if (!mounted) return;
         Navigator.of(context).push(
           fastRoute(
-            VerseCompareScreen(bookCode: _code, chapter: _ch, verse: v),
+            VerseCompareScreen(
+              bookCode: _code,
+              chapter: _ch,
+              verse: v,
+              fromVrs: _module?.versification ?? '',
+            ),
           ),
         );
       case 'refs':

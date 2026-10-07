@@ -237,5 +237,6 @@ Future<ModuleDoc?> _loadSbModule(String id, String path) async {
     chapterLoader: (code, n) => bridgeChapterDoc(path, code, n),
     kind: doc.kind,
     features: doc.features,
+    versification: doc.versification,
   );
 }

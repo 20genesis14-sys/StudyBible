@@ -1,16 +1,21 @@
 /// «Стих во всех переводах»: одна строка на модуль — название,
 /// текст стиха, переход к нему в этом переводе. Список модулей —
 /// настройка settings.compareModules (пусто = все установленные).
+///
+/// Сопоставление стихов — через версификации (вопрос 8): координата
+/// исходного модуля (fromVrs) переводится в версификацию каждого
+/// перевода; несколько соответствий перечисляются с номерами
+/// «глава:стих», переход по тапу — на первую координату.
 library;
 
 import 'package:flutter/material.dart';
 
 import '../data.dart';
 import '../l10n.dart';
-import '../models.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../routes.dart';
+import '../vrs.dart';
 import 'reading_screen.dart';
 
 class VerseCompareScreen extends StatefulWidget {
@@ -19,11 +24,16 @@ class VerseCompareScreen extends StatefulWidget {
     required this.bookCode,
     required this.chapter,
     required this.verse,
+    this.fromVrs = '',
   });
 
   final String bookCode;
   final int chapter;
   final int verse;
+
+  /// Версификация модуля, из которого открыли сравнение
+  /// ('' — координату трактуем как есть, без конверсии).
+  final String fromVrs;
 
   @override
   State<VerseCompareScreen> createState() => _VerseCompareScreenState();
@@ -32,7 +42,18 @@ class VerseCompareScreen extends StatefulWidget {
 class _Row {
   final String moduleId, title;
   String? text; // null — стиха нет в этом переводе / модуль без главы
-  _Row(this.moduleId, this.title, this.text);
+  /// Куда ведёт тап: первая конвертированная координата (глава и
+  /// даже книга могут отличаться от исходной).
+  String navBook;
+  int navChapter, navVerse;
+  _Row(
+    this.moduleId,
+    this.title,
+    this.text,
+    this.navBook,
+    this.navChapter,
+    this.navVerse,
+  );
 }
 
 class _VerseCompareScreenState extends State<VerseCompareScreen> {
@@ -50,14 +71,54 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
     for (final id in settings.compareList) {
       try {
         final m = await loadModule(id);
-        final ch = await m.ensureChapter(widget.bookCode, widget.chapter);
-        final t = ch == null
+        // Исходная координата — в версификации основного модуля;
+        // в версификацию этого перевода — через конверсию.
+        final targets = widget.fromVrs.isEmpty || m.versification.isEmpty
+            ? [
+                (
+                  book: widget.bookCode,
+                  chapter: widget.chapter,
+                  verse: widget.verse,
+                ),
+              ]
+            : await convertVerse(
+                widget.bookCode,
+                widget.chapter,
+                widget.verse,
+                widget.fromVrs,
+                m.versification,
+              );
+        final t = targets.isEmpty
             ? null
-            : verseText(ch, widget.verse).trim();
-        rows.add(_Row(id, kModules[id] ?? id,
-            t == null || t.isEmpty ? null : t));
+            : await convertedVerseText(m, targets);
+        final nav = targets.isEmpty
+            ? (
+                book: widget.bookCode,
+                chapter: widget.chapter,
+                verse: widget.verse,
+              )
+            : targets.first;
+        rows.add(
+          _Row(
+            id,
+            kModules[id] ?? id,
+            t,
+            nav.book,
+            nav.chapter,
+            nav.verse,
+          ),
+        );
       } catch (_) {
-        rows.add(_Row(id, kModules[id] ?? id, null));
+        rows.add(
+          _Row(
+            id,
+            kModules[id] ?? id,
+            null,
+            widget.bookCode,
+            widget.chapter,
+            widget.verse,
+          ),
+        );
       }
       if (mounted) setState(() => _rows = List.of(rows));
     }
@@ -111,9 +172,9 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
                     onTap: () => Navigator.of(context).push(
                       fastRoute(
                         ReadingScreen(
-                          bookCode: widget.bookCode,
-                          chapter: widget.chapter,
-                          verse: widget.verse,
+                          bookCode: r.navBook,
+                          chapter: r.navChapter,
+                          verse: r.navVerse,
                           moduleId: r.moduleId,
                         ),
                       ),
@@ -144,7 +205,8 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            r.text ?? tr('— нет этого стиха', '— no this verse'),
+                            r.text ?? tr('— нет в этом переводе',
+                                '— not in this translation'),
                             style: TextStyle(
                               fontSize: 14,
                               color: r.text == null ? p.muted : p.ink,

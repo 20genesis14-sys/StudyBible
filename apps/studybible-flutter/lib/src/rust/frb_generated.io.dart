@@ -36,6 +36,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DictArticle dco_decode_box_autoadd_dict_article(dynamic raw);
 
   @protected
+  CvPoint dco_decode_cv_point(dynamic raw);
+
+  @protected
   DictArticle dco_decode_dict_article(dynamic raw);
 
   @protected
@@ -43,6 +46,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  List<CvPoint> dco_decode_list_cv_point(dynamic raw);
 
   @protected
   List<DictEntry> dco_decode_list_dict_entry(dynamic raw);
@@ -96,6 +102,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DictArticle sse_decode_box_autoadd_dict_article(SseDeserializer deserializer);
 
   @protected
+  CvPoint sse_decode_cv_point(SseDeserializer deserializer);
+
+  @protected
   DictArticle sse_decode_dict_article(SseDeserializer deserializer);
 
   @protected
@@ -103,6 +112,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<CvPoint> sse_decode_list_cv_point(SseDeserializer deserializer);
 
   @protected
   List<DictEntry> sse_decode_list_dict_entry(SseDeserializer deserializer);
@@ -171,6 +183,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_cv_point(CvPoint self, SseSerializer serializer);
+
+  @protected
   void sse_encode_dict_article(DictArticle self, SseSerializer serializer);
 
   @protected
@@ -178,6 +193,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_cv_point(List<CvPoint> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_dict_entry(

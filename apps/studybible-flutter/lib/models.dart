@@ -31,6 +31,10 @@ class ModuleDoc {
   /// Флаги прав (ADR 0016): no-distribute, no-net, no-ai, no-plugins.
   final List<String> rights;
 
+  /// Имя версификации Paratext ('rsc','eng','org',…; '' — неизвестна).
+  /// Используется сравнением переводов (вопрос 8, vrs.dart).
+  final String versification;
+
   final List<BookDoc> books;
   final Map<String, ChapterDoc> chapters;
 
@@ -51,6 +55,7 @@ class ModuleDoc {
     this.kind = 'bible',
     this.features = const [],
     this.rights = const [],
+    this.versification = '',
     required this.books,
     required this.chapters,
     required this.verseCounts,
@@ -74,6 +79,7 @@ class ModuleDoc {
     rights:
         (j['rights'] as List?)?.map((e) => e as String).toList() ??
         const [],
+    versification: j['versification'] as String? ?? '',
     books: (j['books'] as List)
         .map((b) => BookDoc.fromJson(b as Map<String, dynamic>))
         .toList(),

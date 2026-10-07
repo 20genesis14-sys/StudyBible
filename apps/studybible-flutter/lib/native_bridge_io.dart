@@ -305,6 +305,37 @@ Future<bool> bridgeEntryRemove(String id) async =>
     ) ==
     true;
 
+// ---------- версификации (ADR 0015, вопрос 8) ----------
+
+/// Перевод стиха между версификациями через org (ядро):
+/// `fromVrs`/`toVrs` — имена `.vrs` ('rsc','eng','vul',…).
+/// Ошибка моста/неизвестная версификация — тот же номер.
+Future<List<({String book, int chapter, int verse})>> bridgeConvertVerse(
+  String book,
+  int chapter,
+  int verse,
+  String fromVrs,
+  String toVrs,
+) async {
+  final pts = await _guard(
+    'convertVerse',
+    () => api_module.convertVerse(
+      book: book,
+      chapter: chapter,
+      verse: verse,
+      fromVrs: fromVrs,
+      toVrs: toVrs,
+    ),
+  );
+  if (pts == null) {
+    return [(book: book, chapter: chapter, verse: verse)];
+  }
+  return [
+    for (final p in pts)
+      (book: p.book, chapter: p.chapter.toInt(), verse: p.verse.toInt()),
+  ];
+}
+
 // ---------- словарь (entries, ADR 0016) ----------
 
 /// Страница заголовков словаря; prefix — строчный префикс norm.
