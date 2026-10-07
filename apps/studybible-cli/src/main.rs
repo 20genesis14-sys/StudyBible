@@ -6,6 +6,7 @@ use std::process::ExitCode;
 
 mod speech;
 
+use rusqlite::params;
 use speech::TtsSpeech;
 use studybible_convert::{biblequote, , mybible, osis, tsv, usfm, zefania};
 use studybible_core::speech::Speech;
@@ -624,7 +625,118 @@ fn check(args: &[String]) -> Result<(), String> {
         println!("  rights: {}", meta.rights.join(", "));
     }
     println!("  книг: {}", m.books().map_err(|e| e.to_string())?.len());
+    for w in lint(m) {
+        println!("  ! {w}");
+    }
     Ok(())
+}
+
+/// Семантические предупреждения `module check` (мягкая политика,
+/// spec/05 «Семантика»): структура валидна, но есть несоответствия,
+/// о которых автору модуля стоит знать.
+fn lint(m: &Module) -> Vec<String> {
+    let conn = m.conn();
+    let meta = m.meta();
+    let mut out = Vec::new();
+
+    // Число строк в таблице; таблицы может не быть (необязательные) — 0.
+    let count = |table: &str| -> i64 {
+        let has: bool = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name=?1",
+                params![table],
+                |r| r.get(0),
+            )
+            .unwrap_or(false);
+        if !has {
+            return 0;
+        }
+        conn.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
+            .unwrap_or(0)
+    };
+
+    // Неизвестный kind (spec/05 С-8) — читается как bible, но автору
+    // лучше знать.
+    const KINDS: [&str; 6] = [
+        "bible",
+        "interlinear",
+        "commentary",
+        "dictionary",
+        "layer",
+        "critical",
+    ];
+    if !meta.kind.is_empty() && !KINDS.contains(&meta.kind.as_str()) {
+        out.push(format!(
+            "неизвестный kind «{}» — читатели покажут как bible",
+            meta.kind
+        ));
+    }
+
+    // Число спанов с данным ключом в attrs (`strong="…"`, `morph="…"`).
+    let attr_count = |key: &str| -> i64 {
+        conn.query_row(
+            "SELECT count(*) FROM spans WHERE attrs LIKE ?1 ESCAPE '\\'",
+            params![format!("%{key}=\"%")],
+            |r| r.get(0),
+        )
+        .unwrap_or(0)
+    };
+    // features: заявленное, но без данных — слой не покажется (С-9).
+    // strongs/morph живут в spans.attrs или в tokens — старые модули
+    // без таблицы tokens держат их в атрибутах спанов.
+    let data = |f: &str| -> i64 {
+        match f {
+            "strongs" => count("tokens").max(attr_count("strong")),
+            "morph" => count("tokens").max(attr_count("morph")),
+            "tokens" => count("tokens"),
+            "alignment" => count("alignment"),
+            "variants" => count("variants"),
+            "entries" => count("entries"),
+            "marks" => count("marks"),
+            "fts" => {
+                if m.has_search_index() {
+                    1
+                } else {
+                    0
+                }
+            }
+            _ => -1,
+        }
+    };
+    for f in &meta.features {
+        if f.starts_with("x-") {
+            continue;
+        }
+        match data(f) {
+            -1 => out.push(format!("неизвестная feature «{f}» — игнорируется")),
+            0 => out.push(format!("feature «{f}» заявлена, но данных нет")),
+            _ => {}
+        }
+    }
+
+    // Лишние маркеры 'v': у стиха уже есть текстовые спаны — читатель
+    // синтезирует границу сам, маркер дублирует её (С-4).
+    let dup_v: i64 = conn
+        .query_row(
+            "SELECT count(*) FROM spans v
+             WHERE v.kind='v' AND EXISTS(
+               SELECT 1 FROM spans t
+               WHERE t.book_id=v.book_id AND t.chapter=v.chapter
+                 AND t.kind='t' AND t.verse=v.num)",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    if dup_v > 0 {
+        out.push(format!("{dup_v} маркеров 'v' у стихов с текстом — лишние"));
+    }
+
+    // bible/commentary без стихов — возможно, собрано не то.
+    let verses = count("verses");
+    if verses == 0 && matches!(meta.kind.as_str(), "" | "bible" | "interlinear") {
+        out.push("пустой verses у текстового модуля".into());
+    }
+    out
 }
 
 /// Упаковать `.sb` → `.sbz`. Возвращает путь к готовому файлу.

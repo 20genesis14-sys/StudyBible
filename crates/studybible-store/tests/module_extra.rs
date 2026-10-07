@@ -523,6 +523,78 @@ fn entries_prefix_is_literal() {
 }
 
 #[test]
+fn unknown_kind_and_features_tolerated() {
+    // spec/05 С-8/С-9: неизвестный kind читается как bible, неизвестные
+    // features (включая x-*) игнорируются — модуль остаётся читаемым.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let conn = Connection::open(&p).unwrap();
+    conn.execute("INSERT INTO meta VALUES('kind', 'futurekind')", [])
+        .unwrap();
+    conn.execute("INSERT INTO meta VALUES('features', 'weird,x-custom')", [])
+        .unwrap();
+    drop(conn);
+    let m = Module::open(&p).unwrap();
+    assert_eq!(m.meta().kind, "futurekind");
+    assert_eq!(m.meta().features, ["weird", "x-custom"]);
+    assert_eq!(
+        m.verse_text(BookCode::new("GEN").unwrap(), 1, 1).unwrap(),
+        Some("Первый.".into())
+    );
+}
+
+#[test]
+fn extra_v_marker_tolerated() {
+    // spec/05 С-4: 'v' у стиха, у которого есть текстовые спаны, —
+    // семантическая аномалия, но чтение не ломается.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let conn = Connection::open(&p).unwrap();
+    conn.execute(
+        "INSERT INTO spans VALUES(1, 1, 0, 98, 'v', 1, NULL, NULL, NULL, '', '', '', '')",
+        [],
+    )
+    .unwrap();
+    drop(conn);
+    let m = Module::open(&p).unwrap();
+    let ch = m
+        .chapter(BookCode::new("GEN").unwrap(), 1)
+        .unwrap()
+        .unwrap();
+    assert!(
+        ch.blocks
+            .iter()
+            .flat_map(|b| &b.spans)
+            .any(|s| matches!(s, Span::Verse(1)))
+    );
+    assert_eq!(
+        m.verse_text(BookCode::new("GEN").unwrap(), 1, 1).unwrap(),
+        Some("Первый.".into())
+    );
+}
+
+#[test]
+fn unknown_table_tolerated() {
+    // spec/05 С-18: лишние таблицы/столбцы игнорируются.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let conn = Connection::open(&p).unwrap();
+    conn.execute("CREATE TABLE x_experiment(a TEXT)", [])
+        .unwrap();
+    conn.execute("INSERT INTO x_experiment VALUES('что угодно')", [])
+        .unwrap();
+    drop(conn);
+    let m = Module::open(&p).unwrap();
+    assert_eq!(
+        m.verse_text(BookCode::new("GEN").unwrap(), 1, 2).unwrap(),
+        Some("Второй.".into())
+    );
+}
+
+#[test]
 fn missing_book_headers_table_rejected() {
     let dir = tempfile::tempdir().unwrap();
     let p = dir.path().join("a.sb");
