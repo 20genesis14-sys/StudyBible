@@ -65,8 +65,10 @@ impl Fixture {
         );
     }
 
+    /// Проверить собранный модуль (по умолчанию build выдаёт .sbz).
     fn check(&self, id: &str) {
-        let f = self.out.join(format!("{id}.sb"));
+        let f = self.out.join(format!("{id}.sbz"));
+        assert!(f.is_file(), "{id}: нет {}", f.display());
         let o = cli(&["module", "check", f.to_str().unwrap()]);
         assert!(
             o.status.success(),
@@ -75,8 +77,13 @@ impl Fixture {
         );
     }
 
+    /// Открыть .sbz: распаковать во временный .sb рядом и открыть его.
     fn open(&self, id: &str) -> Module {
-        Module::open(&self.out.join(format!("{id}.sb"))).unwrap()
+        let bytes = std::fs::read(self.out.join(format!("{id}.sbz"))).unwrap();
+        let raw = studybible_store::sbz::unpack(&bytes).unwrap();
+        let tmp = self.out.join(format!("{id}.unpacked.sb"));
+        std::fs::write(&tmp, raw).unwrap();
+        Module::open(&tmp).unwrap()
     }
 }
 
@@ -296,7 +303,8 @@ fn build_failure_lists_failed_module() {
     let fx = fixture(
         r#"[
           {"id":"ok","source":"bqdir","title":"Хороший","language":"ru",
-           "versification":"rsc","name_profile":"syn","format":"biblequote"},
+           "versification":"rsc","name_profile":"syn","format":"biblequote",
+           "sbz":false},
           {"id":"bad","source":"nosuch","title":"Битый","language":"ru",
            "versification":"rsc","name_profile":"syn","format":"biblequote"}
         ]"#,
@@ -316,6 +324,7 @@ fn build_failure_lists_failed_module() {
     assert!(!o.status.success());
     let err = String::from_utf8_lossy(&o.stderr);
     assert!(err.contains("bad"), "{err}");
-    // Хороший модуль всё же собран.
+    // Хороший модуль всё же собран — с "sbz": false в голый .sb.
     assert!(fx.out.join("ok.sb").is_file());
+    assert!(!fx.out.join("ok.sbz").is_file());
 }

@@ -22,7 +22,7 @@ fn build_dictionary_module() {
         r#"{"modules":[{
             "id":"mydict","source":"mydict","title":"Пробный словарь",
             "language":"ru","direction":"ltr","versification":"eng",
-            "name_profile":"syn","format":"entries"}]}"#,
+            "name_profile":"syn","format":"entries","sbz":false}]}"#,
     )
     .unwrap();
     let out = dir.path().join("out");

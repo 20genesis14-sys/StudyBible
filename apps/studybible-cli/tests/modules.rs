@@ -31,6 +31,15 @@ fn build_all(data: &Path, out: &Path) {
         .status()
         .expect("запуск studybible");
     assert!(status.success(), "module build завершился с ошибкой");
+    // Build выдаёт .sbz; тесты ниже работают с .sb — распаковать все.
+    for e in std::fs::read_dir(out).unwrap().flatten() {
+        let p = e.path();
+        if p.extension().and_then(|x| x.to_str()) == Some("sbz") {
+            let raw =
+                studybible_store::sbz::unpack(&std::fs::read(&p).unwrap()).expect("распаковка sbz");
+            std::fs::write(p.with_extension("sb"), raw).unwrap();
+        }
+    }
 }
 
 fn verse(m: &Module, book: &str, ch: u16, v: u16) -> Option<String> {

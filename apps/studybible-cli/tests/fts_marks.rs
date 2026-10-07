@@ -32,7 +32,7 @@ fn build_module_with_fts_and_marks() {
             "id":"mini","source":"mini","title":"Пробный",
             "language":"ru","direction":"ltr","versification":"rsc",
             "name_profile":"syn","format":"usfm",
-            "fts":true,"marks":"audio.tsv"}]}"#,
+            "fts":true,"marks":"audio.tsv","sbz":false}]}"#,
     )
     .unwrap();
     let out = dir.path().join("out");

@@ -19,6 +19,8 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
                                        — форматы источников: usfm, osis, zefania, tsv,
                                          entries, , mybible (*.SQLite3),
                                          biblequote (каталог с bibleqt.ini или .zip)
+                                       — результат: .sbz (zstd); «sbz»: false → голый .sb,
+                                         «both» → .sb + .sbz (веб-раздача)
   studybible module info <файл.sb>
   studybible module verse <файл.sb> <КОД> <глава:стих>
   studybible module check <файл.sb|.sbz>              — проверить модуль
@@ -152,13 +154,26 @@ fn build(args: &[String]) -> Result<(), String> {
                 marks.as_deref(),
                 m.get("fts").and_then(|x| x.as_bool()).unwrap_or(false),
             )?;
+            // По умолчанию результат — сжатый .sbz. Режимы ключа «sbz»
+            // в defs: false → только .sb (веб-раздача), "both" → .sb + .sbz,
+            // отсутствие/true → только .sbz (промежуточный .sb удаляется).
+            let target = match m.get("sbz") {
+                Some(serde_json::Value::Bool(false)) => file,
+                other => {
+                    let z = pack_file(&file, "zstd", None)?;
+                    if !matches!(other, Some(serde_json::Value::String(s)) if s == "both") {
+                        std::fs::remove_file(&file).map_err(|e| e.to_string())?;
+                    }
+                    z
+                }
+            };
             Ok(format!(
                 "{}: {} книг, {} глав, {} стихов → {}",
                 meta.id,
                 stats.books,
                 stats.chapters,
                 stats.verses,
-                file.display()
+                target.display()
             ))
         })();
         match step {
@@ -551,7 +566,9 @@ fn module_arg(args: &[String]) -> Result<PathBuf, String> {
 }
 
 fn info(args: &[String]) -> Result<(), String> {
-    let m = Module::open(&module_arg(args)?).map_err(|e| e.to_string())?;
+    let path = module_arg(args)?;
+    let opened = open_any(&path)?;
+    let m = &opened.module;
     let meta = m.meta();
     println!("id: {}", meta.id);
     println!("title: {}", meta.title);
@@ -634,24 +651,20 @@ fn check(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// `module pack`: `.sb` → `.sbz` (zstd по умолчанию, brotli по флагу).
-fn pack(args: &[String]) -> Result<(), String> {
-    let src = module_arg(args)?;
-    let codec = flag(args, "--codec").unwrap_or_else(|| "zstd".into());
-    let (id, name): (u8, &str) = match codec.as_str() {
+/// Упаковать `.sb` → `.sbz`. Возвращает путь к готовому файлу.
+fn pack_file(src: &Path, codec: &str, out: Option<PathBuf>) -> Result<PathBuf, String> {
+    let (id, name): (u8, &str) = match codec {
         "zstd" => (0, "zstd"),
         "brotli" => (1, "brotli"),
         other => return Err(format!("неизвестный кодек «{other}» (zstd|brotli)")),
     };
-    let out = flag(args, "--out")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| src.with_extension("sbz"));
-    let raw = std::fs::read(&src).map_err(|e| format!("{}: {e}", src.display()))?;
+    let out = out.unwrap_or_else(|| src.with_extension("sbz"));
+    let raw = std::fs::read(src).map_err(|e| format!("{}: {e}", src.display()))?;
     // Пакуем только валидный модуль — иначе ошибка всплывёт у получателя.
-    Module::open(&src).map_err(|e| format!("{}: {e}", src.display()))?;
-    let mut header = Vec::with_capacity(5);
-    header.extend_from_slice(studybible_store::sbz::MAGIC);
-    header.push(id);
+    Module::open(src).map_err(|e| format!("{}: {e}", src.display()))?;
+    let mut file = Vec::with_capacity(5);
+    file.extend_from_slice(studybible_store::sbz::MAGIC);
+    file.push(id);
     let body = match name {
         "zstd" => {
             zstd::stream::encode_all(std::io::Cursor::new(&raw), 19).map_err(|e| e.to_string())?
@@ -664,7 +677,6 @@ fn pack(args: &[String]) -> Result<(), String> {
             buf
         }
     };
-    let mut file = header;
     file.extend_from_slice(&body);
     std::fs::write(&out, &file).map_err(|e| format!("{}: {e}", out.display()))?;
     println!(
@@ -674,6 +686,15 @@ fn pack(args: &[String]) -> Result<(), String> {
         name,
         body.len() as f64 * 100.0 / raw.len().max(1) as f64
     );
+    Ok(out)
+}
+
+/// `module pack`: `.sb` → `.sbz` (zstd по умолчанию, brotli по флагу).
+fn pack(args: &[String]) -> Result<(), String> {
+    let src = module_arg(args)?;
+    let codec = flag(args, "--codec").unwrap_or_else(|| "zstd".into());
+    let out = flag(args, "--out").map(PathBuf::from);
+    pack_file(&src, &codec, out)?;
     Ok(())
 }
 
@@ -689,7 +710,8 @@ fn verse(args: &[String]) -> Result<(), String> {
         ch.parse().map_err(|_| "глава не число")?,
         v.parse().map_err(|_| "стих не число")?,
     );
-    let m = Module::open(&file).map_err(|e| e.to_string())?;
+    let opened = open_any(&file)?;
+    let m = &opened.module;
     let code = BookCode::new(book).ok_or_else(|| format!("код книги «{book}»"))?;
     match m.verse_text(code, ch, v).map_err(|e| e.to_string())? {
         Some(t) => {
@@ -730,7 +752,8 @@ fn read(args: &[String]) -> Result<(), String> {
     let pos = positional(args);
     let file = PathBuf::from(pos.first().ok_or("нужен файл модуля")?);
     let input = pos.get(1..).unwrap_or(&[]).join(" ");
-    let m = Module::open(&file).map_err(|e| e.to_string())?;
+    let opened = open_any(&file)?;
+    let m = &opened.module;
     let catalog = BookCatalog::builtin();
     let versif = Versification::builtin(m.meta().versification.as_str())
         .ok_or_else(|| format!("неизвестная версификация «{}»", m.meta().versification))?;
@@ -812,8 +835,9 @@ fn search(args: &[String]) -> Result<(), String> {
     let limit: usize = flag(args, "--limit")
         .and_then(|s| s.parse().ok())
         .unwrap_or(20);
-    let m = Module::open(&file).map_err(|e| e.to_string())?;
-    let idx = SearchIndex::open(&cache, &m).map_err(|e| e.to_string())?;
+    let opened = open_any(&file)?;
+    let m = &opened.module;
+    let idx = SearchIndex::open(&cache, m).map_err(|e| e.to_string())?;
     let prof = profile(m.meta());
     let catalog = BookCatalog::builtin();
     for hit in idx.search(&query, limit).map_err(|e| e.to_string())? {
@@ -932,7 +956,8 @@ fn say(args: &[String]) -> Result<(), String> {
     let pos = positional(args);
     let file = PathBuf::from(pos.first().ok_or("нужен файл модуля")?);
     let input = pos.get(1..).unwrap_or(&[]).join(" ");
-    let m = Module::open(&file).map_err(|e| e.to_string())?;
+    let opened = open_any(&file)?;
+    let m = &opened.module;
     let catalog = BookCatalog::builtin();
     let versif = Versification::builtin(m.meta().versification.as_str())
         .ok_or_else(|| format!("неизвестная версификация «{}»", m.meta().versification))?;
