@@ -73,8 +73,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 .push(fastRoute(SearchScreen(initialQuery: e.context))),
       );
     }
-    final book = kShortName[e.book] ?? e.book;
-    final module = kModules[e.module] ?? e.module;
+    final book = bookShort(e.book);
+    final module = moduleName(e.module);
     final verse = e.verse > 0 ? ':${e.verse}' : '';
     return ListTile(
       dense: true,

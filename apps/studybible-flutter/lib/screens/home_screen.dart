@@ -199,8 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             subtitle: Text(
               tr(
-                '${kShortName[book] ?? book}, глава $ch',
-                '${kShortName[book] ?? book}, chapter $ch',
+                '${bookShort(book)}, глава $ch',
+                '${bookShort(book)}, chapter $ch',
               ),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
@@ -267,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : today
                 .map(
                   (r) =>
-                      '${kShortName[r.book] ?? r.book} '
+                      '${bookShort(r.book)} '
                       '${r.from == r.to ? '${r.from}' : '${r.from}–${r.to}'}',
                 )
                 .join(' · ');
@@ -385,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     for (final e in items)
                       ActionChip(
                         label: Text(
-                          '${kShortName[e.book] ?? e.book} ${e.chapter}',
+                          '${bookShort(e.book)} ${e.chapter}',
                         ),
                         onPressed: () => _open(
                           e.book,

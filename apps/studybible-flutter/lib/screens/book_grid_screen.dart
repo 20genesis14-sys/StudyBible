@@ -64,8 +64,8 @@ class _BookGridScreenState extends State<BookGridScreen> {
     // Опция «полные имена книг» (ADR 0015): имя из модуля,
     // иначе краткое из каталога.
     String nameOf(String code) => settings.bookFullNames
-        ? (_module?.bookByCode(code)?.title ?? kShortName[code] ?? code)
-        : (kShortName[code] ?? code);
+        ? (_module?.bookByCode(code)?.title ?? bookShort(code))
+        : (bookShort(code));
     final otVisible = ot
         .where((e) => inModule(e.$1))
         .map((e) => (e.$1, nameOf(e.$1), e.$3))
@@ -192,7 +192,7 @@ class _BookGridScreenState extends State<BookGridScreen> {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 180),
                   child: Text(
-                    kModules[id] ?? id,
+                    moduleName(id),
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
@@ -281,7 +281,7 @@ class _BookGridScreenState extends State<BookGridScreen> {
               ),
               const SizedBox(width: 5),
               Text(
-                g.label,
+                tr(g.label, g.labelEn),
                 style: TextStyle(fontSize: 10, color: context.palette.muted),
               ),
             ],

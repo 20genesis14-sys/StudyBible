@@ -17,21 +17,22 @@ enum AppTheme { light, dark, amoled }
 
 /// Группы книг канона (цветовые акценты сетки).
 enum BookGroup {
-  torah('Пятикнижие'),
-  hist('Исторические'),
-  poet('Поэтические'),
-  majp('Большие пророки'),
-  minp('Малые пророки'),
-  gosp('Евангелия'),
-  acts('Деяния'),
-  paul('Послания Павла'),
-  cath('Соборные послания'),
-  rev('Откровение'),
+  torah('Пятикнижие', 'Pentateuch'),
+  hist('Исторические', 'Historical'),
+  poet('Поэтические', 'Poetic'),
+  majp('Большие пророки', 'Major Prophets'),
+  minp('Малые пророки', 'Minor Prophets'),
+  gosp('Евангелия', 'Gospels'),
+  acts('Деяния', 'Acts'),
+  paul('Послания Павла', 'Paul’s Epistles'),
+  cath('Соборные послания', 'General Epistles'),
+  rev('Откровение', 'Revelation'),
   // Книги модуля вне каталога 66 (второканонические и пр.).
-  other('Неканонические');
+  other('Неканонические', 'Deuterocanonical');
 
   final String label;
-  const BookGroup(this.label);
+  final String labelEn;
+  const BookGroup(this.label, this.labelEn);
 }
 
 /// Цвета групп: светлая тема — насыщенные (белый текст, контраст >= 4.5:1),

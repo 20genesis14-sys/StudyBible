@@ -135,7 +135,7 @@ extension _ReaderController on _ReadingScreenState {
     await Clipboard.setData(
       ClipboardData(
         text:
-            '${_refOf(v)}\n${_verseText(v)}\n(${kModules[_moduleId] ?? _moduleId})',
+            '${_refOf(v)}\n${_verseText(v)}\n(${moduleName(_moduleId)})',
       ),
     );
     if (mounted) {
@@ -456,7 +456,7 @@ extension _ReaderController on _ReadingScreenState {
   // ---------- навигация по главам/книгам ----------
 
   String _titleOf(String code) =>
-      _module?.bookByCode(code)?.title ?? kShortName[code] ?? code;
+      _module?.bookByCode(code)?.title ?? bookShort(code);
 
   /// Название книги для верхней панели: длинные имена режем до
   /// ~12 знаков с многоточием — иначе они выталкивают пилюлю

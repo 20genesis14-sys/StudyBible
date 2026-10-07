@@ -99,7 +99,7 @@ class _DictScreenState extends State<DictScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Scaffold(
-      appBar: AppBar(title: Text(kModules[widget.moduleId] ?? widget.moduleId)),
+      appBar: AppBar(title: Text(moduleName(widget.moduleId))),
       body: Column(
         children: [
           Padding(

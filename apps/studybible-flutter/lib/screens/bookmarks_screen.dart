@@ -81,7 +81,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       dense: true,
       leading: Icon(icon, size: 18, color: p.accent),
       title: Text(
-        '${kShortName[e.book] ?? e.book} ${e.chapter}:${e.verse} — ${kModules[e.module] ?? e.module}',
+        '${bookShort(e.book)} ${e.chapter}:${e.verse} — ${moduleName(e.module)}',
         style: TextStyle(color: p.ink, fontWeight: FontWeight.w600),
       ),
       subtitle: e.context.isEmpty
@@ -295,8 +295,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
           Text(
             [
               if (n.anchored)
-                '${kShortName[n.book] ?? n.book} ${n.chapter}:${n.verse}'
-                    ' — ${kModules[n.module] ?? n.module}',
+                '${bookShort(n.book)} ${n.chapter}:${n.verse}'
+                    ' — ${moduleName(n.module)}',
               '${n.created.day.toString().padLeft(2, '0')}.'
               '${n.created.month.toString().padLeft(2, '0')}.'
               '${n.created.year}',

@@ -43,8 +43,7 @@ class _ChapterGridScreenState extends State<ChapterGridScreen> {
     final color = groupColor(group, theme);
     final title =
         _module?.bookByCode(widget.bookCode)?.title ??
-        kShortName[widget.bookCode] ??
-        widget.bookCode;
+        bookShort(widget.bookCode);
     final n = _chapterCount;
 
     return Scaffold(
@@ -247,8 +246,8 @@ class _VersePicker extends StatelessWidget {
           children: [
             Text(
               tr(
-                '${kShortName[bookCode] ?? bookCode} $chapter — стих',
-                '${kShortName[bookCode] ?? bookCode} $chapter — verse',
+                '${bookShort(bookCode)} $chapter — стих',
+                '${bookShort(bookCode)} $chapter — verse',
               ),
               style: TextStyle(
                 fontWeight: FontWeight.w600,

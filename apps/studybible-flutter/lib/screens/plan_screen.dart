@@ -103,7 +103,7 @@ class _PlanScreenState extends State<PlanScreen> {
 
   /// Читаемая подпись отрывка: «Быт 1–3» / «Пс 22».
   String _readingTitle(PlanReading r) {
-    final name = kShortName[r.book] ?? r.book;
+    final name = bookShort(r.book);
     return r.from == r.to ? '$name ${r.from}' : '$name ${r.from}–${r.to}';
   }
 
@@ -365,7 +365,9 @@ class _PlanScreenState extends State<PlanScreen> {
   /// Полоска текущей недели: точки по дням плана (пн..вс).
   Widget _weekStrip(Palette p, ReadingPlan plan, int todayIdx) {
     final now = DateTime.now();
-    const labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    final labels = isEn
+        ? const ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+        : const ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
     const labelsEn = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
     final ru = tr('x', 'y') == 'x';
     return Row(
@@ -691,7 +693,7 @@ class _PlanScreenState extends State<PlanScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  g.key.label,
+                  tr(g.key.label, g.key.labelEn),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -716,7 +718,7 @@ class _PlanScreenState extends State<PlanScreen> {
     final total = _chapters[code] ?? 0;
     final read = progress.readCount(code);
     final pct = total == 0 ? 0.0 : read / total;
-    final title = kShortName[code] ?? code;
+    final title = bookShort(code);
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () =>

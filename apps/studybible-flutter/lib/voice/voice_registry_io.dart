@@ -7,6 +7,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import '../l10n.dart';
 import '../native_bridge_io.dart' show dataDir;
 import 'voice_pack.dart';
 
@@ -88,9 +89,14 @@ List<VoicePack> scanVoices([String? dir]) {
     final tokens = _find(dir, (n) => n == 'tokens.txt');
     final dataDir = _find(dir, (n) => n == 'espeak-ng-data');
     final issues = <String>[
-      if (piperBroken) 'битый ${model.split(Platform.pathSeparator).last}.json',
-      if (tokens == null) 'нет tokens.txt',
-      if (dataDir == null && !hasShared) 'нет espeak-ng-data',
+      if (piperBroken)
+        tr(
+          'битый ${model.split(Platform.pathSeparator).last}.json',
+          'broken ${model.split(Platform.pathSeparator).last}.json',
+        ),
+      if (tokens == null) tr('нет tokens.txt', 'no tokens.txt'),
+      if (dataDir == null && !hasShared)
+        tr('нет espeak-ng-data', 'no espeak-ng-data'),
     ];
     out.add(
       VoicePack(

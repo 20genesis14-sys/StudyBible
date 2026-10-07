@@ -101,7 +101,7 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
         rows.add(
           _Row(
             id,
-            kModules[id] ?? id,
+            moduleName(id),
             t,
             nav.book,
             nav.chapter,
@@ -112,7 +112,7 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
         rows.add(
           _Row(
             id,
-            kModules[id] ?? id,
+            moduleName(id),
             null,
             widget.bookCode,
             widget.chapter,
@@ -128,7 +128,7 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final ref = '${kShortName[widget.bookCode] ?? widget.bookCode} '
+    final ref = '${bookShort(widget.bookCode)} '
         '${widget.chapter}:${widget.verse}';
     return Scaffold(
       backgroundColor: p.background,

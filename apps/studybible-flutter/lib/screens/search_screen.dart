@@ -129,7 +129,7 @@ class _SearchScreenState extends State<SearchScreen> {
               itemCount: _hits.length,
               itemBuilder: (context, i) {
                 final h = _hits[i];
-                final book = kShortName[h.book] ?? h.book;
+                final book = bookShort(h.book);
                 return ListTile(
                   dense: true,
                   title: Text(

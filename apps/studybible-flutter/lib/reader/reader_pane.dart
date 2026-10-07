@@ -182,7 +182,7 @@ extension _ReaderPane on _ReadingScreenState {
   }
 
   String _shortModuleName(String id) {
-    final n = kModules[id] ?? id;
+    final n = moduleName(id);
     final i = n.indexOf(' (');
     final base = i > 0 ? n.substring(0, i) : n;
     return base.length > 22 ? '${base.substring(0, 22)}…' : base;
@@ -234,7 +234,7 @@ extension _ReaderPane on _ReadingScreenState {
         items: [
           for (final id in kModules.keys)
             if (id != _moduleId)
-              DropdownMenuItem(value: id, child: Text(kModules[id] ?? id)),
+              DropdownMenuItem(value: id, child: Text(moduleName(id))),
         ],
         onChanged: (v) {
           if (v == null) return;

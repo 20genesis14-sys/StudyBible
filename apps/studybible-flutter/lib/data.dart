@@ -9,6 +9,7 @@ import 'models.dart';
 // Мост к данным: на нативных платформах — Rust-ядро через ffi,
 // на web — sqlite3.wasm читает те же .sb из web/modules/,
 // фоллбэк — предвыгруженные JSON-ассеты.
+import 'l10n.dart';
 import 'native_bridge_stub.dart'
     if (dart.library.html) 'native_bridge_web.dart'
     if (dart.library.io) 'native_bridge_io.dart';
@@ -88,16 +89,43 @@ const List<(String, String, BookGroup)> kCatalog = [
 /// Код → короткое имя.
 final Map<String, String> kShortName = {for (final e in kCatalog) e.$1: e.$2};
 
+/// Код → короткое английское имя (для en-интерфейса).
+const Map<String, String> kShortNameEn = {
+  'GEN': 'Ge', 'EXO': 'Ex', 'LEV': 'Lev', 'NUM': 'Num', 'DEU': 'Deut',
+  'JOS': 'Josh', 'JDG': 'Judg', 'RUT': 'Ruth', '1SA': '1Sam', '2SA': '2Sam',
+  '1KI': '1Ki', '2KI': '2Ki', '1CH': '1Chr', '2CH': '2Chr', 'EZR': 'Ezra',
+  'NEH': 'Neh', 'EST': 'Esth', 'JOB': 'Job', 'PSA': 'Ps', 'PRO': 'Prov',
+  'ECC': 'Eccl', 'SNG': 'Song', 'ISA': 'Isa', 'JER': 'Jer', 'LAM': 'Lam',
+  'EZK': 'Ezek', 'DAN': 'Dan', 'HOS': 'Hos', 'JOL': 'Joel', 'AMO': 'Amos',
+  'OBA': 'Obad', 'JON': 'Jonah', 'MIC': 'Mic', 'NAM': 'Nah', 'HAB': 'Hab',
+  'ZEP': 'Zeph', 'HAG': 'Hag', 'ZEC': 'Zech', 'MAL': 'Mal', 'MAT': 'Mt',
+  'MRK': 'Mk', 'LUK': 'Lk', 'JHN': 'Jn', 'ACT': 'Acts', 'ROM': 'Rom',
+  '1CO': '1Cor', '2CO': '2Cor', 'GAL': 'Gal', 'EPH': 'Eph', 'PHP': 'Phil',
+  'COL': 'Col', '1TH': '1Thess', '2TH': '2Thess', '1TI': '1Tim',
+  '2TI': '2Tim', 'TIT': 'Titus', 'PHM': 'Phlm', 'HEB': 'Heb', 'JAS': 'Jas',
+  '1PE': '1Pet', '2PE': '2Pet', '1JN': '1Jn', '2JN': '2Jn', '3JN': '3Jn',
+  'JUD': 'Jude', 'REV': 'Rev',
+};
+
+/// Короткое имя книги по коду, по языку интерфейса.
+/// [fallback] — для книг вне каталога 66 (название из модуля).
+String bookShort(String code, [String? fallback]) => isEn
+    ? (kShortNameEn[code] ?? fallback ?? kShortName[code] ?? code)
+    : (kShortName[code] ?? fallback ?? code);
+
 /// Код → группа.
 final Map<String, BookGroup> kBookGroup = {
   for (final e in kCatalog) e.$1: e.$3,
 };
 
 /// Разделы сетки.
-const kSectionOt = 'ЕВРЕЙСКО-АРАМЕЙСКИЕ ПИСАНИЯ';
-const kSectionNt = 'ХРИСТИАНСКИЕ ГРЕЧЕСКИЕ ПИСАНИЯ';
+String get kSectionOt =>
+    tr('ЕВРЕЙСКО-АРАМЕЙСКИЕ ПИСАНИЯ', 'HEBREW-ARAMAIC SCRIPTURES');
+String get kSectionNt =>
+    tr('ХРИСТИАНСКИЕ ГРЕЧЕСКИЕ ПИСАНИЯ', 'CHRISTIAN GREEK SCRIPTURES');
 // Секция книг модуля вне каталога 66 (второканонические и пр.).
-const kSectionOther = 'НЕКАНОНИЧЕСКИЕ КНИГИ';
+String get kSectionOther =>
+    tr('НЕКАНОНИЧЕСКИЕ КНИГИ', 'DEUTEROCANONICAL BOOKS');
 const int kNtFirstIndex = 39; // 'MAT'
 
 /// Индекс книги в каноне (для переходов через границы книг).
@@ -121,6 +149,20 @@ final Map<String, String> kModules = {
   'ugnt': 'Греческий НЗ (UGNT)',
 };
 
+/// Имена модулей для en-интерфейса (id → имя; фоллбэк — kModules).
+const Map<String, String> kModulesEn = {
+  'russyn': 'Synodal Translation',
+  'ru_rob': 'Russian Open Bible',
+  'kjv2006': 'KJV 2006 (Strong’s)',
+  'oshb': 'Hebrew Bible (OSHB)',
+  'ugnt': 'Greek NT (UGNT)',
+};
+
+/// Имя модуля для UI по языку интерфейса; у модулей, найденных
+/// сканом, — их собственный title из kModules.
+String moduleName(String id) =>
+    isEn ? (kModulesEn[id] ?? kModules[id] ?? id) : (kModules[id] ?? id);
+
 /// Пометки модулей в списке: критические тексты и оригиналы
 /// выделяем отдельно от обычных переводов.
 const Map<String, String> kModuleTags = {
@@ -133,19 +175,30 @@ const Map<String, String> kModuleTags = {
   'int_en': 'подстрочник · глосса над WH-греческим',
 };
 
+const Map<String, String> kModuleTagsEn = {
+  'englsv': 'critical text · YHWH · Strong’s',
+  'engbsb': 'critical apparatus · Strong’s',
+  'oshb': 'original · Hebrew · Strong’s',
+  'ugnt': 'original · Greek · Strong’s',
+  'eng-kjv2006': 'Strong’s numbers',
+  'ru_rob': 'CC BY-SA 4.0',
+  'int_en': 'interlinear · gloss over WH Greek',
+};
+
 /// Метка модуля для списка (ADR 0016): сначала жёсткая таблица
 /// (знакомые модули), затем выводимая из kind/features уже
 /// загруженного документа. null — метки нет.
 String? moduleTag(String id) {
-  if (kModuleTags.containsKey(id)) return kModuleTags[id];
+  final tags = isEn ? kModuleTagsEn : kModuleTags;
+  if (tags.containsKey(id)) return tags[id];
   final doc = _cache[id];
   if (doc == null) return null;
   final parts = <String>[
-    if (doc.kind == 'interlinear') 'подстрочник',
-    if (doc.kind == 'commentary') 'комментарии',
-    if (doc.kind == 'dictionary') 'словарь',
-    if (doc.features.contains('strongs')) 'Стронг',
-    if (doc.features.contains('variants')) 'аппарат',
+    if (doc.kind == 'interlinear') tr('подстрочник', 'interlinear'),
+    if (doc.kind == 'commentary') tr('комментарии', 'commentary'),
+    if (doc.kind == 'dictionary') tr('словарь', 'dictionary'),
+    if (doc.features.contains('strongs')) tr('Стронг', 'Strong’s'),
+    if (doc.features.contains('variants')) tr('аппарат', 'apparatus'),
   ];
   return parts.isEmpty ? null : parts.join(' · ');
 }

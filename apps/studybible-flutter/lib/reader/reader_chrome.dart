@@ -876,7 +876,7 @@ extension _ReaderChrome on _ReadingScreenState {
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 3),
           child: Text(
-            kShortName[b.code] ?? b.title,
+            bookShort(b.code, b.title),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -1108,7 +1108,7 @@ extension _ReaderChrome on _ReadingScreenState {
     for (final e in verses.entries) {
       buf.writeln('${e.key} ${e.value}');
     }
-    buf.write('(${kModules[_moduleId] ?? _moduleId})');
+    buf.write('(${moduleName(_moduleId)})');
     await Clipboard.setData(ClipboardData(text: buf.toString()));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

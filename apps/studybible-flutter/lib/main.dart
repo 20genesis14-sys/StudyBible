@@ -34,7 +34,7 @@ class StudyBibleApp extends StatelessWidget {
       listenable: settings,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Учебная Библия',
+          title: tr('Учебная Библия', 'Study Bible'),
           debugShowCheckedModeBanner: false,
           theme: buildThemeData(settings.theme),
           // Плавная смена темы: все цвета перетекают за ~200 мс

@@ -6,6 +6,8 @@ library;
 
 import 'dart:io' show Platform;
 
+import 'l10n.dart';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -149,7 +151,7 @@ Future<void> initReadAloud() async {
     builder: () => _Handler(),
     config: AudioServiceConfig(
       androidNotificationChannelId: 'com.example.studybible.tts',
-      androidNotificationChannelName: 'Чтение вслух',
+      androidNotificationChannelName: tr('Чтение вслух', 'Read aloud'),
       // Ongoing нельзя вместе с stopForegroundOnPause=false
       // (assert в audio_service). Уведомление и так остаётся
       // на паузе — мы не снимаем foreground.

@@ -749,7 +749,8 @@ class _VoicesCardState extends State<_VoicesCard> {
               [
                 v.language,
                 v.id,
-                if (v.speakers > 1) '${v.speakers} дикт.',
+                if (v.speakers > 1)
+                  tr('${v.speakers} дикт.', '${v.speakers} voices'),
                 ...v.issues,
               ].join(' · '),
             ),
