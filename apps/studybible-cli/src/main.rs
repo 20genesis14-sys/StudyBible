@@ -731,6 +731,27 @@ fn lint(m: &Module) -> Vec<String> {
         out.push(format!("{dup_v} маркеров 'v' у стихов с текстом — лишние"));
     }
 
+    // Неубывание номеров стихов в главе — только bible/interlinear (С-4).
+    if matches!(meta.kind.as_str(), "" | "bible" | "interlinear") {
+        let bad: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM (
+                   SELECT verse, lag(verse) OVER (
+                     PARTITION BY book_id, chapter
+                     ORDER BY book_id, chapter, block, seq) prev
+                   FROM spans WHERE verse IS NOT NULL AND verse > 0
+                 ) WHERE verse < prev",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        if bad > 0 {
+            out.push(format!(
+                "{bad} спанов со стихом ниже предыдущего — неубывание нарушено"
+            ));
+        }
+    }
+
     // bible/commentary без стихов — возможно, собрано не то.
     let verses = count("verses");
     if verses == 0 && matches!(meta.kind.as_str(), "" | "bible" | "interlinear") {
