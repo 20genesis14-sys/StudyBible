@@ -59,7 +59,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1      
 
 - Весь проект на диске `D:`: репозиторий `D:\StudyBible`, данные `D:\StudyBible-data`,
   инструменты `D:\StudyBible-tools`.
-- Windows; Rust 1.98.1 (cargo, rustup установлены).
+- Windows; Rust 1.99.0 (cargo, rustup установлены).
 - Flutter SDK 3.47.6 — `D:\StudyBible-tools\flutter` (в PATH нет, вызывать
   `D:\StudyBible-tools\flutter\bin\flutter`); Android SDK — `D:\StudyBible-tools\android-sdk`.
 - Python — `C:\Users\Ольга\AppData\Local\Programs\Python\Python311\python.exe`
