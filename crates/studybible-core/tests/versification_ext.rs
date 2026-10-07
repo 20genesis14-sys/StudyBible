@@ -68,6 +68,38 @@ fn mappings() {
 }
 
 #[test]
+fn vul_dag_mappings_fixed() {
+    // Вопрос 10: опечатки апстрима vul.vrs исправлены локально
+    // (строки помечены «# исправлено StudyBible»).
+    let vul = Versification::builtin("vul").unwrap();
+    let org = Versification::builtin("org").unwrap();
+    // Исправленные соответствия разобраны — в skipped их нет.
+    assert!(
+        !vul.skipped()
+            .iter()
+            .any(|s| s.contains("DAG 3:52") || s.contains("DAG 13") || s.contains("DAG 14"))
+    );
+    // DAG 3:52-53 → S3Y 1:30-31 (Песнь трёх отроков); стих 52
+    // входит и в предыдущий диапазон 3:24-52 → S3Y 1:1-29.
+    assert_eq!(
+        vul.to_org(k("DAG", 3, 52)),
+        vec![k("S3Y", 1, 29), k("S3Y", 1, 30)]
+    );
+    assert_eq!(vul.to_org(k("DAG", 3, 53)), vec![k("S3Y", 1, 31)]);
+    // DAG 13 ↔ SUS 1 — постиховое соответствие 1:1-63.
+    assert_eq!(vul.to_org(k("DAG", 13, 63)), vec![k("SUS", 1, 63)]);
+    // DAN 13 — латинское имя Сусанны, у vul тоже отображается в SUS.
+    assert_eq!(
+        vul.from_org(k("SUS", 1, 63)),
+        vec![k("DAN", 13, 63), k("DAG", 13, 63)]
+    );
+    // DAG 14 ↔ BEL 1 — 1:1-42.
+    assert_eq!(vul.to_org(k("DAG", 14, 42)), vec![k("BEL", 1, 42)]);
+    // Сквозная конверсия vul → org не теряет стихи Даниила-греческого.
+    assert_eq!(vul.convert(org, k("DAG", 13, 63)), vec![k("SUS", 1, 63)]);
+}
+
+#[test]
 fn parse_bad_vrs() {
     // Неверные строки в определении — ошибка, а не паника.
     assert!(Versification::parse("x", "NOTACODE 1:31").is_err());
