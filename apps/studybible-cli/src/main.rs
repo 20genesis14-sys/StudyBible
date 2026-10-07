@@ -287,6 +287,19 @@ fn build_module(
         let w = ModuleWriter::create(&tmp, meta).map_err(|e| e.to_string())?;
         let mut ord = 0u32;
         for f in files.iter() {
+            // MyBible-словарь — только *.dictionary.SQLite3: лежащие рядом
+            // Библия и комментарии (*.SQLite3, *.commentaries.SQLite3) —
+            // чужие роли, не вход входа словаря.
+            if format == "mybible"
+                && !f
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_lowercase()
+                    .contains(".dictionary.")
+            {
+                continue;
+            }
             let list = if format == "mybible" {
                 mybible::parse_dictionary_file(f)
                     .map_err(|e| format!("{}: {}", f.display(), e.0))?
