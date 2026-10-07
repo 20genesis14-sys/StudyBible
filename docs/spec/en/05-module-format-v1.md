@@ -1,11 +1,16 @@
 # 05. Module format v1
 
-Status: implemented in `crates/studybible-store` (MVP 2). This is the
-normative English edition of `docs/spec/05-module-format-v1.md`;
-the Russian text is authoritative.
+Status: implemented in `crates/studybible-store` (MVP 2).
+**Pre-freeze** (decision 2026-10-12): schema and semantics are
+considered final, but the formal freeze is postponed until real-user
+feedback; until the freeze, changes to existing fields are still
+allowed with modules rebuilt.
+This is the normative English edition of
+`docs/spec/05-module-format-v1.md`; the Russian text is authoritative.
 Decisions — ADR 0003 (untrusted SQLite, FTS in cache), ADR 0007
-(reading stream). Strictness policy and semantics frozen 2026-10-12 —
-see "Semantics" below.
+(reading stream). Strictness policy and semantics fixed 2026-10-12 —
+see "Semantics" below. Format v2 is a separate format, not an
+evolution of v1 (ADR 0018): freezing v1 does not constrain v2 design.
 
 ## File
 
