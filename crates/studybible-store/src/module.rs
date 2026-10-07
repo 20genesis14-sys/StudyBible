@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OpenFlags, params};
 use sha2::Digest as _;
@@ -651,6 +651,36 @@ pub struct Variant {
 impl Module {
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        Self::finish(conn, path.to_path_buf())
+    }
+
+    /// Открыть модуль из байтов в памяти (`sqlite3_deserialize`, read-only).
+    /// Нужен для `.sbz`: сжатый файл распаковывается в ОЗУ, распакованной
+    /// копии на диске нет. `path` — логический путь источника (для отображения).
+    pub fn open_bytes(path: &Path, bytes: &[u8]) -> Result<Self> {
+        let mut conn = Connection::open_in_memory()?;
+        let sz = bytes.len();
+        // SAFETY: sqlite3_malloc выделяет буфер размером sz; копируем в него
+        // байты модуля и передаём владение в OwnedData — с флагом
+        // FREEONCLOSE SQLite освободит буфер через sqlite3_free при
+        // закрытии соединения. Указатели не пересекаются (новый буфер).
+        let data = unsafe {
+            let ptr = rusqlite::ffi::sqlite3_malloc(sz.try_into().unwrap_or(i32::MAX));
+            if ptr.is_null() {
+                return Err(ModuleError::BadFormat("deserialize: нет памяти".into()));
+            }
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr.cast::<u8>(), sz);
+            rusqlite::serialize::OwnedData::from_raw_nonnull(
+                std::ptr::NonNull::new_unchecked(ptr.cast::<u8>()),
+                sz,
+            )
+        };
+        conn.deserialize(rusqlite::MAIN_DB, data, true)?;
+        Self::finish(conn, path.to_path_buf())
+    }
+
+    /// Общий хвост `open`/`open_bytes`: защитные pragma, проверка схемы, meta.
+    fn finish(conn: Connection, path: PathBuf) -> Result<Self> {
         conn.execute_batch("PRAGMA query_only=ON; PRAGMA trusted_schema=OFF")?;
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DQS_DML, false)?;
@@ -712,7 +742,7 @@ impl Module {
             |r| r.get::<_, i64>(0),
         )? > 0;
         Ok(Self {
-            path: path.to_path_buf(),
+            path,
             has_tokens: has("tokens")?,
             has_alignment: has("alignment")?,
             has_variants: has("variants")?,

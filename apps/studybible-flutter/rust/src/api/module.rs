@@ -24,29 +24,17 @@ pub struct ModuleInfo {
     pub path: String,
 }
 
-/// Открыть модуль `.sb` или `.sbz` (ADR 0016): сжатый файл один раз
-/// распаковывается в кэш `<имя>.unpacked.sb` рядом и дальше читается
-/// как обычная база. Кэш пересоздаётся, если источник новее.
+/// Открыть модуль `.sb` или `.sbz` (ADR 0016/0018): `.sb` читается файлом;
+/// `.sbz` распаковывается в память и открывается `sqlite3_deserialize` —
+/// распакованной копии на диске нет.
 fn open_any(path: &Path) -> Result<Module> {
     let bytes = std::fs::read(path).with_context(|| format!("не читается {}", path.display()))?;
     if !studybible_store::sbz::is_sbz(&bytes) {
         return Ok(Module::open(path)?);
     }
-    let cache = Path::new(&format!("{}.unpacked.sb", path.display())).to_path_buf();
-    let fresh = std::fs::metadata(&cache)
-        .and_then(|c| std::fs::metadata(path).map(|s| (c, s)))
-        .map(|(c, s)| {
-            c.modified().unwrap_or(std::time::UNIX_EPOCH)
-                >= s.modified().unwrap_or(std::time::UNIX_EPOCH)
-        })
-        .unwrap_or(false);
-    if !fresh {
-        let raw = studybible_store::sbz::unpack(&bytes)
-            .with_context(|| format!("{}: распаковка .sbz", path.display()))?;
-        std::fs::write(&cache, &raw)
-            .with_context(|| format!("не пишется кэш {}", cache.display()))?;
-    }
-    Ok(Module::open(&cache)?)
+    let raw = studybible_store::sbz::unpack(&bytes)
+        .with_context(|| format!("{}: распаковка .sbz", path.display()))?;
+    Ok(Module::open_bytes(path, &raw)?)
 }
 
 /// Сканировать каталог и вернуть модули .sb/.sbz, которые открываются.
@@ -57,9 +45,14 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
     for e in entries.flatten() {
         let path = e.path();
         let ext = path.extension().and_then(|s| s.to_str());
-        // Кэш распаковки (`*.sbz.unpacked.sb`) в список не берём.
+        // Устаревший кэш распаковки (`.sbz` теперь читается из памяти) —
+        // подчищаем и в список не берём.
         let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-        if !matches!(ext, Some("sb") | Some("sbz")) || name.ends_with(".unpacked.sb") {
+        if name.ends_with(".unpacked.sb") {
+            let _ = std::fs::remove_file(&path);
+            continue;
+        }
+        if !matches!(ext, Some("sb") | Some("sbz")) {
             continue;
         }
         if let Ok(m) = open_any(&path) {

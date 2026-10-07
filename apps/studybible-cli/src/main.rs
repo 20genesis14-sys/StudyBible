@@ -585,11 +585,10 @@ fn info(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// Открыть `.sb` или `.sbz` (распаковка во временный файл; удаляется
-/// вместе с обёрткой — соединение SQLite держит файл открытым).
+/// Открыть `.sb` или `.sbz`: сжатый модуль распаковывается в память и
+/// открывается `sqlite3_deserialize` — без файла на диске.
 struct Opened {
     module: Module,
-    tmp: Option<PathBuf>,
 }
 
 fn open_any(path: &Path) -> Result<Opened, String> {
@@ -597,36 +596,13 @@ fn open_any(path: &Path) -> Result<Opened, String> {
     if studybible_store::sbz::is_sbz(&bytes) {
         let raw = studybible_store::sbz::unpack(&bytes)
             .map_err(|e| format!("{}: {e}", path.display()))?;
-        let tmp = std::env::temp_dir().join(format!(
-            "sb-{}-{}.sb",
-            path.file_stem().unwrap_or_default().to_string_lossy(),
-            std::process::id()
-        ));
-        std::fs::write(&tmp, &raw).map_err(|e| format!("{}: {e}", tmp.display()))?;
-        let module = Module::open(&tmp).map_err(|e| e.to_string());
-        return match module {
-            Ok(m) => Ok(Opened {
-                module: m,
-                tmp: Some(tmp),
-            }),
-            Err(e) => {
-                let _ = std::fs::remove_file(&tmp);
-                Err(e)
-            }
-        };
+        return Module::open_bytes(path, &raw)
+            .map(|module| Opened { module })
+            .map_err(|e| e.to_string());
     }
     Ok(Opened {
         module: Module::open(path).map_err(|e| e.to_string())?,
-        tmp: None,
     })
-}
-
-impl Drop for Opened {
-    fn drop(&mut self) {
-        if let Some(p) = self.tmp.take() {
-            let _ = std::fs::remove_file(p);
-        }
-    }
 }
 
 /// `module check`: полная валидация (Module::open проверяет сигнатуру,
