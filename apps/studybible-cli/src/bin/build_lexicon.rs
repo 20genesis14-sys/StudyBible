@@ -26,10 +26,10 @@ fn is_word_char(c: char) -> bool {
     c == '\u{0301}' || ('\u{0400}'..='\u{04FF}').contains(&c)
 }
 
-/// Словоформы модуля: строчные кириллические слова из текстовых
-/// спанов всех глав, U+0301 снимается.
+/// Словоформы модуля: строчные кириллические слова из канонического
+/// текста стихов (`verses.text`), U+0301 снимается.
 fn module_words(m: &Module, out: &mut HashSet<String>) -> rusqlite::Result<()> {
-    let mut st = m.conn().prepare("SELECT text FROM spans WHERE kind='t'")?;
+    let mut st = m.conn().prepare("SELECT text FROM verses")?;
     let rows = st.query_map([], |r| r.get::<_, String>(0))?;
     let mut w = String::new();
     for r in rows {

@@ -18,6 +18,7 @@ studybible-core.workspace = true
 
 [dev-dependencies]
 tempfile = "3"
+studybible-store.workspace = true
 
 [lints]
 workspace = true

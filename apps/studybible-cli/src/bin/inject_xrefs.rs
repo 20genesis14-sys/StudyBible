@@ -144,56 +144,71 @@ fn main() -> Result<(), String> {
     // Модуль открыт read-only — пишем отдельным соединением.
     let mut conn = Connection::open(path).map_err(|e| format!("{e}"))?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
+    // Код → book_id (схема 1.1: в spans числовой book_id, а не код).
+    let book_ids: HashMap<String, i64> = {
+        let mut st = tx
+            .prepare("SELECT code, book_id FROM books")
+            .map_err(|e| e.to_string())?;
+        st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(|e| e.to_string())?
+    };
     let mut n_ins = 0u64;
     for ((book, ch, v), txt) in &xref {
-        // Блок стиха и граница вставки — перед следующим 'v' в блоке
-        // или в конец блока.
-        let block: Option<i64> = tx
-            .query_row(
-                "SELECT block FROM spans WHERE book=?1 AND chapter=?2 AND kind='v' AND num=?3",
-                rusqlite::params![book.as_str(), ch, v],
-                |r| r.get(0),
-            )
-            .ok();
-        let Some(block) = block else { continue };
-        let vseq: i64 = tx
-            .query_row(
-                "SELECT seq FROM spans WHERE book=?1 AND chapter=?2 AND block=?3 AND kind='v' AND num=?4",
-                rusqlite::params![book.as_str(), ch, block, v],
-                |r| r.get(0),
-            )
-            .map_err(|e| e.to_string())?;
+        let Some(&bid) = book_ids.get(book.as_str()) else {
+            continue;
+        };
+        // Первый спан стиха: у непустых стихов спаны несут verse=?, у
+        // пустых — единственная строка kind='v' с num=? (verse NULL).
+        let (block, vseq): (i64, i64) = match tx.query_row(
+            "SELECT block, seq FROM spans
+             WHERE book_id=?1 AND chapter=?2
+               AND (verse=?3 OR (kind='v' AND num=?3))
+             ORDER BY block, seq LIMIT 1",
+            rusqlite::params![bid, ch, v],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ) {
+            Ok(x) => x,
+            Err(_) => continue,
+        };
+        // Граница вставки — перед первым спаном следующего стиха в этом
+        // же блоке или в конец блока.
         let next_vseq: Option<i64> = tx
             .query_row(
-                "SELECT MIN(seq) FROM spans WHERE book=?1 AND chapter=?2 AND block=?3 AND kind='v' AND seq>?4",
-                rusqlite::params![book.as_str(), ch, block, vseq],
+                "SELECT MIN(seq) FROM spans
+                 WHERE book_id=?1 AND chapter=?2 AND block=?3 AND seq>?4
+                   AND (verse>?5 OR (kind='v' AND num>?5))",
+                rusqlite::params![bid, ch, block, vseq, v],
                 |r| r.get(0),
             )
             .map_err(|e| e.to_string())?;
         let at: i64 = next_vseq.unwrap_or_else(|| {
             tx.query_row(
-                "SELECT MAX(seq)+1 FROM spans WHERE book=?1 AND chapter=?2 AND block=?3",
-                rusqlite::params![book.as_str(), ch, block],
+                "SELECT MAX(seq)+1 FROM spans WHERE book_id=?1 AND chapter=?2 AND block=?3",
+                rusqlite::params![bid, ch, block],
                 |r| r.get(0),
             )
             .unwrap_or(vseq + 1)
         });
         // Сдвиг seq двумя фазами: PK-конфликт, если трогать +1 напрямую.
         tx.execute(
-            "UPDATE spans SET seq=seq+1000000 WHERE book=?1 AND chapter=?2 AND block=?3 AND seq>=?4",
-            rusqlite::params![book.as_str(), ch, block, at],
+            "UPDATE spans SET seq=seq+1000000 WHERE book_id=?1 AND chapter=?2 AND block=?3 AND seq>=?4",
+            rusqlite::params![bid, ch, block, at],
         )
         .and_then(|_| {
             tx.execute(
-                "UPDATE spans SET seq=seq-999999 WHERE book=?1 AND chapter=?2 AND block=?3 AND seq>=?4+1000000",
-                rusqlite::params![book.as_str(), ch, block, at],
+                "UPDATE spans SET seq=seq-999999 WHERE book_id=?1 AND chapter=?2 AND block=?3 AND seq>=?4+1000000",
+                rusqlite::params![bid, ch, block, at],
             )
         })
         .map_err(|e| e.to_string())?;
+        // verse=NULL: позиция задаётся seq, иначе после v-маркера пустого
+        // стиха читатель синтезировал бы второй маркер того же стиха.
         tx.execute(
-            "INSERT INTO spans (book,chapter,block,seq,kind,num,style,attrs,caller,text) \
-             VALUES (?1,?2,?3,?4,'x',NULL,'','','+',?5)",
-            rusqlite::params![book.as_str(), ch, block, at, txt],
+            "INSERT INTO spans (book_id,chapter,block,seq,kind,num,verse,start,len,style,attrs,caller,text) \
+             VALUES (?1,?2,?3,?4,'x',NULL,NULL,NULL,NULL,'','','+',?5)",
+            rusqlite::params![bid, ch, block, at, txt],
         )
         .map_err(|e| e.to_string())?;
         n_ins += 1;

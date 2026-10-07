@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let mut st = m
             .conn()
-            .prepare("SELECT book, MAX(chapter) FROM verses GROUP BY book")?;
+            .prepare("SELECT b.code, MAX(v.chapter) FROM verses v JOIN books b ON b.book_id=v.book_id GROUP BY v.book_id")?;
         let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
         for r in rows {
             let (b, c) = r?;
@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let mut st = m
             .conn()
-            .prepare("SELECT book, chapter, MAX(verse) FROM verses GROUP BY book, chapter")?;
+            .prepare("SELECT b.code, v.chapter, MAX(v.verse) FROM verses v JOIN books b ON b.book_id=v.book_id GROUP BY v.book_id, v.chapter")?;
         let rows = st.query_map([], |r| {
             Ok((
                 r.get::<_, String>(0)?,

@@ -57,7 +57,7 @@ fn orphan_verses(m: &Module) -> i64 {
     m.conn()
         .query_row(
             "SELECT count(*) FROM spans s \
-             JOIN blocks b ON b.book=s.book AND b.chapter=s.chapter AND b.seq=s.block \
+             JOIN blocks b ON b.book_id=s.book_id AND b.chapter=s.chapter AND b.seq=s.block \
              WHERE s.kind='v' AND b.marker IN \
              ('s','s1','s2','s3','ms','ms1','ms2','mr','r','sr','sp','cl','qa','sd',\
               'is','is1','is2','iis','imt','imt1','imte','mt','mt1','mt2','mt3','ih')",

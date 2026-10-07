@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, OpenFlags, params};
 use sha2::Digest as _;
 use studybible_core::BookCode;
-use studybible_core::text::{Block, Chapter, Span};
+use studybible_core::text::{Block, BlockKind, Chapter, Span};
 
 /// `SBM1` — подпись файла модуля в `PRAGMA application_id`.
 pub const APP_ID: i64 = 0x5342_4D31;
@@ -203,35 +203,40 @@ impl Meta {
 
 const SCHEMA: &str = "
 CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE books(code TEXT PRIMARY KEY, ord INTEGER NOT NULL, title TEXT NOT NULL DEFAULT '');
-CREATE TABLE book_headers(book TEXT NOT NULL, marker TEXT NOT NULL, text TEXT NOT NULL,
-                          PRIMARY KEY(book, marker));
-CREATE TABLE blocks(book TEXT NOT NULL, chapter INTEGER NOT NULL, seq INTEGER NOT NULL,
-                    marker TEXT NOT NULL DEFAULT '', PRIMARY KEY(book, chapter, seq));
-CREATE TABLE spans(book TEXT NOT NULL, chapter INTEGER NOT NULL, block INTEGER NOT NULL,
+CREATE TABLE books(book_id INTEGER PRIMARY KEY, code TEXT UNIQUE NOT NULL,
+                   ord INTEGER NOT NULL, title TEXT NOT NULL DEFAULT '');
+CREATE TABLE book_headers(book_id INTEGER NOT NULL, marker TEXT NOT NULL, text TEXT NOT NULL,
+                          PRIMARY KEY(book_id, marker));
+CREATE TABLE blocks(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, seq INTEGER NOT NULL,
+                    marker TEXT NOT NULL DEFAULT '', PRIMARY KEY(book_id, chapter, seq));
+-- t: text='', текст — срез verses.text по (verse,start,len);
+-- заголовочные спаны: verse IS NULL, текст в text;
+-- f/x: привязка (verse,start), тело в text; v — только пустые стихи.
+CREATE TABLE spans(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, block INTEGER NOT NULL,
                    seq INTEGER NOT NULL, kind TEXT NOT NULL, num INTEGER,
+                   verse INTEGER, start INTEGER, len INTEGER,
                    style TEXT NOT NULL DEFAULT '', attrs TEXT NOT NULL DEFAULT '',
                    caller TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',
-                   PRIMARY KEY(book, chapter, block, seq));
-CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
-                    text TEXT NOT NULL, PRIMARY KEY(book, chapter, verse));
+                   PRIMARY KEY(book_id, chapter, block, seq));
+CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                    text TEXT NOT NULL, PRIMARY KEY(book_id, chapter, verse));
 -- ADR 0016 (необязательная): слова уровня токена. У простого модуля
 -- таблица остаётся пустой; у старых .sb может отсутствовать вовсе.
-CREATE TABLE tokens(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+CREATE TABLE tokens(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
                     seq INTEGER NOT NULL, surface TEXT NOT NULL DEFAULT '',
                     lemma TEXT NOT NULL DEFAULT '', strong TEXT NOT NULL DEFAULT '',
                     morph TEXT NOT NULL DEFAULT '', gloss TEXT NOT NULL DEFAULT '',
-                    PRIMARY KEY(book, chapter, verse, seq));
+                    PRIMARY KEY(book_id, chapter, verse, seq));
 -- ADR 0016 (необязательная): токен → его спан в потоке чтения
 -- (block = blocks.seq, span = spans.seq). Позиция слова в тексте.
-CREATE TABLE alignment(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+CREATE TABLE alignment(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
                        token_seq INTEGER NOT NULL, block INTEGER NOT NULL, span INTEGER NOT NULL,
-                       PRIMARY KEY(book, chapter, verse, token_seq));
+                       PRIMARY KEY(book_id, chapter, verse, token_seq));
 -- ADR 0016 (необязательные): критический аппарат. Вариант — место
 -- (стих + диапазон токенов); у каждого варианта — чтения, у чтения —
 -- свидетели (рукописи/версии по сиглам).
 CREATE TABLE variants(id INTEGER PRIMARY KEY,
-                      book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                      book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
                       token_from INTEGER NOT NULL, token_to INTEGER NOT NULL);
 CREATE TABLE readings(id INTEGER PRIMARY KEY, variant_id INTEGER NOT NULL,
                       seq INTEGER NOT NULL, text TEXT NOT NULL DEFAULT '',
@@ -246,10 +251,10 @@ CREATE INDEX entries_norm ON entries(norm);
 -- ADR 0016 (необязательная): метки времени — синхронизация аудио и
 -- пословная подсветка TTS. offset_ms — от начала аудиодорожки главы;
 -- dur_ms NULL = до следующей метки; text — слово для подсветки.
-CREATE TABLE marks(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+CREATE TABLE marks(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
                    seq INTEGER NOT NULL, offset_ms INTEGER NOT NULL,
                    dur_ms INTEGER, text TEXT NOT NULL DEFAULT '',
-                   PRIMARY KEY(book, chapter, verse, seq));
+                   PRIMARY KEY(book_id, chapter, verse, seq));
 ";
 
 /// Слово уровня токена (таблица `tokens`, ADR 0016).
@@ -323,6 +328,8 @@ pub struct ModuleWriter {
     conn: Connection,
     hash: sha2::Sha256,
     tokens: usize,
+    /// Код книги → book_id (заполняется в `add_book`).
+    book_ids: std::collections::HashMap<BookCode, i64>,
 }
 
 impl ModuleWriter {
@@ -333,6 +340,7 @@ impl ModuleWriter {
             conn,
             hash: crate::hash::new(),
             tokens: 0,
+            book_ids: std::collections::HashMap::new(),
         };
         w.conn.execute_batch("BEGIN")?;
         {
@@ -345,34 +353,241 @@ impl ModuleWriter {
     }
 
     pub fn add_book(
-        &self,
+        &mut self,
         code: BookCode,
         order: u16,
         title: &str,
         header: &BTreeMap<String, String>,
     ) -> Result<()> {
+        let book_id = i64::from(order);
         self.conn.execute(
-            "INSERT INTO books VALUES(?1, ?2, ?3)",
-            params![code.as_str(), order, title],
+            "INSERT INTO books VALUES(?1, ?2, ?3, ?4)",
+            params![book_id, code.as_str(), order, title],
         )?;
+        self.book_ids.insert(code, book_id);
         let mut st = self
             .conn
             .prepare_cached("INSERT INTO book_headers VALUES(?1, ?2, ?3)")?;
         for (marker, text) in header {
             if marker != "id" {
-                st.execute(params![code.as_str(), marker, text])?;
+                st.execute(params![book_id, marker, text])?;
             }
         }
         Ok(())
     }
 
+    /// Промежуточная строка спана до записи (см. SCHEMA: book_id, verse, start, len).
+    #[allow(clippy::too_many_arguments)]
+    fn span_row<'a>(
+        book_id: i64,
+        ch: u16,
+        block: usize,
+        seq: usize,
+        kind: &'a str,
+        num: Option<u16>,
+        verse: Option<u16>,
+        start: Option<usize>,
+        len: Option<usize>,
+        style: &'a str,
+        attrs: &'a str,
+        caller: &'a str,
+        text: &'a str,
+    ) -> impl rusqlite::Params + 'a {
+        (
+            book_id,
+            ch,
+            block as i64,
+            seq as i64,
+            kind,
+            num,
+            verse,
+            start.map(|x| x as i64),
+            len.map(|x| x as i64),
+            style,
+            attrs,
+            caller,
+            text,
+        )
+    }
+
     pub fn add_chapter(&mut self, book: BookCode, ch: &Chapter) -> Result<()> {
+        let book_id = *self
+            .book_ids
+            .get(&book)
+            .ok_or_else(|| ModuleError::BadFormat(format!("книга {book} без add_book")))?;
+        // Первый проход — в памяти: сырой текст стиха (для срезов) и
+        // строки спанов; пустые стихи получают маркер 'v' постфактум.
+        struct Row {
+            block: usize,
+            i: usize,
+            kind: String,
+            num: Option<u16>,
+            verse: Option<u16>,
+            start: Option<usize>,
+            len: Option<usize>,
+            style: String,
+            attrs: String,
+            caller: String,
+            text: String,
+        }
+        let mut rows: Vec<Row> = Vec::new();
+        let mut vbuf: BTreeMap<u16, String> = BTreeMap::new();
+        let mut has_t: std::collections::HashSet<u16> = std::collections::HashSet::new();
+        let mut vmarks: Vec<(usize, usize, u16)> = Vec::new();
+        let mut cur: Option<u16> = None;
+        let mut toks: Vec<(Token, usize, usize)> = Vec::new();
+        let mut tok_seq: u16 = 0;
+        for (seq, b) in ch.blocks.iter().enumerate() {
+            let kind = b.kind();
+            let heading = kind == BlockKind::Heading;
+            if kind == BlockKind::Superscription && cur.is_none() {
+                cur = Some(0);
+                vbuf.entry(0).or_default();
+            }
+            for (i, s) in b.spans.iter().enumerate() {
+                match s {
+                    // Маркер внутри заголовка — строка 'v' сохраняется
+                    // (раньше так и было), но cur/текст не трогает:
+                    // verse_texts() пропускает заголовки целиком.
+                    Span::Verse(n) if heading => rows.push(Row {
+                        block: seq,
+                        i,
+                        kind: "v".into(),
+                        num: Some(*n),
+                        verse: None,
+                        start: None,
+                        len: None,
+                        style: String::new(),
+                        attrs: String::new(),
+                        caller: String::new(),
+                        text: String::new(),
+                    }),
+                    Span::Verse(n) => {
+                        cur = Some(*n);
+                        vbuf.entry(*n).or_default();
+                        vmarks.push((seq, i, *n));
+                        tok_seq = 0;
+                    }
+                    Span::Text { text, style, attrs } => {
+                        if heading || cur.is_none() {
+                            // Заголовочный/вводный текст — собственный,
+                            // без привязки к стиху.
+                            rows.push(Row {
+                                block: seq,
+                                i,
+                                kind: "t".into(),
+                                num: None,
+                                verse: None,
+                                start: None,
+                                len: None,
+                                style: style.clone(),
+                                attrs: attrs.clone(),
+                                caller: String::new(),
+                                text: text.clone(),
+                            });
+                        } else if let Some(v) = cur {
+                            // Канонический текст = отображаемый: разделитель
+                            // морфем '/' в w-спанах (источники вроде OSHB)
+                            // убираем при записи — до этого его резал
+                            // рендерер, и в verses.text он не попадал.
+                            // Спаны с '<' (остатки тегов источника) не трогаем:
+                            // там '/' — часть разметки (</S>).
+                            let clean;
+                            let text = if style == "w" && text.contains('/') && !text.contains('<')
+                            {
+                                clean = text.replace('/', "");
+                                clean.as_str()
+                            } else {
+                                text.as_str()
+                            };
+                            let buf = vbuf.get_mut(&v).unwrap();
+                            if !buf.is_empty()
+                                && !buf.ends_with(' ')
+                                && !text.starts_with([' ', ',', '.', ';', ':', '!', '?'])
+                            {
+                                buf.push(' ');
+                            }
+                            let start = buf.len();
+                            buf.push_str(text);
+                            has_t.insert(v);
+                            rows.push(Row {
+                                block: seq,
+                                i,
+                                kind: "t".into(),
+                                num: None,
+                                verse: Some(v),
+                                start: Some(start),
+                                len: Some(text.len()),
+                                style: style.clone(),
+                                attrs: attrs.clone(),
+                                caller: String::new(),
+                                text: String::new(),
+                            });
+                            if let Some(t) = token_of(v, tok_seq, text, style, attrs) {
+                                toks.push((t, seq, i));
+                                tok_seq += 1;
+                            }
+                        }
+                    }
+                    Span::Note {
+                        kind,
+                        caller,
+                        text,
+                        attrs,
+                    } => rows.push(Row {
+                        block: seq,
+                        i,
+                        kind: kind.to_string(),
+                        num: None,
+                        // В заголовке привязки к стиху нет — иначе
+                        // читатель синтезирует лишний маркер.
+                        verse: if heading { None } else { cur },
+                        start: if heading {
+                            None
+                        } else {
+                            cur.map(|v| vbuf.get(&v).map_or(0, |b| b.len()))
+                        },
+                        len: None,
+                        style: String::new(),
+                        attrs: attrs.clone(),
+                        caller: caller.clone(),
+                        text: text.clone(),
+                    }),
+                }
+            }
+            // Хвостовой пробел в конце незаголовочного блока — как verse_texts().
+            if !heading && let Some(v) = cur {
+                let buf = vbuf.get_mut(&v).unwrap();
+                if !buf.is_empty() && !buf.ends_with(' ') {
+                    buf.push(' ');
+                }
+            }
+        }
+        // Маркеры 'v' только для стихов без текстовых спанов.
+        for (seq, i, n) in vmarks {
+            if !has_t.contains(&n) {
+                rows.push(Row {
+                    block: seq,
+                    i,
+                    kind: "v".into(),
+                    num: Some(n),
+                    // verse=None: иначе читатель синтезирует маркер дважды.
+                    verse: None,
+                    start: None,
+                    len: None,
+                    style: String::new(),
+                    attrs: String::new(),
+                    caller: String::new(),
+                    text: String::new(),
+                });
+            }
+        }
         {
             let mut bs = self
                 .conn
                 .prepare_cached("INSERT INTO blocks VALUES(?1, ?2, ?3, ?4)")?;
             let mut ss = self.conn.prepare_cached(
-                "INSERT INTO spans VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                "INSERT INTO spans VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             )?;
             let mut ts = self
                 .conn
@@ -380,83 +595,33 @@ impl ModuleWriter {
             let mut al = self
                 .conn
                 .prepare_cached("INSERT INTO alignment VALUES(?1, ?2, ?3, ?4, ?5, ?6)")?;
-            let mut cur_verse: u16 = 0;
-            let mut tok_seq: u16 = 0;
             for (seq, b) in ch.blocks.iter().enumerate() {
-                bs.execute(params![book.as_str(), ch.number, seq, b.marker])?;
-                for (i, s) in b.spans.iter().enumerate() {
-                    if let Span::Verse(n) = s {
-                        cur_verse = *n;
-                        tok_seq = 0;
-                    } else if let Span::Text { text, style, attrs } = s
-                        && let Some(t) = token_of(cur_verse, tok_seq, text, style, attrs)
-                    {
-                        ts.execute(params![
-                            book.as_str(),
-                            ch.number,
-                            t.verse,
-                            t.seq,
-                            t.surface,
-                            t.lemma,
-                            t.strong,
-                            t.morph,
-                            t.gloss
-                        ])?;
-                        al.execute(params![book.as_str(), ch.number, t.verse, t.seq, seq, i])?;
-                        self.tokens += 1;
-                        tok_seq += 1;
-                    }
-                    match s {
-                        Span::Verse(n) => ss.execute(params![
-                            book.as_str(),
-                            ch.number,
-                            seq,
-                            i,
-                            "v",
-                            *n,
-                            "",
-                            "",
-                            "",
-                            ""
-                        ])?,
-                        Span::Text { text, style, attrs } => ss.execute(params![
-                            book.as_str(),
-                            ch.number,
-                            seq,
-                            i,
-                            "t",
-                            rusqlite::types::Null,
-                            style,
-                            attrs,
-                            "",
-                            text
-                        ])?,
-                        Span::Note {
-                            kind,
-                            caller,
-                            text,
-                            attrs,
-                        } => ss.execute(params![
-                            book.as_str(),
-                            ch.number,
-                            seq,
-                            i,
-                            kind.to_string(),
-                            rusqlite::types::Null,
-                            "",
-                            attrs,
-                            caller,
-                            text
-                        ])?,
-                    };
-                }
+                bs.execute(params![book_id, ch.number, seq, b.marker])?;
+            }
+            for r in &rows {
+                ss.execute(Self::span_row(
+                    book_id, ch.number, r.block, r.i, &r.kind, r.num, r.verse, r.start, r.len,
+                    &r.style, &r.attrs, &r.caller, &r.text,
+                ))?;
+            }
+            for (t, block, i) in &toks {
+                ts.execute(params![
+                    book_id, ch.number, t.verse, t.seq, t.surface, t.lemma, t.strong, t.morph,
+                    t.gloss
+                ])?;
+                al.execute(params![book_id, ch.number, t.verse, t.seq, block, i])?;
+                self.tokens += 1;
             }
         }
         let mut vs = self
             .conn
             .prepare_cached("INSERT INTO verses VALUES(?1, ?2, ?3, ?4)")?;
-        for (n, text) in ch.verse_texts() {
-            vs.execute(params![book.as_str(), ch.number, n, text])?;
+        for (n, text) in &vbuf {
+            // Стих 0 без текста не пишется (надписание-пустышка).
+            if *n == 0 && text.is_empty() {
+                continue;
+            }
+            vs.execute(params![book_id, ch.number, n, text])?;
         }
         crate::hash::feed(&mut self.hash, book, ch.number, ch);
         Ok(())
@@ -466,6 +631,14 @@ impl ModuleWriter {
     /// `variants`/`readings`/`witnesses`, ADR 0016). `readings` — все
     /// чтения варианта по порядку; `is_base` помечает чтение основного
     /// текста.
+    /// book_id кода по карте `add_book`.
+    fn book_id(&self, book: BookCode) -> Result<i64> {
+        self.book_ids
+            .get(&book)
+            .copied()
+            .ok_or_else(|| ModuleError::BadFormat(format!("книга {book} без add_book")))
+    }
+
     pub fn add_variant(
         &self,
         book: BookCode,
@@ -475,13 +648,14 @@ impl ModuleWriter {
         token_to: u16,
         readings: &[Reading],
     ) -> Result<()> {
+        let book_id = self.book_id(book)?;
         let vid: i64 = {
             let mut st = self.conn.prepare_cached(
-                "INSERT INTO variants(book, chapter, verse, token_from, token_to)
+                "INSERT INTO variants(book_id, chapter, verse, token_from, token_to)
                  VALUES(?1, ?2, ?3, ?4, ?5) RETURNING id",
             )?;
             st.query_row(
-                params![book.as_str(), chapter, verse, token_from, token_to],
+                params![book_id, chapter, verse, token_from, token_to],
                 |r| r.get(0),
             )?
         };
@@ -520,10 +694,11 @@ impl ModuleWriter {
 
     /// Добавить метку времени (таблица `marks`, ADR 0016).
     pub fn add_mark(&self, book: BookCode, chapter: u16, mark: &Mark) -> Result<()> {
+        let book_id = self.book_id(book)?;
         self.conn.execute(
             "INSERT INTO marks VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
-                book.as_str(),
+                book_id,
                 chapter,
                 mark.verse,
                 mark.seq,
@@ -547,9 +722,10 @@ impl ModuleWriter {
                  tokenize='unicode61');",
         )?;
         {
-            let mut rd = self
-                .conn
-                .prepare("SELECT book, chapter, verse, text FROM verses")?;
+            let mut rd = self.conn.prepare(
+                "SELECT b.code, v.chapter, v.verse, v.text FROM verses v
+                 JOIN books b ON b.book_id = v.book_id",
+            )?;
             let mut ins = self
                 .conn
                 .prepare_cached("INSERT INTO fts VALUES(?1, ?2, ?3, ?4)")?;
@@ -567,7 +743,9 @@ impl ModuleWriter {
                     book,
                     ch,
                     v,
-                    studybible_core::normalize::for_search(&text)
+                    studybible_core::normalize::for_search(
+                        &studybible_core::text::collapse_spaces(&text)
+                    )
                 ])?;
             }
         }
@@ -614,6 +792,8 @@ pub struct Module {
     has_marks: bool,
     /// Виртуальная таблица `fts` (FTS5) — готовый поисковый индекс.
     has_fts: bool,
+    /// Код книги → book_id (таблица `books`).
+    book_ids: std::collections::HashMap<BookCode, i64>,
 }
 
 /// Связь токена со спаном потока чтения (таблица `alignment`, ADR 0016).
@@ -705,11 +885,11 @@ impl Module {
         // Проверка ожидаемых столбцов дешёвыми запросами.
         for q in [
             "SELECT key, value FROM meta LIMIT 0",
-            "SELECT code, ord, title FROM books LIMIT 0",
-            "SELECT book, marker, text FROM book_headers LIMIT 0",
-            "SELECT book, chapter, seq, marker FROM blocks LIMIT 0",
-            "SELECT book, chapter, block, seq, kind, num, style, attrs, caller, text FROM spans LIMIT 0",
-            "SELECT book, chapter, verse, text FROM verses LIMIT 0",
+            "SELECT book_id, code, ord, title FROM books LIMIT 0",
+            "SELECT book_id, marker, text FROM book_headers LIMIT 0",
+            "SELECT book_id, chapter, seq, marker FROM blocks LIMIT 0",
+            "SELECT book_id, chapter, block, seq, kind, num, verse, start, len, style, attrs, caller, text FROM spans LIMIT 0",
+            "SELECT book_id, chapter, verse, text FROM verses LIMIT 0",
         ] {
             conn.prepare(q)
                 .map(|_| ())
@@ -741,6 +921,14 @@ impl Module {
             [],
             |r| r.get::<_, i64>(0),
         )? > 0;
+        let book_ids = {
+            let mut st = conn.prepare("SELECT code, book_id FROM books")?;
+            st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
+                .collect::<rusqlite::Result<Vec<(String, i64)>>>()?
+                .into_iter()
+                .filter_map(|(c, id)| BookCode::new(&c).map(|bc| (bc, id)))
+                .collect::<std::collections::HashMap<_, _>>()
+        };
         Ok(Self {
             path,
             has_tokens: has("tokens")?,
@@ -749,9 +937,15 @@ impl Module {
             has_entries: has("entries")?,
             has_marks: has("marks")?,
             has_fts,
+            book_ids,
             conn,
             meta,
         })
+    }
+
+    /// book_id кода книги; None — книги нет в модуле.
+    fn bid(&self, book: BookCode) -> Option<i64> {
+        self.book_ids.get(&book).copied()
     }
 
     pub fn meta(&self) -> &Meta {
@@ -780,11 +974,14 @@ impl Module {
         if !self.has_marks {
             return Ok(vec![]);
         }
+        let Some(bid) = self.bid(book) else {
+            return Ok(vec![]);
+        };
         let mut st = self.conn.prepare(
             "SELECT verse, seq, offset_ms, dur_ms, text FROM marks
-             WHERE book=?1 AND chapter=?2 ORDER BY verse, seq",
+             WHERE book_id=?1 AND chapter=?2 ORDER BY verse, seq",
         )?;
-        let rows = st.query_map(params![book.as_str(), chapter], |r| {
+        let rows = st.query_map(params![bid, chapter], |r| {
             Ok(Mark {
                 verse: r.get::<_, i64>(0)? as u16,
                 seq: r.get::<_, i64>(1)? as u16,
@@ -817,10 +1014,13 @@ impl Module {
     }
 
     pub fn book_header(&self, book: BookCode, marker: &str) -> Result<Option<String>> {
+        let Some(bid) = self.bid(book) else {
+            return Ok(None);
+        };
         self.conn
             .query_row(
-                "SELECT text FROM book_headers WHERE book=?1 AND marker=?2",
-                params![book.as_str(), marker],
+                "SELECT text FROM book_headers WHERE book_id=?1 AND marker=?2",
+                params![bid, marker],
                 |r| r.get(0),
             )
             .optional()
@@ -828,20 +1028,39 @@ impl Module {
     }
 
     /// Поток чтения главы.
+    ///
+    /// `v`-маркеров у обычных стихов в файле нет (компактная схема,
+    /// ADR 0016 п. 15): граница синтезируется по смене `verse` у спанов —
+    /// маркер ставится перед первым спаном стиха, как в исходном потоке.
+    /// Стих 0 (надписание) маркер не получает, как и раньше.
     pub fn chapter(&self, book: BookCode, chapter: u16) -> Result<Option<Chapter>> {
-        let mut bs = self
-            .conn
-            .prepare("SELECT seq, marker FROM blocks WHERE book=?1 AND chapter=?2 ORDER BY seq")?;
+        let Some(bid) = self.bid(book) else {
+            return Ok(None);
+        };
+        // Сырой текст стихов для нарезки спанов (версия до collapse_spaces).
+        let vtexts: std::collections::HashMap<u16, String> = {
+            let mut vt = self
+                .conn
+                .prepare("SELECT verse, text FROM verses WHERE book_id=?1 AND chapter=?2")?;
+            vt.query_map(params![bid, chapter], |r| {
+                Ok((r.get::<_, i64>(0)? as u16, r.get::<_, String>(1)?))
+            })?
+            .collect::<rusqlite::Result<_>>()?
+        };
+        let mut bs = self.conn.prepare(
+            "SELECT seq, marker FROM blocks WHERE book_id=?1 AND chapter=?2 ORDER BY seq",
+        )?;
         let mut ss = self.conn.prepare(
-            "SELECT kind, num, style, attrs, caller, text FROM spans
-             WHERE book=?1 AND chapter=?2 AND block=?3 ORDER BY seq",
+            "SELECT kind, num, verse, start, len, style, attrs, caller, text FROM spans
+             WHERE book_id=?1 AND chapter=?2 AND block=?3 ORDER BY seq",
         )?;
         let mut ch = Chapter {
             number: chapter,
             blocks: vec![],
         };
         let mut empty = true;
-        let blocks = bs.query_map(params![book.as_str(), chapter], |r| {
+        let mut cur: Option<u16> = None;
+        let blocks = bs.query_map(params![bid, chapter], |r| {
             Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
         })?;
         for b in blocks {
@@ -851,29 +1070,52 @@ impl Module {
                 marker,
                 spans: vec![],
             };
-            let spans = ss.query_map(params![book.as_str(), chapter, seq], |r| {
+            let spans = ss.query_map(params![bid, chapter, seq], |r| {
                 Ok((
                     r.get::<_, String>(0)?,
                     r.get::<_, Option<u16>>(1)?,
-                    r.get::<_, String>(2)?,
-                    r.get::<_, String>(3)?,
-                    r.get::<_, String>(4)?,
+                    r.get::<_, Option<u16>>(2)?,
+                    r.get::<_, Option<i64>>(3)?,
+                    r.get::<_, Option<i64>>(4)?,
                     r.get::<_, String>(5)?,
+                    r.get::<_, String>(6)?,
+                    r.get::<_, String>(7)?,
+                    r.get::<_, String>(8)?,
                 ))
             })?;
             for s in spans {
-                let (kind, num, style, attrs, caller, text) = s?;
-                block.spans.push(match kind.as_str() {
-                    "v" => Span::Verse(num.unwrap_or_default()),
-                    "t" => Span::Text { text, style, attrs },
-                    "f" | "x" => Span::Note {
+                let (kind, num, verse, start, len, style, attrs, caller, text) = s?;
+                // Маркер границы: спан принадлежит новому ненулевому стиху.
+                if let Some(v) = verse
+                    && v != 0
+                    && cur != Some(v)
+                {
+                    block.spans.push(Span::Verse(v));
+                    cur = Some(v);
+                } else if let Some(v) = verse {
+                    cur = Some(v);
+                }
+                match kind.as_str() {
+                    "v" => block.spans.push(Span::Verse(num.unwrap_or_default())),
+                    "t" => {
+                        let text = match (verse, start, len) {
+                            (Some(v), Some(st), Some(ln)) => vtexts
+                                .get(&v)
+                                .and_then(|t| t.get(st as usize..(st + ln) as usize))
+                                .unwrap_or_default()
+                                .to_string(),
+                            _ => text,
+                        };
+                        block.spans.push(Span::Text { text, style, attrs });
+                    }
+                    "f" | "x" => block.spans.push(Span::Note {
                         kind: kind.chars().next().unwrap_or('f'),
                         caller,
                         text,
                         attrs,
-                    },
-                    _ => continue,
-                });
+                    }),
+                    _ => {}
+                }
             }
             ch.blocks.push(block);
         }
@@ -886,11 +1128,14 @@ impl Module {
         if !self.has_tokens {
             return Ok(vec![]);
         }
+        let Some(bid) = self.bid(book) else {
+            return Ok(vec![]);
+        };
         let mut st = self.conn.prepare(
             "SELECT verse, seq, surface, lemma, strong, morph, gloss
-             FROM tokens WHERE book=?1 AND chapter=?2 ORDER BY verse, seq",
+             FROM tokens WHERE book_id=?1 AND chapter=?2 ORDER BY verse, seq",
         )?;
-        let rows = st.query_map(params![book.as_str(), chapter], |r| {
+        let rows = st.query_map(params![bid, chapter], |r| {
             Ok(Token {
                 verse: r.get::<_, i64>(0)? as u16,
                 seq: r.get::<_, i64>(1)? as u16,
@@ -914,11 +1159,14 @@ impl Module {
         if !self.has_alignment {
             return Ok(vec![]);
         }
+        let Some(bid) = self.bid(book) else {
+            return Ok(vec![]);
+        };
         let mut st = self.conn.prepare(
             "SELECT verse, token_seq, block, span FROM alignment
-             WHERE book=?1 AND chapter=?2 ORDER BY verse, token_seq",
+             WHERE book_id=?1 AND chapter=?2 ORDER BY verse, token_seq",
         )?;
-        let rows = st.query_map(params![book.as_str(), chapter], |r| {
+        let rows = st.query_map(params![bid, chapter], |r| {
             Ok(Alignment {
                 verse: r.get::<_, i64>(0)? as u16,
                 token_seq: r.get::<_, i64>(1)? as u16,
@@ -939,9 +1187,12 @@ impl Module {
         if !self.has_variants {
             return Ok(vec![]);
         }
+        let Some(bid) = self.bid(book) else {
+            return Ok(vec![]);
+        };
         let mut vs = self.conn.prepare(
             "SELECT id, verse, token_from, token_to FROM variants
-             WHERE book=?1 AND chapter=?2 ORDER BY verse, token_from",
+             WHERE book_id=?1 AND chapter=?2 ORDER BY verse, token_from",
         )?;
         let mut rs = self.conn.prepare(
             "SELECT id, seq, text, is_base FROM readings
@@ -950,7 +1201,7 @@ impl Module {
         let mut ws = self
             .conn
             .prepare("SELECT siglum FROM witnesses WHERE reading_id=?1 ORDER BY siglum")?;
-        let variants = vs.query_map(params![book.as_str(), chapter], |r| {
+        let variants = vs.query_map(params![bid, chapter], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
                 r.get::<_, i64>(1)?,
@@ -1041,15 +1292,17 @@ impl Module {
         }
     }
 
-    /// Плоский текст стиха (из кэшированной таблицы `verses`).
+    /// Плоский текст стиха. В `verses` хранится сырой канонический текст
+    /// (источник `start`/`len` спанов), снаружи — свёрнутый, как раньше.
     pub fn verse_text(&self, book: BookCode, chapter: u16, verse: u16) -> Result<Option<String>> {
         self.conn
             .query_row(
-                "SELECT text FROM verses WHERE book=?1 AND chapter=?2 AND verse=?3",
-                params![book.as_str(), chapter, verse],
-                |r| r.get(0),
+                "SELECT text FROM verses WHERE book_id=?1 AND chapter=?2 AND verse=?3",
+                params![self.bid(book).unwrap_or(-1), chapter, verse],
+                |r| r.get::<_, String>(0),
             )
             .optional()
+            .map(|o| o.map(|t| studybible_core::text::collapse_spaces(&t)))
             .map_err(Into::into)
     }
 }

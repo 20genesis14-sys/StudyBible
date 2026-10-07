@@ -90,9 +90,10 @@ impl SearchIndex {
                  tokenize='unicode61');",
         )?;
         {
-            let mut rd = module
-                .conn()
-                .prepare("SELECT book, chapter, verse, text FROM verses")?;
+            let mut rd = module.conn().prepare(
+                "SELECT b.code, v.chapter, v.verse, v.text
+                 FROM verses v JOIN books b ON b.book_id = v.book_id",
+            )?;
             let mut ins = conn.prepare("INSERT INTO fts VALUES(?1, ?2, ?3, ?4)")?;
             let rows = rd.query_map([], |r| {
                 Ok((
@@ -104,7 +105,12 @@ impl SearchIndex {
             })?;
             for row in rows {
                 let (book, ch, v, text) = row?;
-                ins.execute(params![book, ch, v, for_search(&text)])?;
+                ins.execute(params![
+                    book,
+                    ch,
+                    v,
+                    for_search(&studybible_core::text::collapse_spaces(&text))
+                ])?;
             }
         }
         conn.execute_batch("COMMIT")?;

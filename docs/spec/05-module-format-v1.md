@@ -12,28 +12,45 @@ SQLite-база, кодировка UTF-8. Подпись: `PRAGMA application_i
 
 ```sql
 CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE books(code TEXT PRIMARY KEY, ord INTEGER NOT NULL, title TEXT NOT NULL DEFAULT '');
-CREATE TABLE book_headers(book TEXT NOT NULL, marker TEXT NOT NULL, text TEXT NOT NULL,
-                          PRIMARY KEY(book, marker));
-CREATE TABLE blocks(book TEXT NOT NULL, chapter INTEGER NOT NULL, seq INTEGER NOT NULL,
-                    marker TEXT NOT NULL DEFAULT '', PRIMARY KEY(book, chapter, seq));
-CREATE TABLE spans(book TEXT NOT NULL, chapter INTEGER NOT NULL, block INTEGER NOT NULL,
+CREATE TABLE books(book_id INTEGER PRIMARY KEY, code TEXT UNIQUE NOT NULL,
+                   ord INTEGER NOT NULL, title TEXT NOT NULL DEFAULT '');
+CREATE TABLE book_headers(book_id INTEGER NOT NULL, marker TEXT NOT NULL, text TEXT NOT NULL,
+                          PRIMARY KEY(book_id, marker));
+CREATE TABLE blocks(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, seq INTEGER NOT NULL,
+                    marker TEXT NOT NULL DEFAULT '', PRIMARY KEY(book_id, chapter, seq));
+CREATE TABLE spans(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, block INTEGER NOT NULL,
                    seq INTEGER NOT NULL, kind TEXT NOT NULL, num INTEGER,
+                   verse INTEGER, start INTEGER, len INTEGER,
                    style TEXT NOT NULL DEFAULT '', attrs TEXT NOT NULL DEFAULT '',
                    caller TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',
-                   PRIMARY KEY(book, chapter, block, seq));
-CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
-                    text TEXT NOT NULL, PRIMARY KEY(book, chapter, verse));
+                   PRIMARY KEY(book_id, chapter, block, seq));
+CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                    text TEXT NOT NULL, PRIMARY KEY(book_id, chapter, verse));
 ```
 
-- `books` — коды USFM/OSIS книг в порядке модуля (`ord`) с заголовком книги.
+Компактная схема (ADR 0016 п. 15, до заморозки v1): книги адресуются
+числовым `book_id`, а не текстовым кодом, и текст хранится один раз.
+
+- `books` — `book_id` (равен `ord`), код USFM/OSIS (`code` UNIQUE), порядок
+  `ord`, заголовок. Все остальные таблицы ссылаются на `book_id`.
 - `book_headers` — заголовки книги из USFM (`h`, `toc1`, `mt1`…), кроме `id`.
 - `blocks` — поток чтения: маркер USFM блока (`p`, `q1`, `s1`, `d`…), пустой — продолжение.
-- `spans` — строчные промежутки блока. `kind`: `v` — маркер стиха (`num`),
-  `t` — текст (`style` — символьный стиль USFM, `attrs` — атрибуты слова, например
-  `strong="H7225"`), `f`/`x` — сноска/перекрёстная ссылка (`caller`, `text`).
-- `verses` — производный плоский текст стиха без сносок и заголовков
-  (собирается `Chapter::verse_texts`, надписание псалма — стих 0). Для кэша поиска и вывода.
+- `verses` — канонический **сырой** текст стиха (без сносок и заголовков,
+  с пробелами между спанами, как в потоке; надписание псалма — стих 0).
+  Это единственная копия текста стиха: `spans.t` нарезается из неё, а
+  «плоский» текст снаружи — `collapse_spaces(verses.text)`. Канонический
+  текст равен отображаемому: разделитель морфем `/` в `w`-спанах
+  при записи убирается (его и раньше резал рендерер); спаны,
+  содержащие '<' (остатки тегов источника), не трогаются.
+- `spans` — строчные промежутки блока. `kind`:
+  - `t` — текст стиха: `verse`+`start`+`len` — байтовый срез `verses.text`;
+    `text` пуст. Заголовочные блоки (`verse` NULL) хранят текст в `text`.
+  - `f`/`x` — сноска/перекрёстная ссылка: `verse` — стих привязки,
+    `start` — позиция в тексте стиха (NULL у старых данных); тело в `text`.
+  - `v` — маркер стиха (`num`): записывается только у стиха без
+    текстовых спанов (пустой стих) и внутри заголовочных блоков —
+    раньше маркеры хранились и там. Для всех прочих стихов граница
+    читателем синтезируется по смене `verse` у спанов.
 
 ## Ключи `meta`
 
@@ -72,13 +89,14 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
   и `norm`). Модуль-словарь может не иметь книг и глав — `books` пустая.
   Вход автора — TSV `заголовок  текст` (`format="entries"` в
   modules.json; `norm` можно задать третьим столбцом).
-- `tokens(book, chapter, verse, seq, surface, lemma, strong, morph, gloss)` —
+- `tokens(book_id, chapter, verse, seq, surface, lemma, strong, morph, gloss)` —
   слова оригинала. Источник: OSIS `<w lemma morph>`, USFM `\w …|strong lemma x-morph\w*`,
   теги Стронга MyBible/BibleQuote. Заполняет конвертер.
-- `alignment(book, chapter, verse, token_seq, target_block, target_seq, target_offset)` —
-  связь токена с текстом перевода/глоссы. Вход автора — TSV `ссылка  оригинал  глосса`.
+- `alignment(book_id, chapter, verse, token_seq, block, span)` —
+  связь токена со спаном потока (`block` = `blocks.seq`, `span` = `spans.seq`).
+  Вход автора — TSV `ссылка  оригинал  глосса`.
   Старый вид подстрочника (`spans.attrs` = `gr="…"`) читается без изменений.
-- `variants(id, book, chapter, verse, token_from, token_to)`,
+- `variants(id, book_id, chapter, verse, token_from, token_to)`,
   `readings(variant_id, seq, text, is_base)`, `witnesses(reading_id, siglum)` —
   критический аппарат. Вход — TSV/JSON.
 - `.sbz` — `.sb`, сжатый внешним кодеком, только для передачи; импорт
@@ -93,7 +111,7 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
   текста стиха) — готовый поисковый индекс внутри модуля. Собирается
   конвертером по `"fts": true` в modules.json; читатель без неё строит
   кэш `.idx` как раньше (вопрос № 23).
-- `marks(book, chapter, verse, seq, offset_ms, dur_ms, text)` — метки
+- `marks(book_id, chapter, verse, seq, offset_ms, dur_ms, text)` — метки
   времени: смещение от начала аудиодорожки главы (мс), `dur_ms` —
   длительность (NULL = до следующей метки), `text` — слово/фраза для
   подсветки. Под аудиобиблии и пословную подсветку TTS. Вход — TSV
@@ -132,3 +150,9 @@ CREATE TABLE verses(book TEXT NOT NULL, chapter INTEGER NOT NULL, verse INTEGER 
 Менять или удалять существующие поля нельзя. Новое — только необязательные таблицы
 и необязательные ключи `meta`. Возможность, без которой читать нельзя, идёт в `required`
 — старые читатели откажутся с понятной ошибкой.
+
+Исключение до заморозки: компактная схема (выше) — последнее изменение
+существующих полей до 1.0, принятое сознательно (ADR 0016 п. 15):
+формат ещё не опубликован, все выпущенные `.sb` локальные и пересобираются
+конвертером. Читатель старые `.sb` не открывает — отказ на проверке
+столбцов с понятной ошибкой; миграция = повторная сборка из источника.

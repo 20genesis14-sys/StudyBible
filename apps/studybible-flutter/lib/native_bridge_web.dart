@@ -147,9 +147,10 @@ Future<String?> bridgeModuleDoc(String path) async {
 
     final chapterCounts = <String, int>{
       for (final r in db.select(
-        'SELECT book, MAX(chapter) AS c FROM verses GROUP BY book',
+        'SELECT b.code, MAX(v.chapter) AS c FROM verses v '
+        'JOIN books b ON b.book_id=v.book_id GROUP BY v.book_id',
       ))
-        r['book'] as String: (r['c'] as num).toInt(),
+        r['code'] as String: (r['c'] as num).toInt(),
     };
 
     final books = [
@@ -163,9 +164,11 @@ Future<String?> bridgeModuleDoc(String path) async {
 
     final verseCounts = <String, int>{
       for (final r in db.select(
-        'SELECT book, chapter, MAX(verse) AS v FROM verses GROUP BY book, chapter',
+        'SELECT b.code, v.chapter, MAX(v.verse) AS v FROM verses v '
+        'JOIN books b ON b.book_id=v.book_id '
+        'GROUP BY v.book_id, v.chapter',
       ))
-        '${r['book']}:${r['chapter']}': (r['v'] as num).toInt(),
+        '${r['code']}:${r['chapter']}': (r['v'] as num).toInt(),
     };
 
     // ADR 0016: тип и возможности модуля (у старых .sb ключей нет).
@@ -235,28 +238,71 @@ Map<String, dynamic> _spanJson(Map<String, Object?> r) {
   }
 }
 
+/// UTF-8 срез строки по байтовым смещениям (spans.start/len — в байтах).
+String _byteSlice(String s, int start, int len) =>
+    utf8.decode(utf8.encode(s).sublist(start, start + len));
+
 /// Глава в формате export.rs `{"n":..,"blocks":[..]}`; null, если её нет —
 /// зеркало api/module.rs::chapter_doc и store::Module::chapter.
+///
+/// Схема 1.1: книги адресуются book_id, текст стиховых спанов — срез
+/// `verses.text` по (verse,start,len); маркеры 'v' хранятся только у
+/// пустых стихов, для остальных граница синтезируется по смене verse —
+/// как в store::Module::chapter.
 Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
   try {
     final db = await _openDb(path);
+    final br = db.select('SELECT book_id FROM books WHERE code=?', [book]);
+    if (br.isEmpty) return null;
+    final bid = br.first['book_id'];
+    // Сырой текст стихов для нарезки спанов.
+    final vtexts = <int, String>{
+      for (final r in db.select(
+        'SELECT verse, text FROM verses WHERE book_id=? AND chapter=?',
+        [bid, chapter],
+      ))
+        (r['verse'] as num).toInt(): '${r['text']}',
+    };
     final blocks = db.select(
-      'SELECT seq, marker FROM blocks WHERE book=? AND chapter=? ORDER BY seq',
-      [book, chapter],
+      'SELECT seq, marker FROM blocks WHERE book_id=? AND chapter=? ORDER BY seq',
+      [bid, chapter],
     );
     if (blocks.isEmpty) return null;
 
     final st = db.prepare(
-      'SELECT kind, num, style, attrs, caller, text FROM spans '
-      'WHERE book=? AND chapter=? AND block=? ORDER BY seq',
+      'SELECT kind, num, verse, start, len, style, attrs, caller, text '
+      'FROM spans WHERE book_id=? AND chapter=? AND block=? ORDER BY seq',
     );
     final out = <Map<String, dynamic>>[];
+    int? cur;
     for (final b in blocks) {
       final marker = b['marker'] as String;
-      final spans = st
-          .select([book, chapter, b['seq']])
-          .map(_spanJson)
-          .toList();
+      final spans = <Map<String, dynamic>>[];
+      for (final r in st.select([bid, chapter, b['seq']])) {
+        final v = (r['verse'] as num?)?.toInt();
+        // Маркер границы: спан принадлежит новому ненулевому стиху.
+        if (v != null && v != 0 && cur != v) {
+          spans.add({'v': v});
+          cur = v;
+        } else if (v != null) {
+          cur = v;
+        }
+        if (r['kind'] == 't' && v != null && r['start'] != null) {
+          // Текст — срез из канонического verses.text.
+          final raw = vtexts[v] ?? '';
+          spans.add({
+            't': _byteSlice(
+              raw,
+              (r['start'] as num).toInt(),
+              (r['len'] as num).toInt(),
+            ),
+            's': r['style'],
+            'a': r['attrs'],
+          });
+        } else {
+          spans.add(_spanJson(r));
+        }
+      }
       out.add({'k': _blockKind(marker), 'm': marker, 's': spans});
     }
     st.close();
@@ -266,8 +312,8 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
     try {
       final vs = db.select(
         'SELECT id, verse, token_from, token_to FROM variants '
-        'WHERE book=? AND chapter=? ORDER BY verse, token_from',
-        [book, chapter],
+        'WHERE book_id=? AND chapter=? ORDER BY verse, token_from',
+        [bid, chapter],
       );
       for (final v in vs) {
         final readings = [
@@ -549,19 +595,13 @@ Future<List<SearchHit>> bridgeModuleSearch(
         // wasm-сборка sqlite без FTS5 или битый индекс — скан ниже.
       }
     }
-    // Текст стиха живёт в спанах kind='t'; номера стихов — в спанах
-    // kind='v' (колонки verse у spans нет): выводим его оконной функцией
-    // как последний 'v' перед 't' внутри главы.
+    // Схема 1.1: канонический текст стиха — в verses.text; код книги —
+    // по books.
     final rows = db.select(
-      "SELECT book, chapter, vnum, GROUP_CONCAT(text, '') AS t FROM ("
-      '  SELECT book, chapter, kind, text,'
-      "    MAX(CASE WHEN kind='v' THEN num END) OVER ("
-      '      PARTITION BY book, chapter ORDER BY block, seq'
-      '      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS vnum'
-      "    FROM spans WHERE kind IN ('v','t')) "
-      "WHERE kind='t' GROUP BY book, chapter, vnum "
-      "HAVING t LIKE ? ESCAPE '\\' "
-      'ORDER BY book, chapter, vnum LIMIT ?',
+      'SELECT b.code, v.chapter, v.verse, v.text AS t FROM verses v '
+      'JOIN books b ON b.book_id=v.book_id '
+      "WHERE v.text LIKE ? ESCAPE '\\' "
+      'ORDER BY b.ord, v.chapter, v.verse LIMIT ?',
       [
         '%${q.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%',
         limit,
@@ -570,9 +610,9 @@ Future<List<SearchHit>> bridgeModuleSearch(
     return [
       for (final r in rows)
         SearchHit(
-          book: '${r['book']}',
+          book: '${r['code']}',
           chapter: (r['chapter'] as num).toInt(),
-          verse: (r['vnum'] as num?)?.toInt() ?? 0,
+          verse: (r['verse'] as num?)?.toInt() ?? 0,
           snippet: '${r['t']}',
         ),
     ];

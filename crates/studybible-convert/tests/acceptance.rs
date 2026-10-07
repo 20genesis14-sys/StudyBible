@@ -13,7 +13,18 @@ struct Counts {
 }
 
 fn counts(p: &std::path::Path) -> Option<Counts> {
-    let c = Connection::open(p).ok()?;
+    let raw = std::fs::read(p).ok()?;
+    // `.sbz` — распаковать во временный `.sb` (tmp объявлен первым —
+    // удаляется после закрытия соединения).
+    let tmp;
+    let c = if raw.starts_with(studybible_store::sbz::MAGIC) {
+        let bytes = studybible_store::sbz::unpack(&raw).ok()?;
+        tmp = tempfile::NamedTempFile::new().ok()?;
+        std::fs::write(tmp.path(), bytes).ok()?;
+        Connection::open(tmp.path()).ok()?
+    } else {
+        Connection::open(p).ok()?
+    };
     let q = |s: &str| c.query_row(s, [], |r| r.get::<_, i64>(0)).unwrap_or(0);
     Some(Counts {
         books: q("SELECT count(*) FROM books"),
@@ -34,9 +45,9 @@ fn rstplus_vs_legacy() {
     let tmp = std::env::temp_dir().join("sb-accept");
     let Some((n, o)) = cmp(
         &tmp.join("rstplus-new.sb"),
-        std::path::Path::new(r"D:\StudyBible-data\modules\rstplus.sb"),
+        std::path::Path::new(r"D:\StudyBible-data\modules\rstplus.sbz"),
     ) else {
-        eprintln!("SKIPPED: нет собранного rstplus-new.sb или исходного rstplus.sb");
+        eprintln!("SKIPPED: нет собранного rstplus-new.sb или исходного rstplus.sbz");
         return;
     };
     eprintln!("rstplus legacy: {o:?}\nrstplus new:    {n:?}");
@@ -59,9 +70,9 @@ fn henry_vs_legacy() {
     let tmp = std::env::temp_dir().join("sb-accept");
     let Some((n, o)) = cmp(
         &tmp.join("comm-henry-new.sb"),
-        std::path::Path::new(r"D:\StudyBible-data\modules\comm-henry.sb"),
+        std::path::Path::new(r"D:\StudyBible-data\modules\comm-henry.sbz"),
     ) else {
-        eprintln!("SKIPPED: нет собранного comm-henry-new.sb или исходного comm-henry.sb");
+        eprintln!("SKIPPED: нет собранного comm-henry-new.sb или исходного comm-henry.sbz");
         return;
     };
     eprintln!("henry legacy: {o:?}\nhenry new:    {n:?}");

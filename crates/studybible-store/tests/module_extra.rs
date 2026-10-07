@@ -114,7 +114,7 @@ fn unknown_span_kind_skipped() {
     // не сломав остальную главу.
     let conn = Connection::open(&p).unwrap();
     conn.execute(
-        "INSERT INTO spans VALUES('GEN', 1, 0, 99, 'z', NULL, '', '', '', 'тайное')",
+        "INSERT INTO spans VALUES(1, 1, 0, 99, 'z', NULL, NULL, NULL, NULL, '', '', '', 'тайное')",
         [],
     )
     .unwrap();

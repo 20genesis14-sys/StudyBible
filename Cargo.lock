@@ -1905,6 +1905,7 @@ dependencies = [
  "flate2",
  "quick-xml",
  "studybible-core",
+ "studybible-store",
  "tempfile",
  "zip",
 ]
