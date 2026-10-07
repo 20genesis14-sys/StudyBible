@@ -51,30 +51,6 @@ extension _ReaderChrome on _ReadingScreenState {
         ],
       ),
       IconButton(
-        tooltip: tr('Сравнить переводы', 'Compare translations'),
-        icon: Icon(
-          Icons.compare_arrows,
-          size: sz,
-          color: cc(_compare, cCompare),
-        ),
-        onPressed: () {
-          _rebuild(() {
-            _compare = !_compare;
-            if (_compare) _interleaved = false;
-          });
-          // Вторую панель сравнения подгружаем лениво.
-          final second = _mods[_compareModuleId];
-          if (_compare && second != null) {
-            _ensureChapter(second, _code, _ch);
-          }
-          // Сразу выравниваем вторую панель по текущему месту
-          // первой — иначе она открывается с начала главы.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_compare) _syncScroll(_scroll, _compareScroll);
-          });
-        },
-      ),
-      IconButton(
         tooltip: tr('Строчное сравнение', 'Line-by-line compare'),
         icon: Icon(
           Icons.view_day_outlined,
@@ -541,19 +517,6 @@ extension _ReaderChrome on _ReadingScreenState {
                       color: p.ink,
                     ),
                   ),
-                ),
-                sw(
-                  tr('Сравнение переводов', 'Compare translations'),
-                  tr('Вторая колонка/панель', 'Second pane'),
-                  _compare,
-                  (v) => _rebuild(() {
-                    _compare = v;
-                    if (v) {
-                      _interleaved = false;
-                      final m = _mods[_compareModuleId];
-                      if (m != null) _ensureChapter(m, _code, _ch);
-                    }
-                  }),
                 ),
                 sw(
                   tr('Подстрочное сравнение', 'Interleaved compare'),
