@@ -168,7 +168,14 @@ class PaneConfig {
 
   /// `main` — основной перевод; иначе — id модуля.
   final String source;
+
+  /// Синхронная прокрутка/навигация: `main` — панель следует за
+  /// основной (ADR 0019); null или своя группа — лёгкое отцепление.
+  /// Кнопка «присоединить к основной» — после релиза, состояние есть.
   final String? linkGroup;
+
+  /// Панель следует за основной (умолчание дополнительных панелей).
+  bool get followsMain => linkGroup == 'main';
   final List<LayerConfig> layers;
   final Map<String, Object?> options;
 
