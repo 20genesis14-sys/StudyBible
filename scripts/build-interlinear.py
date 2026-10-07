@@ -7,9 +7,15 @@
       greek: <греческая строка>
       pairs: <слово>/ <слово> | <слово>/<слово> | …
 
-Выход: модуль .sb, где текст стиха — gloss, а каждое слово gloss —
-спан style='w' с attrs gr="<греческое слово>". В приложении такие модули
-в режиме сравнения рисуются подстрочником «перевод над оригиналом».
+Выход: модуль .sb компактной схемы v1, где текст стиха — gloss
+(`verses.text`), каждое слово gloss — спан `t` style='w' с attrs
+gr="<греческое слово>" и байтовым срезом (verse,start,len). Пары лежат
+также в `tokens` (surface — слово оригинала, gloss — переводная) и
+`alignment` (токен → его спан потока). В приложении такие модули в
+режиме сравнения рисуются подстрочником «перевод над оригиналом».
+
+Схема и хэш — точно как у ModuleWriter: content_hash = SHA-256
+канонической сериализации потока (spec/05, правило С-12).
 """
 import hashlib
 import pathlib
@@ -28,8 +34,21 @@ BOOKS = {
     '3-john': '3JN', 'jude': 'JUD', 'revelation': 'REV',
 }
 
+BOOK_TITLES = {
+    'MAT': 'Matthew', 'MRK': 'Mark', 'LUK': 'Luke', 'JHN': 'John',
+    'ACT': 'Acts', 'ROM': 'Romans', '1CO': '1 Corinthians',
+    '2CO': '2 Corinthians', 'GAL': 'Galatians', 'EPH': 'Ephesians',
+    'PHP': 'Philippians', 'COL': 'Colossians', '1TH': '1 Thessalonians',
+    '2TH': '2 Thessalonians', '1TI': '1 Timothy', '2TI': '2 Timothy',
+    'TIT': 'Titus', 'PHM': 'Philemon', 'HEB': 'Hebrews', 'JAS': 'James',
+    '1PE': '1 Peter', '2PE': '2 Peter', '1JN': '1 John', '2JN': '2 John',
+    '3JN': '3 John', 'JUD': 'Jude', 'REV': 'Revelation',
+}
+
 VERSE_RE = re.compile(r'^\S+ (\d+):(\d+)\s*$')
 FIELD_RE = re.compile(r'^\s{2}(gloss|greek|pairs):\s?(.*)$')
+# Слова, перед которыми ModuleWriter не вставляет пробел.
+NO_LEAD_SPACE = (' ', ',', '.', ';', ':', '!', '?')
 
 
 def esc(s: str) -> str:
@@ -71,45 +90,59 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
     db = sqlite3.connect(dst)
     # Маркер формата .sb — studybible-store отвергает файл без него.
     db.execute('PRAGMA application_id = 0x53424D31')
+    # Компактная схема v1 (docs/spec/05): книги адресуются book_id,
+    # текст стиха единожды в verses.text, спаны — байтовые срезы.
     db.executescript('''
         CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-        CREATE TABLE books (code TEXT PRIMARY KEY, ord INTEGER NOT NULL,
+        CREATE TABLE books (book_id INTEGER PRIMARY KEY,
+                            code TEXT UNIQUE NOT NULL,
+                            ord INTEGER NOT NULL,
                             title TEXT NOT NULL DEFAULT '');
-        CREATE TABLE book_headers (book TEXT NOT NULL, marker TEXT NOT NULL,
+        CREATE TABLE book_headers (book_id INTEGER NOT NULL,
+                                   marker TEXT NOT NULL,
                                    text TEXT NOT NULL,
-                                   PRIMARY KEY (book, marker));
-        CREATE TABLE blocks (book TEXT NOT NULL, chapter INTEGER NOT NULL,
-                             seq INTEGER NOT NULL, marker TEXT NOT NULL DEFAULT '',
-                             PRIMARY KEY (book, chapter, seq));
-        CREATE TABLE spans (book TEXT NOT NULL, chapter INTEGER NOT NULL,
-                            block INTEGER NOT NULL, seq INTEGER NOT NULL,
-                            kind TEXT NOT NULL, num INTEGER, style TEXT NOT NULL DEFAULT '',
-                            attrs TEXT NOT NULL DEFAULT '', caller TEXT NOT NULL DEFAULT '',
+                                   PRIMARY KEY (book_id, marker));
+        CREATE TABLE blocks (book_id INTEGER NOT NULL,
+                             chapter INTEGER NOT NULL,
+                             seq INTEGER NOT NULL,
+                             marker TEXT NOT NULL DEFAULT '',
+                             PRIMARY KEY (book_id, chapter, seq));
+        CREATE TABLE spans (book_id INTEGER NOT NULL,
+                            chapter INTEGER NOT NULL,
+                            block INTEGER NOT NULL,
+                            seq INTEGER NOT NULL,
+                            kind TEXT NOT NULL, num INTEGER,
+                            verse INTEGER, start INTEGER, len INTEGER,
+                            style TEXT NOT NULL DEFAULT '',
+                            attrs TEXT NOT NULL DEFAULT '',
+                            caller TEXT NOT NULL DEFAULT '',
                             text TEXT NOT NULL DEFAULT '',
-                            PRIMARY KEY (book, chapter, block, seq));
-        CREATE TABLE verses (book TEXT NOT NULL, chapter INTEGER NOT NULL,
-                             verse INTEGER NOT NULL, text TEXT NOT NULL,
-                             PRIMARY KEY (book, chapter, verse));
-        -- ADR 0016: токены — слово оригинала в surface, глосса в gloss.
-        CREATE TABLE tokens (book TEXT NOT NULL, chapter INTEGER NOT NULL,
-                             verse INTEGER NOT NULL, seq INTEGER NOT NULL,
+                            PRIMARY KEY (book_id, chapter, block, seq));
+        CREATE TABLE verses (book_id INTEGER NOT NULL,
+                             chapter INTEGER NOT NULL,
+                             verse INTEGER NOT NULL,
+                             text TEXT NOT NULL,
+                             PRIMARY KEY (book_id, chapter, verse));
+        CREATE TABLE tokens (book_id INTEGER NOT NULL,
+                             chapter INTEGER NOT NULL,
+                             verse INTEGER NOT NULL,
+                             seq INTEGER NOT NULL,
                              surface TEXT NOT NULL DEFAULT '',
                              lemma TEXT NOT NULL DEFAULT '',
                              strong TEXT NOT NULL DEFAULT '',
                              morph TEXT NOT NULL DEFAULT '',
                              gloss TEXT NOT NULL DEFAULT '',
-                             PRIMARY KEY (book, chapter, verse, seq));
+                             PRIMARY KEY (book_id, chapter, verse, seq));
+        CREATE TABLE alignment (book_id INTEGER NOT NULL,
+                                chapter INTEGER NOT NULL,
+                                verse INTEGER NOT NULL,
+                                token_seq INTEGER NOT NULL,
+                                block INTEGER NOT NULL,
+                                span INTEGER NOT NULL,
+                                PRIMARY KEY (book_id, chapter, verse,
+                                             token_seq));
     ''')
-    book_titles = {
-        'MAT': 'Matthew', 'MRK': 'Mark', 'LUK': 'Luke', 'JHN': 'John',
-        'ACT': 'Acts', 'ROM': 'Romans', '1CO': '1 Corinthians',
-        '2CO': '2 Corinthians', 'GAL': 'Galatians', 'EPH': 'Ephesians',
-        'PHP': 'Philippians', 'COL': 'Colossians', '1TH': '1 Thessalonians',
-        '2TH': '2 Thessalonians', '1TI': '1 Timothy', '2TI': '2 Timothy',
-        'TIT': 'Titus', 'PHM': 'Philemon', 'HEB': 'Hebrews', 'JAS': 'James',
-        '1PE': '1 Peter', '2PE': '2 Peter', '1JN': '1 John', '2JN': '2 John',
-        '3JN': '3 John', 'JUD': 'Jude', 'REV': 'Revelation',
-    }
+
     digest = hashlib.sha256()
     n_verses = n_words = 0
     for f in sorted(src.glob('*.md')):
@@ -118,32 +151,64 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
         if code is None:
             print('пропуск (неизвестная книга):', f.name)
             continue
-        digest.update(f.read_bytes())
+        book_id = int(f.stem.split('-', 1)[0])
         verses = parse_book(f)
         if not verses:
             continue
-        db.execute('INSERT INTO books VALUES (?,?,?)',
-                   (code, int(f.stem.split('-', 1)[0]), book_titles[code]))
-        chapters = {}
-        for (ch, v), (gloss, greek, pairs) in sorted(verses.items()):
-            chapters.setdefault(ch, []).append(v)
-            n_verses += 1
-            seq_in_ch = len(chapters[ch]) - 1
-            db.execute('INSERT INTO blocks VALUES (?,?,?,?)',
-                       (code, ch, seq_in_ch, 'p'))
-            db.execute('INSERT INTO verses VALUES (?,?,?,?)',
-                       (code, ch, v, gloss))
-            db.execute('INSERT INTO spans VALUES (?,?,?,?,?,?,?,?,?,?)',
-                       (code, ch, seq_in_ch, 0, 'v', v, '', '', '', ''))
-            for i, (en, gr) in enumerate(pairs, 1):
-                attrs = 'gr="%s"' % esc(gr) if gr else ''
-                db.execute('INSERT INTO spans VALUES (?,?,?,?,?,?,?,?,?,?)',
-                           (code, ch, seq_in_ch, i, 't', None, 'w', attrs, '',
-                            en + ' '))
-                # Токен: слово оригинала в surface, переводная глосса в gloss.
-                db.execute('INSERT INTO tokens VALUES (?,?,?,?,?,?,?,?,?)',
-                           (code, ch, v, i - 1, gr, '', '', '', en))
-                n_words += 1
+        db.execute('INSERT INTO books VALUES (?,?,?,?)',
+                   (book_id, code, book_id, BOOK_TITLES[code]))
+        chapters = sorted({ch for ch, _ in verses})
+        for ch in chapters:
+            vlist = sorted(v for (c, v) in verses if c == ch)
+            seq_in_ch = 0
+            for v in vlist:
+                n_verses += 1
+                gloss, _greek, pairs = verses[(ch, v)]
+                block = seq_in_ch
+                seq_in_ch += 1
+                # Потоковый хэш (С-12): заголовок блока, затем спаны.
+                digest.update(
+                    ('%s %d %d %s\x00' % (code, ch, block, 'p'))
+                    .encode('utf-8'))
+                db.execute('INSERT INTO blocks VALUES (?,?,?,?)',
+                           (book_id, ch, block, 'p'))
+
+                # Собираем verses.text и срезы слов — как ModuleWriter:
+                # пробел между словами, если не перед знаком препинания.
+                buf = ''
+                rows = []
+                if not pairs:
+                    # Стих без разметки — один спан на весь текст.
+                    pairs = [(gloss, '')]
+                tok_seq = 0
+                for en, gr in pairs:
+                    if (buf and not buf.endswith(' ')
+                            and not en.startswith(NO_LEAD_SPACE)):
+                        buf += ' '
+                    start = len(buf.encode('utf-8'))
+                    buf += en
+                    ln = len(en.encode('utf-8'))
+                    attrs = 'gr="%s"' % esc(gr) if gr else ''
+                    rows.append((book_id, ch, block, tok_seq, 't', None,
+                                 v, start, ln, 'w' if gr else '', attrs,
+                                 '', ''))
+                    db.execute(
+                        'INSERT INTO tokens VALUES (?,?,?,?,?,?,?,?,?)',
+                        (book_id, ch, v, tok_seq, gr, '', '', '', en))
+                    db.execute(
+                        'INSERT INTO alignment VALUES (?,?,?,?,?,?)',
+                        (book_id, ch, v, tok_seq, block, tok_seq))
+                    digest.update(('t%s\x01%s\x01%s\x00'
+                                   % ('w' if gr else '', attrs, en))
+                                  .encode('utf-8'))
+                    n_words += 1
+                    tok_seq += 1
+                if buf and not buf.endswith(' '):
+                    buf += ' '
+                db.execute('INSERT INTO verses VALUES (?,?,?,?)',
+                           (book_id, ch, v, buf))
+                db.executemany('INSERT INTO spans VALUES '
+                               '(?,?,?,?,?,?,?,?,?,?,?,?,?)', rows)
     meta = {
         'format_version': '1', 'id': mod_id, 'title': title,
         'language': 'en', 'direction': 'ltr', 'versification': 'eng',
@@ -151,8 +216,9 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
         'license': 'личный модуль пользователя; не распространять',
         'attribution': 'int_E. → int-en (gloss/greek/pairs)',
         'source': 'int-en', 'content_hash': digest.hexdigest(),
-        'required': '', 'interlinear': '1',
-        # ADR 0016: тип, возможности и права (личный модуль — не раздавать).
+        'required': '',
+        # ADR 0016: тип, возможности и права (личный модуль —
+        # не раздавать).
         'kind': 'interlinear', 'features': 'tokens,alignment',
         'rights': 'no-distribute,no-net,no-ai,no-plugins',
     }
@@ -161,7 +227,7 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
     db.execute('ANALYZE')
     db.commit()
     db.close()
-    print('%s: %d стихов, %d слов-пар → %s' % (mod_id, n_verses, n_words, dst))
+    print('%s: %d стихов, %d слов-пар -> %s' % (mod_id, n_verses, n_words, dst))
 
 
 if __name__ == '__main__':

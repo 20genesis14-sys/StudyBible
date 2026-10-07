@@ -42,6 +42,20 @@ fn hash_deterministic() {
 }
 
 #[test]
+fn hash_golden() {
+    // spec/05 С-12: алгоритм content_hash заморожен — эталонное
+    // значение для фиксированного источника SRC не должно меняться.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    build(&p);
+    let h = Module::open(&p).unwrap().meta().content_hash.clone();
+    assert_eq!(
+        h,
+        "24312d5a6770d09872b9f80791d4356f89377b93ad226cafff04b0cdd0fd65fe"
+    );
+}
+
+#[test]
 fn hash_ignores_meta_but_counts_structure() {
     let dir = tempfile::tempdir().unwrap();
     let p1 = dir.path().join("a.sb");
