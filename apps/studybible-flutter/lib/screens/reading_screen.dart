@@ -226,6 +226,14 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// Поиск стиха в ленте книги уже идёт (ленивый ListView).
   bool _seeking = false;
 
+  /// Pinch-zoom основного текста (fontScale): отслеживаемые пальцы,
+  /// дистанция и масштаб на старте щипка; _pinching — жест двумя
+  /// пальцами реально начался (сохранять настройку по концу).
+  final Map<int, Offset> _pinchPtrs = {};
+  double _pinchDist0 = 0;
+  double _pinchFont = 1.0;
+  bool _pinching = false;
+
   /// Входящая страница листания: целевая глава без прокрутки и без
   /// якорей (peek — превью, ключи нужны только живой странице).
   Widget _peekPage(Palette p, bool wide, String code, int chapter) {

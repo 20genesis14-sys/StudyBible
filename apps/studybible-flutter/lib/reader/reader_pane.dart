@@ -38,8 +38,9 @@ extension _ReaderPane on _ReadingScreenState {
             settings.update(() => settings.fontScale = next);
           }
         },
-        child: SingleChildScrollView(
-          controller: _scroll,
+        child: _pinchZoom(
+          SingleChildScrollView(
+            controller: _scroll,
           padding: EdgeInsets.fromLTRB(
             wide ? 48 : 20,
             // Когда сверху уже стоит полоса выбора перевода
@@ -84,6 +85,7 @@ extension _ReaderPane on _ReadingScreenState {
               ),
             ),
           ),
+        ),
         ),
       );
     }
@@ -179,6 +181,57 @@ extension _ReaderPane on _ReadingScreenState {
       );
     }
     return content;
+  }
+
+  /// Pinch-zoom: щипок двумя пальцами масштабирует основной текст
+  /// (settings.fontScale, те же пределы 0.8–1.6, что у Ctrl+колёсика).
+  /// Во время жеста — живой предпросмотр без записи, сохранение —
+  /// по отпускании пальцев.
+  ///
+  /// Реализовано на Listener, а не GestureDetector: распознаватель
+  /// жестов забрал бы однопальцевое перетаскивание у SelectionArea и
+  /// прокрутки (та же причина, что и у ReaderPageSwipe).
+  Widget _pinchZoom(Widget child) {
+    void end() {
+      _pinchPtrs.clear();
+      if (_pinching) {
+        _pinching = false;
+        settings.save();
+      }
+    }
+
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (e) {
+        if (_pinchPtrs.length < 2) _pinchPtrs[e.pointer] = e.position;
+        if (_pinchPtrs.length == 2) {
+          final p = _pinchPtrs.values.toList();
+          _pinchDist0 = (p[0] - p[1]).distance;
+          _pinchFont = settings.fontScale;
+          _pinching = _pinchDist0 > 0;
+        }
+      },
+      onPointerMove: (e) {
+        if (!_pinchPtrs.containsKey(e.pointer)) return;
+        _pinchPtrs[e.pointer] = e.position;
+        if (!_pinching || _pinchPtrs.length < 2) return;
+        final p = _pinchPtrs.values.toList();
+        final d = (p[0] - p[1]).distance;
+        final next = (_pinchFont * d / _pinchDist0).clamp(0.8, 1.6);
+        if (next != settings.fontScale) {
+          settings.preview(() => settings.fontScale = next.toDouble());
+        }
+      },
+      onPointerUp: (e) {
+        _pinchPtrs.remove(e.pointer);
+        if (_pinchPtrs.length < 2) end();
+      },
+      onPointerCancel: (e) {
+        _pinchPtrs.remove(e.pointer);
+        if (_pinchPtrs.length < 2) end();
+      },
+      child: child,
+    );
   }
 
   String _shortModuleName(String id) {
@@ -395,10 +448,12 @@ extension _ReaderPane on _ReadingScreenState {
         ),
       );
     }
-    return ListView(
-      controller: controller,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      children: rows,
+    return _pinchZoom(
+      ListView(
+        controller: controller,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        children: rows,
+      ),
     );
   }
 

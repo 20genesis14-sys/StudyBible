@@ -256,6 +256,19 @@ class Settings extends ChangeNotifier {
     if (_loaded) _save();
   }
 
+  /// Изменение без записи — живой предпросмотр (pinch-zoom шлёт
+  /// события каждый кадр; сотни записей в userdata.db за один жест
+  /// не нужны). Сохранение по концу жеста — через [save].
+  void preview(void Function() fn) {
+    fn();
+    notifyListeners();
+  }
+
+  /// Записать текущие настройки (как в конце [update]).
+  void save() {
+    if (_loaded) _save();
+  }
+
   /// Модули для экрана «стих во всех переводах»: явный список или,
   /// если не задан, все установленные.
   List<String> get compareList => compareModules.isEmpty
