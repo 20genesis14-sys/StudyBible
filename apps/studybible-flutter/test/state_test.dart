@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:studybible/data.dart';
+import 'package:studybible/native_bridge_io.dart';
 import 'package:studybible/l10n.dart';
 import 'package:studybible/state.dart';
 import 'package:studybible/theme.dart';
@@ -71,6 +72,55 @@ void main() {
       expect(s.voiceAccent, isFalse);
       expect(s.systemEngine, 'com.example.tts');
       expect(s.systemVoice, 'v|ru-RU');
+    });
+
+    test('voiceAccent/systemEngine/systemVoice: roundtrip через UserData',
+        () async {
+      // FLUTTER_TEST=true → userdata.db во временном каталоге,
+      // реальная база пользователя не трогается.
+      final s = Settings();
+      await s.load();
+      s.update(() {
+        s.voiceAccent = false;
+        s.systemEngine = 'com.test.tts';
+        s.systemVoice = 'test-voice|ru-RU';
+      });
+      // _save() — fire-and-forget: ждём, пока запись появится в БД.
+      var saved = false;
+      for (var i = 0; i < 100 && !saved; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        final all = await bridgeEntriesList('mark');
+        saved = all.any(
+          (e) =>
+              e.module == 'settings' &&
+              e.book == 'SET' &&
+              e.context.contains('com.test.tts'),
+        );
+      }
+      expect(saved, isTrue, reason: 'настройки не записались в UserData');
+
+      final s2 = Settings();
+      await s2.load();
+      expect(s2.voiceAccent, isFalse);
+      expect(s2.systemEngine, 'com.test.tts');
+      expect(s2.systemVoice, 'test-voice|ru-RU');
+
+      // Чистим за собой: temp-база общая на весь прогон тестов.
+      s2.update(() {
+        s2.voiceAccent = true;
+        s2.systemEngine = '';
+        s2.systemVoice = '';
+      });
+      for (var i = 0; i < 100; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        final all = await bridgeEntriesList('mark');
+        final ok = all.every(
+          (e) =>
+              !(e.module == 'settings' && e.book == 'SET') ||
+              !e.context.contains('com.test.tts'),
+        );
+        if (ok) break;
+      }
     });
   });
 

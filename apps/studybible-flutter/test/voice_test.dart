@@ -2,9 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:studybible/state.dart' show settings;
 import 'package:studybible/voice/phrases.dart';
 import 'package:studybible/voice/pronounce.dart';
 import 'package:studybible/voice/voice_pack.dart';
+import 'package:studybible/voice/voice_pick.dart';
 import 'package:studybible/voice/voice_registry_io.dart';
 import 'package:studybible/voice/wav.dart';
 import 'package:studybible/voice/words.dart';
@@ -61,6 +63,24 @@ void main() {
       expect(wordAt(w, t, 0.1)!.word, 'a');
       expect(wordAt(w, t, 0.4)!.word, 'bbb');
       expect(wordAt(w, t, 0.9)!.word, 'cc');
+    });
+
+    test('пустая строка и один пунктуатор', () {
+      expect(wordSpans(''), isEmpty);
+      expect(wordAt(wordSpans(''), '', 0.5), isNull);
+      // «,» — слово из одного знака: вес 1 + пауза 3.
+      final w = wordSpans(',');
+      expect(w, hasLength(1));
+      expect(w.single.cum, 4);
+      // frac за пределами 0..1 → null.
+      expect(wordAt(w, ',', 1.5), isNull);
+    });
+
+    test('одно слово без знаков', () {
+      final w = wordSpans('свет');
+      expect(w, hasLength(1));
+      expect(wordAt(w, 'свет', 0.5)!.word, 'свет');
+      expect(wordAt(w, 'свет', 1.0)!.word, 'свет');
     });
   });
 
@@ -159,6 +179,100 @@ void main() {
       File('${root.path}/junk/readme.txt').writeAsStringSync('x');
       expect(scanVoices(root.path), isEmpty);
     });
+
+    test('пустой каталог голосов — пустой список', () {
+      final root = Directory.systemTemp.createTempSync('voices');
+      addTearDown(() => root.deleteSync(recursive: true));
+      expect(scanVoices(root.path), isEmpty);
+    });
+
+    test('нет tokens.txt / нет espeak-ng-data — issues с причиной', () {
+      final root = Directory.systemTemp.createTempSync('voices');
+      addTearDown(() => root.deleteSync(recursive: true));
+      final noTok = Directory('${root.path}/vits-piper-en_US-no-tokens')
+        ..createSync();
+      File('${noTok.path}/m.onnx').writeAsBytesSync([0]);
+      Directory('${noTok.path}/espeak-ng-data').createSync();
+      final noData = Directory('${root.path}/vits-piper-ru_RU-no-data')
+        ..createSync();
+      File('${noData.path}/m.onnx').writeAsBytesSync([0]);
+      File('${noData.path}/tokens.txt').writeAsStringSync('x');
+
+      final packs = scanVoices(root.path);
+      final a = packs.firstWhere((p) => p.id.contains('no-tokens'));
+      expect(a.usable, isFalse);
+      expect(a.issues, contains('нет tokens.txt'));
+      expect(a.issues, isNot(contains('нет espeak-ng-data')));
+      final b = packs.firstWhere((p) => p.id.contains('no-data'));
+      expect(b.usable, isFalse);
+      expect(b.issues, contains('нет espeak-ng-data'));
+      expect(b.issues, isNot(contains('нет tokens.txt')));
+    });
+
+    test('битый .onnx.json — пакет негоден с понятной причиной', () {
+      final root = Directory.systemTemp.createTempSync('voices');
+      addTearDown(() => root.deleteSync(recursive: true));
+      final pack = Directory('${root.path}/vits-piper-ru_RU-bad')
+        ..createSync();
+      File('${pack.path}/m.onnx').writeAsBytesSync([0]);
+      File('${pack.path}/m.onnx.json').writeAsStringSync('{не json');
+      File('${pack.path}/tokens.txt').writeAsStringSync('x');
+      Directory('${pack.path}/espeak-ng-data').createSync();
+
+      final p = scanVoices(root.path).single;
+      expect(p.usable, isFalse);
+      expect(
+        p.issues.where((i) => i.contains('битый')),
+        isNotEmpty,
+        reason: 'issues: ${p.issues}',
+      );
+    });
+
+    test('tokens.txt на уровень глубже находится', () {
+      final root = Directory.systemTemp.createTempSync('voices');
+      addTearDown(() => root.deleteSync(recursive: true));
+      final pack = Directory('${root.path}/vits-piper-ru_RU-nested')
+        ..createSync();
+      File('${pack.path}/m.onnx').writeAsBytesSync([0]);
+      final sub = Directory('${pack.path}/sub')..createSync();
+      File('${sub.path}/tokens.txt').writeAsStringSync('x');
+      Directory('${sub.path}/espeak-ng-data').createSync();
+
+      final p = scanVoices(root.path).single;
+      expect(p.usable, isTrue);
+      expect(p.tokens, endsWith('tokens.txt'));
+    });
+  });
+
+  group('pickVoiceBackend', () {
+    final savedEngine = settings.voiceEngine;
+    tearDown(() => settings.voiceEngine = savedEngine);
+
+    test('neural без пакета под язык — ошибка с подсказкой', () async {
+      settings.voiceEngine = 'neural';
+      // 'he' — пакета точно нет (в реальных voices только ru_*).
+      final r = await pickVoiceBackend('he-IL');
+      expect(r.backend, isNull);
+      expect(r.error, contains('Нет голосового пакета'));
+      expect(r.error, contains('he-IL'));
+    });
+
+    test('auto без пакета — молчаливый фоллбэк на системный', () async {
+      settings.voiceEngine = 'auto';
+      final r = await pickVoiceBackend('he-IL');
+      // Пакета нет → системный бэкенд; в тестовом раннере flutter_tts
+      // без движка → его ошибка (не «нет пакета»).
+      expect(r.backend, isNull);
+      expect(r.error, isNotNull);
+      expect(r.error, isNot(contains('голосового пакета')));
+    });
+
+    test('system: ошибка TTS-движка возвращается текстом', () async {
+      settings.voiceEngine = 'system';
+      final r = await pickVoiceBackend('ru-RU');
+      expect(r.backend, isNull);
+      expect(r.error, contains('Синтез речи недоступен'));
+    });
   });
 
   group('PronounceDict — подмена только для синтеза', () {
@@ -223,6 +337,28 @@ void main() {
       expect(splitPhrases(''), isEmpty);
       expect(splitPhrases('   '), isEmpty);
       expect(splitPhrases('просто текст').single.text, 'просто текст');
+    });
+
+    test('один пунктуатор — одна фраза с паузой 0', () {
+      expect(splitPhrases('?').single.text, '?');
+      expect(splitPhrases('?').single.pauseMs, 0);
+      expect(splitPhrases('?!').single.text, '?!');
+    });
+
+    test('«— ,» и многоточие как часть фразы', () {
+      // '—' не разделитель, ',' разделитель: вся строка — одна фраза.
+      final p = splitPhrases('— ,');
+      expect(p.single.text, '— ,');
+      expect(p.single.pauseMs, 0);
+      // Многоточие внутри фразы не режет её.
+      final e = splitPhrases('ждал… и дождался.');
+      expect(e.single.text, 'ждал… и дождался.');
+    });
+
+    test('одно слово без финальной пунктуации', () {
+      final p = splitPhrases('свет');
+      expect(p.single.text, 'свет');
+      expect(p.single.pauseMs, 0);
     });
   });
 }

@@ -79,6 +79,80 @@ void main() {
     expect(vul.convert(eng, VerseKey('DAG', 3, 53)), isEmpty);
   });
 
+  group('vrs_parser — краевые случаи', () {
+    test('искажённые строки-соответствия уходят в skipped, не падают', () {
+      final v = Versification.parse(
+        't',
+        'GEN 1:1 = GEN 1:1\n'
+        'GEN 2:1 = бред\n'
+        'GEN 3:1 = \n'
+        '= GEN 4:1\n'
+        'GEN 5:9-5 = GEN 5:9\n', // диапазон задом наперёд
+      );
+      // Годная строка применилась, три битых записаны для аудита.
+      expect(v.toOrg(VerseKey('GEN', 1, 1)), [VerseKey('GEN', 1, 1)]);
+      expect(v.skipped.length, 4);
+      expect(v.skipped.every((s) => s.startsWith('t.vrs:')), isTrue);
+    });
+
+    test('стих 0 (надписание) участвует в соответствиях', () {
+      final a = Versification.parse('a', 'PSA 89:0-1 = PSA 90:0\n');
+      final b = Versification.parse('b', '');
+      expect(
+        a.convert(b, VerseKey('PSA', 89, 0)),
+        [VerseKey('PSA', 90, 0)],
+      );
+      expect(
+        a.convert(b, VerseKey('PSA', 89, 1)),
+        [VerseKey('PSA', 90, 0)],
+      );
+    });
+
+    test('cross-book соответствие: DAG → SUS', () {
+      final a = Versification.parse('a', 'DAG 3:52-53 = SUS 1:1-2\n');
+      final b = Versification.parse('b', '');
+      expect(
+        a.convert(b, VerseKey('DAG', 3, 52)),
+        [VerseKey('SUS', 1, 1)],
+      );
+      expect(
+        a.convert(b, VerseKey('DAG', 3, 53)),
+        [VerseKey('SUS', 1, 2)],
+      );
+    });
+
+    test('книга вне каталога — обычный 3-буквенный код (паритет Rust)',
+        () {
+      final v = Versification.parse('t', 'XX9 1:1 = XX9 1:2\n');
+      expect(v.skipped, isEmpty);
+      expect(v.toOrg(VerseKey('XX9', 1, 1)), [VerseKey('XX9', 1, 2)]);
+    });
+
+    test('пустой файл и битая строка глав', () {
+      final empty = Versification.parse('t', '# только комментарий\n\n');
+      expect(empty.chapters, isEmpty);
+      expect(empty.skipped, isEmpty);
+      // Стих без соответствия — тот же номер.
+      expect(
+        empty.toOrg(VerseKey('GEN', 1, 1)),
+        [VerseKey('GEN', 1, 1)],
+      );
+      expect(
+        () => Versification.parse('t', 'PSA abc\n'),
+        throwsFormatException,
+      );
+      // Строка не с [A-Z0-9] в начале игнорируется (markdown-мусор).
+      final junk = Versification.parse('t', '- не соответствие\n');
+      expect(junk.skipped, isEmpty);
+    });
+
+    test('буквенный суффикс стиха отбрасывается (GEN 1:1a)', () {
+      final v = Versification.parse('t', 'GEN 1:1a = GEN 1:2\n');
+      expect(v.skipped, isEmpty);
+      expect(v.toOrg(VerseKey('GEN', 1, 1)), [VerseKey('GEN', 1, 2)]);
+    });
+  });
+
   test('compareTexts: текст каждого соответствия со своим номером', () {
     // Фейковая глава eng Пс 90: стихи 0,5,6.
     ChapterDoc? chapterOf(String book, int ch) {
