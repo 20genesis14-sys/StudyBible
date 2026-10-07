@@ -128,3 +128,85 @@ fn hyphens_and_punctuation() {
     assert!(out.ends_with(";") && out.contains(','));
     assert_eq!(out.matches('-').count(), 2);
 }
+
+#[test]
+fn empty_and_non_cyrillic() {
+    let a = accentor();
+    // Пустая строка, пробелы и текст без кириллицы — без изменений.
+    assert_eq!(a.accent_text(""), "");
+    assert_eq!(a.accent_text("   "), "   ");
+    assert_eq!(a.accent_text("hello world"), "hello world");
+    assert_eq!(a.accent_text("12345"), "12345");
+    assert_eq!(a.accent_word("abc"), "abc");
+    // Пунктуаторы без букв не «слово».
+    assert_eq!(a.accent_text("--"), "--");
+    assert_eq!(a.accent_text("…?!"), "…?!");
+}
+
+#[test]
+fn monosyllables_get_no_accent() {
+    let a = accentor();
+    // Односложные слова речь произносит и так — ударение рубит фразу.
+    let s = "и во над же Бог";
+    assert_eq!(a.accent_text(s), s);
+    assert_eq!(a.accent_text("В"), "В");
+    // Безгласные и дефисы-одиночки — тоже.
+    assert_eq!(a.accent_text("ь - -ъ"), "ь - -ъ");
+}
+
+#[test]
+fn hyphenated_words() {
+    let a = accentor();
+    // Дефисное слово — одно слово, ударение одно.
+    let out = a.accent_text("по-человечески");
+    assert_eq!(out, "по-челове́чески");
+    assert_eq!(out.matches('\u{0301}').count(), 1);
+    // Ведущий/замыкающий дефис — не часть слова, сохраняется.
+    let out = a.accent_text("-небо-");
+    assert_eq!(out, "-не́бо-");
+}
+
+#[test]
+fn all_caps_preserved() {
+    let a = accentor();
+    // Слово ЗАГЛАВНЫМИ не должно «опускаться» в Title Case
+    // ни нейросетью, ни словарями (ё/лексикон).
+    assert_eq!(a.accent_text("НАЧАЛЕ"), "НАЧА́ЛЕ");
+    assert_eq!(a.accent_text("ЗЕМЛЮ"), "ЗЕ́МЛЮ");
+    assert_eq!(a.accent_text("ЕЩЕ"), "ЕЩЁ");
+}
+
+#[test]
+fn apostrophes_and_mixed_scripts() {
+    let a = accentor();
+    // Апострофы (') — граница слов, сохраняются.
+    let out = a.accent_text("д’Артаньян");
+    assert_eq!(out, "д’Артанья́н");
+    // Гибрид кириллица+латиница: латинская часть не трогается,
+    // кириллический кусок ударяется как отдельное слово.
+    assert_eq!(a.accent_text("юниcode"), "ю́ниcode");
+    // «текст» — слово без уверенного ответа модели: возвращается
+    // как есть, латиница рядом не мешает.
+    assert_eq!(a.accent_text("текст"), "текст");
+    // Нейросеть не нашла ударения (оценка ниже порога) — слово
+    // возвращается как есть, без паники.
+    assert_eq!(a.accent_text("О'кей"), "О'кей");
+}
+
+#[test]
+fn network_path_outside_lexicon() {
+    let a = accentor();
+    // Слова вне лексикона идут в нейросеть: ударение одно, на гласной.
+    let out = a.accent_text("сверхъестественный");
+    assert_eq!(out.matches('\u{0301}').count(), 1);
+    assert!(out.contains("есте\u{0301}ственный"), "got {out}");
+}
+
+#[test]
+fn overlong_word_untouched() {
+    let a = accentor();
+    // Слова длиннее max_length модели (40) не отправляются в инференс.
+    let s = "оченьдлинноесловокотороенепомещаетсявсороксимволовмодели";
+    assert!(s.chars().count() > 40);
+    assert_eq!(a.accent_word(s), s);
+}
