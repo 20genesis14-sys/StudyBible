@@ -515,37 +515,17 @@ extension _ReaderController on _ReadingScreenState {
   }
 
   void _go(int dir) {
-    _stopTts();
     final t = _goTarget(dir);
     if (t == null) return;
     final (code, ch, banner) = t;
-    _rebuild(() {
-      _code = code;
-      _ch = ch;
-      _selectedVerse = null;
-      _notesOpen = false;
-      _blockKeys.clear();
-      _bookVerseKeys.clear();
-    });
-    _scroll.jumpTo(0);
-    if (_compareScroll.hasClients) _compareScroll.jumpTo(0);
-    progress.markRead(code, ch);
-    progress.setPosition(code, ch);
-    history.touch(_moduleId, code, ch);
-    _loadVerseEntries();
-    // Главы соседних экранов .sb подгружаем по месту.
-    for (final m in _mods.values) {
-      _ensureChapter(m, code, ch);
-    }
-    _scrollToVerse(progress.lastVerse['$code:$ch']);
-    if (banner != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(banner),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    // Свайп — переход в стеке рабочего места (ADR 0019).
+    final loc = Location.verse(
+      moduleId: _moduleId,
+      book: code,
+      chapter: ch,
+      pane: _paneSnapshot(),
+    );
+    workspace.go(loc);
+    _applyLocation(loc, banner);
   }
 }

@@ -318,35 +318,25 @@ extension _ChapterRenderer on _ReadingScreenState {
     return TextSpan(text: t.text, style: style, recognizer: recognizer);
   }
 
-  /// Переход по ссылке из сноски («Быт 1:1»): новый экран чтения,
-  /// назад — возврат к текущей главе.
-  void _goToRef(Ref r) {
-    Navigator.of(context).push(
-      fastRoute(
-        ReadingScreen(
-          bookCode: r.book,
-          chapter: r.chapter,
-          verse: r.verse,
-          moduleId: _moduleId,
-        ),
-      ),
-    );
-  }
+  /// Переход по ссылке из сноски («Быт 1:1»): переход в стеке
+  /// рабочего места, «назад» возвращает к текущей позиции (ADR 0019).
+  void _goToRef(Ref r) => _navTo(r, _moduleId);
 
   /// Переход к конвертированному месту в другом переводе (тап по
   /// тексту параллельного места из xrefModule — координата уже в
   /// версификации этого перевода).
-  void _goToRefModule(Ref r, String moduleId) {
-    Navigator.of(context).push(
-      fastRoute(
-        ReadingScreen(
-          bookCode: r.book,
-          chapter: r.chapter,
-          verse: r.verse,
-          moduleId: moduleId,
-        ),
-      ),
+  void _goToRefModule(Ref r, String moduleId) => _navTo(r, moduleId);
+
+  void _navTo(Ref r, String moduleId) {
+    final loc = Location.verse(
+      moduleId: moduleId,
+      book: r.book,
+      chapter: r.chapter,
+      verse: r.verse,
+      pane: _paneSnapshot(),
     );
+    workspace.go(loc);
+    _applyLocation(loc);
   }
 
   void _showStrong(String strong, String word) {

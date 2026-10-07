@@ -47,6 +47,17 @@ extension _ReaderChrome on _ReadingScreenState {
             _load(v);
             _loadVerseEntries();
             history.touch(v, _code, _ch);
+            // Смена перевода на месте — переход: «назад» возвращает
+            // прежний перевод (ADR 0019).
+            workspace.go(
+              Location.verse(
+                moduleId: v,
+                book: _code,
+                chapter: _ch,
+                verse: _selectedVerse ?? 0,
+                pane: _paneSnapshot(),
+              ),
+            );
           });
         },
         itemBuilder: (_) => [
@@ -82,6 +93,7 @@ extension _ReaderChrome on _ReadingScreenState {
           if (_interleaved && second != null) {
             _ensureChapter(second, _code, _ch);
           }
+          workspace.updateSnapshot(_paneSnapshot());
         },
       ),
       IconButton(
@@ -486,6 +498,15 @@ extension _ReaderChrome on _ReadingScreenState {
                   _load(e.key);
                   _loadVerseEntries();
                   history.touch(e.key, _code, _ch);
+                  workspace.go(
+                    Location.verse(
+                      moduleId: e.key,
+                      book: _code,
+                      chapter: _ch,
+                      verse: _selectedVerse ?? 0,
+                      pane: _paneSnapshot(),
+                    ),
+                  );
                 },
               ),
           ],
@@ -545,6 +566,7 @@ extension _ReaderChrome on _ReadingScreenState {
                       final m = _mods[_compareModuleId];
                       if (m != null) _ensureChapter(m, _code, _ch);
                     }
+                    workspace.updateSnapshot(_paneSnapshot());
                   }),
                 ),
                 if (_compare || _interleaved)
@@ -610,6 +632,42 @@ extension _ReaderChrome on _ReadingScreenState {
         child: ListView(
           shrinkWrap: true,
           children: [
+            // Компактные шаги по стеку позиций (ADR 0019); полный
+            // журнал без лимита — следующим пунктом.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: tr('Назад', 'Back'),
+                    icon: const Icon(Icons.arrow_back, size: 20),
+                    onPressed: workspace.canBack
+                        ? () {
+                            Navigator.of(context).pop();
+                            final loc = workspace.back();
+                            if (loc != null) _applyLocation(loc);
+                          }
+                        : null,
+                  ),
+                  IconButton(
+                    tooltip: tr('Вперёд', 'Forward'),
+                    icon: const Icon(Icons.arrow_forward, size: 20),
+                    onPressed: workspace.canForward
+                        ? () {
+                            Navigator.of(context).pop();
+                            final loc = workspace.forward();
+                            if (loc != null) _applyLocation(loc);
+                          }
+                        : null,
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${workspace.depth}',
+                    style: TextStyle(fontSize: 11, color: p.muted),
+                  ),
+                ],
+              ),
+            ),
             item(Icons.history, tr('История чтения', 'Reading history'), () {
               Navigator.of(context).push(fastRoute(const HistoryScreen()));
             }),
@@ -861,25 +919,17 @@ extension _ReaderChrome on _ReadingScreenState {
     );
   }
 
-  /// Переход «книга, глава» — тот же сброс состояния, что у _go.
+  /// Переход «книга, глава» — переход в стеке рабочего места,
+  /// как и свайп (ADR 0019).
   void _jumpTo(String code, int ch) {
-    _stopTts();
-    _rebuild(() {
-      _code = code;
-      _ch = ch;
-      _selectedVerse = null;
-      _notesOpen = false;
-      _blockKeys.clear();
-      _bookVerseKeys.clear();
-    });
-    if (_scroll.hasClients) _scroll.jumpTo(0);
-    progress.markRead(code, ch);
-    progress.setPosition(code, ch);
-    history.touch(_moduleId, code, ch);
-    _loadVerseEntries();
-    for (final m in _mods.values) {
-      _ensureChapter(m, code, ch);
-    }
+    final loc = Location.verse(
+      moduleId: _moduleId,
+      book: code,
+      chapter: ch,
+      pane: _paneSnapshot(),
+    );
+    workspace.go(loc);
+    _applyLocation(loc);
   }
 
   /// Компактный «подпись + ползунок» для листа «Шрифт и тема».

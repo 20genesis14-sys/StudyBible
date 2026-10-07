@@ -11,6 +11,7 @@ import 'screens/home_screen.dart';
 import 'screens/modules_screen.dart';
 import 'screens/plan_screen.dart';
 import 'tts_media.dart';
+import 'workspace/reader_workspace.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +73,9 @@ class _HomeShellState extends State<HomeShell> {
     // (userdata.db через мост; на web — no-op).
     settings.load();
     progress.load();
+    // Стек позиций рабочего места — на фоне, старт всегда на
+    // «Доме» (ADR 0019); сессия доступна сразу при входе в чтение.
+    workspace.load();
   }
 
   // Нижняя навигация — вариант А (ADR 0015): настройки уехали

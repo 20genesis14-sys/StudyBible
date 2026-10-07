@@ -295,6 +295,9 @@ extension _ReaderPane on _ReadingScreenState {
           final m = _mods[v];
           if (m != null) _ensureChapter(m, _code, _ch);
           _load(v);
+          // Смена состояния панели — обновляет снимок текущей записи,
+          // а не стек (ADR 0019).
+          workspace.updateSnapshot(_paneSnapshot());
         },
       ),
     );

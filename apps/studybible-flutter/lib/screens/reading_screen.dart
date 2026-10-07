@@ -26,6 +26,7 @@ import '../vrs.dart';
 import '../theme.dart';
 import '../voice/voice_backend.dart' show WordMark;
 import '../workspace/contributions.dart';
+import '../workspace/reader_workspace.dart';
 import '../workspace/workspace_model.dart';
 import 'history_screen.dart';
 import 'search_screen.dart';
@@ -61,7 +62,8 @@ class ReadingScreen extends StatefulWidget {
 class _ReadingScreenState extends State<ReadingScreen> {
   /// Текущая раскладка ADR 0014: одна панель чтения.
   /// Дальнейшие шаги рефакторинга передают её в ReaderPane.
-  final WorkspaceConfig workspace = WorkspaceConfig.singleReader();
+  /// Имя не `workspace` — не затеняет глобальный синглтон позиций.
+  final WorkspaceConfig layout = WorkspaceConfig.singleReader();
 
   late String _code = widget.bookCode;
   late int _ch = widget.chapter;
@@ -172,6 +174,57 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// Перестроение из reader/*-частей без прямого доступа к protected setState.
   void _rebuild(VoidCallback fn) => setState(fn);
 
+  /// Снимок состояния панели для записи стека (ADR 0019):
+  /// «назад» восстанавливает строчное сравнение и его перевод.
+  Map<String, Object?> _paneSnapshot() => {
+    'interleaved': _interleaved,
+    'cmp': _compareModuleId,
+  };
+
+  /// Применить позицию рабочего места к экрану — единый переход для
+  /// свайпов, ссылок и шагов «назад/вперёд»: перевод, глава, снимок
+  /// панели, прокрутка до стиха, журнал. Новых экранов не создаёт.
+  void _applyLocation(Location loc, [String? banner]) {
+    _stopTts();
+    final cmp = loc.pane['cmp'] as String?;
+    _rebuild(() {
+      _moduleId = loc.moduleId;
+      _code = loc.book;
+      _ch = loc.chapter;
+      _selectedVerse = null;
+      _notesOpen = false;
+      _interleaved = loc.pane['interleaved'] as bool? ?? _interleaved;
+      if (cmp != null && cmp != _moduleId) _compareModuleId = cmp;
+      _blockKeys.clear();
+      _bookVerseKeys.clear();
+    });
+    _scroll.jumpTo(0);
+    if (_compareScroll.hasClients) _compareScroll.jumpTo(0);
+    _load(_moduleId);
+    _loadVerseEntries();
+    progress.markRead(loc.book, loc.chapter);
+    progress.setPosition(loc.book, loc.chapter);
+    history.touch(loc.moduleId, loc.book, loc.chapter, verse: loc.verse);
+    // Главы соседних экранов .sb подгружаем по месту.
+    for (final m in _mods.values) {
+      _ensureChapter(m, loc.book, loc.chapter);
+    }
+    // Восстановление — до стиха, не до пикселя (ADR 0019).
+    final target = loc.verse > 0
+        ? loc.verse
+        : progress.lastVerse['${loc.book}:${loc.chapter}'];
+    _scrollToVerse(target);
+    if (banner != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(banner),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -197,6 +250,17 @@ class _ReadingScreenState extends State<ReadingScreen> {
     if (_compareModuleId != _moduleId) _load(_compareModuleId);
     _loadVerseEntries();
     history.touch(_moduleId, _code, _ch, verse: widget.verse ?? 0);
+    // Входная позиция рабочего места (ADR 0019): стек единый,
+    // внутренние переходы не создают новых экранов.
+    workspace.go(
+      Location.verse(
+        moduleId: _moduleId,
+        book: _code,
+        chapter: _ch,
+        verse: widget.verse ?? 0,
+        pane: _paneSnapshot(),
+      ),
+    );
     // Синхронная прокрутка: основная колонка ведёт колонку сравнения и обратно.
     _scroll.addListener(() => _syncScroll(_scroll, _compareScroll));
     _compareScroll.addListener(() => _syncScroll(_compareScroll, _scroll));
@@ -316,7 +380,27 @@ class _ReadingScreenState extends State<ReadingScreen> {
       },
       child: Focus(
         autofocus: true,
-        child: Scaffold(
+        // Системный «назад» — сначала шаг по стеку рабочего места;
+        // стек пуст — обычный pop (на «Домой»/к открывшему экрану).
+        // Открытые листы/меню закрывает само дерево виджетов раньше.
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            // Порядок закрытия (ADR 0019): шторки/меню закрывает
+            // дерево само; поле поиска — следующим; затем стек.
+            if (_searchOpen) {
+              setState(() => _searchOpen = false);
+              return;
+            }
+            final loc = workspace.back();
+            if (loc != null) {
+              _applyLocation(loc);
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+          child: Scaffold(
           body: Stack(
             children: [
               NotificationListener<ScrollNotification>(
@@ -451,6 +535,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                   child: _ttsPlayer(p),
                 ),
             ],
+          ),
           ),
         ),
       ),
