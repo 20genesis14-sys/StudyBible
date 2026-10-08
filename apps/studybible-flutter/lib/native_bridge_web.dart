@@ -22,7 +22,7 @@ import 'package:typed_data/typed_buffers.dart';
 import 'package:web/web.dart' as web;
 
 import 'native_bridge.dart';
-import 'search_norm.dart' show normSearchQuery, normVersion;
+import 'search_norm.dart' show normForIndex, normSearchQuery, normVersion;
 
 /// Открытые (свободные по лицензии) модули, которые скрипт кладёт
 /// в web/modules/. Личные модули пользователя сюда не попадают.
@@ -65,17 +65,23 @@ Future<CommonDatabase> _openDb(String path) async {
   // На хостинге модули лежат сжатыми (modules/*.sb.gz): передача всего
   // сайта иначе упирается в лимит деплоя. Сначала пробуем .gz и
   // распаковываем браузерным DecompressionStream; без него — сырой .sb.
-  Uint8List bytes;
+  // SPA-сервер отдаёт index.html с кодом 200 на любой путь, поэтому
+  // решаем по магическим байтам, а не по статусу.
+  Uint8List? bytes;
   final respGz = await web.window.fetch('$path.gz'.toJS).toDart;
   if (respGz.status == 200 && respGz.body != null) {
-    final ds = web.DecompressionStream('gzip');
-    final piped = respGz.body!.pipeThrough(
-      web.ReadableWritablePair(readable: ds.readable, writable: ds.writable),
-    );
-    bytes = (await web.Response(
-      piped,
-    ).arrayBuffer().toDart).toDart.asUint8List();
-  } else {
+    final gz = (await respGz.arrayBuffer().toDart).toDart.asUint8List();
+    if (gz.length > 1 && gz[0] == 0x1f && gz[1] == 0x8b) {
+      final ds = web.DecompressionStream('gzip');
+      final piped = web.Response(gz.toJS).body!.pipeThrough(
+        web.ReadableWritablePair(readable: ds.readable, writable: ds.writable),
+      );
+      bytes = (await web.Response(
+        piped,
+      ).arrayBuffer().toDart).toDart.asUint8List();
+    }
+  }
+  if (bytes == null) {
     final resp = await web.window.fetch(path.toJS).toDart;
     bytes = (await resp.arrayBuffer().toDart).toDart.asUint8List();
   }
@@ -86,10 +92,73 @@ Future<CommonDatabase> _openDb(String path) async {
   _fs!.fileData['/$path'] = buf;
 
   // vfs указан явно: wasm-сборка не ставит файловую систему
-  // по умолчанию сама, даже при makeDefault.
-  final db = _sqlite!.open(path, mode: OpenMode.readOnly, vfs: _fs!.name);
+  // по умолчанию сама, даже при makeDefault. Открываем на запись:
+  // база — наша копия в памяти, а мост достраивает в ней таблицу
+  // `fts` в фоне, если в модуле её нет (решение 12.10.2026: веб
+  // индексирует сам, модуль не раздуваем).
+  final db = _sqlite!.open(path, mode: OpenMode.readWrite, vfs: _fs!.name);
   _dbs[path] = db;
+  _ftsJobs[path] ??= _buildFtsInMemory(db);
   return db;
+}
+
+/// Фоновая индексация модуля: по одной Future на файл. Модуль открыт
+/// и читаем сразу; пока индекс не готов, поиск идёт LIKE-сканом —
+/// таблица `fts` без `meta.norm_version` поиск не трогает.
+final Map<String, Future<void>> _ftsJobs = {};
+
+/// Достраивает FTS5-индекс в открытой (in-memory) базе модуля.
+/// `meta.norm_version` выставляется только после полной вставки —
+/// поиск по полупостроенной таблице исключён. Батчи разделены
+/// микрозадачами, чтобы не замораживать единственный изолят.
+Future<void> _buildFtsInMemory(CommonDatabase db) async {
+  try {
+    final has = db.select(
+      "SELECT count(*) AS n FROM sqlite_master WHERE name='fts' AND sql LIKE '%VIRTUAL TABLE%'",
+    );
+    if ((has.first['n'] as num) > 0) return;
+    final hasVerses = db.select(
+      "SELECT count(*) AS n FROM sqlite_master WHERE name='verses' AND type='table'",
+    );
+    if ((hasVerses.first['n'] as num) == 0) return; // словари и пр.
+    db.execute(
+      "CREATE VIRTUAL TABLE fts USING fts5("
+      'book UNINDEXED, chapter UNINDEXED, verse UNINDEXED, norm, '
+      "tokenize='unicode61')",
+    );
+    final rows = db.select(
+      'SELECT b.code AS c, v.chapter AS ch, v.verse AS v, v.text AS t '
+      'FROM verses v JOIN books b ON b.book_id = v.book_id',
+    );
+    const batch = 500;
+    for (var i = 0; i < rows.length; i += batch) {
+      db.execute('BEGIN');
+      try {
+        final ins = db.prepare('INSERT INTO fts VALUES(?1, ?2, ?3, ?4)');
+        for (final r in rows.skip(i).take(batch)) {
+          ins.execute([
+            '${r['c']}',
+            r['ch'],
+            r['v'],
+            normForIndex('${r['t']}'),
+          ]);
+        }
+        ins.close();
+        db.execute('COMMIT');
+      } catch (_) {
+        db.execute('ROLLBACK');
+        rethrow;
+      }
+      // Отдаём управление циклу событий — UI остаётся отзывчивым.
+      await Future<void>.delayed(Duration.zero);
+    }
+    db.execute(
+      "INSERT OR REPLACE INTO meta(key, value) VALUES('norm_version', ?)",
+      [normVersion],
+    );
+  } catch (_) {
+    // Модуль без стихов/битая схема — остаётся LIKE-скан.
+  }
 }
 
 // ---------- каталог ----------

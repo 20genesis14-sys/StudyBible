@@ -14,8 +14,7 @@
             "license": "public domain",
             "attribution": "eBible.org (russyn)",
             "format": "usfm",
-            "sbz": "both",
-            "fts": true
+            "sbz": "both"
         },
         {
             "id": "engwebp",
@@ -30,8 +29,7 @@
             "license": "public domain; \"World English Bible\" — товарный знак eBible.org, изменённый текст так называть нельзя",
             "attribution": "eBible.org (engwebp)",
             "format": "usfm",
-            "sbz": "both",
-            "fts": true
+            "sbz": "both"
         },
         {
             "id": "eng-kjv2006",
@@ -46,8 +44,7 @@
             "license": "public domain вне Великобритании (в UK — Letters Patent)",
             "attribution": "eBible.org (eng-kjv2006)",
             "format": "usfm",
-            "sbz": "both",
-            "fts": true
+            "sbz": "both"
         },
         {
             "id": "ru_rob",
@@ -62,8 +59,7 @@
             "license": "CC BY-SA 4.0",
             "attribution": "Door43-Catalog/ru_rob (unfoldingWord); обязательна ссылка на door43.org",
             "format": "usfm",
-            "sbz": "both",
-            "fts": true
+            "sbz": "both"
         },
         {
             "id": "englsv",
@@ -78,8 +74,7 @@
             "license": "© 2020 Covenant Press — free to read, distribute, and translate from",
             "attribution": "eBible.org (englsv), lsvbible.com",
             "format": "usfm",
-            "sbz": "both",
-            "fts": true
+            "sbz": "both"
         },
         {
             "id": "engbsb",
@@ -94,8 +89,7 @@
             "license": "public domain",
             "attribution": "eBible.org (engbsb); ~4500 сносок о разночтениях LXX/MT/DSS/SP/Vulgate",
             "format": "usfm",
-            "sbz": "both",
-            "fts": true
+            "sbz": "both"
         }
     ]
 }
