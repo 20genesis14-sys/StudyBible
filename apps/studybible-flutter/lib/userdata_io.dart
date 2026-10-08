@@ -10,7 +10,11 @@ import 'package:file_picker/file_picker.dart';
 
 import 'l10n.dart';
 import 'native_bridge_io.dart'
-    show bridgeEntriesExport, bridgeEntriesImport, dataDir;
+    show
+        bridgeEntriesExport,
+        bridgeEntriesExportMd,
+        bridgeEntriesImport,
+        dataDir;
 
 /// Экспорт всех записей в выбранный пользователем zip.
 /// Возвращает текст для SnackBar или null при отмене.
@@ -24,6 +28,24 @@ Future<String?> exportEntriesZip() async {
   final out = await FilePicker.saveFile(
     dialogTitle: tr('Экспорт записей', 'Export entries'),
     fileName: 'userdata.zip',
+    bytes: bytes,
+  );
+  if (out == null) return null;
+  return tr('Экспортировано записей: $n', 'Exported entries: $n');
+}
+
+/// Экспорт всех записей в выбранный Markdown-файл (только экспорт).
+/// Возвращает текст для SnackBar или null при отмене.
+Future<String?> exportEntriesMd() async {
+  final tmp = File('${dataDir()}${Platform.pathSeparator}userdata-export.md');
+  final n = await bridgeEntriesExportMd(tmp.path);
+  if (n == null || !await tmp.exists()) {
+    return tr('Ошибка экспорта записей', 'Entries export failed');
+  }
+  final bytes = await tmp.readAsBytes();
+  final out = await FilePicker.saveFile(
+    dialogTitle: tr('Экспорт записей в Markdown', 'Export entries to Markdown'),
+    fileName: 'userdata.md',
     bytes: bytes,
   );
   if (out == null) return null;

@@ -8,6 +8,11 @@ Future<String?> exportEntriesZip() async => tr(
   'Entries export is supported in the desktop and Android builds',
 );
 
+Future<String?> exportEntriesMd() async => tr(
+  'Экспорт записей поддерживается на десктопе и Android',
+  'Entries export is supported in the desktop and Android builds',
+);
+
 Future<String?> importEntriesZip() async => tr(
   'Импорт записей поддерживается на десктопе и Android',
   'Entries import is supported in the desktop and Android builds',

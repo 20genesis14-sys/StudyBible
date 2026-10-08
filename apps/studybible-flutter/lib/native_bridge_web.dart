@@ -583,6 +583,7 @@ Future<List<String>> bridgeOrphanIds() async => const [];
 
 /// Экспорт/импорт записей — на web нет файловой системы.
 Future<int?> bridgeEntriesExport(String dest) async => null;
+Future<int?> bridgeEntriesExportMd(String dest) async => null;
 Future<String?> bridgeEntriesImport(String src) async => null;
 
 // ---------- словарь (entries, ADR 0016) ----------

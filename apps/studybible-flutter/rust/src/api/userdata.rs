@@ -352,6 +352,11 @@ pub async fn entries_export(path: String, file: String) -> Result<i64> {
     Ok(open(&path)?.export_zip(Path::new(&file))? as i64)
 }
 
+/// Экспорт всех записей в Markdown-файл `file` (только экспорт).
+pub async fn entries_export_md(path: String, file: String) -> Result<i64> {
+    Ok(open(&path)?.export_markdown(Path::new(&file))? as i64)
+}
+
 /// Импорт записей из zip («свежее updated побеждает»); строка-итог.
 pub async fn entries_import(path: String, file: String) -> Result<String> {
     let s = open(&path)?.import_zip(Path::new(&file))?;

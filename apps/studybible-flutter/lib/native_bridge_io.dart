@@ -359,6 +359,18 @@ Future<int?> bridgeEntriesExport(String dest) async {
   });
 }
 
+/// Экспорт записей в Markdown-файл `dest`; число записей или null.
+Future<int?> bridgeEntriesExportMd(String dest) async {
+  await _ensureInit();
+  return _guard('entriesExportMd', () async {
+    final n = await api_userdata.entriesExportMd(
+      path: _userdataPath(),
+      file: dest,
+    );
+    return n.toInt();
+  });
+}
+
 /// Импорт записей из zip-файла `src`; строка-итог или null.
 Future<String?> bridgeEntriesImport(String src) async {
   await _ensureInit();

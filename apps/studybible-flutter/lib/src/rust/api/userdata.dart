@@ -123,6 +123,15 @@ Future<PlatformInt64> entriesExport({
 }) =>
     RustLib.instance.api.crateApiUserdataEntriesExport(path: path, file: file);
 
+/// Экспорт всех записей в Markdown-файл `file` (только экспорт).
+Future<PlatformInt64> entriesExportMd({
+  required String path,
+  required String file,
+}) => RustLib.instance.api.crateApiUserdataEntriesExportMd(
+  path: path,
+  file: file,
+);
+
 /// Импорт записей из zip («свежее updated побеждает»); строка-итог.
 Future<String> entriesImport({required String path, required String file}) =>
     RustLib.instance.api.crateApiUserdataEntriesImport(path: path, file: file);

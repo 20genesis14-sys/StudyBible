@@ -114,6 +114,7 @@ Future<List<UserEntry>> bridgeEntriesForeign(
 /// Сироты, экспорт/импорт записей — стаб.
 Future<List<String>> bridgeOrphanIds() async => const [];
 Future<int?> bridgeEntriesExport(String dest) async => null;
+Future<int?> bridgeEntriesExportMd(String dest) async => null;
 Future<String?> bridgeEntriesImport(String src) async => null;
 
 // ---------- словарь (стаб — пусто) ----------
