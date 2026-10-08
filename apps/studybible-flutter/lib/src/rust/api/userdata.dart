@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `anchor_at`, `anchor`, `entry_info`, `kind_of`, `open`
+// These functions are ignored because they are not marked as `pub`: `anchor_at`, `anchor`, `entry_info`, `kind_of`, `open`, `resolve_module`
 
 /// Снять состояние прогресса одним JSON:
 /// `{"read":["GEN:1",...], "last_position":"GEN:1"|null, "last_verse":{"GEN:1":5}}`.
@@ -87,6 +87,11 @@ Future<String> entryAdd({
   text: text,
   context: context,
 );
+
+/// Прогнать перепривязку записей к установленным модулям
+/// (`UserData::relink`, в.12); возвращает строку-итог для лога/UI.
+String entriesRelink({required String path}) =>
+    RustLib.instance.api.crateApiUserdataEntriesRelink(path: path);
 
 /// Обновить текст записи по id (`false` — записи нет).
 Future<bool> entryUpdate({

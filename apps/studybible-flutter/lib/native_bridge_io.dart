@@ -304,6 +304,15 @@ Future<bool> bridgeEntryRemove(String id) async =>
     ) ==
     true;
 
+/// Перепривязка записей после установки/обновления модуля (вопрос №12):
+/// возвращает строку-итог или null при ошибке моста.
+Future<String?> bridgeEntriesRelink() async {
+  await _ensureInit();
+  return _guard('entriesRelink', () async {
+    return api_userdata.entriesRelink(path: _userdataPath());
+  });
+}
+
 // ---------- версификации (ADR 0015, вопрос 8) ----------
 
 /// Перевод стиха между версификациями через org (ядро):

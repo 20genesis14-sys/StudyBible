@@ -33,6 +33,7 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
   studybible read <файл.sb> \"<ссылка>\"          — глава или диапазон («Быт 1», «Ин 3:16-18»)
   studybible search <файл.sb> \"<запрос>\" [--cache <файл>] [--limit N]
   studybible user add note|mark|hl <модуль> <КОД> <гл:ст> [текст...] [--db <файл>]
+  studybible user relink [--db <файл>]       перепривязка записей к модулям (в.12)
   studybible user list [note|mark|hl] [--db <файл>]
   studybible user del <id> [--db <файл>]
   studybible user export <файл.zip> [--db <файл>]
@@ -1101,6 +1102,18 @@ fn user_db(args: &[String]) -> Result<UserData, String> {
     UserData::open(&path).map_err(|e| e.to_string())
 }
 
+/// Установленный модуль по `meta.id`: `<data>/modules/<id>.sbz|.sb`.
+fn module_by_id(args: &[String], id: &str) -> Option<Module> {
+    let dir = data_root(args).ok()?.join("modules");
+    for ext in ["sbz", "sb"] {
+        let p = dir.join(format!("{id}.{ext}"));
+        if p.exists() {
+            return open_any(&p).ok().map(|o| o.module);
+        }
+    }
+    None
+}
+
 fn user(args: &[String]) -> Result<(), String> {
     let pos = positional(args);
     match pos.first() {
@@ -1129,10 +1142,49 @@ fn user(args: &[String]) -> Result<(), String> {
                 chapter: ch,
                 verse: v,
             };
+            // Мета перепривязки + контекст из модуля (вопрос №12):
+            // `context` — первые 40 знаков текста стиха.
+            let (vrs, mver, ctx) = module_by_id(args, module)
+                .map(|m| {
+                    let meta = m.meta();
+                    let ver = if meta.content_hash.is_empty() {
+                        meta.version.clone()
+                    } else {
+                        meta.content_hash.clone()
+                    };
+                    let c = m
+                        .verse_text(book, ch, v)
+                        .ok()
+                        .flatten()
+                        .map(|t| t.chars().take(40).collect::<String>())
+                        .unwrap_or_default();
+                    (meta.versification.clone(), ver, c)
+                })
+                .unwrap_or_default();
             let id = user_db(args)?
-                .add(kind, anchor, &text, "")
+                .add_ex(kind, anchor, &text, &ctx, &vrs, &mver)
                 .map_err(|e| e.to_string())?;
             println!("{id}");
+            Ok(())
+        }
+        Some(&"relink") => {
+            // Перепривязка записей к установленным модулям (в.12).
+            let s = user_db(args)?
+                .relink(|id| module_by_id(args, id))
+                .map_err(|e| e.to_string())?;
+            println!(
+                "проверено {}, свежих {}, переписано меты {}, переехало {}, \
+                 сирот {}, пропущено {}",
+                s.checked,
+                s.fresh,
+                s.stamped,
+                s.moved,
+                s.orphaned.len(),
+                s.skipped
+            );
+            for id in &s.orphaned {
+                println!("  сирота: {id}");
+            }
             Ok(())
         }
         Some(&"list") => {

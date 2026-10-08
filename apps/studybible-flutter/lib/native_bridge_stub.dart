@@ -100,6 +100,9 @@ Future<bool> bridgeEntryRemove(String id) async {
   return _stubEntries.length != before;
 }
 
+/// Перепривязка записей — стаб (вопрос №12; на этой платформе нет).
+Future<String?> bridgeEntriesRelink() async => null;
+
 // ---------- словарь (стаб — пусто) ----------
 
 Future<List<DictEntryInfo>> bridgeDictEntries(

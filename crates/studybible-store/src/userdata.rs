@@ -13,7 +13,10 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use studybible_core::BookCode;
 
-const SCHEMA_VERSION: &str = "1";
+/// Схема 2 (08.10.2026, вопрос №12): + колонки `vrs` (версификация
+/// модуля на момент записи) и `module_ver` (content_hash, иначе
+/// version) — основа перепривязки при обновлении модуля.
+const SCHEMA_VERSION: &str = "2";
 
 #[derive(Debug)]
 pub enum UserError {
@@ -126,6 +129,14 @@ pub struct Entry {
     /// Номер ревизии записи, растёт при каждой правке.
     #[serde(default)]
     pub rev: u32,
+    /// Версификация модуля на момент записи (`rsc`, `org`…).
+    /// Пусто у записей схемы 1 — перепривязка их пропускает проверку.
+    #[serde(default)]
+    pub vrs: String,
+    /// `meta.content_hash` модуля (иначе `version`) на момент записи:
+    /// смена значения = модуль обновился → запись надо перепроверить.
+    #[serde(default)]
+    pub module_ver: String,
 }
 
 #[derive(Debug, Default)]
@@ -177,7 +188,9 @@ impl UserData {
                  updated INTEGER NOT NULL,
                  deleted INTEGER NOT NULL DEFAULT 0,
                  device TEXT NOT NULL DEFAULT '',
-                 rev INTEGER NOT NULL DEFAULT 1);
+                 rev INTEGER NOT NULL DEFAULT 1,
+                 vrs TEXT NOT NULL DEFAULT '',
+                 module_ver TEXT NOT NULL DEFAULT '');
              CREATE INDEX IF NOT EXISTS entries_anchor ON entries(module, book, chapter, verse);",
         )?;
         let v: Option<String> = conn
@@ -191,6 +204,15 @@ impl UserData {
                 params![SCHEMA_VERSION],
             )?,
             Some(SCHEMA_VERSION) => 0,
+            // Миграция 1→2: поля перепривязки добавляются пустыми.
+            Some("1") => {
+                conn.execute_batch(
+                    "ALTER TABLE entries ADD COLUMN vrs TEXT NOT NULL DEFAULT '';
+                     ALTER TABLE entries ADD COLUMN module_ver TEXT NOT NULL DEFAULT '';
+                     UPDATE meta SET value='2' WHERE key='schema';",
+                )?;
+                0
+            }
             Some(other) => {
                 return Err(UserError::BadFormat(format!("схема {other}")));
             }
@@ -213,11 +235,27 @@ impl UserData {
 
     /// Добавить запись; возвращает её id. `text` — текст заметки, подпись или цвет;
     /// `context` — контрольный фрагмент стиха для перепривязки (может быть пустым).
+    /// Происхождение модуля не пишется — см. [`Self::add_ex`].
     pub fn add(&self, kind: Kind, anchor: Anchor<'_>, text: &str, context: &str) -> Result<String> {
+        self.add_ex(kind, anchor, text, context, "", "")
+    }
+
+    /// `add` + мета модуля: `vrs` — его версификация, `module_ver` —
+    /// `content_hash` (иначе `version`). Мост и CLI должны писать их
+    /// всегда — иначе перепривязке не на что опереться (вопрос №12).
+    pub fn add_ex(
+        &self,
+        kind: Kind,
+        anchor: Anchor<'_>,
+        text: &str,
+        context: &str,
+        vrs: &str,
+        module_ver: &str,
+    ) -> Result<String> {
         let id = new_id();
         let t = now();
         self.conn.execute(
-            "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0,?11,1)",
+            "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0,?11,1,?12,?13)",
             params![
                 id,
                 anchor.module,
@@ -229,7 +267,9 @@ impl UserData {
                 context,
                 t,
                 t,
-                self.device
+                self.device,
+                vrs,
+                module_ver,
             ],
         )?;
         Ok(id)
@@ -238,7 +278,8 @@ impl UserData {
     /// Живые записи вида `kind`; `module` — фильтр по модулю.
     pub fn entries(&self, kind: Kind, module: Option<&str>) -> Result<Vec<Entry>> {
         let sql = "SELECT id, module, kind, book, chapter, verse, text, context,
-                   created, updated, deleted, device, rev FROM entries
+                   created, updated, deleted, device, rev, vrs, module_ver
+                   FROM entries
                    WHERE kind=?1 AND deleted=0";
         let rows: Vec<Entry> = match module {
             Some(m) => self
@@ -280,7 +321,8 @@ impl UserData {
         self.conn
             .prepare(
                 "SELECT id, module, kind, book, chapter, verse, text, context,
-                 created, updated, deleted, device, rev FROM entries",
+                 created, updated, deleted, device, rev, vrs, module_ver
+                 FROM entries",
             )?
             .query_map([], row_to_entry)?
             .collect::<rusqlite::Result<_>>()
@@ -318,8 +360,10 @@ impl UserData {
         if doc.get("format").and_then(|v| v.as_str()) != Some("studybible-userdata") {
             return Err(UserError::BadFormat("format".into()));
         }
-        if doc.get("version").and_then(|v| v.as_str()) != Some(SCHEMA_VERSION) {
-            return Err(UserError::BadFormat("version".into()));
+        // Принимаем выгрузки схемы 1 и 2: новые поля имеют serde-default.
+        match doc.get("version").and_then(|v| v.as_str()) {
+            Some("1") | Some(SCHEMA_VERSION) => {}
+            _ => return Err(UserError::BadFormat("version".into())),
         }
         let mut stats = ImportStats::default();
         let empty = Vec::new();
@@ -352,7 +396,7 @@ impl UserData {
         match existing {
             None => {
                 self.conn.execute(
-                    "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+                    "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
                     params![
                         e.id,
                         e.module,
@@ -366,7 +410,9 @@ impl UserData {
                         e.updated,
                         e.deleted,
                         e.device,
-                        e.rev
+                        e.rev,
+                        e.vrs,
+                        e.module_ver,
                     ],
                 )?;
                 Ok(Merge::Added)
@@ -375,7 +421,7 @@ impl UserData {
                 self.conn.execute(
                     "UPDATE entries SET module=?2,kind=?3,book=?4,chapter=?5,verse=?6,
                      text=?7,context=?8,created=?9,updated=?10,deleted=?11,
-                     device=?12,rev=?13 WHERE id=?1",
+                     device=?12,rev=?13,vrs=?14,module_ver=?15 WHERE id=?1",
                     params![
                         e.id,
                         e.module,
@@ -389,7 +435,9 @@ impl UserData {
                         e.updated,
                         e.deleted,
                         e.device,
-                        e.rev
+                        e.rev,
+                        e.vrs,
+                        e.module_ver,
                     ],
                 )?;
                 Ok(Merge::Updated)
@@ -403,6 +451,127 @@ enum Merge {
     Added,
     Updated,
     Skipped,
+}
+
+/// Итог перепривязки записей к модулям (`user relink`, вопрос №12).
+#[derive(Debug, Default)]
+pub struct RelinkStats {
+    /// Записей проверено (модуль установлен).
+    pub checked: usize,
+    /// `vrs`/`module_ver` совпали и якорь на месте.
+    pub fresh: usize,
+    /// Метаполя обновлены (модуль сменился, якорь подтверждён
+    /// контекстом — или контекст отсутствовал и был восполнен из
+    /// текущего текста стиха).
+    pub stamped: usize,
+    /// Якорь переехал по контексту в соседний стих (±2).
+    pub moved: usize,
+    /// Контекст не нашёлся нигде — запись не тронута, id в списке.
+    pub orphaned: Vec<String>,
+    /// Модуль записи не установлен — запись пропущена.
+    pub skipped: usize,
+}
+
+impl UserData {
+    /// Проверка и перепривязка живых записей к установленным модулям.
+    ///
+    /// `resolve(id)` открывает модуль по `meta.id` (None — модуля нет,
+    /// запись пропускается). Логика (вопрос №12, этап Б):
+    /// мета записи совпадает с модулем — свежая; модуль сменился —
+    /// ищем `context` в якорном стихе, затем в ±2 стихах (нашли —
+    /// переезжаем, не нашли — сирота). Записи без контекста получают
+    /// фрагмент текущего стиха: перепривязать их нечем, а опора для
+    /// будущих проверок появляется.
+    pub fn relink(
+        &self,
+        mut resolve: impl FnMut(&str) -> Option<crate::module::Module>,
+    ) -> Result<RelinkStats> {
+        let mut stats = RelinkStats::default();
+        let mut mods: std::collections::HashMap<String, Option<crate::module::Module>> =
+            std::collections::HashMap::new();
+        for e in self.all()? {
+            if e.deleted != 0 || e.module == "*" {
+                continue;
+            }
+            let m = match mods.entry(e.module.clone()) {
+                std::collections::hash_map::Entry::Occupied(en) => en.into_mut(),
+                std::collections::hash_map::Entry::Vacant(en) => en.insert(resolve(&e.module)),
+            };
+            let Some(m) = m.as_ref() else {
+                stats.skipped += 1;
+                continue;
+            };
+            stats.checked += 1;
+            let meta = m.meta();
+            let cur_vrs = meta.versification.as_str();
+            let cur_ver = if meta.content_hash.is_empty() {
+                meta.version.as_str()
+            } else {
+                meta.content_hash.as_str()
+            };
+            if e.vrs == cur_vrs && e.module_ver == cur_ver && !e.context.is_empty() {
+                stats.fresh += 1;
+                continue;
+            }
+            let Some(book) = BookCode::new(&e.book) else {
+                stats.orphaned.push(e.id.clone());
+                continue;
+            };
+            let verse_text = |v: u16| {
+                m.verse_text(book, e.chapter, v)
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default()
+            };
+            let stamp = |ctx: &str| {
+                self.conn.execute(
+                    "UPDATE entries SET vrs=?2, module_ver=?3, context=?4, \
+                     updated=?5, device=?6 WHERE id=?1",
+                    params![e.id, cur_vrs, cur_ver, ctx, now(), self.device],
+                )
+            };
+            let t = now();
+            if e.context.is_empty() {
+                // Контекста нет — записать фрагмент текущего стиха.
+                let frag: String = verse_text(e.verse).chars().take(40).collect();
+                stamp(&frag)?;
+                stats.stamped += 1;
+                continue;
+            }
+            if verse_text(e.verse).contains(&e.context) {
+                stamp(&e.context)?;
+                stats.stamped += 1;
+                continue;
+            }
+            // Поиск в соседних стихах той же главы.
+            let mut hit = None;
+            for dv in -2i32..=2 {
+                if dv == 0 {
+                    continue;
+                }
+                let nv = e.verse as i32 + dv;
+                if nv < 1 {
+                    continue;
+                }
+                if verse_text(nv as u16).contains(&e.context) {
+                    hit = Some(nv as u16);
+                    break;
+                }
+            }
+            match hit {
+                Some(nv) => {
+                    self.conn.execute(
+                        "UPDATE entries SET verse=?2, vrs=?3, module_ver=?4, \
+                         updated=?5, rev=rev+1, device=?6 WHERE id=?1",
+                        params![e.id, nv, cur_vrs, cur_ver, t, self.device],
+                    )?;
+                    stats.moved += 1;
+                }
+                None => stats.orphaned.push(e.id.clone()),
+            }
+        }
+        Ok(stats)
+    }
 }
 
 fn row_to_entry(r: &rusqlite::Row) -> rusqlite::Result<Entry> {
@@ -420,5 +589,7 @@ fn row_to_entry(r: &rusqlite::Row) -> rusqlite::Result<Entry> {
         deleted: r.get(10)?,
         device: r.get(11)?,
         rev: r.get(12)?,
+        vrs: r.get(13)?,
+        module_ver: r.get(14)?,
     })
 }

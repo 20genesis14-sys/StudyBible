@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 
 import 'data.dart' show rescanModules;
 import 'l10n.dart';
+import 'native_bridge_stub.dart'
+    if (dart.library.io) 'native_bridge_io.dart'
+    if (dart.library.html) 'native_bridge_web.dart'
+    show bridgeEntriesRelink;
 import 'state.dart';
 import 'theme.dart';
 import 'screens/book_grid_screen.dart';
@@ -83,6 +87,9 @@ class _HomeShellState extends State<HomeShell> {
     rescanModules().then((_) {
       if (mounted) setState(() {});
     });
+    // Перепривязка записей к обновлённым модулям (вопрос №12, этап Б):
+    // фоновый прогон при старте; на web — no-op.
+    bridgeEntriesRelink();
   }
 
   // Нижняя навигация — вариант А (ADR 0015): настройки уехали

@@ -27,7 +27,7 @@ pub struct ModuleInfo {
 /// Открыть модуль `.sb` или `.sbz` (ADR 0016/0018): `.sb` читается файлом;
 /// `.sbz` распаковывается в память и открывается `sqlite3_deserialize` —
 /// распакованной копии на диске нет.
-fn open_any(path: &Path) -> Result<Module> {
+pub(crate) fn open_any(path: &Path) -> Result<Module> {
     let bytes = std::fs::read(path).with_context(|| format!("не читается {}", path.display()))?;
     if !studybible_store::sbz::is_sbz(&bytes) {
         return Ok(Module::open(path)?);

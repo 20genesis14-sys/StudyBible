@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2118360246;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -880353255;
 
 // Section: executor
 
@@ -330,6 +330,38 @@ fn wire__crate__api__userdata__entries_list_impl(
                     .await,
                 )
             }
+        },
+    )
+}
+fn wire__crate__api__userdata__entries_relink_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "entries_relink",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                (move || {
+                    let output_ok = crate::api::userdata::entries_relink(api_path)?;
+                    std::result::Result::Ok(output_ok)
+                })(),
+            )
         },
     )
 }
@@ -1085,25 +1117,25 @@ fn pde_ffi_dispatcher_primary_impl(
         5 => wire__crate__api__module__dict_entries_impl(port, ptr, rust_vec_len, data_len),
         6 => wire__crate__api__module__dict_entry_impl(port, ptr, rust_vec_len, data_len),
         7 => wire__crate__api__userdata__entries_list_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__userdata__entry_add_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__userdata__entry_remove_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__userdata__entry_update_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__module__list_modules_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__module__module_doc_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__module__module_search_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__userdata__progress_load_impl(port, ptr, rust_vec_len, data_len),
-        16 => {
+        9 => wire__crate__api__userdata__entry_add_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__userdata__entry_remove_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__userdata__entry_update_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__module__list_modules_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__module__module_doc_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__module__module_search_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__userdata__progress_load_impl(port, ptr, rust_vec_len, data_len),
+        17 => {
             wire__crate__api__userdata__progress_mark_read_impl(port, ptr, rust_vec_len, data_len)
         }
-        17 => wire__crate__api__userdata__progress_reset_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__userdata__progress_set_position_impl(
+        18 => wire__crate__api__userdata__progress_reset_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__userdata__progress_set_position_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => {
+        20 => {
             wire__crate__api__userdata__progress_set_verse_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -1118,6 +1150,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
+        8 => wire__crate__api__userdata__entries_relink_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

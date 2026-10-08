@@ -567,6 +567,9 @@ Future<bool> bridgeEntryRemove(String id) async {
   return true;
 }
 
+/// Перепривязка записей к модулям — на web пока нет (вопрос №12).
+Future<String?> bridgeEntriesRelink() async => null;
+
 // ---------- словарь (entries, ADR 0016) ----------
 
 /// Страница заголовков словаря; prefix — строчный префикс norm.
@@ -599,10 +602,9 @@ Future<List<DictEntryInfo>> bridgeDictEntries(
 Future<DictArticleInfo?> bridgeDictEntry(String path, int ord) async {
   try {
     final db = await _openDb(path);
-    final rows = db.select(
-      'SELECT headword, text FROM entries WHERE ord=?',
-      [ord],
-    );
+    final rows = db.select('SELECT headword, text FROM entries WHERE ord=?', [
+      ord,
+    ]);
     if (rows.isEmpty) return null;
     return DictArticleInfo(
       ord: ord,
@@ -639,7 +641,8 @@ Future<List<SearchHit>> bridgeModuleSearch(
     final normVer = (hasFts.first['n'] as num) > 0
         ? db.select("SELECT value AS v FROM meta WHERE key='norm_version'")
         : const [];
-    final ftsOk = (hasFts.first['n'] as num) > 0 &&
+    final ftsOk =
+        (hasFts.first['n'] as num) > 0 &&
         normVer.isNotEmpty &&
         '${normVer.first['v']}' == normVersion;
     if (ftsOk) {

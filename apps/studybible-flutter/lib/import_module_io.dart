@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 
 import 'l10n.dart';
-import 'native_bridge_io.dart' show dataDir;
+import 'native_bridge_io.dart' show bridgeEntriesRelink, dataDir;
 
 /// Возвращает текст результата для SnackBar или null при отмене.
 Future<String?> importSbModule() async {
@@ -31,5 +31,13 @@ Future<String?> importSbModule() async {
   } catch (e) {
     return tr('Ошибка импорта: $e', 'Import error: $e');
   }
-  return tr('Импортирован: ${file.name}', 'Imported: ${file.name}');
+  // Обновлённый/новый модуль — проверить привязки записей (вопрос №12).
+  final relink = await bridgeEntriesRelink();
+  if (relink == null) {
+    return tr('Импортирован: ${file.name}', 'Imported: ${file.name}');
+  }
+  return tr(
+    'Импортирован: ${file.name}. Перепривязка: $relink',
+    'Imported: ${file.name}. Relink: $relink',
+  );
 }

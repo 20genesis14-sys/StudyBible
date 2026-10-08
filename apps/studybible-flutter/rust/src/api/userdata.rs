@@ -13,7 +13,7 @@ use std::path::Path;
 use anyhow::{Result, anyhow};
 use serde_json::{Map, Value, json};
 use studybible_core::BookCode;
-use studybible_store::{Anchor, Entry, Kind, UserData};
+use studybible_store::{Anchor, Entry, Kind, Module, UserData};
 
 /// Псевдо-модуль служебных записей прогресса.
 const PROGRESS_MODULE: &str = "*";
@@ -36,6 +36,19 @@ fn anchor_at<'a>(module: &'a str, book: &str, chapter: i64, verse: i64) -> Resul
 
 fn open(path: &str) -> Result<UserData> {
     Ok(UserData::open(Path::new(path))?)
+}
+
+/// Открыть модуль по `meta.id`: файл `<id>.sb`/`.sbz` в `modules/`
+/// рядом с userdata.db. None — модуль не установлен.
+fn resolve_module(ud_path: &str, id: &str) -> Option<Module> {
+    let dir = Path::new(ud_path).parent()?.join("modules");
+    for ext in ["sbz", "sb"] {
+        let p = dir.join(format!("{id}.{ext}"));
+        if p.exists() {
+            return crate::api::module::open_any(&p).ok();
+        }
+    }
+    None
 }
 
 /// Снять состояние прогресса одним JSON:
@@ -205,13 +218,51 @@ pub async fn entry_add(
     text: String,
     context: String,
 ) -> Result<String> {
+    let anchor = anchor_at(&module, &book, chapter, verse)?;
     let ud = open(&path)?;
-    Ok(ud.add(
-        kind_of(&kind)?,
-        anchor_at(&module, &book, chapter, verse)?,
-        &text,
-        &context,
-    )?)
+    // Метаполя перепривязки (в.12) берём из установленного модуля сами —
+    // Dart-стороне их передавать не нужно; у служебного `*` модуля нет,
+    // его записи остаются с пустой метой (add() по-прежнему).
+    let (vrs, mver, ctx) = resolve_module(&path, &module)
+        .map(|m| {
+            let meta = m.meta();
+            let ver = if meta.content_hash.is_empty() {
+                meta.version.clone()
+            } else {
+                meta.content_hash.clone()
+            };
+            let c = if context.is_empty() {
+                m.verse_text(anchor.book, anchor.chapter, anchor.verse)
+                    .ok()
+                    .flatten()
+                    .map(|t| t.chars().take(40).collect::<String>())
+                    .unwrap_or_default()
+            } else {
+                context.clone()
+            };
+            (meta.versification.clone(), ver, c)
+        })
+        .unwrap_or_else(|| (String::new(), String::new(), context));
+    Ok(ud.add_ex(kind_of(&kind)?, anchor, &text, &ctx, &vrs, &mver)?)
+}
+
+/// Прогнать перепривязку записей к установленным модулям
+/// (`UserData::relink`, в.12); возвращает строку-итог для лога/UI.
+#[flutter_rust_bridge::frb(sync)]
+pub fn entries_relink(path: String) -> Result<String> {
+    let ud = open(&path)?;
+    let s = ud.relink(|id| resolve_module(&path, id))?;
+    Ok(format!(
+        "проверено {}, свежих {}, переписано меты {}, переехало {}, \
+         сирот {} [{}], пропущено {}",
+        s.checked,
+        s.fresh,
+        s.stamped,
+        s.moved,
+        s.orphaned.len(),
+        s.orphaned.join(", "),
+        s.skipped
+    ))
 }
 
 /// Обновить текст записи по id (`false` — записи нет).
