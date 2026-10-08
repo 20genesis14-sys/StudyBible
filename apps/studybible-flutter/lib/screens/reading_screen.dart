@@ -120,6 +120,15 @@ class _ReadingScreenState extends State<ReadingScreen> {
   final Map<String, GlobalKey> _bookVerseKeys = {};
   final ScrollController _scroll = ScrollController();
 
+  /// Ленивая глава: стих → индекс его строки в списке элементов
+  /// (без учёта заголовка; +1 на месте использования). Заполняется
+  /// в построителях главы; пусто в абзацном режиме — там оценка
+  /// идёт по карте стих→блок.
+  final Map<int, int> _verseItemIndex = {};
+
+  /// Число элементов ленивой ленты главы (заголовок + строки).
+  int _itemsTotal = 0;
+
   /// Записи к стихам текущей главы: verse -> запись.
   final Map<int, UserEntry> _highlights = {};
   final Map<int, UserEntry> _verseNotes = {};
@@ -350,32 +359,28 @@ class _ReadingScreenState extends State<ReadingScreen> {
         ),
       );
     } else {
-      inner = Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 12),
-            child: Text(
-              '${_titleOf(code)} · '
-              '${tr('Глава $chapter', 'Chapter $chapter')}',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: readingFontFamily(settings.readingFont),
-                fontSize: 19 * settings.fontScale,
-                fontWeight: FontWeight.w800,
-                color: _verseColor(p),
-              ),
+      final items = <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 12),
+          child: Text(
+            '${_titleOf(code)} · '
+            '${tr('Глава $chapter', 'Chapter $chapter')}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: readingFontFamily(settings.readingFont),
+              fontSize: 19 * settings.fontScale,
+              fontWeight: FontWeight.w800,
+              color: _verseColor(p),
             ),
           ),
-          ...(settings.layoutMode == LayoutMode.book
-              ? _bookBlocks(doc, p, chapter, true)
-              : _buildChapter(doc, p, true)),
-        ],
-      );
-    }
-    return Container(
-      color: p.background,
-      child: SingleChildScrollView(
+        ),
+        ...(settings.layoutMode == LayoutMode.book
+            ? _bookBlocks(doc, p, chapter, true)
+            : _buildChapter(doc, p, true)),
+      ];
+      // Peek тоже ленивая лента: под свайпом строятся только
+      // видимые строки входящей главы, а не все ~20 тыс. объектов.
+      inner = ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(
           wide ? 48 : 20,
@@ -383,15 +388,17 @@ class _ReadingScreenState extends State<ReadingScreen> {
           wide ? 48 : 20,
           wide ? 20 : _bottomClear(),
         ),
-        child: Align(
+        itemCount: items.length,
+        itemBuilder: (_, i) => Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxW),
-            child: inner,
+            child: SizedBox(width: double.infinity, child: items[i]),
           ),
         ),
-      ),
-    );
+      );
+    }
+    return Container(color: p.background, child: inner);
   }
 
   @override

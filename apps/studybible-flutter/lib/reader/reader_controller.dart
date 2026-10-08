@@ -332,15 +332,106 @@ extension _ReaderController on _ReadingScreenState {
         _seekVerseBook(_code, _ch, v);
         return;
       }
-      final ctx = _ctxForVerse(_blockKeys, '', v);
-      if (ctx != null && ctx.mounted) {
-        Scrollable.ensureVisible(
-          ctx,
-          duration: const Duration(milliseconds: 250),
-          alignment: 0.15,
-        );
-      }
+      // Лента главы ленивая (вариант 1): якоря стихов вне экрана
+      // не построены — ищем итеративно по индексу элемента.
+      _seekVerseChapter(v);
     });
+  }
+
+  /// Итеративная прокрутка к стиху в ленивой ленте главы.
+  /// До построения якоря прыгаем по оценке: доля ленты по индексу
+  /// строки, затем шаги на «стихов-на-экране» от ближайшего живого
+  /// якоря. Когда якорь появился — точный jumpTo к его позиции.
+  Future<void> _seekVerseChapter(int v) async {
+    if (_seeking) return;
+    _seeking = true;
+    try {
+      var lastTarget = -1.0;
+      var sameTarget = 0;
+      for (var i = 0; i < 40 && mounted; i++) {
+        // Кадр заказываем сами — на статичном экране кадров нет,
+        // а нам нужно, чтобы лента достроила элементы (см.
+        // _seekVerseBook — та же причина).
+        final frame = Completer<void>();
+        WidgetsBinding.instance.scheduleFrameCallback((_) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => frame.complete(),
+          );
+        });
+        await frame.future.timeout(
+          const Duration(milliseconds: 400),
+          onTimeout: () {},
+        );
+        if (!mounted || !_scroll.hasClients) return;
+        final pos = _scroll.position;
+        final ctx = _ctxForVerse(_blockKeys, '', v);
+        if (ctx != null && ctx.mounted) {
+          final ro = ctx.findRenderObject();
+          final y = ro is RenderBox
+              ? ro.localToGlobal(Offset.zero).dy
+              : null;
+          if (y == null) return;
+          // Комфортная зона 10–60% высоты — как в _seekVerseBook.
+          if (y >= pos.viewportDimension * 0.10 &&
+              y <= pos.viewportDimension * 0.6) {
+            return;
+          }
+          pos.jumpTo(
+            (pos.pixels + y - pos.viewportDimension * 0.15).clamp(
+              0.0,
+              pos.maxScrollExtent,
+            ),
+          );
+          continue;
+        }
+        // Якоря нет: находим край построенного диапазона стихов.
+        var lo = 1 << 30;
+        var hi = -1;
+        for (final e in _blockKeys.entries) {
+          final k = e.key;
+          if (e.value.currentContext == null) continue;
+          if (k < lo) lo = k;
+          if (k > hi) hi = k;
+        }
+        final idx = _verseItemIndex[v];
+        if (idx == null) return;
+        double target;
+        if (hi < 0) {
+          // Живых якорей нет — прыжок к доле ленты по индексу
+          // (+1 — заголовок главы первым элементом).
+          target =
+              pos.maxScrollExtent *
+              (idx + 1) /
+              (_itemsTotal <= 0 ? 1 : _itemsTotal);
+        } else {
+          // Стихов на экране ≈ размах построенных якорей.
+          final perScreen = hi - lo + 1;
+          if (v > hi) {
+            target =
+                pos.pixels +
+                pos.viewportDimension * ((v - hi) / perScreen + 0.5);
+          } else if (v < lo) {
+            target =
+                pos.pixels -
+                pos.viewportDimension * ((lo - v) / perScreen + 0.5);
+          } else {
+            // Якорь в построенном диапазоне, но контекста нет —
+            // дальше некуда (стих без маркера не кликабелен).
+            return;
+          }
+        }
+        target = target.clamp(0.0, pos.maxScrollExtent);
+        if ((target - lastTarget).abs() < 1) {
+          if (++sameTarget >= 4) return;
+        } else {
+          sameTarget = 0;
+        }
+        lastTarget = target;
+        pos.jumpTo(target);
+      }
+    } finally {
+      _seeking = false;
+    }
   }
 
   /// Итеративная прокрутка к стиху в ленте книги. Главы строятся

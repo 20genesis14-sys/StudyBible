@@ -716,6 +716,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                       () => GlobalKey(),
                     ));
         final selected = chapterNum == null && _selectedVerse == v;
+        if (!peek && chapterNum == null) _verseItemIndex[v] = out.length;
         out.add(
           RepaintBoundary(
             child: Container(
@@ -947,6 +948,10 @@ extension _ChapterRenderer on _ReadingScreenState {
         }
       }
     }
+    // Абзацный режим: стих → индекс блока = индекс элемента ленты.
+    if (!peek) {
+      verseBlock.forEach((v, i) => _verseItemIndex[v] = i);
+    }
     final out = <Widget>[];
     for (var i = 0; i < ch.blocks.length; i++) {
       final b = ch.blocks[i];
@@ -1071,6 +1076,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (!peek) _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
       final hl = _highlights.containsKey(v);
+      if (!peek) _verseItemIndex[v] = out.length;
       out.add(
         RepaintBoundary(
           child: Container(
@@ -1534,6 +1540,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
       final hl = _highlights.containsKey(v);
+      _verseItemIndex[v] = out.length;
       out.add(
         RepaintBoundary(
           child: Container(

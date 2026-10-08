@@ -26,6 +26,33 @@ extension _ReaderPane on _ReadingScreenState {
         ),
       );
     } else {
+      // Ленивая лента главы (08.10.2026, вариант 1): строки стихов
+      // строятся только в видимой области — длинные главы в режиме
+      // изучения/сравнения не создают ~20 тыс. рендер-объектов.
+      // Якоря стихов — индекс элемента (_verseItemIndex), прокрутка —
+      // _seekVerseChapter. Список виджетов собирается целиком
+      // (объекты дешёвые), ленивыми остаются Element/RenderObject.
+      _verseItemIndex.clear();
+      final items = <Widget>[
+        // Заголовок «Книга · Глава N» в начале главы —
+        // тот же, что на peek-странице листания.
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 12),
+          child: Text(
+            '${_titleOf(_code)} · '
+            '${tr('Глава $_ch', 'Chapter $_ch')}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: readingFontFamily(settings.readingFont),
+              fontSize: 19 * settings.fontScale,
+              fontWeight: FontWeight.w800,
+              color: _verseColor(p),
+            ),
+          ),
+        ),
+        ..._interleaved ? _buildInterleaved(ch, p) : _buildChapter(ch, p),
+      ];
+      _itemsTotal = items.length;
       content = Listener(
         // Ctrl + колёсико — масштаб шрифта.
         onPointerSignal: (e) {
@@ -39,53 +66,30 @@ extension _ReaderPane on _ReadingScreenState {
           }
         },
         child: _pinchZoom(
-          SingleChildScrollView(
-            controller: _scroll,
-          padding: EdgeInsets.fromLTRB(
-            wide ? 48 : 20,
-            // Когда сверху уже стоит полоса выбора перевода
-            // (строчное сравнение / мобильный compare), отступ
-            // под панель не нужен — иначе двойной зазор.
-            _interleaved || (_compare && !wide) ? 12 : _topClear(),
-            wide ? 48 : 20,
-            wide ? 20 : _bottomClear(),
-          ),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxW),
-              child: SelectionArea(
-                onSelectionChanged: (c) => _selectedText = c?.plainText,
-                contextMenuBuilder: _selectionMenu,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Заголовок «Книга · Глава N» в начале главы —
-                    // тот же, что на peek-странице листания (иначе он
-                    // виден только во время свайпа и «пропадает»).
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4, bottom: 12),
-                      child: Text(
-                        '${_titleOf(_code)} · '
-                        '${tr('Глава $_ch', 'Chapter $_ch')}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: readingFontFamily(settings.readingFont),
-                          fontSize: 19 * settings.fontScale,
-                          fontWeight: FontWeight.w800,
-                          color: _verseColor(p),
-                        ),
-                      ),
-                    ),
-                    ..._interleaved
-                        ? _buildInterleaved(ch, p)
-                        : _buildChapter(ch, p),
-                  ],
+          SelectionArea(
+            onSelectionChanged: (c) => _selectedText = c?.plainText,
+            contextMenuBuilder: _selectionMenu,
+            child: ListView.builder(
+              controller: _scroll,
+              padding: EdgeInsets.fromLTRB(
+                wide ? 48 : 20,
+                // Когда сверху уже стоит полоса выбора перевода
+                // (строчное сравнение / мобильный compare), отступ
+                // под панель не нужен — иначе двойной зазор.
+                _interleaved || (_compare && !wide) ? 12 : _topClear(),
+                wide ? 48 : 20,
+                wide ? 20 : _bottomClear(),
+              ),
+              itemCount: items.length,
+              itemBuilder: (_, i) => Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxW),
+                  child: SizedBox(width: double.infinity, child: items[i]),
                 ),
               ),
             ),
           ),
-        ),
         ),
       );
     }
@@ -328,7 +332,10 @@ extension _ReaderPane on _ReadingScreenState {
           ),
         ActionChip(
           avatar: const Icon(Icons.add, size: 16),
-          label: Text(tr('Перевод', 'Module'), style: const TextStyle(fontSize: 12)),
+          label: Text(
+            tr('Перевод', 'Module'),
+            style: const TextStyle(fontSize: 12),
+          ),
           visualDensity: VisualDensity.compact,
           onPressed: _interleavedModulesSheet,
         ),
@@ -450,7 +457,10 @@ extension _ReaderPane on _ReadingScreenState {
     final plainCache = <String, Map<int, String>>{
       '$_code:$_ch': _plainVerses(second),
     };
-    final numStyle = TextStyle(fontSize: 11 * settings.fontScale, color: p.muted);
+    final numStyle = TextStyle(
+      fontSize: 11 * settings.fontScale,
+      color: p.muted,
+    );
     final textStyle = TextStyle(
       fontFamily: readingFontFamily(settings.readingFont),
       fontSize: 14 * settings.fontScale,
@@ -475,8 +485,7 @@ extension _ReaderPane on _ReadingScreenState {
     // Надписание (стих 0) — отдельной строкой с подписью (вопрос 9).
     final sup = _secondTexts(secondMod, plainCache, _targetsOf(0));
     final mainCh = _module?.chapter(_code, _ch);
-    final mainHas0 =
-        mainCh != null && _plainVerses(mainCh).containsKey(0);
+    final mainHas0 = mainCh != null && _plainVerses(mainCh).containsKey(0);
     if (sup.isNotEmpty || mainHas0) {
       for (final t in sup) {
         used.add('${t.point.book}:${t.point.chapter}:${t.point.verse}');
@@ -497,9 +506,7 @@ extension _ReaderPane on _ReadingScreenState {
                 ),
               ),
               Text(
-                sup.isEmpty
-                    ? '—'
-                    : [for (final t in sup) t.text].join(' '),
+                sup.isEmpty ? '—' : [for (final t in sup) t.text].join(' '),
                 style: textStyle.copyWith(fontStyle: FontStyle.italic),
               ),
             ],
@@ -514,11 +521,7 @@ extension _ReaderPane on _ReadingScreenState {
         ..sort()
         ..remove(0);
       for (final v in mv) {
-        for (final it in _secondTexts(
-          secondMod,
-          plainCache,
-          _targetsOf(v),
-        )) {
+        for (final it in _secondTexts(secondMod, plainCache, _targetsOf(v))) {
           used.add('${it.point.book}:${it.point.chapter}:${it.point.verse}');
           rows.add(
             row(
@@ -532,7 +535,8 @@ extension _ReaderPane on _ReadingScreenState {
       }
     }
     // Стихи второй главы, оставшиеся без соответствия, — в конец.
-    for (final e in (plainCache['$_code:$_ch']!.entries.toList()
+    for (final e
+        in (plainCache['$_code:$_ch']!.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key)))) {
       if (e.key == 0) continue;
       if (used.contains('$_code:$_ch:${e.key}')) continue;
@@ -547,10 +551,11 @@ extension _ReaderPane on _ReadingScreenState {
       );
     }
     return _pinchZoom(
-      ListView(
+      ListView.builder(
         controller: controller,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        children: rows,
+        itemCount: rows.length,
+        itemBuilder: (_, i) => rows[i],
       ),
     );
   }
