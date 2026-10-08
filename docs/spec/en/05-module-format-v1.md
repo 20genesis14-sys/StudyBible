@@ -142,12 +142,6 @@ None of this is mandatory and none goes into `required`.
   highlighting. Input — TSV (`"marks"` in modules.json):
   `verse<TAB>offset_ms[<TAB>dur_ms][<TAB>word]`, `seq` — order of the
   line within the verse.
--  with `kind="commentary"` builds a commentary module from the
-  same package: `VerseCommentaryMap` binds a verse to
-  `VerseCommentary`, the text is a slice of `Document.Content` over a
-  `DocumentParagraph` range (ordinals = `ParagraphIndex`, positions in
-  UTF-8 bytes). Each chapter block starts with a `Span::Verse` marker.
-
 - Note/reference position inside a verse: `f`/`x` spans already stand
   in the stream at their place (the verse part). The anchor text comes
   from USFM `\fq`/`\xq`, OSIS `<catchWord>`, and the part letter from
@@ -168,16 +162,9 @@ the 1.0 freeze. Tools: `studybible module check`,
 | Zefania | `<BIBLEBOOK><CHAPTER><VERS>` | `<gr str="…">`/`<gr morph="…">` → `tokens` | `<NOTE>` → `f` | reference attributes → `x` | none |
 | MyBible | `verses` + `<S>####</S>` tags | `<S>` → `tokens.strong` | `<f>` → `f` | `<x>`/TSK → `x` | none |
 | BibleQuote | chapter/verse tags in htm | `<S>` tags → `tokens.strong` | htm notes → `f` | htm links → `x` | none |
-|  | `BibleChapter.Content` (AES-CBC+zlib): `<span class="v">` | none | `data-fref` → `f` with `part`+`q` | `data-ref`+`CitationBlock` → `x` with `part`+`q` | none |
 
 Rule: what the source does not provide is not invented; the table is
 simply not written.
-
- is the only source with an **exact position** of a
-note/reference inside a verse: the marker stands right after the
-anchor word, and the marker letter is the verse-part letter. Therefore
-`format=""` writes `part`/`q` on all `f`/`x`. Such modules get
-`rights=no-distribute` and live only in the local data directory.
 
 ## Format evolution
 

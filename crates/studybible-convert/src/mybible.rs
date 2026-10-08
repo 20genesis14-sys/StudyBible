@@ -477,7 +477,7 @@ pub fn parse_file(path: &Path) -> Result<Vec<usfm::Book>, usfm::Error> {
 
 /// Разобрать `*.commentaries.SQLite3` в модуль комментариев:
 /// запись `commentaries` привязывается к первому стиху диапазона
-/// (как у -комментариев и gen_henry.py).
+/// (как у gen_henry.py).
 pub fn parse_commentary_file(path: &Path) -> Result<Vec<usfm::Book>, usfm::Error> {
     let conn = rusqlite::Connection::open(path).map_err(err)?;
     if !has_table(&conn, "commentaries") {

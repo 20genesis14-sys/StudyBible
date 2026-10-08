@@ -214,7 +214,7 @@ def build(src: pathlib.Path, dst: pathlib.Path, mod_id: str, title: str):
         'language': 'en', 'direction': 'ltr', 'versification': 'eng',
         'name_profile': 'en', 'book_order': 'syn', 'version': '1.0.0',
         'license': 'личный модуль пользователя; не распространять',
-        'attribution': 'int_E. → int-en (gloss/greek/pairs)',
+        'attribution': 'int_E → int-en (gloss/greek/pairs)',
         'source': 'int-en', 'content_hash': digest.hexdigest(),
         'required': '',
         # ADR 0016: тип, возможности и права (личный модуль —

@@ -124,12 +124,6 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   подсветки. Под аудиобиблии и пословную подсветку TTS. Вход — TSV
   (`"marks"` в modules.json): `стих<TAB>смещение_мс[<TAB>длит_мс][<TAB>слово]`,
   `seq` — порядок строки в стихе.
--  при `kind="commentary"` собирает из того же пакета модуль
-  комментариев: `VerseCommentaryMap` привязывает стих к
-  `VerseCommentary`, текст — срез `Document.Content` по диапазону
-  `DocumentParagraph` (ординалы = `ParagraphIndex`, позиции в байтах
-  UTF-8). Каждый блок главы начинается меткой `Span::Verse`.
-
 - Место сноски и ссылки в стихе: span `f`/`x` уже стоит в потоке на своём месте
   (часть стиха) — и для сносок, и для параллельных мест. Принято (ADR 0015,
   0016): текст привязки из USFM `\fq`/`\xq`, OSIS `<catchWord>` и буква

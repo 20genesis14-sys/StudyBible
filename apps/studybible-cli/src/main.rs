@@ -8,7 +8,7 @@ mod speech;
 
 use rusqlite::params;
 use speech::TtsSpeech;
-use studybible_convert::{biblequote, , mybible, osis, tsv, usfm, zefania};
+use studybible_convert::{biblequote, mybible, osis, tsv, usfm, zefania};
 use studybible_core::speech::Speech;
 use studybible_core::text::Span;
 use studybible_core::versification::VerseKey;
@@ -21,7 +21,7 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
 
   studybible module build [--defs data/modules.json] [--data <корень данных>] [--out <папка>]
                                        — форматы источников: usfm, osis, zefania, tsv,
-                                         entries, , mybible (*.SQLite3),
+                                         entries, mybible (*.SQLite3),
                                          biblequote (каталог с bibleqt.ini или .zip)
                                        — результат: .sbz (zstd); «sbz»: false → голый .sb,
                                          «both» → .sb + .sbz (веб-раздача)
@@ -275,7 +275,6 @@ fn build_module(
         "zefania" => &["xml"],
         "tsv" => &["tsv"],
         "entries" => &["tsv"], // словарь: TSV «заголовок → текст» (ADR 0016)
-        "" => &[""], // пакет  (ADR 0016)
         "mybible" => &["sqlite3"], // *.SQLite3 MyBible (ADR 0016 п. 14)
         // bibleqt.ini в каталоге источника либо .zip модуля.
         "biblequote" => &["ini", "zip"],
@@ -396,15 +395,7 @@ fn build_module(
                 continue;
             }
         }
-        //  — бинарный пакет (ZIP+SQLite), читается по пути, не текстом.
-        // kind="commentary" → модуль комментариев из VerseCommentary (ADR 0016 п. 13).
-        let books = if format == "" {
-            if meta.kind == "commentary" {
-                ::parse_commentary_file(f).map_err(|e| format!("{}: {}", f.display(), e.0))?
-            } else {
-                ::parse_file(f).map_err(|e| format!("{}: {}", f.display(), e.0))?
-            }
-        } else if format == "mybible" {
+        let books = if format == "mybible" {
             // *.SQLite3 MyBible; kind="commentary" → *.commentaries.SQLite3
             // (kind="dictionary" обработан веткой entries выше).
             if meta.kind == "commentary" {
