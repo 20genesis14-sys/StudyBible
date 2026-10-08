@@ -83,6 +83,13 @@ Future<CommonDatabase> _openDb(String path) async {
   }
   if (bytes == null) {
     final resp = await web.window.fetch(path.toJS).toDart;
+    // Без проверки статуса в sqlite уезжает тело 404-страницы
+    // («file is not a database» дальше по стеку, молчаливая «…»
+    // в UI сравнения). Модуль из index.json, которого нет в бандле,
+    // должен падать здесь с понятной причиной.
+    if (resp.status != 200) {
+      throw StateError('module not found: $path (HTTP ${resp.status})');
+    }
     bytes = (await resp.arrayBuffer().toDart).toDart.asUint8List();
   }
   // VFS нормализует имя файла к абсолютному виду ('/modules/...'),

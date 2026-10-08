@@ -230,7 +230,15 @@ extension _ReaderController on _ReadingScreenState {
   }
 
   Future<void> _load(String id) async {
-    final m = await loadModule(id);
+    ModuleDoc m;
+    try {
+      m = await loadModule(id);
+    } catch (e) {
+      // Модуль в списке, но недоступен (на web — нет .sb в бандле):
+      // логируем, строки сравнения остаются «…», приложение живёт.
+      debugPrint('[reader] module $id: $e');
+      return;
+    }
     if (!mounted) return;
     // Для .sb-модулей глава подгружается лениво через мост.
     await m.ensureChapter(_code, _ch);
