@@ -60,10 +60,7 @@ fn module_path_map(dir: &Path) -> std::collections::HashMap<String, std::path::P
     };
     for e in rd.flatten() {
         let p = e.path();
-        if !matches!(
-            p.extension().and_then(|x| x.to_str()),
-            Some("sb" | "sbz")
-        ) {
+        if !matches!(p.extension().and_then(|x| x.to_str()), Some("sb" | "sbz")) {
             continue;
         }
         if let Ok(m) = crate::api::module::open_any(&p) {

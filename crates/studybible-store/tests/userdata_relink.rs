@@ -241,9 +241,7 @@ fn relink_backfills_canon_when_meta_matches() {
         .add_ex(Kind::Note, anchor(), "заметка", "Первый стих.", &b)
         .unwrap();
 
-    let s = ud
-        .relink(|_| Some(Module::open(&mp).unwrap()))
-        .unwrap();
+    let s = ud.relink(|_| Some(Module::open(&mp).unwrap())).unwrap();
     assert_eq!(s.stamped, 1, "{s:?}");
     assert_eq!(s.fresh, 0);
     let e = ud

@@ -371,8 +371,8 @@ extension _ReaderPane on _ReadingScreenState {
     _rebuild(() {});
   }
 
-  /// Лист выбора переводов сравнения: чек-лист модулей, порядок —
-  /// порядок включения (перестановка — после релиза).
+  /// Лист выбора переводов сравнения: выбранные сверху в порядке
+  /// показа (стрелки переставляют), невыбранные — чек-листом ниже.
   void _interleavedModulesSheet() {
     showModalBottomSheet(
       context: context,
@@ -381,27 +381,65 @@ extension _ReaderPane on _ReadingScreenState {
           child: ListView(
             shrinkWrap: true,
             children: [
+              for (var i = 0; i < _compareIds.length; i++)
+                _compareOrderTile(i, setSheet),
               for (final e in installedModules.entries)
-                if (e.key != _moduleId)
+                if (e.key != _moduleId && !_compareIds.contains(e.key))
                   CheckboxListTile(
                     dense: true,
-                    value: _compareIds.contains(e.key),
+                    value: false,
                     title: Text(e.value),
                     onChanged: (v) {
-                      final ids = _compareIds;
                       if (v == true) {
-                        ids.add(e.key);
-                      } else {
-                        ids.remove(e.key);
+                        final ids = _compareIds..add(e.key);
+                        _setInterleavedModules(ids);
+                        setSheet(() {});
                       }
-                      _setInterleavedModules(ids);
-                      setSheet(() {});
                     },
                   ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// Строка выбранного перевода сравнения: снятие галочки и порядок.
+  Widget _compareOrderTile(int i, StateSetter setSheet) {
+    final ids = _compareIds;
+    final id = ids[i];
+    void move(int to) {
+      ids.insert(to, ids.removeAt(i));
+      _setInterleavedModules(ids);
+      setSheet(() {});
+    }
+
+    return CheckboxListTile(
+      dense: true,
+      value: true,
+      title: Text(installedModules[id] ?? id),
+      secondary: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_upward, size: 16),
+            visualDensity: VisualDensity.compact,
+            onPressed: i > 0 ? () => move(i - 1) : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.arrow_downward, size: 16),
+            visualDensity: VisualDensity.compact,
+            onPressed: i < ids.length - 1 ? () => move(i + 1) : null,
+          ),
+        ],
+      ),
+      onChanged: (v) {
+        if (v != true) {
+          final next = _compareIds..remove(id);
+          _setInterleavedModules(next);
+          setSheet(() {});
+        }
+      },
     );
   }
 

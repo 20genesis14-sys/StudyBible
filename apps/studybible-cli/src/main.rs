@@ -40,6 +40,7 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
   studybible user list [note|mark|hl] [--db <файл>]
   studybible user del <id> [--db <файл>]
   studybible user export <файл.zip> [--db <файл>]
+  studybible user export-md <файл.md> [--db <файл>]   — все записи в Markdown
   studybible user import <файл.zip> [--db <файл>]
   studybible say <файл.sb> \"<ссылка>\"            — прочитать вслух (системный синтезатор)
 
@@ -1234,6 +1235,15 @@ fn user(args: &[String]) -> Result<(), String> {
             let file = pos.get(1).ok_or("нужен файл zip")?;
             let n = user_db(args)?
                 .export_zip(Path::new(file))
+                .map_err(|e| e.to_string())?;
+            println!("экспортировано записей: {n}");
+            Ok(())
+        }
+        Some(&"export-md") => {
+            // Экспорт всех записей в Markdown (только экспорт, spec/06).
+            let file = pos.get(1).ok_or("нужен файл .md")?;
+            let n = user_db(args)?
+                .export_markdown(Path::new(file))
                 .map_err(|e| e.to_string())?;
             println!("экспортировано записей: {n}");
             Ok(())

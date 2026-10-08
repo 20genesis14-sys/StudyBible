@@ -40,463 +40,565 @@ class SettingsScreen extends StatelessWidget {
                 iconTheme: IconThemeData(color: p.ink),
               ),
               body: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: wide ? 760 : double.infinity),
-            child: ListView(
-              padding: EdgeInsets.all(wide ? 32 : 16),
-              children: [
-                _section(p, tr('Оформление', 'Appearance')),
-                _themePicker(p),
-                _autoNightRow(context, p),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: _futureTheme(p, tr('Сепия', 'Sepia'))),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _futureTheme(p, tr('Тёплые тона', 'Warm tones')),
-                    ),
-                  ],
-                ),
-                _section(p, tr('Язык', 'Language')),
-                _card(
-                  p,
-                  _row(
-                    p,
-                    tr('Язык интерфейса', 'Interface language'),
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'ru', label: Text('Русский')),
-                        ButtonSegment(value: 'en', label: Text('English')),
-                      ],
-                      selected: {settings.lang},
-                      onSelectionChanged: (s) =>
-                          settings.update(() => settings.lang = s.first),
-                    ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: wide ? 760 : double.infinity,
                   ),
-                ),
-                _section(p, tr('Шрифт', 'Typeface')),
-                Card(
-                  color: p.card,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: p.edge),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _labeled(
+                  child: ListView(
+                    padding: EdgeInsets.all(wide ? 32 : 16),
+                    children: [
+                      _section(p, tr('Оформление', 'Appearance')),
+                      _themePicker(p),
+                      _autoNightRow(context, p),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _futureTheme(p, tr('Сепия', 'Sepia')),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _futureTheme(
+                              p,
+                              tr('Тёплые тона', 'Warm tones'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      _section(p, tr('Язык', 'Language')),
+                      _card(
+                        p,
+                        _row(
                           p,
-                          tr('Шрифт текста', 'Reading font'),
-                          SegmentedButton<ReadingFont>(
-                            segments: [
+                          tr('Язык интерфейса', 'Interface language'),
+                          SegmentedButton<String>(
+                            segments: const [
                               ButtonSegment(
-                                value: ReadingFont.literata,
-                                label: Text('Literata'),
+                                value: 'ru',
+                                label: Text('Русский'),
                               ),
                               ButtonSegment(
-                                value: ReadingFont.gentium,
-                                label: Text('Gentium'),
-                              ),
-                              ButtonSegment(
-                                value: ReadingFont.ptSerif,
-                                label: Text('PT Serif'),
-                              ),
-                              ButtonSegment(
-                                value: ReadingFont.system,
-                                label: Text(tr('Системный', 'System')),
+                                value: 'en',
+                                label: Text('English'),
                               ),
                             ],
-                            selected: {settings.readingFont},
-                            onSelectionChanged: (s) => settings.update(
-                              () => settings.readingFont = s.first,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Text(
-                              tr('Размер шрифта', 'Font size'),
-                              style: TextStyle(color: p.ink),
-                            ),
-                            const Spacer(),
-                            Text(
-                              'x${settings.fontScale.toStringAsFixed(2)}',
-                              style: TextStyle(color: p.muted, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        Slider(
-                          value: settings.fontScale,
-                          min: 0.8,
-                          max: 1.6,
-                          divisions: 8,
-                          onChanged: (v) =>
-                              settings.update(() => settings.fontScale = v),
-                        ),
-                        _labeled(
-                          p,
-                          tr('Размер сносок', 'Footnote size'),
-                          Text(
-                            'x${settings.footScale.toStringAsFixed(2)}',
-                            style: TextStyle(color: p.muted, fontSize: 13),
-                          ),
-                        ),
-                        Slider(
-                          value: settings.footScale,
-                          min: 0.8,
-                          max: 1.6,
-                          divisions: 8,
-                          onChanged: (v) =>
-                              settings.update(() => settings.footScale = v),
-                        ),
-                        _labeled(
-                          p,
-                          tr('Размер параллельных мест', 'Cross-ref size'),
-                          Text(
-                            'x${settings.xrefScale.toStringAsFixed(2)}',
-                            style: TextStyle(color: p.muted, fontSize: 13),
-                          ),
-                        ),
-                        Slider(
-                          value: settings.xrefScale,
-                          min: 0.8,
-                          max: 1.6,
-                          divisions: 8,
-                          onChanged: (v) =>
-                              settings.update(() => settings.xrefScale = v),
-                        ),
-                        Text(
-                          tr(
-                            'Блаженны нищие духом, ибо их есть Царство Небесное.',
-                            'Blessed are the poor in spirit, for theirs is the kingdom of heaven.',
-                          ),
-                          style: TextStyle(
-                            fontFamily: readingFontFamily(settings.readingFont),
-                            fontSize: 17 * settings.fontScale,
-                            color: p.ink,
-                            height: 1.55,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                _section(p, tr('Чтение', 'Reading')),
-                _card(
-                  p,
-                  Column(
-                    children: [
-                      _row(
-                        p,
-                        tr('Вёрстка текста', 'Text layout'),
-                        SegmentedButton<LayoutMode>(
-                          segments: [
-                            ButtonSegment(
-                              value: LayoutMode.paragraphs,
-                              label: Text(tr('Абзацы', 'Paragraphs')),
-                            ),
-                            ButtonSegment(
-                              value: LayoutMode.versePerLine,
-                              label: Text(tr('По стихам', 'By verse')),
-                            ),
-                            ButtonSegment(
-                              value: LayoutMode.book,
-                              label: Text(tr('Книга', 'Book')),
-                            ),
-                          ],
-                          selected: {settings.layoutMode},
-                          onSelectionChanged: (s) => settings.update(
-                            () => settings.layoutMode = s.first,
+                            selected: {settings.lang},
+                            onSelectionChanged: (s) =>
+                                settings.update(() => settings.lang = s.first),
                           ),
                         ),
                       ),
-                      _row(
-                        p,
-                        tr(
-                          'Ширина колонки (десктоп)',
-                          'Column width (desktop)',
+                      _section(p, tr('Шрифт', 'Typeface')),
+                      Card(
+                        color: p.card,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: p.edge),
                         ),
-                        SegmentedButton<ColumnWidth>(
-                          segments: [
-                            ButtonSegment(
-                              value: ColumnWidth.reading,
-                              label: Text(tr('Чтение', 'Reading')),
-                            ),
-                            ButtonSegment(
-                              value: ColumnWidth.full,
-                              label: Text(tr('Вся ширина', 'Full width')),
-                            ),
-                          ],
-                          selected: {settings.columnWidth},
-                          onSelectionChanged: (s) => settings.update(
-                            () => settings.columnWidth = s.first,
-                          ),
-                        ),
-                      ),
-                      _row(
-                        p,
-                        tr(
-                          'Полные имена книг в сетке',
-                          'Full book names in grid',
-                        ),
-                        Switch(
-                          value: settings.bookFullNames,
-                          onChanged: (v) => settings.update(
-                            () => settings.bookFullNames = v,
-                          ),
-                        ),
-                      ),
-                      _row(
-                        p,
-                        tr(
-                          'Выбор стиха при выборе главы',
-                          'Verse picker after choosing chapter',
-                        ),
-                        Switch(
-                          value: settings.versePickerEnabled,
-                          onChanged: (v) => settings.update(
-                            () => settings.versePickerEnabled = v,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _section(p, tr('Основной перевод', 'Default translation')),
-                _card(
-                  p,
-                  // Открывается по умолчанию при запуске приложения
-                  // и в новых переходах без явного moduleId.
-                  ListenableBuilder(
-                    listenable: settings,
-                    builder: (context, _) => Column(
-                      children: [
-                        for (final e in installedModules.entries)
-                          ListTile(
-                            dense: true,
-                            leading: const Icon(
-                              Icons.menu_book_outlined,
-                              size: 18,
-                            ),
-                            title: Text(e.value),
-                            trailing: e.key == settings.defaultModule
-                                ? Icon(Icons.check, color: p.accent, size: 18)
-                                : null,
-                            onTap: () => settings.update(
-                              () => settings.defaultModule = e.key,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                _section(
-                  p,
-                  tr(
-                    'Перевод параллельных мест',
-                    'Cross-reference translation',
-                  ),
-                ),
-                _card(
-                  p,
-                  // Тексты стихов в карточках сносок/«°» — из этого
-                  // перевода; по умолчанию — из основного.
-                  ListenableBuilder(
-                    listenable: settings,
-                    builder: (context, _) => Column(
-                      children: [
-                        ListTile(
-                          dense: true,
-                          leading: const Icon(
-                            Icons.star_outline,
-                            size: 18,
-                          ),
-                          title: Text(
-                            tr(
-                              'Как основной перевод',
-                              'Same as default translation',
-                            ),
-                          ),
-                          trailing: settings.xrefModule.isEmpty
-                              ? Icon(Icons.check, color: p.accent, size: 18)
-                              : null,
-                          onTap: () => settings.update(
-                            () => settings.xrefModule = '',
-                          ),
-                        ),
-                        for (final e in installedModules.entries)
-                          ListTile(
-                            dense: true,
-                            leading: const Icon(
-                              Icons.menu_book_outlined,
-                              size: 18,
-                            ),
-                            title: Text(e.value),
-                            trailing: e.key == settings.xrefModule
-                                ? Icon(Icons.check, color: p.accent, size: 18)
-                                : null,
-                            onTap: () => settings.update(
-                              () => settings.xrefModule = e.key,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                _section(
-                  p,
-                  tr('Переводы для сравнения', 'Compare translations'),
-                ),
-                _card(
-                  p,
-                  // Экран «стих во всех переводах» (тап по стиху →
-                  // «Сравнить») показывает только отмеченные модули;
-                  // все отмечены == все установленные.
-                  ListenableBuilder(
-                    listenable: settings,
-                    builder: (context, _) {
-                      final sel = settings.compareModules.isEmpty
-                          ? installedModules.keys.toSet()
-                          : settings.compareModules
-                                .split(',')
-                                .where((s) => s.isNotEmpty)
-                                .toSet();
-                      return Column(
-                        children: [
-                          for (final e in installedModules.entries)
-                            CheckboxListTile(
-                              dense: true,
-                              value: sel.contains(e.key),
-                              title: Text(e.value),
-                              activeColor: p.accent,
-                              onChanged: (on) {
-                                final next = Set.of(sel);
-                                if (on ?? false) {
-                                  next.add(e.key);
-                                } else {
-                                  next.remove(e.key);
-                                }
-                                settings.update(
-                                  () => settings.compareModules =
-                                      next.length == installedModules.length
-                                      ? ''
-                                      : next.join(','),
-                                );
-                              },
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                _section(p, tr('Чтение вслух', 'Read aloud')),
-                _card(
-                  p,
-                  Column(
-                    children: [
-                      _row(
-                        p,
-                        tr('Движок', 'Engine'),
-                        SegmentedButton<String>(
-                          segments: [
-                            ButtonSegment(
-                              value: 'auto',
-                              label: Text(tr('Авто', 'Auto')),
-                            ),
-                            ButtonSegment(
-                              value: 'system',
-                              label: Text(tr('Системный', 'System')),
-                            ),
-                          ],
-                          // sherpa_onnx вырезан до послерелизной доработки:
-                          // сохранённое 'neural' показываем как 'auto'.
-                          selected: {
-                            settings.voiceEngine == 'neural'
-                                ? 'auto'
-                                : settings.voiceEngine,
-                          },
-                          onSelectionChanged: (s) => settings.update(
-                            () => settings.voiceEngine = s.first,
-                          ),
-                        ),
-                      ),
-                      _row(
-                        p,
-                        tr('Скорость', 'Speed'),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'x${settings.voiceRate.toStringAsFixed(2)}',
-                              style: TextStyle(color: p.muted, fontSize: 13),
-                            ),
-                            SizedBox(
-                              width: 180,
-                              child: Slider(
-                                value: settings.voiceRate,
-                                min: 0.6,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _labeled(
+                                p,
+                                tr('Шрифт текста', 'Reading font'),
+                                SegmentedButton<ReadingFont>(
+                                  segments: [
+                                    ButtonSegment(
+                                      value: ReadingFont.literata,
+                                      label: Text('Literata'),
+                                    ),
+                                    ButtonSegment(
+                                      value: ReadingFont.gentium,
+                                      label: Text('Gentium'),
+                                    ),
+                                    ButtonSegment(
+                                      value: ReadingFont.ptSerif,
+                                      label: Text('PT Serif'),
+                                    ),
+                                    ButtonSegment(
+                                      value: ReadingFont.system,
+                                      label: Text(tr('Системный', 'System')),
+                                    ),
+                                  ],
+                                  selected: {settings.readingFont},
+                                  onSelectionChanged: (s) => settings.update(
+                                    () => settings.readingFont = s.first,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Text(
+                                    tr('Размер шрифта', 'Font size'),
+                                    style: TextStyle(color: p.ink),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    'x${settings.fontScale.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      color: p.muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Slider(
+                                value: settings.fontScale,
+                                min: 0.8,
                                 max: 1.6,
-                                divisions: 10,
+                                divisions: 8,
                                 onChanged: (v) => settings.update(
-                                  () => settings.voiceRate = v,
+                                  () => settings.fontScale = v,
+                                ),
+                              ),
+                              _labeled(
+                                p,
+                                tr('Размер сносок', 'Footnote size'),
+                                Text(
+                                  'x${settings.footScale.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: p.muted,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Slider(
+                                value: settings.footScale,
+                                min: 0.8,
+                                max: 1.6,
+                                divisions: 8,
+                                onChanged: (v) => settings.update(
+                                  () => settings.footScale = v,
+                                ),
+                              ),
+                              _labeled(
+                                p,
+                                tr(
+                                  'Размер параллельных мест',
+                                  'Cross-ref size',
+                                ),
+                                Text(
+                                  'x${settings.xrefScale.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: p.muted,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Slider(
+                                value: settings.xrefScale,
+                                min: 0.8,
+                                max: 1.6,
+                                divisions: 8,
+                                onChanged: (v) => settings.update(
+                                  () => settings.xrefScale = v,
+                                ),
+                              ),
+                              Text(
+                                tr(
+                                  'Блаженны нищие духом, ибо их есть Царство Небесное.',
+                                  'Blessed are the poor in spirit, for theirs is the kingdom of heaven.',
+                                ),
+                                style: TextStyle(
+                                  fontFamily: readingFontFamily(
+                                    settings.readingFont,
+                                  ),
+                                  fontSize: 17 * settings.fontScale,
+                                  color: p.ink,
+                                  height: 1.55,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _section(p, tr('Чтение', 'Reading')),
+                      _card(
+                        p,
+                        Column(
+                          children: [
+                            _row(
+                              p,
+                              tr('Вёрстка текста', 'Text layout'),
+                              SegmentedButton<LayoutMode>(
+                                segments: [
+                                  ButtonSegment(
+                                    value: LayoutMode.paragraphs,
+                                    label: Text(tr('Абзацы', 'Paragraphs')),
+                                  ),
+                                  ButtonSegment(
+                                    value: LayoutMode.versePerLine,
+                                    label: Text(tr('По стихам', 'By verse')),
+                                  ),
+                                  ButtonSegment(
+                                    value: LayoutMode.book,
+                                    label: Text(tr('Книга', 'Book')),
+                                  ),
+                                ],
+                                selected: {settings.layoutMode},
+                                onSelectionChanged: (s) => settings.update(
+                                  () => settings.layoutMode = s.first,
+                                ),
+                              ),
+                            ),
+                            _row(
+                              p,
+                              tr(
+                                'Ширина колонки (десктоп)',
+                                'Column width (desktop)',
+                              ),
+                              SegmentedButton<ColumnWidth>(
+                                segments: [
+                                  ButtonSegment(
+                                    value: ColumnWidth.reading,
+                                    label: Text(tr('Чтение', 'Reading')),
+                                  ),
+                                  ButtonSegment(
+                                    value: ColumnWidth.full,
+                                    label: Text(tr('Вся ширина', 'Full width')),
+                                  ),
+                                ],
+                                selected: {settings.columnWidth},
+                                onSelectionChanged: (s) => settings.update(
+                                  () => settings.columnWidth = s.first,
+                                ),
+                              ),
+                            ),
+                            _row(
+                              p,
+                              tr(
+                                'Полные имена книг в сетке',
+                                'Full book names in grid',
+                              ),
+                              Switch(
+                                value: settings.bookFullNames,
+                                onChanged: (v) => settings.update(
+                                  () => settings.bookFullNames = v,
+                                ),
+                              ),
+                            ),
+                            _row(
+                              p,
+                              tr(
+                                'Выбор стиха при выборе главы',
+                                'Verse picker after choosing chapter',
+                              ),
+                              Switch(
+                                value: settings.versePickerEnabled,
+                                onChanged: (v) => settings.update(
+                                  () => settings.versePickerEnabled = v,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      _row(
+                      _section(
                         p,
-                        tr('Подсветка слов', 'Word highlight'),
-                        Switch(
-                          value: settings.voiceWords,
-                          onChanged: (v) => settings.update(
-                            () => settings.voiceWords = v,
+                        tr('Основной перевод', 'Default translation'),
+                      ),
+                      _card(
+                        p,
+                        // Открывается по умолчанию при запуске приложения
+                        // и в новых переходах без явного moduleId.
+                        ListenableBuilder(
+                          listenable: settings,
+                          builder: (context, _) => Column(
+                            children: [
+                              for (final e in installedModules.entries)
+                                ListTile(
+                                  dense: true,
+                                  leading: const Icon(
+                                    Icons.menu_book_outlined,
+                                    size: 18,
+                                  ),
+                                  title: Text(e.value),
+                                  trailing: e.key == settings.defaultModule
+                                      ? Icon(
+                                          Icons.check,
+                                          color: p.accent,
+                                          size: 18,
+                                        )
+                                      : null,
+                                  onTap: () => settings.update(
+                                    () => settings.defaultModule = e.key,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
-                      if (!kIsWeb) const _VoicesCard(),
+                      _section(
+                        p,
+                        tr(
+                          'Перевод параллельных мест',
+                          'Cross-reference translation',
+                        ),
+                      ),
+                      _card(
+                        p,
+                        // Тексты стихов в карточках сносок/«°» — из этого
+                        // перевода; по умолчанию — из основного.
+                        ListenableBuilder(
+                          listenable: settings,
+                          builder: (context, _) => Column(
+                            children: [
+                              ListTile(
+                                dense: true,
+                                leading: const Icon(
+                                  Icons.star_outline,
+                                  size: 18,
+                                ),
+                                title: Text(
+                                  tr(
+                                    'Как основной перевод',
+                                    'Same as default translation',
+                                  ),
+                                ),
+                                trailing: settings.xrefModule.isEmpty
+                                    ? Icon(
+                                        Icons.check,
+                                        color: p.accent,
+                                        size: 18,
+                                      )
+                                    : null,
+                                onTap: () => settings.update(
+                                  () => settings.xrefModule = '',
+                                ),
+                              ),
+                              for (final e in installedModules.entries)
+                                ListTile(
+                                  dense: true,
+                                  leading: const Icon(
+                                    Icons.menu_book_outlined,
+                                    size: 18,
+                                  ),
+                                  title: Text(e.value),
+                                  trailing: e.key == settings.xrefModule
+                                      ? Icon(
+                                          Icons.check,
+                                          color: p.accent,
+                                          size: 18,
+                                        )
+                                      : null,
+                                  onTap: () => settings.update(
+                                    () => settings.xrefModule = e.key,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _section(
+                        p,
+                        tr('Переводы для сравнения', 'Compare translations'),
+                      ),
+                      _card(
+                        p,
+                        // Экран «стих во всех переводах» (тап по стиху →
+                        // «Сравнить») показывает только отмеченные модули;
+                        // все отмечены == все установленные.
+                        ListenableBuilder(
+                          listenable: settings,
+                          builder: (context, _) {
+                            // Порядок показа «стих во всех переводах» —
+                            // порядок списка; выбранные сверху, стрелки
+                            // переставляют. Пустая настройка == все модули.
+                            final sel = settings.compareModules.isEmpty
+                                ? installedModules.keys.toList()
+                                : settings.compareModules
+                                      .split(',')
+                                      .where(installedModules.containsKey)
+                                      .toList();
+                            void save(List<String> next) => settings.update(
+                              () => settings.compareModules =
+                                  next.length == installedModules.length
+                                  ? ''
+                                  : next.join(','),
+                            );
+                            return Column(
+                              children: [
+                                for (var i = 0; i < sel.length; i++)
+                                  CheckboxListTile(
+                                    dense: true,
+                                    value: true,
+                                    title: Text(
+                                      installedModules[sel[i]] ?? sel[i],
+                                    ),
+                                    activeColor: p.accent,
+                                    secondary: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.arrow_upward,
+                                            size: 16,
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed: i > 0
+                                              ? () {
+                                                  sel.insert(
+                                                    i - 1,
+                                                    sel.removeAt(i),
+                                                  );
+                                                  save(sel);
+                                                }
+                                              : null,
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.arrow_downward,
+                                            size: 16,
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed: i < sel.length - 1
+                                              ? () {
+                                                  sel.insert(
+                                                    i + 1,
+                                                    sel.removeAt(i),
+                                                  );
+                                                  save(sel);
+                                                }
+                                              : null,
+                                        ),
+                                      ],
+                                    ),
+                                    onChanged: (on) {
+                                      if (on != true) {
+                                        sel.removeAt(i);
+                                        save(sel);
+                                      }
+                                    },
+                                  ),
+                                for (final e in installedModules.entries)
+                                  if (!sel.contains(e.key))
+                                    CheckboxListTile(
+                                      dense: true,
+                                      value: false,
+                                      title: Text(e.value),
+                                      activeColor: p.accent,
+                                      onChanged: (on) {
+                                        if (on ?? false) {
+                                          sel.add(e.key);
+                                          save(sel);
+                                        }
+                                      },
+                                    ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      _section(p, tr('Чтение вслух', 'Read aloud')),
+                      _card(
+                        p,
+                        Column(
+                          children: [
+                            _row(
+                              p,
+                              tr('Движок', 'Engine'),
+                              SegmentedButton<String>(
+                                segments: [
+                                  ButtonSegment(
+                                    value: 'auto',
+                                    label: Text(tr('Авто', 'Auto')),
+                                  ),
+                                  ButtonSegment(
+                                    value: 'system',
+                                    label: Text(tr('Системный', 'System')),
+                                  ),
+                                ],
+                                // sherpa_onnx вырезан до послерелизной доработки:
+                                // сохранённое 'neural' показываем как 'auto'.
+                                selected: {
+                                  settings.voiceEngine == 'neural'
+                                      ? 'auto'
+                                      : settings.voiceEngine,
+                                },
+                                onSelectionChanged: (s) => settings.update(
+                                  () => settings.voiceEngine = s.first,
+                                ),
+                              ),
+                            ),
+                            _row(
+                              p,
+                              tr('Скорость', 'Speed'),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'x${settings.voiceRate.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      color: p.muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 180,
+                                    child: Slider(
+                                      value: settings.voiceRate,
+                                      min: 0.6,
+                                      max: 1.6,
+                                      divisions: 10,
+                                      onChanged: (v) => settings.update(
+                                        () => settings.voiceRate = v,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _row(
+                              p,
+                              tr('Подсветка слов', 'Word highlight'),
+                              Switch(
+                                value: settings.voiceWords,
+                                onChanged: (v) => settings.update(
+                                  () => settings.voiceWords = v,
+                                ),
+                              ),
+                            ),
+                            if (!kIsWeb) const _VoicesCard(),
+                          ],
+                        ),
+                      ),
+                      _section(p, tr('Прогресс', 'Progress')),
+                      _card(
+                        p,
+                        ListenableBuilder(
+                          listenable: progress,
+                          builder: (context, _) => ListTile(
+                            title: Text(
+                              tr(
+                                'Прочитано глав: ${progress.read.length}',
+                                'Chapters read: ${progress.read.length}',
+                              ),
+                            ),
+                            trailing: TextButton(
+                              onPressed: progress.read.isEmpty
+                                  ? null
+                                  : progress.reset,
+                              child: Text(tr('Сбросить', 'Reset')),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: Text(
+                          tr(
+                            'Учебная Библия · прототип UI · ядро Rust',
+                            'Study Bible · UI prototype · Rust core',
+                          ),
+                          style: TextStyle(fontSize: 12, color: p.muted),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                _section(p, tr('Прогресс', 'Progress')),
-                _card(
-                  p,
-                  ListenableBuilder(
-                    listenable: progress,
-                    builder: (context, _) => ListTile(
-                      title: Text(
-                        tr(
-                          'Прочитано глав: ${progress.read.length}',
-                          'Chapters read: ${progress.read.length}',
-                        ),
-                      ),
-                      trailing: TextButton(
-                        onPressed: progress.read.isEmpty
-                            ? null
-                            : progress.reset,
-                        child: Text(tr('Сбросить', 'Reset')),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Center(
-                  child: Text(
-                    tr(
-                      'Учебная Библия · прототип UI · ядро Rust',
-                      'Study Bible · UI prototype · Rust core',
-                    ),
-                    style: TextStyle(fontSize: 12, color: p.muted),
-                  ),
-                ),
-              ],
-            ),
-          ),
               ),
             ),
           ),
@@ -624,9 +726,7 @@ class SettingsScreen extends StatelessWidget {
               const Spacer(),
               SegmentedButton<AppTheme>(
                 showSelectedIcon: false,
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                ),
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
                 segments: [
                   ButtonSegment(
                     value: AppTheme.dark,
@@ -764,8 +864,7 @@ class _VoicesCardState extends State<_VoicesCard> {
       if (v is List) {
         _voices = [
           for (final m in v)
-            if (m is Map &&
-                '${m['locale']}'.toLowerCase().startsWith('ru'))
+            if (m is Map && '${m['locale']}'.toLowerCase().startsWith('ru'))
               {'name': '${m['name']}', 'locale': '${m['locale']}'},
         ];
       }
@@ -847,10 +946,11 @@ class _VoicesCardState extends State<_VoicesCard> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: DropdownButton<String>(
                 isExpanded: true,
-                value: _voices.any(
-                          (v) => '${v['name']}|${v['locale']}' ==
-                              settings.systemVoice,
-                        )
+                value:
+                    _voices.any(
+                      (v) =>
+                          '${v['name']}|${v['locale']}' == settings.systemVoice,
+                    )
                     ? settings.systemVoice
                     : '',
                 items: [

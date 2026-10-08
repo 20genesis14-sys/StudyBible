@@ -197,6 +197,21 @@ fn now() -> i64 {
         .unwrap_or(0)
 }
 
+/// `дд.мм.гггг` из unix-millis (алгоритм civil-from-days Хиннанта).
+fn date_ymd(ms: i64) -> String {
+    let z = ms.div_euclid(86_400_000) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{d:02}.{m:02}.{y}")
+}
+
 fn new_id() -> String {
     let ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -426,6 +441,62 @@ impl UserData {
         zip.start_file("userdata.json", opt)?;
         zip.write_all(serde_json::to_string_pretty(&doc).expect("json").as_bytes())?;
         zip.finish()?;
+        Ok(entries.len())
+    }
+
+    /// Экспорт живых записей в Markdown (только экспорт, без импорта —
+    /// spec/06). Группировка: модуль → вид записи; сироты/удалённые
+    /// не выгружаются. Служебный псевдо-модуль `*` пропускается.
+    pub fn export_markdown(&self, path: &Path) -> Result<usize> {
+        let mut entries: Vec<Entry> = self
+            .all()?
+            .into_iter()
+            .filter(|e| e.deleted == 0 && e.module != "*")
+            .collect();
+        entries.sort_by(|a, b| {
+            (&a.module, a.kind.as_str(), &a.book, a.chapter, a.verse).cmp(&(
+                &b.module,
+                b.kind.as_str(),
+                &b.book,
+                b.chapter,
+                b.verse,
+            ))
+        });
+        const KIND_TITLE: [(&str, &str); 4] = [
+            ("note", "Заметки"),
+            ("mark", "Закладки"),
+            ("hl", "Выделения"),
+            ("tag", "Теги"),
+        ];
+        let mut out = String::from("# Записи StudyBible\n\n");
+        let (mut module, mut kind) = (String::new(), String::new());
+        for e in &entries {
+            if e.module != module {
+                module = e.module.clone();
+                kind.clear();
+                out.push_str(&format!("## {module}\n\n"));
+            }
+            if e.kind.as_str() != kind {
+                kind = e.kind.as_str().to_string();
+                let t = KIND_TITLE
+                    .iter()
+                    .find(|(k, _)| *k == kind)
+                    .map(|(_, t)| *t)
+                    .unwrap_or(kind.as_str());
+                out.push_str(&format!("### {t}\n\n"));
+            }
+            let date = date_ymd(e.created);
+            let text = if e.text.is_empty() {
+                String::new()
+            } else {
+                format!(" — {}", e.text.replace('\n', " "))
+            };
+            out.push_str(&format!(
+                "- **{} {}:{}**{text} *({date})*\n",
+                e.book, e.chapter, e.verse
+            ));
+        }
+        std::fs::write(path, out)?;
         Ok(entries.len())
     }
 
