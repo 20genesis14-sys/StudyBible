@@ -48,7 +48,6 @@ dependencies:
   permission_handler: ^11.4.0
   # Нейросинтез офлайн (ADR 0017): VITS/Piper-модели на нативных
   # платформах; на web код не вызывается (stub-бэкенд).
-  sherpa_onnx: ^1.13.8
   # Распаковка голосовых пакетов .tar.bz2/.zip при импорте.
   archive: ^4.3.0
 

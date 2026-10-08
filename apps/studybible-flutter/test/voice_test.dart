@@ -248,13 +248,15 @@ void main() {
     final savedEngine = settings.voiceEngine;
     tearDown(() => settings.voiceEngine = savedEngine);
 
-    test('neural без пакета под язык — ошибка с подсказкой', () async {
+    test('neural вырезан из сборки — молчаливый фоллбэк на системный', () async {
       settings.voiceEngine = 'neural';
-      // 'he' — пакета точно нет (в реальных voices только ru_*).
+      // sherpa_onnx удалён (ADR 0017 «Статус 12.10.2026»): выбор
+      // 'neural' откатывается на системный бэкенд без подсказки
+      // про пакеты.
       final r = await pickVoiceBackend('he-IL');
       expect(r.backend, isNull);
-      expect(r.error, contains('Нет голосового пакета'));
-      expect(r.error, contains('he-IL'));
+      expect(r.error, isNotNull);
+      expect(r.error, isNot(contains('голосового пакета')));
     });
 
     test('auto без пакета — молчаливый фоллбэк на системный', () async {

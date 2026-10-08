@@ -5,6 +5,11 @@ library;
 import 'voice_backend.dart';
 import 'voice_pack.dart';
 
+/// sherpa_onnx вырезан из сборки (ADR 0017 «Статус 12.10.2026»):
+/// pickVoiceBackend не тратит время на скан пакетов и сразу
+/// выбирает системный движок.
+const bool kNeuralAvailable = false;
+
 class NeuralVoiceBackend extends VoiceBackend {
   NeuralVoiceBackend(this.pack);
 

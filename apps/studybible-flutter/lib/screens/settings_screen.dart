@@ -8,9 +8,6 @@ import '../data.dart';
 import '../l10n.dart';
 import '../state.dart';
 import '../theme.dart';
-import '../voice/voice_import.dart';
-import '../voice/voice_pack.dart';
-import '../voice/voice_registry.dart';
 
 /// Настройки прототипа: темы, шрифт, вёрстка, колонка, выбор стиха.
 class SettingsScreen extends StatelessWidget {
@@ -414,12 +411,14 @@ class SettingsScreen extends StatelessWidget {
                               value: 'system',
                               label: Text(tr('Системный', 'System')),
                             ),
-                            ButtonSegment(
-                              value: 'neural',
-                              label: Text(tr('Нейросеть', 'Neural')),
-                            ),
                           ],
-                          selected: {settings.voiceEngine},
+                          // sherpa_onnx вырезан до послерелизной доработки:
+                          // сохранённое 'neural' показываем как 'auto'.
+                          selected: {
+                            settings.voiceEngine == 'neural'
+                                ? 'auto'
+                                : settings.voiceEngine,
+                          },
                           onSelectionChanged: (s) => settings.update(
                             () => settings.voiceEngine = s.first,
                           ),
@@ -741,7 +740,6 @@ class _VoicesCard extends StatefulWidget {
 }
 
 class _VoicesCardState extends State<_VoicesCard> {
-  List<VoicePack> _packs = const [];
   List<String> _engines = const [];
   List<Map<String, String>> _voices = const [];
   final _tts = FlutterTts();
@@ -749,7 +747,6 @@ class _VoicesCardState extends State<_VoicesCard> {
   @override
   void initState() {
     super.initState();
-    _packs = scanVoices();
     _loadSystemVoices();
   }
 
@@ -778,71 +775,12 @@ class _VoicesCardState extends State<_VoicesCard> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _import(Future<String?> Function() pick) async {
-    final r = await pick();
-    if (!mounted) return;
-    if (r != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r)));
-    }
-    setState(() => _packs = scanVoices());
-  }
-
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-          child: Text(
-            tr('Нейроголоса (голосовые пакеты)', 'Neural voices (voice packs)'),
-            style: TextStyle(fontSize: 14, color: p.ink),
-          ),
-        ),
-        if (_packs.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              tr(
-                'Нет пакетов. Скачайте vits-piper-* со страницы релизов sherpa-onnx (k2-fsa) и импортируйте архив или папку.',
-                'No packs. Download vits-piper-* from sherpa-onnx releases (k2-fsa) and import the archive or folder.',
-              ),
-              style: TextStyle(fontSize: 13, color: p.muted),
-            ),
-          ),
-        for (final v in _packs)
-          ListTile(
-            dense: true,
-            leading: Icon(
-              v.usable
-                  ? Icons.record_voice_over_outlined
-                  : Icons.error_outline,
-              size: 18,
-            ),
-            title: Text(v.name),
-            subtitle: Text(
-              [
-                v.language,
-                v.id,
-                if (v.speakers > 1)
-                  tr('${v.speakers} дикт.', '${v.speakers} voices'),
-                ...v.issues,
-              ].join(' · '),
-            ),
-            enabled: v.usable,
-            trailing: settings.voiceFor(v.language) == v.id
-                ? Icon(Icons.check, color: p.accent, size: 18)
-                : null,
-            onTap: v.usable
-                ? () => settings.update(
-                    () => settings.setVoiceFor(
-                      v.language,
-                      settings.voiceFor(v.language) == v.id ? '' : v.id,
-                    ),
-                  )
-                : null,
-          ),
         ListTile(
           dense: true,
           title: Text(tr('Автоударения (русский)', 'Auto accents (Russian)')),
@@ -934,21 +872,6 @@ class _VoicesCardState extends State<_VoicesCard> {
               ),
             ),
         ],
-        OverflowBar(
-          alignment: MainAxisAlignment.end,
-          children: [
-            TextButton.icon(
-              icon: const Icon(Icons.archive_outlined, size: 18),
-              label: Text(tr('Архив…', 'Archive…')),
-              onPressed: () => _import(importVoicePackArchive),
-            ),
-            TextButton.icon(
-              icon: const Icon(Icons.folder_open, size: 18),
-              label: Text(tr('Папку…', 'Folder…')),
-              onPressed: () => _import(importVoicePackFolder),
-            ),
-          ],
-        ),
       ],
     );
   }

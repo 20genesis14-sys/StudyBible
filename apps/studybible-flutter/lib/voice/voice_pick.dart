@@ -21,7 +21,7 @@ Future<({VoiceBackend? backend, String? error})> pickVoiceBackend(
   String language,
 ) async {
   final engine = settings.voiceEngine;
-  if (!kIsWeb && engine != 'system') {
+  if (!kIsWeb && kNeuralAvailable && engine != 'system') {
     final pack = voiceForLanguage(
       scanVoices(),
       language,
