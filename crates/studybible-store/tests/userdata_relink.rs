@@ -222,6 +222,41 @@ fn foreign_entries_by_canon() {
 }
 
 #[test]
+fn relink_backfills_canon_when_meta_matches() {
+    // Мета совпадает, но канон пуст (запись этапа Б) — не «свежая»,
+    // доштамповываем канонический диапазон.
+    let dir = tempfile::tempdir().unwrap();
+    let mp = dir.path().join("m1.sb");
+    build(&mp, "m1", SRC);
+    let m = Module::open(&mp).unwrap();
+
+    let ud = UserData::open(&dir.path().join("u.db")).unwrap();
+    let b = Bind {
+        vrs: "rsc".into(),
+        module_ver: m.meta().content_hash.clone(),
+        canon_from: None,
+        canon_to: None,
+    };
+    let id = ud
+        .add_ex(Kind::Note, anchor(), "заметка", "Первый стих.", &b)
+        .unwrap();
+
+    let s = ud
+        .relink(|_| Some(Module::open(&mp).unwrap()))
+        .unwrap();
+    assert_eq!(s.stamped, 1, "{s:?}");
+    assert_eq!(s.fresh, 0);
+    let e = ud
+        .entries(Kind::Note, None)
+        .unwrap()
+        .into_iter()
+        .find(|e| e.id == id)
+        .unwrap();
+    assert_eq!(e.canon_book, "GEN");
+    assert_eq!((e.canon_ch1, e.canon_v1), (1, 1));
+}
+
+#[test]
 fn migrates_schema_1() {
     // База схемы 1 открывается: колонки vrs/module_ver появляются.
     let dir = tempfile::tempdir().unwrap();

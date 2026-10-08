@@ -11,3 +11,5 @@
 *.apk
 *.aab
 /StudyBible-windows-debug/
+
+/release-1.0/

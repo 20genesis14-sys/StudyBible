@@ -39,17 +39,45 @@ fn open(path: &str) -> Result<UserData> {
     Ok(UserData::open(Path::new(path))?)
 }
 
-/// Открыть модуль по `meta.id`: файл `<id>.sb`/`.sbz` в `modules/`
-/// рядом с userdata.db. None — модуль не установлен.
-fn resolve_module(ud_path: &str, id: &str) -> Option<Module> {
-    let dir = Path::new(ud_path).parent()?.join("modules");
+/// Путь модуля по `meta.id`: быстрая ветка — файл `<id>.sb`/`.sbz`;
+/// иначе скан `modules/` с чтением `meta.id` из каждого файла
+/// (имя при импорте могло быть любым — идентичность только в meta).
+fn module_path(dir: &Path, id: &str) -> Option<std::path::PathBuf> {
     for ext in ["sbz", "sb"] {
         let p = dir.join(format!("{id}.{ext}"));
         if p.exists() {
-            return crate::api::module::open_any(&p).ok();
+            return Some(p);
         }
     }
-    None
+    module_path_map(dir).get(id).cloned()
+}
+
+/// Карта `meta.id` → путь по всем `.sb`/`.sbz` каталога.
+fn module_path_map(dir: &Path) -> std::collections::HashMap<String, std::path::PathBuf> {
+    let mut map = std::collections::HashMap::new();
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return map;
+    };
+    for e in rd.flatten() {
+        let p = e.path();
+        if !matches!(
+            p.extension().and_then(|x| x.to_str()),
+            Some("sb" | "sbz")
+        ) {
+            continue;
+        }
+        if let Ok(m) = crate::api::module::open_any(&p) {
+            map.insert(m.meta().id.clone(), p);
+        }
+    }
+    map
+}
+
+/// Открыть модуль по `meta.id` в `modules/` рядом с userdata.db.
+/// None — модуль не установлен.
+fn resolve_module(ud_path: &str, id: &str) -> Option<Module> {
+    let dir = Path::new(ud_path).parent()?.join("modules");
+    crate::api::module::open_any(&module_path(&dir, id)?).ok()
 }
 
 /// Снять состояние прогресса одним JSON:
@@ -279,15 +307,12 @@ pub async fn entries_foreign_list(
         u16::try_from(chapter)?,
         u16::try_from(verse)?,
     ));
-    // Кэш установленности: файл модуля открываем один раз на id.
-    let mut seen = std::collections::HashMap::<String, bool>::new();
+    // Установленность — по карте meta.id каталога: одно сканирование.
+    let dir = Path::new(&path).parent().map(|p| p.join("modules"));
+    let installed = dir.map(|d| module_path_map(&d)).unwrap_or_default();
     let ud = open(&path)?;
     Ok(ud
-        .entries_foreign(&module, &org, |id| {
-            *seen
-                .entry(id.to_string())
-                .or_insert_with(|| resolve_module(&path, id).is_some())
-        })?
+        .entries_foreign(&module, &org, |id| installed.contains_key(id))?
         .iter()
         .map(entry_info)
         .collect())
@@ -298,7 +323,13 @@ pub async fn entries_foreign_list(
 #[flutter_rust_bridge::frb(sync)]
 pub fn entries_relink(path: String) -> Result<String> {
     let ud = open(&path)?;
-    let s = ud.relink(|id| resolve_module(&path, id))?;
+    let dir = Path::new(&path).parent().map(|p| p.join("modules"));
+    let paths = dir.map(|d| module_path_map(&d)).unwrap_or_default();
+    let s = ud.relink(|id| {
+        paths
+            .get(id)
+            .and_then(|p| crate::api::module::open_any(p).ok())
+    })?;
     Ok(format!(
         "проверено {}, свежих {}, переписано меты {}, переехало {}, \
          сирот {} [{}], пропущено {}",

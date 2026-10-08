@@ -3,12 +3,14 @@
 /// Сжатый .sbz распаковывается мостом при первом открытии (ADR 0016).
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 
 import 'l10n.dart';
-import 'native_bridge_io.dart' show bridgeEntriesRelink, dataDir;
+import 'native_bridge_io.dart'
+    show bridgeEntriesRelink, bridgeModuleDoc, dataDir;
 
 /// Возвращает текст результата для SnackBar или null при отмене.
 Future<String?> importSbModule() async {
@@ -23,9 +25,23 @@ Future<String?> importSbModule() async {
   if (src == null) {
     return tr('Не удалось получить путь к файлу', 'Could not get file path');
   }
+  // Идентичность модуля — meta.id, не имя файла: сохраняем как
+  // `<id>.<ext>` — резолв записей и повторный импорт не зависят от
+  // имени исходного файла.
+  final doc = await bridgeModuleDoc(src);
+  final id = doc == null
+      ? null
+      : (jsonDecode(doc) as Map<String, dynamic>)['id'] as String?;
+  if (id == null || id.isEmpty) {
+    return tr(
+      'Не удалось прочитать модуль: ${file.name}',
+      'Could not read module: ${file.name}',
+    );
+  }
+  final ext = file.name.split('.').last;
   final modulesDir = Directory('${dataDir()}/modules');
   await modulesDir.create(recursive: true);
-  final dst = '${modulesDir.path}/${file.name}';
+  final dst = '${modulesDir.path}/$id.$ext';
   try {
     await File(src).copy(dst);
   } catch (e) {

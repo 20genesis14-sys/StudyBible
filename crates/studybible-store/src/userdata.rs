@@ -603,7 +603,13 @@ impl UserData {
             } else {
                 meta.content_hash.as_str()
             };
-            if e.vrs == cur_vrs && e.module_ver == cur_ver && !e.context.is_empty() {
+            // «Свежая» — мета совпала и все поля на месте; пустой канон
+            // (проштамповано до этапа А или без конверсии) доукомплектовываем.
+            if e.vrs == cur_vrs
+                && e.module_ver == cur_ver
+                && !e.context.is_empty()
+                && !e.canon_book.is_empty()
+            {
                 stats.fresh += 1;
                 continue;
             }
