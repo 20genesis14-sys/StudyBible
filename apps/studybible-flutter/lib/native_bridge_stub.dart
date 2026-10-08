@@ -111,6 +111,11 @@ Future<List<UserEntry>> bridgeEntriesForeign(
   int verse,
 ) async => const [];
 
+/// Сироты, экспорт/импорт записей — стаб.
+Future<List<String>> bridgeOrphanIds() async => const [];
+Future<int?> bridgeEntriesExport(String dest) async => null;
+Future<String?> bridgeEntriesImport(String src) async => null;
+
 // ---------- словарь (стаб — пусто) ----------
 
 Future<List<DictEntryInfo>> bridgeDictEntries(

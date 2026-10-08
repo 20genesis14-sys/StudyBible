@@ -8,6 +8,7 @@ import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
     if (dart.library.html) '../native_bridge_web.dart';
 import '../theme.dart';
+import '../userdata_stub.dart' if (dart.library.io) '../userdata_io.dart';
 import 'reading_screen.dart';
 import '../routes.dart';
 
@@ -28,6 +29,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
   /// Выбранный тег-фильтр; null — все.
   String? _tag;
+
+  /// Id записей-сирот последнего прогона relink (секция
+  /// «Потерянные»: модуль есть, якорного стиха/контекста в нём нет).
+  Set<String> _orphans = {};
 
   @override
   void initState() {
@@ -56,9 +61,11 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         if (name.isNotEmpty) tags.putIfAbsent(name, () => []).add(e);
       }
     }
+    final orphans = (await bridgeOrphanIds()).toSet();
     if (!mounted) return;
     setState(() {
       _marks = marks;
+      _orphans = orphans;
       _byTag
         ..clear()
         ..addEntries(tags.entries);
@@ -118,6 +125,30 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         // Вкладка «Записи» (ADR 0015): закладки + теги + заметки.
         title: Text(tr('Записи', 'Notes'), style: TextStyle(color: p.ink)),
         iconTheme: IconThemeData(color: p.ink),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.file_upload_outlined, size: 20),
+            tooltip: tr('Импорт записей', 'Import entries'),
+            onPressed: () async {
+              final msg = await importEntriesZip();
+              if (msg == null || !context.mounted) return;
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(msg)));
+              await _load();
+              await notes.load();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined, size: 20),
+            tooltip: tr('Экспорт записей', 'Export entries'),
+            onPressed: () async {
+              final msg = await exportEntriesZip();
+              if (msg == null || !context.mounted) return;
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(msg)));
+            },
+          ),
+        ],
       ),
       body: ListView(
         children: [
@@ -158,7 +189,12 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             _header(tr('Закладки', 'Bookmarks'), p),
             if (_marks.isEmpty)
               _empty(tr('Закладок пока нет', 'No bookmarks yet'), p),
-            ..._grouped(_marks, p, (m) => _tile(m, Icons.bookmark, p)),
+            ..._grouped(
+              _marks.where((e) => !_orphans.contains(e.id)).toList(),
+              p,
+              (m) => _tile(m, Icons.bookmark, p),
+            ),
+            ..._orphanSection(p),
           ],
           if (_tag != null) ...[
             _header('#$_tag', p),
@@ -348,6 +384,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     final out = <Widget>[];
     var last = '';
     for (final n in notes.items) {
+      // Сироты живут в секции «Потерянные», здесь не дублируем.
+      if (_orphans.contains(n.id)) continue;
       if (n.module != last) {
         last = n.module;
         if (n.module.isNotEmpty) {
@@ -369,6 +407,69 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       out.add(_noteTile(n, p));
     }
     return out;
+  }
+
+  /// Секция «Потерянные»: сироты последнего relink'а — записи, чьего
+  /// якорного стиха/контекста в модуле больше нет. Перехода нет
+  /// (привязки нет); показаны координата на момент записи и текст.
+  List<Widget> _orphanSection(Palette p) {
+    if (_orphans.isEmpty) return const [];
+    final lost = _marks.where((e) => _orphans.contains(e.id)).toList();
+    final lostNotes = notes.items.where((n) => _orphans.contains(n.id));
+    for (final n in lostNotes) {
+      lost.add(
+        UserEntry(
+          id: n.id,
+          module: n.module,
+          kind: 'note',
+          book: n.book,
+          chapter: n.chapter,
+          verse: n.verse,
+          text: n.text,
+          context: '',
+          created: n.created.millisecondsSinceEpoch,
+          updated: n.created.millisecondsSinceEpoch,
+        ),
+      );
+    }
+    if (lost.isEmpty) return const [];
+    return [
+      _header(tr('Потерянные', 'Lost'), p),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+        child: Text(
+          tr(
+            'Привязки к стиху больше нет — текст записи сохранён.',
+            'Anchor no longer exists — the entry text is kept.',
+          ),
+          style: TextStyle(color: p.muted, fontSize: 12),
+        ),
+      ),
+      for (final e in lost)
+        ListTile(
+          dense: true,
+          leading: Icon(Icons.link_off, size: 18, color: p.muted),
+          title: Text(
+            '${bookShort(e.book)} ${e.chapter}:${e.verse} — ${moduleName(e.module)}',
+            style: TextStyle(color: p.ink, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            e.text.isEmpty ? e.context : e.text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: p.muted, fontSize: 12),
+          ),
+          trailing: IconButton(
+            icon: Icon(Icons.close, size: 16, color: p.muted),
+            tooltip: tr('Удалить', 'Delete'),
+            onPressed: () async {
+              await bridgeEntryRemove(e.id);
+              await _load();
+              await notes.load();
+            },
+          ),
+        ),
+    ];
   }
 
   /// Плитки с подзаголовками-переводами (в.12, этап А): список уже

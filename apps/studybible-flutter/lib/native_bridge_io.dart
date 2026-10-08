@@ -336,6 +336,37 @@ Future<List<UserEntry>> bridgeEntriesForeign(
   ];
 }
 
+/// Id записей-сирот из последнего прогона relink — секция
+/// «Потерянные» на экране записей.
+Future<List<String>> bridgeOrphanIds() async {
+  await _ensureInit();
+  final list = await _guard(
+    'orphanIds',
+    () async => api_userdata.orphanIds(path: _userdataPath()),
+  );
+  return list ?? const [];
+}
+
+/// Экспорт записей в zip-файл `dest`; число записей или null.
+Future<int?> bridgeEntriesExport(String dest) async {
+  await _ensureInit();
+  return _guard('entriesExport', () async {
+    final n = await api_userdata.entriesExport(
+      path: _userdataPath(),
+      file: dest,
+    );
+    return n.toInt();
+  });
+}
+
+/// Импорт записей из zip-файла `src`; строка-итог или null.
+Future<String?> bridgeEntriesImport(String src) async {
+  await _ensureInit();
+  return _guard('entriesImport', () async {
+    return api_userdata.entriesImport(path: _userdataPath(), file: src);
+  });
+}
+
 // ---------- версификации (ADR 0015, вопрос 8) ----------
 
 /// Перевод стиха между версификациями через org (ядро):

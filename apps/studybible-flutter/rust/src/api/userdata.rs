@@ -340,6 +340,27 @@ pub fn entries_relink(path: String) -> Result<String> {
     ))
 }
 
+/// Id записей-сирот из последнего прогона relink (в.12):
+/// для секции «Потерянные» на экране записей.
+#[flutter_rust_bridge::frb(sync)]
+pub fn orphan_ids(path: String) -> Result<Vec<String>> {
+    Ok(open(&path)?.orphan_ids()?)
+}
+
+/// Экспорт всех записей в zip (`userdata.json` внутри, spec/06).
+pub async fn entries_export(path: String, file: String) -> Result<i64> {
+    Ok(open(&path)?.export_zip(Path::new(&file))? as i64)
+}
+
+/// Импорт записей из zip («свежее updated побеждает»); строка-итог.
+pub async fn entries_import(path: String, file: String) -> Result<String> {
+    let s = open(&path)?.import_zip(Path::new(&file))?;
+    Ok(format!(
+        "добавлено {}, обновлено {}, пропущено {}",
+        s.added, s.updated, s.skipped
+    ))
+}
+
 /// Обновить текст записи по id (`false` — записи нет).
 pub async fn entry_update(path: String, id: String, text: String) -> Result<bool> {
     let ud = open(&path)?;

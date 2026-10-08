@@ -578,6 +578,13 @@ Future<List<UserEntry>> bridgeEntriesForeign(
   int verse,
 ) async => const [];
 
+/// Сироты — на web relink не работает.
+Future<List<String>> bridgeOrphanIds() async => const [];
+
+/// Экспорт/импорт записей — на web нет файловой системы.
+Future<int?> bridgeEntriesExport(String dest) async => null;
+Future<String?> bridgeEntriesImport(String src) async => null;
+
 // ---------- словарь (entries, ADR 0016) ----------
 
 /// Страница заголовков словаря; prefix — строчный префикс norm.

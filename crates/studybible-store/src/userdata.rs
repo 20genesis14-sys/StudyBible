@@ -794,7 +794,26 @@ impl UserData {
                 None => stats.orphaned.push(e.id.clone()),
             }
         }
+        // Сироты прогона — в meta (секция «Потерянные» в UI);
+        // каждый прогон перезаписывает список.
+        self.conn.execute(
+            "INSERT OR REPLACE INTO meta VALUES('orphans', ?1)",
+            params![serde_json::to_string(&stats.orphaned).expect("json")],
+        )?;
         Ok(stats)
+    }
+
+    /// Id записей-сирот из последнего прогона `relink` (модуль
+    /// существует, но якорного стиха/контекста в нём больше нет).
+    pub fn orphan_ids(&self) -> Result<Vec<String>> {
+        let s: Option<String> = self
+            .conn
+            .query_row("SELECT value FROM meta WHERE key='orphans'", [], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        Ok(s.and_then(|j| serde_json::from_str(&j).ok())
+            .unwrap_or_default())
     }
 
     /// Живые записи **других** модулей, чей канонический диапазон org
