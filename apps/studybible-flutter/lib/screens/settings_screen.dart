@@ -275,7 +275,7 @@ class SettingsScreen extends StatelessWidget {
                     listenable: settings,
                     builder: (context, _) => Column(
                       children: [
-                        for (final e in kModules.entries)
+                        for (final e in installedModules.entries)
                           ListTile(
                             dense: true,
                             leading: const Icon(
@@ -328,7 +328,7 @@ class SettingsScreen extends StatelessWidget {
                             () => settings.xrefModule = '',
                           ),
                         ),
-                        for (final e in kModules.entries)
+                        for (final e in installedModules.entries)
                           ListTile(
                             dense: true,
                             leading: const Icon(
@@ -360,14 +360,14 @@ class SettingsScreen extends StatelessWidget {
                     listenable: settings,
                     builder: (context, _) {
                       final sel = settings.compareModules.isEmpty
-                          ? kModules.keys.toSet()
+                          ? installedModules.keys.toSet()
                           : settings.compareModules
                                 .split(',')
                                 .where((s) => s.isNotEmpty)
                                 .toSet();
                       return Column(
                         children: [
-                          for (final e in kModules.entries)
+                          for (final e in installedModules.entries)
                             CheckboxListTile(
                               dense: true,
                               value: sel.contains(e.key),
@@ -382,7 +382,7 @@ class SettingsScreen extends StatelessWidget {
                                 }
                                 settings.update(
                                   () => settings.compareModules =
-                                      next.length == kModules.length
+                                      next.length == installedModules.length
                                       ? ''
                                       : next.join(','),
                                 );

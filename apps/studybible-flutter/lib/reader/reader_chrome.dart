@@ -61,7 +61,7 @@ extension _ReaderChrome on _ReadingScreenState {
           });
         },
         itemBuilder: (_) => [
-          for (final e in kModules.entries)
+          for (final e in installedModules.entries)
             PopupMenuItem(
               value: e.key,
               child: Row(
@@ -481,7 +481,7 @@ extension _ReaderChrome on _ReadingScreenState {
         child: ListView(
           shrinkWrap: true,
           children: [
-            for (final e in kModules.entries)
+            for (final e in installedModules.entries)
               ListTile(
                 dense: true,
                 leading: e.key == _moduleId

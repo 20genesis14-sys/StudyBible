@@ -8,14 +8,20 @@ import 'package:studybible/theme.dart';
 
 void main() {
   group('Settings', () {
-    test('compareList: пусто → все известные модули', () {
+    test('compareList: пусто → все установленные модули', () async {
+      // Список строится из реального скана каталога данных
+      // (решение 08.10.2026: только установленные модули).
+      await rescanModules();
       final s = Settings()..compareModules = '';
-      expect(s.compareList, unorderedEquals(kModules.keys));
+      expect(s.compareList, unorderedEquals(installedModules.keys));
     });
 
-    test('compareList: явный список фильтрует неизвестные id', () {
-      final s = Settings()..compareModules = 'russyn,kjv2006,no-such-id';
-      expect(s.compareList, ['russyn', 'kjv2006']);
+    test('compareList: явный список фильтрует неустановленные id',
+        () async {
+      await rescanModules();
+      final s = Settings()
+        ..compareModules = 'russyn,no-such-id';
+      expect(s.compareList, ['russyn']);
     });
 
     test('xrefModuleOrMain: пусто → основной перевод, задано → оно', () {
@@ -34,7 +40,8 @@ void main() {
       expect(notified, 1);
     });
 
-    test('mainModuleId: неизвестный defaultModule → russyn', () {
+    test('mainModuleId: неизвестный defaultModule → russyn', () async {
+      await rescanModules();
       settings.update(() => settings.defaultModule = 'no-such');
       expect(mainModuleId(), 'russyn');
       settings.update(() => settings.defaultModule = 'engwebp');

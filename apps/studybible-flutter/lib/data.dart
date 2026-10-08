@@ -203,13 +203,23 @@ String? moduleTag(String id) {
   return parts.isEmpty ? null : parts.join(' · ');
 }
 
-/// Основной перевод пользователя: настройка или первый доступный
-/// модуль (защита от id, которого нет на этой платформе).
+/// Установленные модули (id → имя): только реально найденные
+/// сканом в каталоге данных (на web — манифест index.json бандла).
+/// Решение 08.10.2026: списки выбора перевода показывают строго
+/// установленные модули; kModules остаётся справочником имён.
+Map<String, String> get installedModules => {
+  for (final id in _sbPaths.keys) id: moduleName(id),
+};
+
+/// Основной перевод пользователя: настройка или первый
+/// установленный модуль (защита от id, которого нет на устройстве).
 String mainModuleId() {
-  if (kModules.containsKey(settings.defaultModule)) {
+  if (_sbPaths.containsKey(settings.defaultModule)) {
     return settings.defaultModule;
   }
-  return kModules.containsKey('russyn') ? 'russyn' : kModules.keys.first;
+  return _sbPaths.containsKey('russyn')
+      ? 'russyn'
+      : (_sbPaths.keys.isEmpty ? 'russyn' : _sbPaths.keys.first);
 }
 
 final Map<String, ModuleDoc> _cache = {};

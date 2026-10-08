@@ -31,8 +31,8 @@ Future<void> _ensureInit() => _init ??= _initImpl();
 Future<void> _initImpl() async {
   if (Platform.isAndroid || Platform.isIOS) {
     _mobileDataDir = (await getApplicationDocumentsDirectory()).path;
-    await _seedBundledModules();
   }
+  await _seedBundledModules();
   try {
     await RustLib.init();
     return;
@@ -49,31 +49,25 @@ Future<void> _initImpl() async {
   await RustLib.init(externalLibrary: ExternalLibrary.open(lib.path));
 }
 
-/// Модули, упакованные в APK как ассеты (только открытые лицензии —
-/// личные модули добавляются импортом из файла).
-const _bundledModules = [
-  'russyn',
-  'ru_rob',
-  'engwebp',
-  'eng-kjv2006',
-  'englsv',
-  'engbsb',
-  'oshb',
-  'ugnt',
-];
+/// Модуль, упакованный в сборку как ассет `.sbz` (решение
+/// 08.10.2026: поставляем ровно один базовый перевод, остальные —
+/// импортом пользователя). .sbz читается store напрямую
+/// (распаковка в ОЗУ при открытии), распаковывать не нужно.
+const _bundledModules = ['russyn'];
 
-/// Распаковать встроенные .sb в каталог данных при первом запуске:
-/// копируем только отсутствующие файлы — импортированные
-/// пользователем модули не трогаем.
+/// Скопировать встроенные .sbz в каталог данных при первом запуске:
+/// пропускаем модуль, если уже есть .sb или .sbz — импортированные
+/// пользователем и ранее посеянные файлы не трогаем.
 Future<void> _seedBundledModules() async {
   final dir = Directory(_modulesDir());
   for (final id in _bundledModules) {
-    final target = File('${dir.path}${Platform.pathSeparator}$id.sb');
-    if (target.existsSync()) continue;
+    final sbz = File('${dir.path}${Platform.pathSeparator}$id.sbz');
+    final sb = File('${dir.path}${Platform.pathSeparator}$id.sb');
+    if (sbz.existsSync() || sb.existsSync()) continue;
     try {
-      final bytes = await rootBundle.load('assets/modules/$id.sb');
+      final bytes = await rootBundle.load('assets/modules/$id.sbz');
       await dir.create(recursive: true);
-      await target.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+      await sbz.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
     } catch (e) {
       stderr.writeln('[bridge] распаковка модуля $id: $e');
     }
@@ -133,7 +127,12 @@ String dataDir() {
     // фоллбэк на домашний путь (обычно файлы приложения).
     return _mobileDataDir ?? '$home${Platform.pathSeparator}StudyBible-data';
   }
-  if (Platform.isWindows) return r'C:\StudyBible-data';
+  if (Platform.isWindows) {
+    // Решение 08.10.2026: никаких абсолютных путей — данные живут
+    // в пользовательском каталоге (видимое место для импорта модулей
+    // и бэкапа userdata).
+    return '$home${Platform.pathSeparator}Documents${Platform.pathSeparator}StudyBible-data';
+  }
   return '$home${Platform.pathSeparator}StudyBible-data';
 }
 

@@ -53,14 +53,17 @@ void main() {
     final saved = settings.defaultModule;
     tearDown(() => settings.defaultModule = saved);
 
-    test('mainModuleId возвращает настройку', () {
+    test('mainModuleId возвращает настройку', () async {
+      // Списки модулей — только установленные (скан каталога данных).
+      await rescanModules();
       settings.defaultModule = 'engwebp';
       expect(mainModuleId(), 'engwebp');
       settings.defaultModule = 'russyn';
       expect(mainModuleId(), 'russyn');
     });
 
-    test('неизвестный id откатывается на доступный модуль', () {
+    test('неизвестный id откатывается на доступный модуль', () async {
+      await rescanModules();
       settings.defaultModule = 'nonexistent-xyz';
       expect(mainModuleId(), 'russyn');
     });

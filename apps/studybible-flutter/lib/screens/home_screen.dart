@@ -49,7 +49,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Модуль для текста стиха дня: первый русский из установленных,
   /// иначе первый в списке.
   String get _moduleId =>
-      kModules.keys.contains('russyn') ? 'russyn' : kModules.keys.first;
+      installedModules.keys.contains('russyn')
+          ? 'russyn'
+          : (installedModules.keys.isEmpty
+                ? 'russyn'
+                : installedModules.keys.first);
 
   @override
   void initState() {

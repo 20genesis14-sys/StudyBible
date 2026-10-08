@@ -15,7 +15,7 @@ import 'native_bridge_stub.dart'
     if (dart.library.io) 'native_bridge_io.dart'
     if (dart.library.html) 'native_bridge_web.dart';
 import 'native_bridge.dart' show UserEntry;
-import 'data.dart' show kModules, mainModuleId;
+import 'data.dart' show installedModules, mainModuleId;
 import 'theme.dart';
 
 /// Два варианта вёрстки главы.
@@ -338,8 +338,8 @@ class Settings extends ChangeNotifier {
   /// Модули для экрана «стих во всех переводах»: явный список или,
   /// если не задан, все установленные.
   List<String> get compareList => compareModules.isEmpty
-      ? kModules.keys.toList()
-      : compareModules.split(',').where(kModules.containsKey).toList();
+      ? installedModules.keys.toList()
+      : compareModules.split(',').where(installedModules.containsKey).toList();
 
   /// Модуль для текстов в карточках параллельных мест.
   String get xrefModuleOrMain =>
@@ -349,7 +349,7 @@ class Settings extends ChangeNotifier {
   /// установленные; '' — пустой список, решение у читалки).
   List<String> get interleavedList => interleavedModules
       .split(',')
-      .where(kModules.containsKey)
+      .where(installedModules.containsKey)
       .toList();
 }
 

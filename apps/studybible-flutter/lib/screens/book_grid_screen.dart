@@ -235,7 +235,7 @@ class _BookGridScreenState extends State<BookGridScreen> {
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  for (final e in kModules.entries)
+                  for (final e in installedModules.entries)
                     ListTile(
                       dense: true,
                       leading: Icon(

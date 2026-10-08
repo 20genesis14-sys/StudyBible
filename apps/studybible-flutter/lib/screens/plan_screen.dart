@@ -39,7 +39,7 @@ class _PlanScreenState extends State<PlanScreen> {
   @override
   void initState() {
     super.initState();
-    loadModule(kModules.keys.first).then((m) {
+    loadModule(mainModuleId()).then((m) {
       if (!mounted) return;
       setState(() => _chapters = {for (final b in m.books) b.code: b.chapters});
     });

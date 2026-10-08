@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'data.dart' show rescanModules;
 import 'l10n.dart';
 import 'state.dart';
 import 'theme.dart';
@@ -77,6 +78,11 @@ class _HomeShellState extends State<HomeShell> {
     // Стек позиций рабочего места — на фоне, старт всегда на
     // «Доме» (ADR 0019); сессия доступна сразу при входе в чтение.
     workspace.load();
+    // Скан каталога данных: списки модулей показывают строго
+    // установленные (решение 08.10.2026); после скана — перерисовка.
+    rescanModules().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   // Нижняя навигация — вариант А (ADR 0015): настройки уехали

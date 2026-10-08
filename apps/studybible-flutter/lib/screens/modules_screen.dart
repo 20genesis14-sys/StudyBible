@@ -86,7 +86,7 @@ class _ModulesScreenState extends State<ModulesScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        for (final e in kModules.entries)
+        for (final e in installedModules.entries)
           Card(
             color: p.card,
             elevation: 0,

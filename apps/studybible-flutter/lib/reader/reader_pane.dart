@@ -250,7 +250,7 @@ extension _ReaderPane on _ReadingScreenState {
         child: ListView(
           shrinkWrap: true,
           children: [
-            for (final e in kModules.entries)
+            for (final e in installedModules.entries)
               if (e.key != _moduleId)
                 ListTile(
                   dense: true,
@@ -285,7 +285,7 @@ extension _ReaderPane on _ReadingScreenState {
           color: p.muted,
         ),
         items: [
-          for (final id in kModules.keys)
+          for (final id in installedModules.keys)
             if (id != _moduleId)
               DropdownMenuItem(value: id, child: Text(moduleName(id))),
         ],
@@ -374,7 +374,7 @@ extension _ReaderPane on _ReadingScreenState {
           child: ListView(
             shrinkWrap: true,
             children: [
-              for (final e in kModules.entries)
+              for (final e in installedModules.entries)
                 if (e.key != _moduleId)
                   CheckboxListTile(
                     dense: true,
