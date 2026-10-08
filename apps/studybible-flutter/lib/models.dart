@@ -74,11 +74,9 @@ class ModuleDoc {
         ? j['kind'] as String
         : 'bible',
     features:
-        (j['features'] as List?)?.map((e) => e as String).toList() ??
-        const [],
+        (j['features'] as List?)?.map((e) => e as String).toList() ?? const [],
     rights:
-        (j['rights'] as List?)?.map((e) => e as String).toList() ??
-        const [],
+        (j['rights'] as List?)?.map((e) => e as String).toList() ?? const [],
     versification: j['versification'] as String? ?? '',
     books: (j['books'] as List)
         .map((b) => BookDoc.fromJson(b as Map<String, dynamic>))
@@ -148,6 +146,15 @@ class ChapterDoc {
   /// Варианты критического аппарата главы (ADR 0016).
   final List<VariantDoc> variants;
 
+  // Кэши производных представлений (08.10.2026): разбор спанов —
+  // заметная доля времени build на длинных главах (Пс 119), а глава
+  // неизменна — считаем один раз на объект.
+  Map<int, String>? plainCache;
+  Map<int, List<TextSpanDoc>>? wordCache;
+  List<({int verse, NoteSpanDoc note})>? notesCache;
+  ({List<int> order, Map<int, List<SpanDoc>> groups})? verseGroupsCache;
+  bool? pairsCache;
+
   ChapterDoc({
     required this.number,
     required this.blocks,
@@ -197,13 +204,16 @@ class ReadingDoc {
   final bool isBase;
   final List<String> witnesses;
 
-  ReadingDoc({required this.text, required this.isBase, required this.witnesses});
+  ReadingDoc({
+    required this.text,
+    required this.isBase,
+    required this.witnesses,
+  });
 
   factory ReadingDoc.fromJson(Map<String, dynamic> j) => ReadingDoc(
     text: j['t'] as String? ?? '',
     isBase: j['base'] as bool? ?? false,
-    witnesses:
-        (j['w'] as List?)?.map((e) => e as String).toList() ?? const [],
+    witnesses: (j['w'] as List?)?.map((e) => e as String).toList() ?? const [],
   );
 }
 

@@ -304,8 +304,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                   backgroundColor: p.accent.withValues(alpha: 0.45),
                 ),
               ),
-              if (we < t.text.length)
-                TextSpan(text: t.text.substring(we)),
+              if (we < t.text.length) TextSpan(text: t.text.substring(we)),
             ],
           );
         }
@@ -348,6 +347,8 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   /// Сноски главы с привязкой к стиху, где стоит маркер.
   List<({int verse, NoteSpanDoc note})> _notesOf(ChapterDoc ch) {
+    final cached = ch.notesCache;
+    if (cached != null) return cached;
     final out = <({int verse, NoteSpanDoc note})>[];
     var cur = 0;
     for (final b in ch.blocks) {
@@ -356,6 +357,7 @@ extension _ChapterRenderer on _ReadingScreenState {
         if (s is NoteSpanDoc) out.add((verse: cur, note: s));
       }
     }
+    ch.notesCache = out;
     return out;
   }
 
@@ -585,9 +587,63 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   // ---------- построение главы ----------
 
+  /// Сигнатура всего, что влияет на содержимое построенных строк
+  /// (кэш [_lineCache]): глава, модули, настройки отображения,
+  /// палитра, готовность словаря и конверсий версификаций.
+  /// При смене сигнатуры кэш очищается. TTS и выделенный стих в
+  /// сигнатуру не входят — кэшируются только вторые строки,
+  /// которые от них не зависят.
+  void _syncLineCache(Palette p, List<String> ids) {
+    final sig = [
+      _moduleId,
+      _code,
+      _ch,
+      settings.fontScale,
+      _study,
+      settings.layoutMode.index,
+      settings.layerStrongs,
+      settings.layerFootnotes,
+      settings.layerXrefs,
+      settings.readingFont.index,
+      ids.join('+'),
+      _lex != null,
+      Object.hash(p.ink, p.muted, p.accent, p.jesus),
+      for (final id in ids)
+        _convs.containsKey(id) ? _convs[id]?.length ?? 0 : -1,
+    ].join('|');
+    if (sig != _lineSig) {
+      _lineCache.clear();
+      _lineSig = sig;
+    }
+  }
+
+  /// Виджет второй строки из кэша (или построить и запомнить).
+  Widget _cachedLine(String key, Widget Function() build) =>
+      _lineCache.putIfAbsent(key, build);
+
+  /// Спаны пересоздаются каждый build — их recognizer'ы тоже.
+  /// Раз в кадр переносим прежний набор в «старые» и dispose'им
+  /// после кадра (дерево с ними к тому моменту размонтировано).
+  void _rotateTapRecognizers() {
+    if (_tapGcQueued) return;
+    _tapGcQueued = true;
+    _tapRecognizersOld
+      ..clear()
+      ..addAll(_tapRecognizers);
+    _tapRecognizers.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final r in _tapRecognizersOld) {
+        r.dispose();
+      }
+      _tapRecognizersOld.clear();
+      _tapGcQueued = false;
+    });
+  }
+
   /// [peek] — входящая страница листания: якоря и общие ключи не
   /// трогаем (иначе дубль GlobalKey с живой страницей).
   List<Widget> _buildChapter(ChapterDoc ch, Palette p, [bool peek = false]) {
+    _rotateTapRecognizers();
     // Модуль-подстрочник (пары слово/слово в attrs gr="…") во всех
     // режимах рисуется колонками «перевод над оригиналом».
     if (_hasPairs(ch)) return _buildPairsChapter(ch, p, peek: peek);
@@ -600,12 +656,20 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   /// Глава содержит пары подстрочника (спаны w с attrs gr="…").
   bool _hasPairs(ChapterDoc ch) {
+    final cached = ch.pairsCache;
+    if (cached != null) return cached;
+    var found = false;
     for (final b in ch.blocks) {
       for (final s in b.spans) {
-        if (s is TextSpanDoc && s.attrs.contains('gr="')) return true;
+        if (s is TextSpanDoc && s.attrs.contains('gr="')) {
+          found = true;
+          break;
+        }
       }
+      if (found) break;
     }
-    return false;
+    ch.pairsCache = found;
+    return found;
   }
 
   /// Лента подстрочника на всю главу: номер стиха + колонки пар.
@@ -617,6 +681,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     int? chapterNum,
   }) {
     final words = _wordSpans(ch);
+    _syncLineCache(p, const []);
     final out = <Widget>[];
     for (final b in ch.blocks) {
       if (b.kind == BlockKind.heading) {
@@ -652,37 +717,46 @@ extension _ChapterRenderer on _ReadingScreenState {
                     ));
         final selected = chapterNum == null && _selectedVerse == v;
         out.add(
-          Container(
-            key: key,
-            color: selected ? p.accent.withValues(alpha: 0.08) : null,
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  button: true,
-                  label: tr('Стих $v', 'Verse $v'),
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTapDown: (d) => _lastTapPos = d.globalPosition,
-                    onTap: () => chapterNum == null
-                        ? _selectVerse(v)
-                        : _selectVerse(v, chapterNum),
-                    child: SizedBox(
-                      width: 30,
-                      child: Text(
-                        '$v.',
-                        style: TextStyle(
-                          fontSize: 13 * settings.fontScale,
-                          color: selected ? p.accent : _verseColor(p),
-                          fontWeight: FontWeight.w700,
+          RepaintBoundary(
+            child: Container(
+              key: key,
+              color: selected ? p.accent.withValues(alpha: 0.08) : null,
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Semantics(
+                    button: true,
+                    label: tr('Стих $v', 'Verse $v'),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (d) => _lastTapPos = d.globalPosition,
+                      onTap: () => chapterNum == null
+                          ? _selectVerse(v)
+                          : _selectVerse(v, chapterNum),
+                      child: SizedBox(
+                        width: 30,
+                        child: Text(
+                          '$v.',
+                          style: TextStyle(
+                            fontSize: 13 * settings.fontScale,
+                            color: selected ? p.accent : _verseColor(p),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(child: _interlinearLine(words[v] ?? const [], p)),
-              ],
+                  Expanded(
+                    // В ленте книги ключ главы в сигнатуре один —
+                    // главу несёт chapterNum.
+                    child: _cachedLine(
+                      'P:${chapterNum ?? _ch}:$v',
+                      () => _interlinearLine(words[v] ?? const [], p),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -711,14 +785,14 @@ extension _ChapterRenderer on _ReadingScreenState {
           child: _pinchZoom(
             ListView.builder(
               controller: _scroll,
-            padding: EdgeInsets.fromLTRB(
-              wide ? 48 : 20,
-              _topClear(),
-              wide ? 48 : 20,
-              wide ? 16 : _bottomClear(),
-            ),
-            itemCount: total,
-            itemBuilder: (_, i) => _bookChapter(i + 1, p),
+              padding: EdgeInsets.fromLTRB(
+                wide ? 48 : 20,
+                _topClear(),
+                wide ? 48 : 20,
+                wide ? 16 : _bottomClear(),
+              ),
+              itemCount: total,
+              itemBuilder: (_, i) => _bookChapter(i + 1, p),
             ),
           ),
         ),
@@ -955,9 +1029,9 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// versePerLine: каждый стих — отдельная строка.
   List<Widget> _buildVerseLines(ChapterDoc ch, Palette p, [bool peek = false]) {
     final out = <Widget>[];
-    final verses = <int, List<SpanDoc>>{};
-    final order = <int>[];
-    var cur = -1;
+    final vg = _verseGroups(ch);
+    final verses = vg.groups;
+    final order = vg.order;
     for (final b in ch.blocks) {
       if (b.kind == BlockKind.heading) {
         out.add(
@@ -992,99 +1066,96 @@ extension _ChapterRenderer on _ReadingScreenState {
         );
         continue;
       }
-      for (final s in b.spans) {
-        if (s is VerseSpanDoc) {
-          cur = s.verse;
-          verses.putIfAbsent(cur, () => []);
-          order.add(cur);
-        } else if (cur >= 0) {
-          verses[cur]!.add(s);
-        }
-      }
     }
     for (final v in order) {
       if (!peek) _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
       final hl = _highlights.containsKey(v);
       out.add(
-        Container(
-          key: peek ? null : _blockKeys[v],
-          color: selected
-              ? p.accent.withValues(alpha: 0.08)
-              : (hl ? const Color(0x33FFC34D) : null),
-          // Строки чуть реже абзацев: номер слева должен «дышать».
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Semantics(
-                button: true,
-                label: tr('Стих $v', 'Verse $v'),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapDown: (d) => _lastTapPos = d.globalPosition,
-                  onTap: () => _selectVerse(v),
-                  child: SizedBox(
-                    width: 40,
-                    // Номер стиха — крупная «вешалка» слева, как в
-                    // классических читалках (образец );
-                    // под номером — мини-маркеры закладки и тегов.
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '$v',
-                          style: TextStyle(
-                            fontSize: 17 * settings.fontScale * 0.95,
-                            color: selected ? p.accent : _verseColor(p),
-                            fontWeight: FontWeight.w800,
-                            height: 1.4,
-                          ),
-                        ),
-                        if (_verseMarks.containsKey(v) ||
-                            _tagEntries.containsKey(v))
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_verseMarks.containsKey(v))
-                                Icon(Icons.bookmark, size: 10, color: p.accent),
-                              if (_tagEntries.containsKey(v))
-                                Icon(Icons.label, size: 10, color: p.muted),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    style: _baseStyle(p),
-                    children: _verseSpans(verses[v]!, p, v),
-                  ),
-                ),
-              ),
-              if (_verseNotes.containsKey(v))
+        RepaintBoundary(
+          child: Container(
+            key: peek ? null : _blockKeys[v],
+            color: selected
+                ? p.accent.withValues(alpha: 0.08)
+                : (hl ? const Color(0x33FFC34D) : null),
+            // Строки чуть реже абзацев: номер слева должен «дышать».
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Semantics(
                   button: true,
-                  label: tr('Заметка к стиху $v', 'Note for verse $v'),
+                  label: tr('Стих $v', 'Verse $v'),
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTapDown: (d) => _lastTapPos = d.globalPosition,
                     onTap: () => _selectVerse(v),
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4, top: 2),
-                      child: Icon(
-                        Icons.sticky_note_2_outlined,
-                        size: 15,
-                        color: p.accent,
+                    child: SizedBox(
+                      width: 40,
+                      // Номер стиха — крупная «вешалка» слева, как в
+                      // классических читалках (образец );
+                      // под номером — мини-маркеры закладки и тегов.
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$v',
+                            style: TextStyle(
+                              fontSize: 17 * settings.fontScale * 0.95,
+                              color: selected ? p.accent : _verseColor(p),
+                              fontWeight: FontWeight.w800,
+                              height: 1.4,
+                            ),
+                          ),
+                          if (_verseMarks.containsKey(v) ||
+                              _tagEntries.containsKey(v))
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_verseMarks.containsKey(v))
+                                  Icon(
+                                    Icons.bookmark,
+                                    size: 10,
+                                    color: p.accent,
+                                  ),
+                                if (_tagEntries.containsKey(v))
+                                  Icon(Icons.label, size: 10, color: p.muted),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-            ],
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      style: _baseStyle(p),
+                      children: _verseSpans(verses[v]!, p, v),
+                    ),
+                  ),
+                ),
+                if (_verseNotes.containsKey(v))
+                  Semantics(
+                    button: true,
+                    label: tr('Заметка к стиху $v', 'Note for verse $v'),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (d) => _lastTapPos = d.globalPosition,
+                      onTap: () => _selectVerse(v),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 4, top: 2),
+                        child: Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 15,
+                          color: p.accent,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       );
@@ -1095,6 +1166,8 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// Стих -> плоский текст главы (без номеров и сносок) —
   /// для второго перевода в строчном сравнении.
   Map<int, String> _plainVerses(ChapterDoc ch) {
+    final cached = ch.plainCache;
+    if (cached != null) return cached;
     final out = <int, StringBuffer>{};
     var cur = -1;
     for (final b in ch.blocks) {
@@ -1111,11 +1184,15 @@ extension _ChapterRenderer on _ReadingScreenState {
         }
       }
     }
-    return {for (final e in out.entries) e.key: e.value.toString().trim()};
+    final res = {for (final e in out.entries) e.key: e.value.toString().trim()};
+    ch.plainCache = res;
+    return res;
   }
 
   /// Слова оригинала по стихам — спаны style='w' (strong/lemma в attrs).
   Map<int, List<TextSpanDoc>> _wordSpans(ChapterDoc ch) {
+    final cached = ch.wordCache;
+    if (cached != null) return cached;
     final out = <int, List<TextSpanDoc>>{};
     var cur = -1;
     for (final b in ch.blocks) {
@@ -1132,7 +1209,40 @@ extension _ChapterRenderer on _ReadingScreenState {
         }
       }
     }
+    ch.wordCache = out;
     return out;
+  }
+
+  /// Группировка спанов главы по стихам: порядок стихов и их спаны
+  /// (без маркеров номеров) — общая часть _buildVerseLines и
+  /// _buildInterleaved; считается один раз на главу.
+  ({List<int> order, Map<int, List<SpanDoc>> groups}) _verseGroups(
+    ChapterDoc ch,
+  ) {
+    final cached = ch.verseGroupsCache;
+    if (cached != null) return cached;
+    final groups = <int, List<SpanDoc>>{};
+    final order = <int>[];
+    var cur = -1;
+    for (final b in ch.blocks) {
+      if (b.kind == BlockKind.heading ||
+          b.kind == BlockKind.superscription ||
+          b.kind == BlockKind.blank) {
+        continue;
+      }
+      for (final s in b.spans) {
+        if (s is VerseSpanDoc) {
+          cur = s.verse;
+          groups.putIfAbsent(cur, () => []);
+          order.add(cur);
+        } else if (cur >= 0) {
+          groups[cur]!.add(s);
+        }
+      }
+    }
+    final res = (order: order, groups: groups);
+    ch.verseGroupsCache = res;
+    return res;
   }
 
   /// Лента подстрочника: каждое слово — колонка «слово оригинала /
@@ -1358,10 +1468,11 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (wc['$_code:$_ch']!.isNotEmpty) interlinears.add(id);
     }
     if (interlinears.isNotEmpty) _ensureLex();
+    _syncLineCache(p, ids);
     final out = <Widget>[];
-    final verses = <int, List<SpanDoc>>{};
-    final order = <int>[];
-    var cur = -1;
+    final vg = _verseGroups(ch);
+    final verses = vg.groups;
+    final order = vg.order;
     for (final b in ch.blocks) {
       if (b.kind == BlockKind.heading) {
         out.add(
@@ -1396,15 +1507,6 @@ extension _ChapterRenderer on _ReadingScreenState {
         );
         continue;
       }
-      for (final s in b.spans) {
-        if (s is VerseSpanDoc) {
-          cur = s.verse;
-          verses.putIfAbsent(cur, () => []);
-          order.add(cur);
-        } else if (cur >= 0) {
-          verses[cur]!.add(s);
-        }
-      }
     }
     // Надписание (стих 0, вопрос 9): отдельная строка над первым
     // стихом — подпись «надписание» и текст стиха 0 каждой части
@@ -1433,120 +1535,129 @@ extension _ChapterRenderer on _ReadingScreenState {
       final selected = _selectedVerse == v;
       final hl = _highlights.containsKey(v);
       out.add(
-        Container(
-          key: _blockKeys[v],
-          color: selected
-              ? p.accent.withValues(alpha: 0.08)
-              : (hl ? const Color(0x33FFC34D) : null),
-          padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Semantics(
-                    button: true,
-                    label: tr('Стих $v', 'Verse $v'),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTapDown: (d) => _lastTapPos = d.globalPosition,
-                      onTap: () => _selectVerse(v),
-                      child: SizedBox(
-                        width: 30,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$v.',
-                              style: TextStyle(
-                                fontSize: 13 * settings.fontScale,
-                                color: selected ? p.accent : _verseColor(p),
-                                fontWeight: FontWeight.w700,
+        RepaintBoundary(
+          child: Container(
+            key: _blockKeys[v],
+            color: selected
+                ? p.accent.withValues(alpha: 0.08)
+                : (hl ? const Color(0x33FFC34D) : null),
+            padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: tr('Стих $v', 'Verse $v'),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (d) => _lastTapPos = d.globalPosition,
+                        onTap: () => _selectVerse(v),
+                        child: SizedBox(
+                          width: 30,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '$v.',
+                                style: TextStyle(
+                                  fontSize: 13 * settings.fontScale,
+                                  color: selected ? p.accent : _verseColor(p),
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            ),
-                            if (_verseMarks.containsKey(v) ||
-                                _tagEntries.containsKey(v))
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_verseMarks.containsKey(v))
-                                    Icon(
-                                      Icons.bookmark,
-                                      size: 9,
-                                      color: p.accent,
-                                    ),
-                                  if (_tagEntries.containsKey(v))
-                                    Icon(Icons.label, size: 9, color: p.muted),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        style: _baseStyle(p),
-                        children: _verseSpans(verses[v]!, p, v),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Строки переводов сравнения: соответствия по
-              // версификации, приглушённые; у модулей оригинала —
-              // подстрочник слово-к-слову (по конвертированной ссылке).
-              // При двух и более модулях — ярлык имени перевода.
-              for (final id in ids)
-                interlinears.contains(id)
-                    ? Padding(
-                        padding: const EdgeInsets.only(
-                          left: 30,
-                          top: 2,
-                          bottom: 4,
-                        ),
-                        child: _interlinearLine(
-                          _secondWordsOf(
-                            mods[id]!,
-                            wordCaches[id]!,
-                            _targetsOf(v, id),
+                              if (_verseMarks.containsKey(v) ||
+                                  _tagEntries.containsKey(v))
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_verseMarks.containsKey(v))
+                                      Icon(
+                                        Icons.bookmark,
+                                        size: 9,
+                                        color: p.accent,
+                                      ),
+                                    if (_tagEntries.containsKey(v))
+                                      Icon(
+                                        Icons.label,
+                                        size: 9,
+                                        color: p.muted,
+                                      ),
+                                  ],
+                                ),
+                            ],
                           ),
-                          p,
-                          mods[id]!.language,
-                          ids.length > 1 ? moduleName(id) : null,
                         ),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.only(
-                          left: 30,
-                          top: 2,
-                          bottom: 4,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          style: _baseStyle(p),
+                          children: _verseSpans(verses[v]!, p, v),
                         ),
-                        child: Text.rich(
-                          TextSpan(
-                            style: TextStyle(
-                              fontFamily: readingFontFamily(
-                                settings.readingFont,
-                              ),
-                              fontSize: 15 * settings.fontScale,
-                              color: p.muted,
-                              fontStyle: FontStyle.italic,
-                              height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+                // Строки переводов сравнения: соответствия по
+                // версификации, приглушённые; у модулей оригинала —
+                // подстрочник слово-к-слову (по конвертированной ссылке).
+                // При двух и более модулях — ярлык имени перевода.
+                for (final id in ids)
+                  _cachedLine(
+                    'S:$id:$v',
+                    () => interlinears.contains(id)
+                        ? Padding(
+                            padding: const EdgeInsets.only(
+                              left: 30,
+                              top: 2,
+                              bottom: 4,
                             ),
-                            children: _secondLineSpans(
-                              v,
-                              mods[id],
-                              plainCaches[id] ?? const {},
+                            child: _interlinearLine(
+                              _secondWordsOf(
+                                mods[id]!,
+                                wordCaches[id]!,
+                                _targetsOf(v, id),
+                              ),
                               p,
+                              mods[id]!.language,
                               ids.length > 1 ? moduleName(id) : null,
                             ),
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.only(
+                              left: 30,
+                              top: 2,
+                              bottom: 4,
+                            ),
+                            child: Text.rich(
+                              TextSpan(
+                                style: TextStyle(
+                                  fontFamily: readingFontFamily(
+                                    settings.readingFont,
+                                  ),
+                                  fontSize: 15 * settings.fontScale,
+                                  color: p.muted,
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.5,
+                                ),
+                                children: _secondLineSpans(
+                                  v,
+                                  mods[id],
+                                  plainCaches[id] ?? const {},
+                                  p,
+                                  ids.length > 1 ? moduleName(id) : null,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-            ],
+                  ),
+              ],
+            ),
           ),
         ),
       );
@@ -1568,11 +1679,7 @@ extension _ChapterRenderer on _ReadingScreenState {
   ]) {
     final items = secondMod == null
         ? const <({CvPoint point, String text})>[]
-        : _secondTexts(
-            secondMod,
-            plainCache,
-            _targetsOf(v, secondMod.id),
-          );
+        : _secondTexts(secondMod, plainCache, _targetsOf(v, secondMod.id));
     final prefixStyle = TextStyle(
       fontSize: 11 * settings.fontScale,
       color: p.muted.withValues(alpha: 0.7),
