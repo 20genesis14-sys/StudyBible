@@ -1,4 +1,4 @@
-$exe='D:\StudyBible\apps\studybible-flutter\build\windows\x64\runner\Release\studybible.exe'
+$exe='D:\StudyBible\release-1.0\windows\studybible.exe'
 for($i=0;$i -lt 4;$i++){
   Get-Process studybible -ErrorAction SilentlyContinue | Stop-Process -Force
   Start-Sleep -Milliseconds 600
