@@ -313,6 +313,29 @@ Future<String?> bridgeEntriesRelink() async {
   });
 }
 
+/// Записи других модулей к стиху (в.12, этап А): только по
+/// установленным модулям, координаты — в их родных сетках.
+Future<List<UserEntry>> bridgeEntriesForeign(
+  String module,
+  String book,
+  int chapter,
+  int verse,
+) async {
+  final list = await _guard(
+    'entriesForeign',
+    () => api_userdata.entriesForeignList(
+      path: _userdataPath(),
+      module: module,
+      book: book,
+      chapter: chapter,
+      verse: verse,
+    ),
+  );
+  return [
+    for (final e in list ?? const <api_userdata.UserEntryInfo>[]) _entry(e),
+  ];
+}
+
 // ---------- версификации (ADR 0015, вопрос 8) ----------
 
 /// Перевод стиха между версификациями через org (ядро):

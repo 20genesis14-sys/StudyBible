@@ -103,6 +103,14 @@ Future<bool> bridgeEntryRemove(String id) async {
 /// Перепривязка записей — стаб (вопрос №12; на этой платформе нет).
 Future<String?> bridgeEntriesRelink() async => null;
 
+/// Чужие записи к стиху — стаб (этап А в.12; на этой платформе нет).
+Future<List<UserEntry>> bridgeEntriesForeign(
+  String module,
+  String book,
+  int chapter,
+  int verse,
+) async => const [];
+
 // ---------- словарь (стаб — пусто) ----------
 
 Future<List<DictEntryInfo>> bridgeDictEntries(

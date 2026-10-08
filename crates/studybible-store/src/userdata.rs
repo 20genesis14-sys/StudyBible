@@ -12,11 +12,15 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use studybible_core::BookCode;
+use studybible_core::versification::{VerseKey, Versification};
 
 /// Схема 2 (08.10.2026, вопрос №12): + колонки `vrs` (версификация
 /// модуля на момент записи) и `module_ver` (content_hash, иначе
 /// version) — основа перепривязки при обновлении модуля.
-const SCHEMA_VERSION: &str = "2";
+/// Схема 3 (там же, этап А): + `canon_book`, `canon_c1`, `canon_v1`,
+/// `canon_c2`, `canon_v2` — канонический диапазон стиха в сетке org
+/// для кросс-переводных записей.
+const SCHEMA_VERSION: &str = "3";
 
 #[derive(Debug)]
 pub enum UserError {
@@ -137,6 +141,38 @@ pub struct Entry {
     /// смена значения = модуль обновился → запись надо перепроверить.
     #[serde(default)]
     pub module_ver: String,
+    /// Канонический диапазон стиха в сетке org (этап А, схема 3):
+    /// `canon_book`+`canon_c1`:`canon_v1` — `canon_c2`:`canon_v2`.
+    /// Пустой `canon_book` — координата не записана (старые записи).
+    #[serde(default)]
+    pub canon_book: String,
+    #[serde(default)]
+    pub canon_ch1: u16,
+    #[serde(default)]
+    pub canon_v1: u16,
+    #[serde(default)]
+    pub canon_ch2: u16,
+    #[serde(default)]
+    pub canon_v2: u16,
+}
+
+/// Мета привязки записи к модулю, пишется при создании (в.12).
+#[derive(Debug, Default, Clone)]
+pub struct Bind {
+    /// `meta.versification` модуля.
+    pub vrs: String,
+    /// `meta.content_hash` (иначе `version`).
+    pub module_ver: String,
+    /// Канонический диапазон org стиха якоря (этап А).
+    pub canon_from: Option<VerseKey>,
+    pub canon_to: Option<VerseKey>,
+}
+
+/// Канонический диапазон org стиха `k` в версификации `vrs`:
+/// крайние точки списка `to_org`. None — стиха в org нет.
+pub fn canon_range(vrs: &Versification, k: VerseKey) -> Option<(VerseKey, VerseKey)> {
+    let org = vrs.to_org(k);
+    Some((*org.iter().min()?, *org.iter().max()?))
 }
 
 #[derive(Debug, Default)]
@@ -190,7 +226,12 @@ impl UserData {
                  device TEXT NOT NULL DEFAULT '',
                  rev INTEGER NOT NULL DEFAULT 1,
                  vrs TEXT NOT NULL DEFAULT '',
-                 module_ver TEXT NOT NULL DEFAULT '');
+                 module_ver TEXT NOT NULL DEFAULT '',
+                 canon_book TEXT NOT NULL DEFAULT '',
+                 canon_c1 INTEGER NOT NULL DEFAULT 0,
+                 canon_v1 INTEGER NOT NULL DEFAULT 0,
+                 canon_c2 INTEGER NOT NULL DEFAULT 0,
+                 canon_v2 INTEGER NOT NULL DEFAULT 0);
              CREATE INDEX IF NOT EXISTS entries_anchor ON entries(module, book, chapter, verse);",
         )?;
         let v: Option<String> = conn
@@ -204,13 +245,37 @@ impl UserData {
                 params![SCHEMA_VERSION],
             )?,
             Some(SCHEMA_VERSION) => 0,
-            // Миграция 1→2: поля перепривязки добавляются пустыми.
+            // Миграция 1→3 / 2→3: поля перепривязки и канонического
+            // диапазона добавляются пустыми, затем canon восполняется
+            // по записанной `vrs` у всех живых записей.
+            // Миграция 1→3: поля перепривязки и канонического
+            // диапазона добавляются пустыми, затем canon восполняется
+            // по записанной `vrs` у всех живых записей.
             Some("1") => {
                 conn.execute_batch(
                     "ALTER TABLE entries ADD COLUMN vrs TEXT NOT NULL DEFAULT '';
                      ALTER TABLE entries ADD COLUMN module_ver TEXT NOT NULL DEFAULT '';
-                     UPDATE meta SET value='2' WHERE key='schema';",
+                     ALTER TABLE entries ADD COLUMN canon_book TEXT NOT NULL DEFAULT '';
+                     ALTER TABLE entries ADD COLUMN canon_c1 INTEGER NOT NULL DEFAULT 0;
+                     ALTER TABLE entries ADD COLUMN canon_v1 INTEGER NOT NULL DEFAULT 0;
+                     ALTER TABLE entries ADD COLUMN canon_c2 INTEGER NOT NULL DEFAULT 0;
+                     ALTER TABLE entries ADD COLUMN canon_v2 INTEGER NOT NULL DEFAULT 0;
+                     UPDATE meta SET value='3' WHERE key='schema';",
                 )?;
+                backfill_canon(&conn)?;
+                0
+            }
+            // Миграция 2→3: только канонический диапазон.
+            Some("2") => {
+                conn.execute_batch(
+                    "ALTER TABLE entries ADD COLUMN canon_book TEXT NOT NULL DEFAULT '';
+                     ALTER TABLE entries ADD COLUMN canon_c1 INTEGER NOT NULL DEFAULT 0;
+                     ALTER TABLE entries ADD COLUMN canon_v1 INTEGER NOT NULL DEFAULT 0;
+                     ALTER TABLE entries ADD COLUMN canon_c2 INTEGER NOT NULL DEFAULT 0;
+                     ALTER TABLE entries ADD COLUMN canon_v2 INTEGER NOT NULL DEFAULT 0;
+                     UPDATE meta SET value='3' WHERE key='schema';",
+                )?;
+                backfill_canon(&conn)?;
                 0
             }
             Some(other) => {
@@ -237,25 +302,35 @@ impl UserData {
     /// `context` — контрольный фрагмент стиха для перепривязки (может быть пустым).
     /// Происхождение модуля не пишется — см. [`Self::add_ex`].
     pub fn add(&self, kind: Kind, anchor: Anchor<'_>, text: &str, context: &str) -> Result<String> {
-        self.add_ex(kind, anchor, text, context, "", "")
+        self.add_ex(kind, anchor, text, context, &Bind::default())
     }
 
-    /// `add` + мета модуля: `vrs` — его версификация, `module_ver` —
-    /// `content_hash` (иначе `version`). Мост и CLI должны писать их
-    /// всегда — иначе перепривязке не на что опереться (вопрос №12).
+    /// `add` + мета модуля [`Bind`]: версификация, идентичность модуля
+    /// и канонический диапазон org. Мост и CLI должны писать их
+    /// всегда — иначе перепривязке и кросс-записям не на что
+    /// опереться (вопрос №12).
     pub fn add_ex(
         &self,
         kind: Kind,
         anchor: Anchor<'_>,
         text: &str,
         context: &str,
-        vrs: &str,
-        module_ver: &str,
+        bind: &Bind,
     ) -> Result<String> {
         let id = new_id();
         let t = now();
+        let (cb, c1, v1, c2, v2) = match (bind.canon_from, bind.canon_to) {
+            (Some(f), Some(to)) => (
+                f.book.as_str().to_string(),
+                f.chapter,
+                f.verse,
+                to.chapter,
+                to.verse,
+            ),
+            _ => (String::new(), 0, 0, 0, 0),
+        };
         self.conn.execute(
-            "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0,?11,1,?12,?13)",
+            "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0,?11,1,?12,?13,?14,?15,?16,?17,?18)",
             params![
                 id,
                 anchor.module,
@@ -268,8 +343,13 @@ impl UserData {
                 t,
                 t,
                 self.device,
-                vrs,
-                module_ver,
+                bind.vrs,
+                bind.module_ver,
+                cb,
+                c1,
+                v1,
+                c2,
+                v2,
             ],
         )?;
         Ok(id)
@@ -278,7 +358,8 @@ impl UserData {
     /// Живые записи вида `kind`; `module` — фильтр по модулю.
     pub fn entries(&self, kind: Kind, module: Option<&str>) -> Result<Vec<Entry>> {
         let sql = "SELECT id, module, kind, book, chapter, verse, text, context,
-                   created, updated, deleted, device, rev, vrs, module_ver
+                   created, updated, deleted, device, rev, vrs, module_ver,
+                   canon_book, canon_c1, canon_v1, canon_c2, canon_v2
                    FROM entries
                    WHERE kind=?1 AND deleted=0";
         let rows: Vec<Entry> = match module {
@@ -321,7 +402,8 @@ impl UserData {
         self.conn
             .prepare(
                 "SELECT id, module, kind, book, chapter, verse, text, context,
-                 created, updated, deleted, device, rev, vrs, module_ver
+                 created, updated, deleted, device, rev, vrs, module_ver,
+                 canon_book, canon_c1, canon_v1, canon_c2, canon_v2
                  FROM entries",
             )?
             .query_map([], row_to_entry)?
@@ -362,7 +444,7 @@ impl UserData {
         }
         // Принимаем выгрузки схемы 1 и 2: новые поля имеют serde-default.
         match doc.get("version").and_then(|v| v.as_str()) {
-            Some("1") | Some(SCHEMA_VERSION) => {}
+            Some("1") | Some("2") | Some(SCHEMA_VERSION) => {}
             _ => return Err(UserError::BadFormat("version".into())),
         }
         let mut stats = ImportStats::default();
@@ -396,7 +478,7 @@ impl UserData {
         match existing {
             None => {
                 self.conn.execute(
-                    "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
+                    "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)",
                     params![
                         e.id,
                         e.module,
@@ -413,6 +495,11 @@ impl UserData {
                         e.rev,
                         e.vrs,
                         e.module_ver,
+                        e.canon_book,
+                        e.canon_ch1,
+                        e.canon_v1,
+                        e.canon_ch2,
+                        e.canon_v2,
                     ],
                 )?;
                 Ok(Merge::Added)
@@ -421,7 +508,9 @@ impl UserData {
                 self.conn.execute(
                     "UPDATE entries SET module=?2,kind=?3,book=?4,chapter=?5,verse=?6,
                      text=?7,context=?8,created=?9,updated=?10,deleted=?11,
-                     device=?12,rev=?13,vrs=?14,module_ver=?15 WHERE id=?1",
+                     device=?12,rev=?13,vrs=?14,module_ver=?15,
+                     canon_book=?16,canon_c1=?17,canon_v1=?18,
+                     canon_c2=?19,canon_v2=?20 WHERE id=?1",
                     params![
                         e.id,
                         e.module,
@@ -438,6 +527,11 @@ impl UserData {
                         e.rev,
                         e.vrs,
                         e.module_ver,
+                        e.canon_book,
+                        e.canon_ch1,
+                        e.canon_v1,
+                        e.canon_ch2,
+                        e.canon_v2,
                     ],
                 )?;
                 Ok(Merge::Updated)
@@ -523,11 +617,40 @@ impl UserData {
                     .flatten()
                     .unwrap_or_default()
             };
+            // Канонический диапазон считаем от якоря в сетке модуля.
+            let canon = |verse: u16| {
+                Versification::builtin(cur_vrs)
+                    .and_then(|v| canon_range(v, VerseKey::new(book, e.chapter, verse)))
+            };
             let stamp = |ctx: &str| {
+                let (cb, c1, v1, c2, v2) = canon(e.verse)
+                    .map(|(f, t)| {
+                        (
+                            f.book.as_str().to_string(),
+                            f.chapter,
+                            f.verse,
+                            t.chapter,
+                            t.verse,
+                        )
+                    })
+                    .unwrap_or((String::new(), 0, 0, 0, 0));
                 self.conn.execute(
                     "UPDATE entries SET vrs=?2, module_ver=?3, context=?4, \
-                     updated=?5, device=?6 WHERE id=?1",
-                    params![e.id, cur_vrs, cur_ver, ctx, now(), self.device],
+                     canon_book=?5,canon_c1=?6,canon_v1=?7,canon_c2=?8,canon_v2=?9, \
+                     updated=?10, device=?11 WHERE id=?1",
+                    params![
+                        e.id,
+                        cur_vrs,
+                        cur_ver,
+                        ctx,
+                        cb,
+                        c1,
+                        v1,
+                        c2,
+                        v2,
+                        now(),
+                        self.device
+                    ],
                 )
             };
             let t = now();
@@ -560,10 +683,34 @@ impl UserData {
             }
             match hit {
                 Some(nv) => {
+                    let (cb, c1, v1, c2, v2) = canon(nv)
+                        .map(|(f, t)| {
+                            (
+                                f.book.as_str().to_string(),
+                                f.chapter,
+                                f.verse,
+                                t.chapter,
+                                t.verse,
+                            )
+                        })
+                        .unwrap_or((String::new(), 0, 0, 0, 0));
                     self.conn.execute(
                         "UPDATE entries SET verse=?2, vrs=?3, module_ver=?4, \
-                         updated=?5, rev=rev+1, device=?6 WHERE id=?1",
-                        params![e.id, nv, cur_vrs, cur_ver, t, self.device],
+                         canon_book=?5,canon_c1=?6,canon_v1=?7,canon_c2=?8,canon_v2=?9, \
+                         updated=?10, rev=rev+1, device=?11 WHERE id=?1",
+                        params![
+                            e.id,
+                            nv,
+                            cur_vrs,
+                            cur_ver,
+                            cb,
+                            c1,
+                            v1,
+                            c2,
+                            v2,
+                            t,
+                            self.device
+                        ],
                     )?;
                     stats.moved += 1;
                 }
@@ -571,6 +718,40 @@ impl UserData {
             }
         }
         Ok(stats)
+    }
+
+    /// Живые записи **других** модулей, чей канонический диапазон org
+    /// содержит хотя бы один из `org_keys` (ключи стиха текущего
+    /// модуля в сетке org — `vrs.to_org`). `installed(meta.id)`
+    /// отсекает записи к неустановленным модулям — по решению они
+    /// видны только во вкладке «Записи» (в.12, этап А).
+    pub fn entries_foreign(
+        &self,
+        module: &str,
+        org_keys: &[VerseKey],
+        mut installed: impl FnMut(&str) -> bool,
+    ) -> Result<Vec<Entry>> {
+        if org_keys.is_empty() {
+            return Ok(vec![]);
+        }
+        let mut out = Vec::new();
+        for e in self.all()? {
+            if e.deleted != 0 || e.module == module || e.module == "*" || e.canon_book.is_empty() {
+                continue;
+            }
+            if !installed(&e.module) {
+                continue;
+            }
+            let hit = org_keys.iter().any(|k| {
+                k.book.as_str() == e.canon_book
+                    && (e.canon_ch1, e.canon_v1) <= (k.chapter, k.verse)
+                    && (k.chapter, k.verse) <= (e.canon_ch2, e.canon_v2)
+            });
+            if hit {
+                out.push(e);
+            }
+        }
+        Ok(out)
     }
 }
 
@@ -591,5 +772,36 @@ fn row_to_entry(r: &rusqlite::Row) -> rusqlite::Result<Entry> {
         rev: r.get(12)?,
         vrs: r.get(13)?,
         module_ver: r.get(14)?,
+        canon_book: r.get(15)?,
+        canon_ch1: r.get(16)?,
+        canon_v1: r.get(17)?,
+        canon_ch2: r.get(18)?,
+        canon_v2: r.get(19)?,
     })
+}
+
+/// Восполнить канонический диапазон у живых записей с известной `vrs`
+/// (миграция на схему 3; записи без `vrs` получают диапазон позже
+/// через relink).
+fn backfill_canon(conn: &Connection) -> Result<()> {
+    let mut st = conn
+        .prepare("SELECT id, book, chapter, verse, vrs FROM entries WHERE deleted=0 AND vrs<>''")?;
+    let rows: Vec<(String, String, u16, u16, String)> = st
+        .query_map([], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        })?
+        .collect::<std::result::Result<_, _>>()?;
+    for (id, book, ch, v, vrs) in rows {
+        let (Some(book), Some(vrs)) = (BookCode::new(&book), Versification::builtin(&vrs)) else {
+            continue;
+        };
+        let Some((f, t)) = canon_range(vrs, VerseKey::new(book, ch, v)) else {
+            continue;
+        };
+        conn.execute(
+            "UPDATE entries SET canon_book=?2,canon_c1=?3,canon_v1=?4,canon_c2=?5,canon_v2=?6 WHERE id=?1",
+            params![id, f.book.as_str(), f.chapter, f.verse, t.chapter, t.verse],
+        )?;
+    }
+    Ok(())
 }

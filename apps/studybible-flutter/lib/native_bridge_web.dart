@@ -570,6 +570,14 @@ Future<bool> bridgeEntryRemove(String id) async {
 /// Перепривязка записей к модулям — на web пока нет (вопрос №12).
 Future<String?> bridgeEntriesRelink() async => null;
 
+/// Чужие записи к стиху — на web пока нет (в.12, этап А).
+Future<List<UserEntry>> bridgeEntriesForeign(
+  String module,
+  String book,
+  int chapter,
+  int verse,
+) async => const [];
+
 // ---------- словарь (entries, ADR 0016) ----------
 
 /// Страница заголовков словаря; prefix — строчный префикс norm.

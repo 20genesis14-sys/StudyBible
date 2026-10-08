@@ -88,6 +88,7 @@ class NoteDialog extends StatefulWidget {
     required this.chapter,
     required this.verse,
     required this.contextText,
+    this.foreignCount,
   });
 
   final String ref;
@@ -97,6 +98,11 @@ class NoteDialog extends StatefulWidget {
   final UserEntry? tagEntry;
   final String moduleId, book, contextText;
   final int chapter, verse;
+
+  /// Число записей других переводов к стиху (в.12, этап А); кнопка
+  /// показывается, когда их больше нуля; тап закрывает диалог с
+  /// результатом 'foreign' — список показывает вызывающий.
+  final Future<int> Function()? foreignCount;
 
   @override
   State<NoteDialog> createState() => _NoteDialogState();
@@ -334,6 +340,28 @@ class _NoteDialogState extends State<NoteDialog> {
               ),
             ),
             const SizedBox(height: 8),
+            if (widget.foreignCount != null)
+              FutureBuilder<int>(
+                future: widget.foreignCount!(),
+                builder: (context, snap) {
+                  final n = snap.data ?? 0;
+                  if (n <= 0) return const SizedBox.shrink();
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      icon: Icon(Icons.translate, size: 16, color: p.accent),
+                      label: Text(
+                        tr(
+                          'Записи в других переводах: $n',
+                          'Entries in other translations: $n',
+                        ),
+                        style: TextStyle(fontSize: 13, color: p.accent),
+                      ),
+                      onPressed: () => _pop('foreign'),
+                    ),
+                  );
+                },
+              ),
             // Вложения и действия одним компактным рядом — под
             // клавиатурой обязаны оставаться видимыми.
             Row(

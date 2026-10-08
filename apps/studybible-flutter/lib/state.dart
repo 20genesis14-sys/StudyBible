@@ -495,7 +495,13 @@ class Notes extends ChangeNotifier {
           );
         }),
       );
-    items.sort((a, b) => b.created.compareTo(a.created));
+    // Группы по переводу (в.12, этап А): свободные заметки
+    // (module '') впереди, затем по id модуля, внутри — по дате.
+    items.sort(
+      (a, b) => a.module == b.module
+          ? b.created.compareTo(a.created)
+          : a.module.compareTo(b.module),
+    );
     _loaded = true;
     notifyListeners();
   }

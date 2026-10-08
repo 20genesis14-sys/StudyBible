@@ -15,4 +15,6 @@ pub use module::{
     Alignment, Mark, Meta, Module, ModuleError, ModuleWriter, Reading, Token, Variant,
 };
 pub use search::{Hit, SearchIndex};
-pub use userdata::{Anchor, Entry, ImportStats, Kind, UserData, UserError};
+pub use userdata::{
+    Anchor, Bind, Entry, ImportStats, Kind, RelinkStats, UserData, UserError, canon_range,
+};

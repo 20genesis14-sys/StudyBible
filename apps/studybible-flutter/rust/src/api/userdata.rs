@@ -13,7 +13,8 @@ use std::path::Path;
 use anyhow::{Result, anyhow};
 use serde_json::{Map, Value, json};
 use studybible_core::BookCode;
-use studybible_store::{Anchor, Entry, Kind, Module, UserData};
+use studybible_core::versification::{VerseKey, Versification};
+use studybible_store::{Anchor, Bind, Entry, Kind, Module, UserData, canon_range};
 
 /// Псевдо-модуль служебных записей прогресса.
 const PROGRESS_MODULE: &str = "*";
@@ -220,10 +221,10 @@ pub async fn entry_add(
 ) -> Result<String> {
     let anchor = anchor_at(&module, &book, chapter, verse)?;
     let ud = open(&path)?;
-    // Метаполя перепривязки (в.12) берём из установленного модуля сами —
+    // Метаполя привязки (в.12) берём из установленного модуля сами —
     // Dart-стороне их передавать не нужно; у служебного `*` модуля нет,
     // его записи остаются с пустой метой (add() по-прежнему).
-    let (vrs, mver, ctx) = resolve_module(&path, &module)
+    let (bind, ctx) = resolve_module(&path, &module)
         .map(|m| {
             let meta = m.meta();
             let ver = if meta.content_hash.is_empty() {
@@ -240,10 +241,56 @@ pub async fn entry_add(
             } else {
                 context.clone()
             };
-            (meta.versification.clone(), ver, c)
+            let canon = Versification::builtin(&meta.versification).and_then(|v| {
+                canon_range(v, VerseKey::new(anchor.book, anchor.chapter, anchor.verse))
+            });
+            let (from, to) = canon.map(|(f, t)| (Some(f), Some(t))).unwrap_or_default();
+            let b = Bind {
+                vrs: meta.versification.clone(),
+                module_ver: ver,
+                canon_from: from,
+                canon_to: to,
+            };
+            (b, c)
         })
-        .unwrap_or_else(|| (String::new(), String::new(), context));
-    Ok(ud.add_ex(kind_of(&kind)?, anchor, &text, &ctx, &vrs, &mver)?)
+        .unwrap_or_else(|| (Bind::default(), context));
+    Ok(ud.add_ex(kind_of(&kind)?, anchor, &text, &ctx, &bind)?)
+}
+
+/// Чужие записи к стиху (в.12, этап А): записи других модулей, чья
+/// каноническая координата пересекает стих текущего модуля в сетке org.
+/// По решению пользователя — только записи установленных модулей;
+/// `module` не установлен → пустой список.
+pub async fn entries_foreign_list(
+    path: String,
+    module: String,
+    book: String,
+    chapter: i64,
+    verse: i64,
+) -> Result<Vec<UserEntryInfo>> {
+    let Some(m) = resolve_module(&path, &module) else {
+        return Ok(vec![]);
+    };
+    let vrs = Versification::builtin(&m.meta().versification)
+        .ok_or_else(|| anyhow!("версификация «{}»", m.meta().versification))?;
+    let book_c = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
+    let org = vrs.to_org(VerseKey::new(
+        book_c,
+        u16::try_from(chapter)?,
+        u16::try_from(verse)?,
+    ));
+    // Кэш установленности: файл модуля открываем один раз на id.
+    let mut seen = std::collections::HashMap::<String, bool>::new();
+    let ud = open(&path)?;
+    Ok(ud
+        .entries_foreign(&module, &org, |id| {
+            *seen
+                .entry(id.to_string())
+                .or_insert_with(|| resolve_module(&path, id).is_some())
+        })?
+        .iter()
+        .map(entry_info)
+        .collect())
 }
 
 /// Прогнать перепривязку записей к установленным модулям

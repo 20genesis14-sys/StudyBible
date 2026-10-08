@@ -3,7 +3,8 @@
 
 use studybible_convert::usfm;
 use studybible_core::BookCode;
-use studybible_store::{Anchor, Kind, Meta, Module, ModuleWriter, UserData};
+use studybible_core::versification::{VerseKey, Versification};
+use studybible_store::{Anchor, Bind, Kind, Meta, Module, ModuleWriter, UserData, canon_range};
 
 const SRC: &str = "\\id GEN\n\\h Бытие\n\\toc1 Бытие\n\
 \\c 1\n\\p\n\\v 1 Первый стих.\n\\v 2 Второй стих.\n\\v 3 Третий стих.\n\\v 4 Четвёртый стих.\n";
@@ -40,6 +41,21 @@ fn anchor() -> Anchor<'static> {
     }
 }
 
+/// Bind с canon, как пишут мост/CLI: vrs+hash модуля и org-диапазон якоря.
+fn bind(m: &Module) -> Bind {
+    let meta = m.meta();
+    let (from, to) = Versification::builtin(&meta.versification)
+        .and_then(|v| canon_range(v, VerseKey::new(anchor().book, 1, 1)))
+        .map(|(f, t)| (Some(f), Some(t)))
+        .unwrap_or_default();
+    Bind {
+        vrs: meta.versification.clone(),
+        module_ver: meta.content_hash.clone(),
+        canon_from: from,
+        canon_to: to,
+    }
+}
+
 #[test]
 fn fresh_when_meta_matches() {
     let dir = tempfile::tempdir().unwrap();
@@ -50,15 +66,9 @@ fn fresh_when_meta_matches() {
     let ver = meta.content_hash.clone();
 
     let ud = UserData::open(&dir.path().join("u.db")).unwrap();
-    ud.add_ex(
-        Kind::Note,
-        anchor(),
-        "заметка",
-        "Первый стих.",
-        &meta.versification,
-        &ver,
-    )
-    .unwrap();
+    ud.add_ex(Kind::Note, anchor(), "заметка", "Первый стих.", &bind(&m))
+        .unwrap();
+    let _ = ver;
 
     let s = ud
         .relink(|id| (id == "m1").then(|| Module::open(&mp).unwrap()))
@@ -81,8 +91,7 @@ fn relink_moves_to_nearby_verse() {
             anchor(),
             "заметка",
             "Второй стих.", // запись висела на стихе 1 с этим контекстом
-            &old.meta().versification,
-            &old.meta().content_hash,
+            &bind(&old),
         )
         .unwrap();
 
@@ -119,8 +128,7 @@ fn orphan_when_context_gone() {
             anchor(),
             "",
             "Такого текста нет нигде",
-            &old.meta().versification,
-            &old.meta().content_hash,
+            &bind(&old),
         )
         .unwrap();
 
@@ -176,6 +184,41 @@ fn skips_missing_module_and_progress() {
     let s = ud.relink(|_| None).unwrap();
     assert_eq!(s.checked, 0);
     assert_eq!(s.skipped, 1);
+}
+
+#[test]
+fn foreign_entries_by_canon() {
+    // Запись модуля m2 находится из m1 по org-координате; записи
+    // неустановленного модуля и служебные отфильтровываются.
+    let dir = tempfile::tempdir().unwrap();
+    let mp2 = dir.path().join("m2.sb");
+    build(&mp2, "m2", SRC);
+    let m2 = Module::open(&mp2).unwrap();
+
+    let ud = UserData::open(&dir.path().join("u.db")).unwrap();
+    let mut a2 = anchor();
+    a2.module = "m2";
+    let b = bind(&m2);
+    ud.add_ex(Kind::Note, a2, "чужая", "Первый стих.", &b)
+        .unwrap();
+    // Запись к неустановленному модулю — не показываем.
+    let mut ax = anchor();
+    ax.module = "absent";
+    ud.add_ex(Kind::Note, ax, "нет модуля", "x", &b).unwrap();
+    // Своя запись — в чужой список не попадает.
+    let mp1 = dir.path().join("m1.sb");
+    build(&mp1, "m1", SRC);
+    let m1 = Module::open(&mp1).unwrap();
+    ud.add_ex(Kind::Note, anchor(), "своя", "y", &bind(&m1))
+        .unwrap();
+
+    let org = Versification::builtin("rsc")
+        .unwrap()
+        .to_org(VerseKey::new(anchor().book, 1, 1));
+    let list = ud.entries_foreign("m1", &org, |id| id == "m2").unwrap();
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].module, "m2");
+    assert_eq!(list[0].text, "чужая");
 }
 
 #[test]

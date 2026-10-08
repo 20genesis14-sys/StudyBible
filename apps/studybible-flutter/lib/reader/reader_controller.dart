@@ -113,10 +113,111 @@ extension _ReaderController on _ReadingScreenState {
         verse: v,
         contextText: _verseText(v)
             .substring(0, _verseText(v).length.clamp(0, 40)),
+        foreignCount: () async =>
+            (await bridgeEntriesForeign(_moduleId, _code, _ch, v)).length,
       ),
     );
     if (action == 'save' || action == 'delete') {
       await _loadVerseEntries();
+    } else if (action == 'foreign') {
+      unawaited(_showForeignEntries(v));
+    }
+  }
+
+  /// Список записей других переводов к стиху (в.12, этап А):
+  /// тап открывает её стих в её модуле, для заметки — сразу окно записи.
+  /// «Чужие» только по установленным модулям — фильтр внутри моста.
+  Future<void> _showForeignEntries(int v) async {
+    final list = await bridgeEntriesForeign(_moduleId, _code, _ch, v);
+    if (!mounted || list.isEmpty) return;
+    final p = context.palette;
+    final e = await showDialog<UserEntry>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          tr('Записи в других переводах', 'Entries in other translations'),
+        ),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final x in list)
+                ListTile(
+                  dense: true,
+                  leading: Icon(
+                    x.kind == 'note'
+                        ? Icons.sticky_note_2_outlined
+                        : (x.kind == 'mark'
+                              ? Icons.bookmark_outline
+                              : Icons.highlight_outlined),
+                    size: 18,
+                    color: p.accent,
+                  ),
+                  title: Text(
+                    '${bookShort(x.book)} ${x.chapter}:${x.verse}'
+                    ' — ${moduleName(x.module)}',
+                    style: TextStyle(color: p.ink, fontSize: 14),
+                  ),
+                  subtitle: x.context.isEmpty
+                      ? null
+                      : Text(
+                          x.context,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: p.muted, fontSize: 12),
+                        ),
+                  onTap: () => Navigator.of(ctx).pop(x),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr('Закрыть', 'Close')),
+          ),
+        ],
+      ),
+    );
+    if (e == null || !mounted) return;
+    // Переход на стих в её переводе; «назад» вернёт сюда (стек позиций).
+    unawaited(
+      Navigator.of(context).push(
+        fastRoute(
+          ReadingScreen(
+            bookCode: e.book,
+            chapter: e.chapter,
+            verse: e.verse,
+            moduleId: e.module,
+          ),
+        ),
+      ),
+    );
+    if (e.kind == 'note') {
+      // Окно заметки поверх нового экрана — сама запись её редактирует.
+      final tag = (await bridgeEntriesList('tag', module: e.module))
+          .where(
+            (t) =>
+                t.book == e.book &&
+                t.chapter == e.chapter &&
+                t.verse == e.verse,
+          )
+          .firstOrNull;
+      if (!mounted) return;
+      await showDialog<String>(
+        context: context,
+        builder: (_) => NoteDialog(
+          ref: '${bookShort(e.book)} ${e.chapter}:${e.verse}',
+          entry: e,
+          tagEntry: tag,
+          moduleId: e.module,
+          book: e.book,
+          chapter: e.chapter,
+          verse: e.verse,
+          contextText: '',
+        ),
+      );
     }
   }
 
@@ -134,8 +235,7 @@ extension _ReaderController on _ReadingScreenState {
   Future<void> _shareVerse(int v) async {
     await Clipboard.setData(
       ClipboardData(
-        text:
-            '${_refOf(v)}\n${_verseText(v)}\n(${moduleName(_moduleId)})',
+        text: '${_refOf(v)}\n${_verseText(v)}\n(${moduleName(_moduleId)})',
       ),
     );
     if (mounted) {
@@ -354,9 +454,7 @@ extension _ReaderController on _ReadingScreenState {
         // _seekVerseBook — та же причина).
         final frame = Completer<void>();
         WidgetsBinding.instance.scheduleFrameCallback((_) {
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => frame.complete(),
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) => frame.complete());
         });
         await frame.future.timeout(
           const Duration(milliseconds: 400),
@@ -367,9 +465,7 @@ extension _ReaderController on _ReadingScreenState {
         final ctx = _ctxForVerse(_blockKeys, '', v);
         if (ctx != null && ctx.mounted) {
           final ro = ctx.findRenderObject();
-          final y = ro is RenderBox
-              ? ro.localToGlobal(Offset.zero).dy
-              : null;
+          final y = ro is RenderBox ? ro.localToGlobal(Offset.zero).dy : null;
           if (y == null) return;
           // Комфортная зона 10–60% высоты — как в _seekVerseBook.
           if (y >= pos.viewportDimension * 0.10 &&

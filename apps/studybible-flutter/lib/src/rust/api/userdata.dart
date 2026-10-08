@@ -88,6 +88,24 @@ Future<String> entryAdd({
   context: context,
 );
 
+/// Чужие записи к стиху (в.12, этап А): записи других модулей, чья
+/// каноническая координата пересекает стих текущего модуля в сетке org.
+/// По решению пользователя — только записи установленных модулей;
+/// `module` не установлен → пустой список.
+Future<List<UserEntryInfo>> entriesForeignList({
+  required String path,
+  required String module,
+  required String book,
+  required PlatformInt64 chapter,
+  required PlatformInt64 verse,
+}) => RustLib.instance.api.crateApiUserdataEntriesForeignList(
+  path: path,
+  module: module,
+  book: book,
+  chapter: chapter,
+  verse: verse,
+);
+
 /// Прогнать перепривязку записей к установленным модулям
 /// (`UserData::relink`, в.12); возвращает строку-итог для лога/UI.
 String entriesRelink({required String path}) =>

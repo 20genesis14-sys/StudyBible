@@ -36,15 +36,18 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     notes.load();
   }
 
-
-
   Future<void> _load() async {
     // Служебные записи kind='mark' убираем: прогресс ('*'), настройки
     // ('settings') и элементы сквозной истории (text начинается с 'hist').
     bool real(UserEntry e) =>
         e.module != '*' && e.module != 'settings' && !e.text.startsWith('hist');
+    // Записи группируются по переводу (в.12, этап А), внутри — по дате.
     final marks = (await bridgeEntriesList('mark')).where(real).toList()
-      ..sort((a, b) => b.created.compareTo(a.created));
+      ..sort(
+        (a, b) => a.module == b.module
+            ? b.created.compareTo(a.created)
+            : a.module.compareTo(b.module),
+      );
     final tags = <String, List<UserEntry>>{};
     // Имена тегов — в text tag-записей через запятую.
     for (final e in (await bridgeEntriesList('tag')).where(real)) {
@@ -113,10 +116,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       appBar: AppBar(
         backgroundColor: p.background,
         // Вкладка «Записи» (ADR 0015): закладки + теги + заметки.
-        title: Text(
-          tr('Записи', 'Notes'),
-          style: TextStyle(color: p.ink),
-        ),
+        title: Text(tr('Записи', 'Notes'), style: TextStyle(color: p.ink)),
         iconTheme: IconThemeData(color: p.ink),
       ),
       body: ListView(
@@ -151,14 +151,14 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 children: [
                   if (notes.items.isEmpty)
                     _empty(tr('Заметок пока нет', 'No notes yet'), p),
-                  for (final n in notes.items) _noteTile(n, p),
+                  ..._groupedNotes(p),
                 ],
               ),
             ),
             _header(tr('Закладки', 'Bookmarks'), p),
             if (_marks.isEmpty)
               _empty(tr('Закладок пока нет', 'No bookmarks yet'), p),
-            for (final m in _marks) _tile(m, Icons.bookmark, p),
+            ..._grouped(_marks, p, (m) => _tile(m, Icons.bookmark, p)),
           ],
           if (_tag != null) ...[
             _header('#$_tag', p),
@@ -289,8 +289,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               n.text,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: p.ink.withValues(alpha: 0.75),
-                  fontSize: 12),
+              style: TextStyle(
+                color: p.ink.withValues(alpha: 0.75),
+                fontSize: 12,
+              ),
             ),
           Text(
             [
@@ -298,8 +300,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 '${bookShort(n.book)} ${n.chapter}:${n.verse}'
                     ' — ${moduleName(n.module)}',
               '${n.created.day.toString().padLeft(2, '0')}.'
-              '${n.created.month.toString().padLeft(2, '0')}.'
-              '${n.created.year}',
+                  '${n.created.month.toString().padLeft(2, '0')}.'
+                  '${n.created.year}',
             ].join(' · '),
             style: TextStyle(color: p.muted, fontSize: 11),
           ),
@@ -323,21 +325,81 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       // Заметка к стиху: тап по плитке открывает её место.
       onTap: n.anchored
           ? () => _open(
-                UserEntry(
-                  id: n.id,
-                  module: n.module,
-                  kind: 'note',
-                  book: n.book,
-                  chapter: n.chapter,
-                  verse: n.verse,
-                  text: n.text,
-                  context: '',
-                  created: n.created.millisecondsSinceEpoch,
-                  updated: n.created.millisecondsSinceEpoch,
-                ),
-              )
+              UserEntry(
+                id: n.id,
+                module: n.module,
+                kind: 'note',
+                book: n.book,
+                chapter: n.chapter,
+                verse: n.verse,
+                text: n.text,
+                context: '',
+                created: n.created.millisecondsSinceEpoch,
+                updated: n.created.millisecondsSinceEpoch,
+              ),
+            )
           : () => _noteDialog(n: n),
     );
+  }
+
+  /// Заметки с подзаголовками-переводами (в.12, этап А): список уже
+  /// отсортирован по module; свободные заметки — без подзаголовка.
+  List<Widget> _groupedNotes(Palette p) {
+    final out = <Widget>[];
+    var last = '';
+    for (final n in notes.items) {
+      if (n.module != last) {
+        last = n.module;
+        if (n.module.isNotEmpty) {
+          out.add(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                moduleName(n.module),
+                style: TextStyle(
+                  color: p.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          );
+        }
+      }
+      out.add(_noteTile(n, p));
+    }
+    return out;
+  }
+
+  /// Плитки с подзаголовками-переводами (в.12, этап А): список уже
+  /// отсортирован по module — подзаголовок печатаем при смене.
+  List<Widget> _grouped(
+    List<UserEntry> items,
+    Palette p,
+    Widget Function(UserEntry) tile,
+  ) {
+    final out = <Widget>[];
+    var last = '';
+    for (final e in items) {
+      if (e.module != last) {
+        last = e.module;
+        out.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              moduleName(e.module),
+              style: TextStyle(
+                color: p.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+      }
+      out.add(tile(e));
+    }
+    return out;
   }
 
   Widget _header(String text, Palette p) => Padding(

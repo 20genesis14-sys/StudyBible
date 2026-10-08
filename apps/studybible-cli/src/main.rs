@@ -11,8 +11,11 @@ use speech::TtsSpeech;
 use studybible_convert::{biblequote, , mybible, osis, tsv, usfm, zefania};
 use studybible_core::speech::Speech;
 use studybible_core::text::Span;
+use studybible_core::versification::VerseKey;
 use studybible_core::{BookCatalog, BookCode, NameProfile, Versification, reference};
-use studybible_store::{Kind, Meta, Module, ModuleWriter, SearchIndex, UserData};
+use studybible_store::{
+    Bind, Kind, Meta, Module, ModuleWriter, SearchIndex, UserData, canon_range,
+};
 
 const USAGE: &str = "studybible — консольная оболочка StudyBible
 
@@ -1142,9 +1145,9 @@ fn user(args: &[String]) -> Result<(), String> {
                 chapter: ch,
                 verse: v,
             };
-            // Мета перепривязки + контекст из модуля (вопрос №12):
-            // `context` — первые 40 знаков текста стиха.
-            let (vrs, mver, ctx) = module_by_id(args, module)
+            // Мета привязки + контекст из модуля (вопрос №12):
+            // `context` — первые 40 знаков текста стиха, canon — org-диапазон.
+            let (bind, ctx) = module_by_id(args, module)
                 .map(|m| {
                     let meta = m.meta();
                     let ver = if meta.content_hash.is_empty() {
@@ -1158,11 +1161,20 @@ fn user(args: &[String]) -> Result<(), String> {
                         .flatten()
                         .map(|t| t.chars().take(40).collect::<String>())
                         .unwrap_or_default();
-                    (meta.versification.clone(), ver, c)
+                    let canon = Versification::builtin(&meta.versification)
+                        .and_then(|vs| canon_range(vs, VerseKey::new(book, ch, v)));
+                    let (from, to) = canon.map(|(f, t)| (Some(f), Some(t))).unwrap_or_default();
+                    let b = Bind {
+                        vrs: meta.versification.clone(),
+                        module_ver: ver,
+                        canon_from: from,
+                        canon_to: to,
+                    };
+                    (b, c)
                 })
                 .unwrap_or_default();
             let id = user_db(args)?
-                .add_ex(kind, anchor, &text, &ctx, &vrs, &mver)
+                .add_ex(kind, anchor, &text, &ctx, &bind)
                 .map_err(|e| e.to_string())?;
             println!("{id}");
             Ok(())
