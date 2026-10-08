@@ -1,0 +1,1 @@
+tid=75424 frames=40 dur_ms p50=19.2 p90=33.6 max=64.8 | interval_ms p50=450.2 p90=467.3 max=467.6 | >20ms=39 >12ms=39
