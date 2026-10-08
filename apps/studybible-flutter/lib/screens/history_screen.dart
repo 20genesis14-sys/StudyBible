@@ -14,7 +14,12 @@ import '../routes.dart';
 /// переводам, обращения к словарю Стронга, поисковые запросы
 /// (userdata.db). Тап — возврат к тому же месту.
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({super.key, this.onBack, this.onOpenVerse});
+
+  /// Встроенный режим (экран-позиция рабочего места): «назад» и тап
+  /// по стиху идут через стек читалки, а не через Navigator.
+  final VoidCallback? onBack;
+  final OpenVerse? onOpenVerse;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -88,16 +93,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
         style: TextStyle(fontSize: 12, color: p.muted),
       ),
       trailing: Icon(Icons.chevron_right, size: 18, color: p.muted),
-      onTap: () => Navigator.of(context).push(
-        fastRoute(
-          ReadingScreen(
-            bookCode: e.book,
-            chapter: e.chapter,
-            verse: e.verse > 0 ? e.verse : null,
-            moduleId: e.module,
-          ),
-        ),
-      ),
+      onTap: widget.onOpenVerse != null
+          ? () => widget.onOpenVerse!(e.module, e.book, e.chapter, e.verse)
+          : () => Navigator.of(context).push(
+              fastRoute(
+                ReadingScreen(
+                  bookCode: e.book,
+                  chapter: e.chapter,
+                  verse: e.verse > 0 ? e.verse : null,
+                  moduleId: e.module,
+                ),
+              ),
+            ),
     );
   }
 
@@ -105,7 +112,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('История', 'History'))),
+      appBar: AppBar(
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+              ),
+        title: Text(tr('История', 'History')),
+      ),
       body: ListenableBuilder(
         listenable: history,
         builder: (_, _) {

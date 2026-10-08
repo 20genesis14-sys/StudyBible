@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data.dart';
 import '../l10n.dart';
@@ -8,7 +9,8 @@ import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
     if (dart.library.html) '../native_bridge_web.dart';
 import '../theme.dart';
-import '../userdata_stub.dart' if (dart.library.io) '../userdata_io.dart';
+import '../userdata_stub.dart'
+    if (dart.library.io) '../userdata_io.dart';
 import 'reading_screen.dart';
 import '../routes.dart';
 
@@ -73,6 +75,24 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     });
   }
 
+  /// «Поделиться» — копия в буфер обмена в формате «поделиться
+  /// стихом» из читалки: ссылка, заголовок, текст, перевод.
+  Future<void> _shareNote(NoteItem n) async {
+    final buf = StringBuffer();
+    if (n.anchored) buf.writeln('${bookShort(n.book)} ${n.chapter}:${n.verse}');
+    if (n.title.isNotEmpty) buf.writeln(n.title);
+    buf.writeln(n.text);
+    if (n.anchored && n.module.isNotEmpty) {
+      buf.write('(${moduleName(n.module)})');
+    }
+    await Clipboard.setData(ClipboardData(text: buf.toString().trim()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('Заметка скопирована', 'Note copied'))),
+      );
+    }
+  }
+
   void _open(UserEntry e) {
     Navigator.of(context).push(
       fastRoute(
@@ -132,20 +152,36 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             onPressed: () async {
               final msg = await importEntriesZip();
               if (msg == null || !context.mounted) return;
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text(msg)));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(msg)));
               await _load();
               await notes.load();
             },
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.file_download_outlined, size: 20),
             tooltip: tr('Экспорт записей', 'Export entries'),
-            onPressed: () async {
-              final msg = await exportEntriesZip();
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'zip',
+                child: Text(tr('Экспорт в .zip', 'Export to .zip')),
+              ),
+              PopupMenuItem(
+                value: 'md',
+                child: Text(
+                  tr('Экспорт в Markdown', 'Export to Markdown'),
+                ),
+              ),
+            ],
+            onSelected: (v) async {
+              final msg = v == 'md'
+                  ? await exportEntriesMd()
+                  : await exportEntriesZip();
               if (msg == null || !context.mounted) return;
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text(msg)));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(msg)));
             },
           ),
         ],
@@ -346,6 +382,11 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          IconButton(
+            icon: Icon(Icons.share_outlined, size: 16, color: p.muted),
+            tooltip: tr('Поделиться', 'Share'),
+            onPressed: () => _shareNote(n),
+          ),
           IconButton(
             icon: Icon(Icons.edit_outlined, size: 16, color: p.muted),
             tooltip: tr('Править', 'Edit'),

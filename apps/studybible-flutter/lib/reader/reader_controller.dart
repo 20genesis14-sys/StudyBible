@@ -181,19 +181,17 @@ extension _ReaderController on _ReadingScreenState {
       ),
     );
     if (e == null || !mounted) return;
-    // Переход на стих в её переводе; «назад» вернёт сюда (стек позиций).
-    unawaited(
-      Navigator.of(context).push(
-        fastRoute(
-          ReadingScreen(
-            bookCode: e.book,
-            chapter: e.chapter,
-            verse: e.verse,
-            moduleId: e.module,
-          ),
-        ),
-      ),
+    // Переход на стих в её переводе — шаг стека рабочего места,
+    // а не новый маршрут; «назад» вернёт сюда.
+    final loc = Location.verse(
+      moduleId: e.module,
+      book: e.book,
+      chapter: e.chapter,
+      verse: e.verse,
+      pane: _paneSnapshot(),
     );
+    workspace.go(loc);
+    _applyLocation(loc);
     if (e.kind == 'note') {
       // Окно заметки поверх нового экрана — сама запись её редактирует.
       final tag = (await bridgeEntriesList('tag', module: e.module))

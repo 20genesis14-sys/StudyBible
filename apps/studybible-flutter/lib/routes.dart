@@ -29,3 +29,10 @@ Route<T> fastRoute<T>(Widget child) => PageRouteBuilder<T>(
 
 Future<T?> pushFast<T>(BuildContext context, Widget child) =>
     Navigator.of(context).push(fastRoute<T>(child));
+
+/// Переход к стиху из внешнего экрана (Поиск, История, «Все
+/// переводы»): встроенный в читалку экран отдаёт шаг стека рабочего
+/// места; иначе колбэк отсутствует и экран открывает ReadingScreen
+/// новым маршрутом, как раньше (ADR 0019).
+typedef OpenVerse =
+    void Function(String moduleId, String book, int chapter, int verse);

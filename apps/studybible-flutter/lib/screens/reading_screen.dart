@@ -31,7 +31,6 @@ import '../workspace/workspace_model.dart';
 import 'history_screen.dart';
 import 'search_screen.dart';
 import 'verse_compare_screen.dart';
-import '../routes.dart';
 
 part '../reader/chapter_renderer.dart';
 part '../reader/reader_chrome.dart';
@@ -222,6 +221,12 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// панели, прокрутка до стиха, журнал. Новых экранов не создаёт.
   void _applyLocation(Location loc, [String? banner]) {
     _stopTts();
+    // Внешний экран как позиция рабочего места: читалка остаётся
+    // под ним, _overlayScreen() в build показывает нужный экран.
+    if (loc.kind == 'screen') {
+      _rebuild(() {});
+      return;
+    }
     final cmp = loc.pane['cmp'] as String?;
     _rebuild(() {
       _moduleId = loc.moduleId;
@@ -467,7 +472,8 @@ class _ReadingScreenState extends State<ReadingScreen> {
                 _stackForward();
               }
             },
-            child: Scaffold(
+            child: _overlayScreen() ??
+                Scaffold(
               body: Stack(
                 children: [
                   NotificationListener<ScrollNotification>(
@@ -609,6 +615,61 @@ class _ReadingScreenState extends State<ReadingScreen> {
         ),
       ),
     );
+  }
+
+  /// Внешний экран (Поиск/История/«Все переводы») как позиция
+  /// рабочего места — не новый маршрут: «назад»/Alt+←/X1 ведут
+  /// к прежнему стиху по единому стеку (ADR 0019).
+  void _openScreen(String name, [Map<String, Object?> extra = const {}]) {
+    workspace.go(
+      Location(
+        kind: 'screen',
+        moduleId: _moduleId,
+        book: _code,
+        chapter: _ch,
+        pane: {'screen': name, ...extra},
+      ),
+    );
+    _stopTts();
+    _rebuild(() {});
+  }
+
+  /// Встроенный экран текущей позиции стека (null — позиция-стих,
+  /// показываем читалку). Переход к стиху из встроенного экрана —
+  /// шаг стека, а не новый маршрут.
+  Widget? _overlayScreen() {
+    final loc = workspace.current;
+    if (loc == null || loc.kind != 'screen') return null;
+    void openVerse(String module, String book, int chapter, int verse) {
+      final l = Location.verse(
+        moduleId: module,
+        book: book,
+        chapter: chapter,
+        verse: verse,
+        pane: _paneSnapshot(),
+      );
+      workspace.go(l);
+      _applyLocation(l);
+    }
+
+    return switch (loc.pane['screen']) {
+      'history' => HistoryScreen(onBack: _stackBack, onOpenVerse: openVerse),
+      'search' => SearchScreen(
+        moduleId: loc.pane['module'] as String? ?? _moduleId,
+        initialQuery: loc.pane['q'] as String?,
+        onBack: _stackBack,
+        onOpenVerse: openVerse,
+      ),
+      'compare' => VerseCompareScreen(
+        bookCode: loc.pane['book'] as String? ?? _code,
+        chapter: loc.pane['ch'] as int? ?? _ch,
+        verse: loc.pane['v'] as int? ?? 0,
+        fromVrs: loc.pane['vrs'] as String? ?? '',
+        onBack: _stackBack,
+        onOpenVerse: openVerse,
+      ),
+      _ => null,
+    };
   }
 
   /// Шаг по стеку позиций назад: PopScope, Alt+←, кнопка мыши X1.

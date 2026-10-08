@@ -25,6 +25,8 @@ class VerseCompareScreen extends StatefulWidget {
     required this.chapter,
     required this.verse,
     this.fromVrs = '',
+    this.onBack,
+    this.onOpenVerse,
   });
 
   final String bookCode;
@@ -34,6 +36,11 @@ class VerseCompareScreen extends StatefulWidget {
   /// Версификация модуля, из которого открыли сравнение
   /// ('' — координату трактуем как есть, без конверсии).
   final String fromVrs;
+
+  /// Встроенный режим (экран-позиция рабочего места): «назад» и тап
+  /// по переводу идут через стек читалки, а не через Navigator.
+  final VoidCallback? onBack;
+  final OpenVerse? onOpenVerse;
 
   @override
   State<VerseCompareScreen> createState() => _VerseCompareScreenState();
@@ -133,6 +140,12 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
     return Scaffold(
       backgroundColor: p.background,
       appBar: AppBar(
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+              ),
         backgroundColor: p.background,
         iconTheme: IconThemeData(color: p.ink),
         title: Text(
@@ -169,16 +182,19 @@ class _VerseCompareScreenState extends State<VerseCompareScreen> {
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () => Navigator.of(context).push(
-                      fastRoute(
-                        ReadingScreen(
-                          bookCode: r.navBook,
-                          chapter: r.navChapter,
-                          verse: r.navVerse,
-                          moduleId: r.moduleId,
-                        ),
-                      ),
-                    ),
+                    onTap: widget.onOpenVerse != null
+                        ? () => widget.onOpenVerse!(
+                            r.moduleId, r.navBook, r.navChapter, r.navVerse)
+                        : () => Navigator.of(context).push(
+                            fastRoute(
+                              ReadingScreen(
+                                bookCode: r.navBook,
+                                chapter: r.navChapter,
+                                verse: r.navVerse,
+                                moduleId: r.moduleId,
+                              ),
+                            ),
+                          ),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Column(

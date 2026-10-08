@@ -72,7 +72,8 @@ class Location {
       moduleId == o.moduleId &&
       book == o.book &&
       chapter == o.chapter &&
-      verse == o.verse;
+      verse == o.verse &&
+      pane['screen'] == o.pane['screen'];
 
   Location copyWith({Map<String, Object?>? pane}) => Location(
     kind: kind,

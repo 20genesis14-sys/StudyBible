@@ -14,13 +14,24 @@ import '../routes.dart';
 /// Поиск по тексту модуля (FTS5-индекс ядра; на web — LIKE-фоллбэк).
 /// Тап по результату — переход к стиху в текущем переводе.
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, this.moduleId, this.initialQuery});
+  const SearchScreen({
+    super.key,
+    this.moduleId,
+    this.initialQuery,
+    this.onBack,
+    this.onOpenVerse,
+  });
 
   /// Модуль, из которого открыли поиск (предвыбор в дрopdown).
   final String? moduleId;
 
   /// Запрос из истории — подставляется в поле и сразу выполняется.
   final String? initialQuery;
+
+  /// Встроенный режим (экран-позиция рабочего места): «назад» и тап
+  /// по результату идут через стек читалки, а не через Navigator.
+  final VoidCallback? onBack;
+  final OpenVerse? onOpenVerse;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -84,7 +95,15 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('Поиск', 'Search'))),
+      appBar: AppBar(
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+              ),
+        title: Text(tr('Поиск', 'Search')),
+      ),
       body: Column(
         children: [
           Padding(
@@ -145,16 +164,19 @@ class _SearchScreenState extends State<SearchScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: p.ink),
                   ),
-                  onTap: () => Navigator.of(context).push(
-                    fastRoute(
-                      ReadingScreen(
-                        bookCode: h.book,
-                        chapter: h.chapter,
-                        verse: h.verse,
-                        moduleId: _moduleId,
-                      ),
-                    ),
-                  ),
+                  onTap: widget.onOpenVerse != null
+                      ? () => widget.onOpenVerse!(
+                          _moduleId, h.book, h.chapter, h.verse)
+                      : () => Navigator.of(context).push(
+                          fastRoute(
+                            ReadingScreen(
+                              bookCode: h.book,
+                              chapter: h.chapter,
+                              verse: h.verse,
+                              moduleId: _moduleId,
+                            ),
+                          ),
+                        ),
                 );
               },
             ),

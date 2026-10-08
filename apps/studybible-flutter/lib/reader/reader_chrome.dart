@@ -108,15 +108,12 @@ extension _ReaderChrome on _ReadingScreenState {
         IconButton(
           tooltip: tr('Поиск', 'Search'),
           icon: Icon(Icons.search, size: sz, color: p.muted),
-          onPressed: () =>
-              Navigator.of(context)
-                  .push(fastRoute(SearchScreen(moduleId: _moduleId))),
+          onPressed: () => _openScreen('search', {'module': _moduleId}),
         ),
       IconButton(
         tooltip: tr('История чтения', 'Reading history'),
         icon: Icon(Icons.history, size: sz, color: cc(false, cHistory)),
-        onPressed: () =>
-            Navigator.of(context).push(fastRoute(const HistoryScreen())),
+        onPressed: () => _openScreen('history'),
       ),
       IconButton(
         tooltip: tr('Сноски', 'Footnotes'),
@@ -344,14 +341,10 @@ extension _ReaderChrome on _ReadingScreenState {
   void _openSearch() {
     final q = _searchCtrl.text.trim();
     _rebuild(() => _searchOpen = false);
-    Navigator.of(context).push(
-      fastRoute(
-        SearchScreen(
-          moduleId: _moduleId,
-          initialQuery: q.isEmpty ? null : q,
-        ),
-      ),
-    );
+    _openScreen('search', {
+      'module': _moduleId,
+      if (q.isNotEmpty) 'q': q,
+    });
   }
 
   /// Полоса прокрутки главы (была в AppBar).
@@ -680,7 +673,7 @@ extension _ReaderChrome on _ReadingScreenState {
               ),
             ),
             item(Icons.history, tr('История чтения', 'Reading history'), () {
-              Navigator.of(context).push(fastRoute(const HistoryScreen()));
+              _openScreen('history');
             }),
             item(
               Icons.view_agenda_outlined,
@@ -1356,16 +1349,12 @@ extension _ReaderChrome on _ReadingScreenState {
         _editTags(v);
       case 'cmp':
         if (!mounted) return;
-        Navigator.of(context).push(
-          fastRoute(
-            VerseCompareScreen(
-              bookCode: _code,
-              chapter: _ch,
-              verse: v,
-              fromVrs: _module?.versification ?? '',
-            ),
-          ),
-        );
+        _openScreen('compare', {
+          'book': _code,
+          'ch': _ch,
+          'v': v,
+          'vrs': _module?.versification ?? '',
+        });
       case 'refs':
         _openNotes();
       case 'copy':
