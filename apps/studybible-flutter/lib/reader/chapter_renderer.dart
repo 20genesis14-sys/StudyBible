@@ -504,19 +504,45 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   // ---------- выделение текста с привязкой к стихам ----------
 
+  /// Стих, содержащий выделенный текст: запасная привязка, когда
+  /// в выделении нет маркеров номеров (кусок внутри одного стиха).
+  /// Приоритет — стиху под последним тапом.
+  int? _verseContaining(String t) {
+    final q = t.trim();
+    if (q.isEmpty) return null;
+    final maxV = _module?.verseCount(_code, _ch) ?? 0;
+    final sel = _selectedVerse;
+    if (sel != null && sel >= 1 && sel <= maxV && _verseText(sel).contains(q)) {
+      return sel;
+    }
+    for (var v = 1; v <= maxV; v++) {
+      if (_verseText(v).contains(q)) return v;
+    }
+    return null;
+  }
+
   /// Диапазон стихов выделения: номера попавшие в фрагмент
-  /// (идут в тексте как « N »); если номеров нет — стих под тапом
-  /// или первый главы. `null` — выделения нет.
+  /// (идут в тексте как « N »); если номеров нет — стих находим
+  /// по содержимому ([_verseContaining]), иначе под тапом.
+  /// `null` — выделения нет или привязать не удалось.
   ({int lo, int hi})? _selRange() {
     final t = _selectedText;
     if (t == null || t.isEmpty) return null;
     final maxV = _module?.verseCount(_code, _ch) ?? 0;
+    final padded = ' $t ';
+    final matches = RegExp(r' (\d{1,3}) ').allMatches(padded).toList();
     final verses = <int>{
-      for (final m in RegExp(r' (\d{1,3}) ').allMatches(' $t '))
-        int.parse(m.group(1)!),
+      for (final m in matches) int.parse(m.group(1)!),
+      // Головной кусок до первого маркера — хвост стиха на
+      // единицу меньше первого номера.
+      if (matches.isNotEmpty &&
+          padded.substring(0, matches.first.start).trim().isNotEmpty)
+        int.parse(matches.first.group(1)!) - 1,
     }..removeWhere((v) => v < 1 || v > maxV);
     if (verses.isEmpty) {
-      final v = (_selectedVerse ?? 1).clamp(1, maxV == 0 ? 1 : maxV);
+      final v =
+          _verseContaining(t) ??
+          (_selectedVerse ?? 1).clamp(1, maxV == 0 ? 1 : maxV);
       return (lo: v, hi: v);
     }
     return (lo: verses.reduce(math.min), hi: verses.reduce(math.max));
@@ -531,11 +557,17 @@ extension _ChapterRenderer on _ReadingScreenState {
     if (t == null || r == null) return const {};
     final padded = ' $t ';
     final matches = RegExp(r' (\d{1,3}) ').allMatches(padded).toList();
-    if (matches.isEmpty) return {r.lo: t};
+    if (matches.isEmpty) {
+      final v = _verseContaining(t) ?? r.lo;
+      return {v: t};
+    }
     final out = <int, String>{};
     final firstNum = int.parse(matches.first.group(1)!);
-    if (r.lo < firstNum) {
-      out[r.lo] = padded.substring(0, matches.first.start);
+    // Головной кусок до первого маркера — хвост стиха
+    // firstNum-1 (выделение началось в середине стиха).
+    if (padded.substring(0, matches.first.start).trim().isNotEmpty &&
+        firstNum > 1) {
+      out[firstNum - 1] = padded.substring(0, matches.first.start);
     }
     for (var i = 0; i < matches.length; i++) {
       final num = int.parse(matches[i].group(1)!);
@@ -693,11 +725,14 @@ extension _ChapterRenderer on _ReadingScreenState {
     bool hasNote = false,
   }) {
     final p = context.palette;
+    // Без затемнения экрана: пилюля поверх текста, тап мимо
+    // закрывает (решение пользователя, 14.10.2026).
     return showDialog<String>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (ctx) => Dialog(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -706,16 +741,16 @@ extension _ChapterRenderer on _ReadingScreenState {
                   customBorder: const CircleBorder(),
                   onTap: () => Navigator.of(ctx).pop(e.key),
                   child: Container(
-                    width: 32,
-                    height: 32,
-                    margin: const EdgeInsets.all(4),
+                    width: 26,
+                    height: 26,
+                    margin: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
                       color: e.value,
                       shape: BoxShape.circle,
                       border: Border.all(color: p.edge),
                     ),
                     child: e.key == current
-                        ? const Icon(Icons.check, size: 18)
+                        ? const Icon(Icons.check, size: 15)
                         : null,
                   ),
                 ),
@@ -724,12 +759,12 @@ extension _ChapterRenderer on _ReadingScreenState {
                   customBorder: const CircleBorder(),
                   onTap: () => Navigator.of(ctx).pop('note'),
                   child: Padding(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(4),
                     child: Icon(
                       hasNote
                           ? Icons.sticky_note_2
                           : Icons.sticky_note_2_outlined,
-                      size: 20,
+                      size: 18,
                       color: hasNote ? p.accent : p.muted,
                     ),
                   ),
@@ -737,8 +772,8 @@ extension _ChapterRenderer on _ReadingScreenState {
               if (removable || note)
                 Container(
                   width: 1,
-                  height: 24,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 20,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
                   color: p.edge,
                 ),
               if (removable)
@@ -746,8 +781,8 @@ extension _ChapterRenderer on _ReadingScreenState {
                   customBorder: const CircleBorder(),
                   onTap: () => Navigator.of(ctx).pop('remove'),
                   child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Icon(Icons.delete_outline, size: 20, color: p.muted),
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.delete_outline, size: 18, color: p.muted),
                   ),
                 ),
             ],
@@ -769,6 +804,7 @@ extension _ChapterRenderer on _ReadingScreenState {
   ]) async {
     final chunks = _selChunks();
     final plan = <({int v, String frag})>[];
+    var missed = false;
     for (var v = lo; v <= hi; v++) {
       final raw = _verseRaw(v);
       final trimmed = raw.trim();
@@ -777,19 +813,23 @@ extension _ChapterRenderer on _ReadingScreenState {
       var frag = '';
       int? s, e;
       // Целый стих (куска нет или он равен стиху) — обычная запись;
-      // кусок ищем селектором в тексте стиха.
+      // кусок ищем селектором в тексте стиха. Не нашёлся — стих
+      // пропускаем: молча писать целостишовую запись нельзя,
+      // иначе промах красит не тот стих целиком.
       if (chunk != null && chunk.isNotEmpty && chunk != trimmed) {
         final rs = await bridgeFragRanges(trimmed, fragJson(chunk, '', ''));
-        if (rs.isNotEmpty) {
-          final r = rs.first;
-          frag = fragJson(
-            trimmed.substring(r.s, r.e),
-            trimmed.substring((r.s - 30).clamp(0, trimmed.length), r.s),
-            trimmed.substring(r.e, (r.e + 30).clamp(0, trimmed.length)),
-          );
-          s = r.s + lead;
-          e = r.e + lead;
+        if (rs.isEmpty) {
+          missed = true;
+          continue;
         }
+        final r = rs.first;
+        frag = fragJson(
+          trimmed.substring(r.s, r.e),
+          trimmed.substring((r.s - 30).clamp(0, trimmed.length), r.s),
+          trimmed.substring(r.e, (r.e + 30).clamp(0, trimmed.length)),
+        );
+        s = r.s + lead;
+        e = r.e + lead;
       }
       final clash = (_highlights[v] ?? const <UserEntry>[]).any(
         (ex) =>
@@ -815,6 +855,21 @@ extension _ChapterRenderer on _ReadingScreenState {
         return;
       }
       plan.add((v: v, frag: frag));
+    }
+    if (plan.isEmpty && missed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                'Не удалось найти выделенный текст в стихе',
+                'Could not locate the selected text in the verse',
+              ),
+            ),
+          ),
+        );
+      }
+      return;
     }
     final ts = DateTime.now().millisecondsSinceEpoch;
     for (final it in plan) {
