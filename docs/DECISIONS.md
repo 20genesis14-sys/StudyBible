@@ -825,6 +825,21 @@ forbidden: an occupied range can only be unhighlighted. Verse-popup
 recolor replaces all verse `hl` records with one whole-verse one.
 If `frag` isn't found (the module reworded that spot) nothing is
 painted — the record stays, honest degradation like orphans.
+Point editing (2026-10-14, user decision): a tap on a highlighted
+fragment opens its own pill — recolor/remove only that record;
+an unhighlighted stretch of the verse keeps the verse menu.
+Inside a fragment the ordinary tap is taken, so Strong's entries
+open on long press (and everywhere else too — the gesture is
+uniform). Fragment notes are plain `kind='note'` records carrying
+the same `frag` selector — no id link to the highlight: the note
+survives recoloring and highlight removal, and both records are
+re-anchored independently on module updates. The "Records" screen
+has a "Highlights" section where records sharing
+module|book|chapter|created|color collapse into one line
+("2 Цар. 2:2–4") — six separate same-color selections keep
+six rows, since `created` differs per user action.
+Interlinear (word-pair columns) shows no partial highlights yet —
+that renderer needs range→word-cell mapping, a separate step.
 Alt+←/→ keys and mouse side buttons X1/X2 — steps through the
 workspace position stack (desktop, ADR 0019): the same path as PopScope
 and the back/forward buttons (`_stackBack`/`_stackForward`).

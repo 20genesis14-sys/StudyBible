@@ -4,6 +4,7 @@
 
 | # | Question | When to resolve |
 |---|---|---|
+| 36 | Partial highlights in interlinear word-pair columns: frag ranges need mapping onto word cells — rules for mid-word splits, which row (source/translation) gets painted, and pairs without alignment are undecided; proposal — map the selector onto word ranges of the same verse | With interlinear work |
 | 2 | ~~Russian Strong's glosses~~ — closed: the Russian Strong's dictionary (Yu. A. Tsygankov, "Bible for All", 2005) is overlaid on top of the English one | closed |
 | 3 | Plugin technology — direction decided (ADR 0020): the `data | ui | web` ladder, declarative DSL is the main path, a custom WASM runtime is superseded; DSL details and restricted mode — by API v1 | By API v1 |
 | 4 | Apple's policy on downloaded WASM | May stay unknown until a build is submitted |
