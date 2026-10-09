@@ -1,6 +1,6 @@
 # Environment
 
-**English** | [Русский](ENVIRONMENT.ru.md)
+**English** | [Русский](ENVIRONMENT-ru.md)
 
 Toolchain paths and local quirks of the working machine.
 

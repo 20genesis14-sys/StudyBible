@@ -40,7 +40,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
 Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`
-— зависимости и переменные сборки в `docs/ENVIRONMENT.ru.md`.
+— зависимости и переменные сборки в `docs/ENVIRONMENT-ru.md`.
 После сборки APK проверить целевой API нативных библиотек:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
 (мост обязан быть не выше minSdk).
@@ -54,8 +54,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 
 Внешние тексты (переводы, модули) — вне репозитория, в `STUDYBIBLE_DATA`
 (`D:\StudyBible-data`) — в git их коммитить нельзя. Команды
-fetch/check-data и структура `data/` — в `docs/ENVIRONMENT.ru.md`.
+fetch/check-data и структура `data/` — в `docs/ENVIRONMENT-ru.md`.
 
 ## Окружение
 
-Пути инструментов и особенности машины — `docs/ENVIRONMENT.ru.md`.
+Пути инструментов и особенности машины — `docs/ENVIRONMENT-ru.md`.
