@@ -74,11 +74,10 @@ fn main() -> Result<(), String> {
     }
     let path = Path::new(&args[0]);
     let top: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(TOP_N);
-    // Языковой профиль аббревиатур: явный аргумент ru|en|alt,
+    // Языковой профиль аббревиатур: явный аргумент ru|en,
     // иначе — name_profile модуля.
     let profile_of = |s: &str| match s {
         "ru" | "syn" => Some(NameProfile::Synodal),
-        "alt" => Some(NameProfile::Alt),
         "en" => Some(NameProfile::English),
         _ => None,
     };

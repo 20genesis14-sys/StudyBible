@@ -71,7 +71,7 @@ text is stored once.
 
 `format_version`, `id`, `title`, `language` (BCP 47), `direction`
 (`ltr`/`rtl`), `versification` (`rsc`, `org`…), `name_profile` (`syn`,
-`alt`, `en`), `book_order` (`list`, `syn`), `version`, `license`,
+`en`), `book_order` (`list`, `syn`), `version`, `license`,
 `attribution`, `source`, `content_hash` (SHA-256 of the reading stream
 — part of the search-cache key), `required` (comma-separated list of
 mandatory capabilities). Rights flags — optional key `rights` (see

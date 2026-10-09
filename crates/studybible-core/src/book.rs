@@ -37,15 +37,13 @@ impl fmt::Display for BookCode {
 /// Профиль названий и сокращений книг.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NameProfile {
-    /// Альтернативный профиль.
-    Alt,
     /// Синодальный перевод.
     Synodal,
     English,
 }
 
 impl NameProfile {
-    pub const ALL: [NameProfile; 3] = [Self::Alt, Self::Synodal, Self::English];
+    pub const ALL: [NameProfile; 2] = [Self::Synodal, Self::English];
 
     fn index(self) -> usize {
         self as usize
@@ -68,7 +66,7 @@ pub struct Book {
     pub canonical: bool,
     pub order_list: Option<u16>,
     pub order_syn: Option<u16>,
-    names: [(&'static str, &'static str); 3],
+    names: [(&'static str, &'static str); 2],
 }
 
 impl Book {
@@ -130,8 +128,6 @@ impl BookCatalog {
             col("canon")?,
             col("order_list")?,
             col("order_syn")?,
-            col("name_alt")?,
-            col("abbr_alt")?,
             col("name_syn")?,
             col("abbr_syn")?,
             col("name_en")?,
@@ -158,7 +154,7 @@ impl BookCatalog {
                 },
                 order_list: num(3),
                 order_syn: num(4),
-                names: [(get(5), get(6)), (get(7), get(8)), (get(9), get(10))],
+                names: [(get(5), get(6)), (get(7), get(8))],
             };
             let i = cat.books.len();
             if cat.by_code.insert(code, i).is_some() || cat.by_osis.insert(book.osis, i).is_some() {

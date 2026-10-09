@@ -153,10 +153,7 @@ fn malformed_references() {
 #[test]
 fn profile_dependent_names() {
     let org = Versification::builtin("org").unwrap();
-    // «1Цар» в АЛЬТ — 3Царств канонический? Нет: АЛЬТ «1 Цар.» = 1Kgs.
-    let r = parse("1 Цар 1:1", NameProfile::Alt, org, cat()).unwrap();
-    assert_eq!(r.osis(cat()), "1Kgs.1.1");
-    // То же сокращение в синодальном профиле — 1Sam.
+    // «1Цар» в синодальном профиле — 1Sam.
     let r = syn("1Цар 1:1").unwrap();
     assert_eq!(r.osis(cat()), "1Sam.1.1");
     // OSIS/коды работают в любом профиле.

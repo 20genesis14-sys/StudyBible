@@ -43,7 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ## Данные
 
 Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (у пользователя `D:\StudyBible-data`;
-`C:\StudyBible-data` — остаточный каталог, держит только -модули).
+`C:\StudyBible-data` — остаточный каталог).
 Для Dart-тестов моста выставлять явно: `STUDYBIBLE_DATA=D:\StudyBible-data`.
 Каталог намеренно не внутри репозитория: тексты переводов нельзя выкладывать на GitHub вместе с кодом.
 

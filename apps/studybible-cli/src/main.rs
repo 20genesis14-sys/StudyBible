@@ -958,7 +958,6 @@ fn verse(args: &[String]) -> Result<(), String> {
 
 fn profile(meta: &Meta) -> NameProfile {
     match meta.name_profile.as_str() {
-        "alt" => NameProfile::Alt,
         "en" => NameProfile::English,
         _ => NameProfile::Synodal,
     }

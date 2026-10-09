@@ -66,20 +66,20 @@ void main() {
       _report('chapter $code:$ch (russyn)', t);
     }
 
-    // --- Большой модуль: -ru (Стронг + привязки) ---
-    if (File(_modulePath('-ru')).existsSync()) {
+    // --- Большой модуль: engwebp (Стронг + привязки) ---
+    if (File(_modulePath('engwebp')).existsSync()) {
       s = Stopwatch()..start();
-      final nwt = await loadModule('-ru');
-      print('BENCH module-open -ru: ${s.elapsedMilliseconds}ms');
+      final nwt = await loadModule('engwebp');
+      print('BENCH module-open engwebp: ${s.elapsedMilliseconds}ms');
       await nwt.ensureChapter('PSA', 119);
       final t = <int>[];
       for (var i = 0; i < 5; i++) {
         final sw = Stopwatch()..start();
-        await bridgeChapterDoc(_modulePath('-ru'), 'PSA', 119);
+        await bridgeChapterDoc(_modulePath('engwebp'), 'PSA', 119);
         sw.stop();
         t.add(_ms(sw));
       }
-      _report('chapter PSA:119 (-ru, большой)', t);
+      _report('chapter PSA:119 (engwebp, большой)', t);
     }
 
     // --- Комментарии (comm-henry) как «тяжёлый» документ ---

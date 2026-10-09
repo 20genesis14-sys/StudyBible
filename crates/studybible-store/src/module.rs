@@ -59,7 +59,7 @@ pub struct Meta {
     pub direction: String,
     /// Имя версификации (`rsc`, `org`…).
     pub versification: String,
-    /// Профиль названий (`syn`, `alt`, `en`).
+    /// Профиль названий (`syn`, `en`).
     pub name_profile: String,
     /// Порядок книг (`list`, `syn`).
     pub book_order: String,

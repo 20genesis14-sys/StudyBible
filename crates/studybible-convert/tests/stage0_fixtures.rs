@@ -78,11 +78,7 @@ fn books_profile_matches_user_list() {
             .unwrap_or_else(|| panic!("нет книги № {n}"));
         assert!(b.canonical, "{line}");
         use studybible_core::NameProfile::*;
-        assert_eq!(
-            (b.abbr(Alt), b.name(Alt), b.name(Synodal)),
-            (c[1], c[2], c[3]),
-            "{line}"
-        );
+        assert_eq!((b.abbr(Synodal), b.name(Synodal)), (c[1], c[2]), "{line}");
         seen += 1;
     }
     assert_eq!(seen, 66);

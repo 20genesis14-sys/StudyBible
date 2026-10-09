@@ -35,7 +35,7 @@ sudo apt-get install -y cmake ninja-build clang pkg-config \
 export STUDYBIBLE_DATA=/path/to/StudyBible-data   # каталог с modules/*.sb и userdata.db
 ```
 
-Модули лежат в `$STUDYBIBLE_DATA/modules/*.sb` (использовались russyn, -ru, int_en, comm-henry, oshb).
+Модули лежат в `$STUDYBIBLE_DATA/modules/*.sb` (использовались russyn, int_en, comm-henry, oshb).
 
 ## 4. Сборка
 

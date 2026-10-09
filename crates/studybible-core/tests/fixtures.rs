@@ -25,7 +25,6 @@ fn references() {
         let (input, names, v, expect, expect_org) = (r[0], r[1], r[2], r[3], r[4]);
         let profile = match names {
             "syn" => NameProfile::Synodal,
-            "alt" => NameProfile::Alt,
             "en" => NameProfile::English,
             n => panic!("профиль {n}"),
         };
@@ -81,7 +80,6 @@ fn ambiguous_abbreviation_depends_on_profile() {
         cat.lookup(NameProfile::Synodal, "1Цар").unwrap().osis,
         "1Sam"
     );
-    assert_eq!(cat.lookup(NameProfile::Alt, "1 Цар.").unwrap().osis, "1Kgs");
     assert_eq!(
         cat.lookup(NameProfile::Synodal, "Песнь песней Соломона")
             .unwrap()

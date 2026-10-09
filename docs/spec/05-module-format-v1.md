@@ -62,7 +62,7 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
 ## Ключи `meta`
 
 `format_version`, `id`, `title`, `language` (BCP 47), `direction` (`ltr`/`rtl`),
-`versification` (`rsc`, `org`…), `name_profile` (`syn`, `alt`, `en`), `book_order`
+`versification` (`rsc`, `org`…), `name_profile` (`syn`, `en`), `book_order`
 (`list`, `syn`), `version`, `license`, `attribution`, `source`, `content_hash` (SHA-256
 потока чтения — часть ключа кэша поиска), `required` (список обязательных возможностей
 через запятую). Флаги прав — необязательный ключ `rights` (см. расширения
