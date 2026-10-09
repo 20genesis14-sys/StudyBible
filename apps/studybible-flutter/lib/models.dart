@@ -152,6 +152,10 @@ class ChapterDoc {
   Map<int, String>? plainCache;
   Map<int, List<TextSpanDoc>>? wordCache;
   List<({int verse, NoteSpanDoc note})>? notesCache;
+
+  /// Фоновый прогрев текстов сносок уже запущен (флаг ставит
+  /// prefetchChapterNotes — работа идёт один раз на главу).
+  bool notesPrefetchDone = false;
   ({List<int> order, Map<int, List<SpanDoc>> groups})? verseGroupsCache;
   bool? pairsCache;
 

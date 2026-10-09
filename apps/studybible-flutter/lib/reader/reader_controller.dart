@@ -341,6 +341,7 @@ extension _ReaderController on _ReadingScreenState {
     // Для .sb-модулей глава подгружается лениво через мост.
     await m.ensureChapter(_code, _ch);
     if (mounted) _rebuild(() => _mods[id] = m);
+    _prefetchNotes(m);
     // Глава подгрузилась — второй шанс прокрутить к целевому стиху
     // (при push по ссылке ключи появляются только после загрузки).
     if (id == _moduleId && mounted) {
@@ -352,7 +353,17 @@ extension _ReaderController on _ReadingScreenState {
   void _ensureChapter(ModuleDoc m, String code, int ch) {
     m.ensureChapter(code, ch).then((_) {
       if (mounted) _rebuild(() {});
+      if (code == _code && ch == _ch) _prefetchNotes(m);
     });
+  }
+
+  /// Фоновый прогрев сносок открытой главы (только основного
+  /// модуля): пока пользователь читает, тексты параллельных мест
+  /// уже лежат в кэше — карточка открывается без лага.
+  void _prefetchNotes(ModuleDoc m) {
+    if (m.id != _moduleId) return;
+    final ch = m.chapter(_code, _ch);
+    if (ch != null) prefetchChapterNotes(ch, fromVrs: m.versification);
   }
 
   // ---------- чтение вслух (TTS) ----------
