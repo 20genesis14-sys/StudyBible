@@ -32,15 +32,23 @@ Future<List<CvPoint>> convertVerse(
 /// Текст стиха модуля [m] по конвертированным координатам
 /// [targets]: недостающие главы догружаются лениво; несколько
 /// соответствий перечисляются с номерами «глава:стих».
+/// Тексты одиночных целей мемоизируются в [ModuleDoc.verseTextCache]
+/// — соседние сноски часто ссылаются на одни и те же стихи.
 /// null — ни одного стиха с текстом.
 Future<String?> convertedVerseText(ModuleDoc m, List<CvPoint> targets) async {
   final parts = <String>[];
+  final multi = targets.length > 1;
   for (final t in targets) {
-    final ch = await m.ensureChapter(t.book, t.chapter);
-    if (ch == null) continue;
-    final txt = verseText(ch, t.verse).trim();
+    final key = '${t.book}:${t.chapter}:${t.verse}';
+    var txt = multi ? null : m.verseTextCache[key];
+    if (txt == null) {
+      final ch = await m.ensureChapter(t.book, t.chapter);
+      if (ch == null) continue;
+      txt = verseText(ch, t.verse).trim();
+      if (!multi && txt.isNotEmpty) m.verseTextCache[key] = txt;
+    }
     if (txt.isEmpty) continue;
-    parts.add(targets.length > 1 ? '${t.chapter}:${t.verse} $txt' : txt);
+    parts.add(multi ? '${t.chapter}:${t.verse} $txt' : txt);
   }
   return parts.isEmpty ? null : parts.join(' ');
 }

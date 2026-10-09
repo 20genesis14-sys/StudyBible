@@ -4,8 +4,10 @@
 //! `apps/studybible-cli/src/bin/export.rs` — Dart-сторона разбирает его
 //! теми же моделями (`lib/models.dart`), что и предвыгруженные JSON-ассеты.
 
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::collections::{BTreeMap, HashMap};
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use anyhow::{Context, Result, anyhow};
 use serde_json::{Map, Value, json};
@@ -27,11 +29,51 @@ pub struct ModuleInfo {
 /// Открыть модуль `.sb` или `.sbz` (ADR 0016/0018): `.sb` читается файлом;
 /// `.sbz` распаковывается в память и открывается `sqlite3_deserialize` —
 /// распакованной копии на диске нет.
+/// Открытые модули сессии: соединение SQLite держится один раз на
+/// путь. Без кэша каждый вызов читал весь файл и открывал базу заново
+/// — карточка с десятком параллельных делала десяток полных чтений
+/// .sb с диска (долгие сноски).
+static MODULES: LazyLock<Mutex<HashMap<PathBuf, Arc<Mutex<Module>>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Модуль из кэша соединений; при первом обращении — обычное открытие.
+/// Блокировка модуля сериализует запросы к нему (запросы короткие).
+fn open_cached(path: &Path) -> Result<Arc<Mutex<Module>>> {
+    let key = path.to_path_buf();
+    {
+        let map = MODULES
+            .lock()
+            .map_err(|_| anyhow!("module cache poisoned"))?;
+        if let Some(m) = map.get(&key) {
+            return Ok(m.clone());
+        }
+    }
+    let m = Arc::new(Mutex::new(open_any(path)?));
+    MODULES
+        .lock()
+        .map_err(|_| anyhow!("module cache poisoned"))?
+        .insert(key, m.clone());
+    Ok(m)
+}
+
+/// Блокировка кэшированного модуля на время запроса.
+fn lock_module(m: &Mutex<Module>) -> Result<std::sync::MutexGuard<'_, Module>> {
+    m.lock().map_err(|_| anyhow!("module cache poisoned"))
+}
+
 pub(crate) fn open_any(path: &Path) -> Result<Module> {
-    let bytes = std::fs::read(path).with_context(|| format!("не читается {}", path.display()))?;
-    if !studybible_store::sbz::is_sbz(&bytes) {
+    // Сниффинг .sbz по первым байтам заголовка — раньше ради этого
+    // читался весь файл целиком.
+    let mut head = [0u8; 4];
+    let is_sbz = {
+        let mut f = std::fs::File::open(path)
+            .with_context(|| format!("не читается {}", path.display()))?;
+        f.read_exact(&mut head).is_ok() && studybible_store::sbz::is_sbz(&head)
+    };
+    if !is_sbz {
         return Ok(Module::open(path)?);
     }
+    let bytes = std::fs::read(path).with_context(|| format!("не читается {}", path.display()))?;
     let raw = studybible_store::sbz::unpack(&bytes)
         .with_context(|| format!("{}: распаковка .sbz", path.display()))?;
     Ok(Module::open_bytes(path, &raw)?)
@@ -81,7 +123,8 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
 /// Документ модуля в формате export.rs, но без глав: `chapters` пуст —
 /// их UI подтягивает лениво через [`chapter_doc`].
 pub async fn module_doc(path: String) -> Result<String> {
-    let m = open_any(Path::new(&path))?;
+    let m = open_cached(Path::new(&path))?;
+    let m = lock_module(&m)?;
     let meta = m.meta();
 
     // Число глав по каждой книге.
@@ -144,7 +187,8 @@ pub async fn module_doc(path: String) -> Result<String> {
 /// Глава в формате export.rs: `{"n":..,"blocks":[..]}`.
 /// `None`, если такой главы в модуле нет.
 pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Option<String>> {
-    let m = open_any(Path::new(&path))?;
+    let m = open_cached(Path::new(&path))?;
+    let m = lock_module(&m)?;
     let code = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
     let number = u16::try_from(chapter).map_err(|_| anyhow!("глава {chapter}"))?;
     let Some(ch) = m.chapter(code, number)? else {
@@ -231,7 +275,8 @@ pub async fn dict_entries(
     limit: i64,
     prefix: String,
 ) -> Result<Vec<DictEntry>> {
-    let m = open_any(Path::new(&path))?;
+    let m = open_cached(Path::new(&path))?;
+    let m = lock_module(&m)?;
     let list = m.entries(
         u64::try_from(offset).unwrap_or(0),
         u64::try_from(limit).unwrap_or(100),
@@ -248,7 +293,8 @@ pub async fn dict_entries(
 
 /// Статья словаря по `ord`; `None` — нет такой.
 pub async fn dict_entry(path: String, ord: i64) -> Result<Option<DictArticle>> {
-    let m = open_any(Path::new(&path))?;
+    let m = open_cached(Path::new(&path))?;
+    let m = lock_module(&m)?;
     let ord_u32 = u32::try_from(ord).map_err(|_| anyhow!("ord {ord}"))?;
     Ok(m.entry(ord_u32)?.map(|(headword, text)| DictArticle {
         ord,
@@ -326,7 +372,8 @@ pub async fn module_search(
     query: String,
     limit: i64,
 ) -> Result<Vec<SearchHitInfo>> {
-    let m = open_any(Path::new(&module_path))?;
+    let m = open_cached(Path::new(&module_path))?;
+    let m = lock_module(&m)?;
     let idx = studybible_store::SearchIndex::open(Path::new(&cache_path), &m)?;
     let hits = idx.search(&query, usize::try_from(limit).unwrap_or(usize::MAX))?;
     Ok(hits

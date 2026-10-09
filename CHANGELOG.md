@@ -2,6 +2,21 @@
 
 All notable changes after the 1.0 release — one per line.
 
+## 1.0.2 (unreleased)
+
+- Fixed: the chapter grid briefly showed a fake "1" chapter while the
+  module was still loading — now a spinner, an ellipsis in the counter
+  and an indeterminate progress bar until the module doc arrives.
+- Faster footnote/cross-reference cards: note texts are prefetched in
+  the background when a chapter opens, references load in parallel,
+  and card results are cached — cards open instantly on repeat taps.
+- Speed: a module's SQLite connection is now opened once per session
+  instead of re-reading the whole .sb file on every chapter request —
+  noticeably faster footnotes, parallel passages, page turns and
+  comparison on desktop and Android.
+- Speed: texts of already-fetched verses are memoized per module —
+  neighbouring notes referencing the same verse don't re-read it.
+
 ## 1.0.1 (2026-10-09)
 
 - User records: schema 2 — a note/bookmark/highlight now carries the
