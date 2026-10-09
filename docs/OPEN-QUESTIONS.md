@@ -1,71 +1,61 @@
-# Открытые вопросы
+# OPEN-QUESTIONS.md — open questions
 
-| # | Вопрос | Когда решать |
+**English** | [Русский](OPEN-QUESTIONS.ru.md)
+
+The questions below have not been checked on the target devices. They
+concern the riskiest spots in the spec; resolving them early reduces the
+cost of later rework. Each is formulated so that the answer is observable
+— a measurement, a prototype, a user check.
+
+## Priorities for early resolution
+
+| № | Question | How to check | If the answer is no |
+|---|---|---|---|
+| 1 | GPUI (gpui.rs) — is it ready for real work: Skia/HarfBuzz shaping, RTL, virtualized lists? | Pilot screen prototype: long chapter, Hebrew with vowel points, 120 fps on a modest GPU | Alternative: egui/wgpu or a custom canvas text-renderer; decision by the pilot |
+| 2 | Will the WASM build of the SQLite core survive: OPFS on iOS Safari, file import, UI freezes? | Prototype: .sb import, search, reading — in Safari 15/Chrome | Fallback: sql.js/sqlite3.wasm without OPFS; data in IndexedDB |
+| 3 | Does the neural RU voice synthesizer (MIT) run in real time on an Android phone? | sherpa-onnx/Matcha on a mid-range device; measure RTF and startup | Fallback: cloud TTS or a smaller model; voice packages ~50–150 MB |
+| 4 | Original-language texts with a critical apparatus — legal status and quality of open sources? | Compile the real list (SBLGNT is non-commercial), check the apparatus completeness | Limit the selection (OSHB, WH); apparatus in a reduced form |
+| 5 | Does the spec cover non-Bible corpora (Fathers, documents)? | Try to describe 2–3 document types within the v2 module model | Extend the schema — decision before the corpus expansion stage |
+| 6 | Is 6 months realistic to 1.0 (book → verse → reading, user data)? | Plan by stages; the pilot week gives a point on the curve | Trim to a release slice ("reading + notes"), the rest into 1.x |
+| 7 | Community extension API — demand? | Hypothesis check: will the community write data-packs/JS on the narrow API | Ship v1 without web-views and dynamic code |
+| 8 | Does user-data sync via a file work (WebDAV/drive)? | Prototype with conflicts of two devices and attachments | Bring-your-own-file: the user manages the DB file themselves |
+| 9 | Stress dictionary for the neural TTS — coverage? | Automatic accentuation of a corpus; error share (Church Slavonic, names) | Manual dictionary + letter-for-letter fallback |
+| 10 | iOS < 15 — give up right away or check? | Web prototype on an old iPad | Declare iOS 15+ the minimum |
+
+## Open questions
+
+| № | Question | How to check | If the answer is no |
+|---|---|---|---|
+| 11 | Linux build (Flutter desktop + Rust FFI) — does it actually build and run? | `flutter build linux`, run, 3 smoke scenarios | Postpone the platform; record in DECISIONS |
+| 12 | Are fragments of a bible text selectable (highlight/note/quote) in all modes? | Prototype selection on a chapter | Implement own selection on canvas hit-test |
+| 13 | Would parallel columns (translation + original/commentary) be convenient on a phone? | UX check on a narrow screen | Inline mode only |
+| 14 | Automatic interlinear alignment — acceptable quality? | Prototype on 2 chapters, error share | Statuses `auto`/`verified`, a mark in the UI |
+| 15 | RUAccent for the neural TTS — quality on Bible vocabulary? | Listen to fragments | Manual dictionary + mark `unstressed` |
+| 16 | Interactive zoom on diagrams (timeline map) — needed in 1.0? | Decide by scenarios | Static diagrams + pan/zoom |
+| 17 | Search with word forms (stemming/morphology) — needed in 1.0? | Evaluate the query-to-hit ratio | Exact/prefix in 1.0; morphology — later |
+| 18 | Private `.sbz` modules via signatures — needed in v1? | Decide by the threat model | No signatures; SHA-256 integrity |
+| 19 | Are packaged voice-package/lexicon resources needed? | Evaluate sizes (50–150 MB) | Download on demand |
+| 20 | Export of user data (JSON/Markdown) — needed in 1.0? | Decide by the "data ownership" principle | Postpone to 1.x |
+| 21 | Cloud sync via an external file — implement in 1.0? | Conflict prototype | Postpone to 1.x |
+| 22 | Is the 120 fps budget with Hebrew + shaping achievable on the target devices? | Pilot screen on a weak device | 60 fps + pre-render; profile the DOM |
+| 23 | Are the statistics charts (read/enrichment) needed in 1.0? | Decide by the "Study" profile | Postpone to 1.x |
+| 24 | Plugin API for external modules (WASM) — needed in v1? | Decide by the security model | Contribution-model only |
+| 25 | Licensing of original texts — is a legal check needed for the target list? | List of editions + licenses | Limit to public domain |
+| 26 | macOS: a separate build is needed — does the team have a build machine? | Hardware/cloud check | Postpone the platform; community builds |
+| 27 | Text size inside a module without compression — do we fit the limit? | Sizes of real corpora | Chunked ZIP (sbz) |
+| 28 | The parallel-places/interlinear apparatus — ready sources? | Compile the list of open apparatuses | Generate it ourselves from concordances |
+| 29 | Hebrew cantillation and accents — to display them? | Decide by the target audience | Optionally |
+| 30 | Strong's dictionary — is a modern correction needed (Tsygankov, BDAG)? | Rights/availability check | Open dictionaries only |
+
+## Resolved (closed)
+
+| № | Question | Answer |
 |---|---|---|
-| 2 | ~~Русские глоссы Стронга~~ — закрыт: русский словарь Стронга (Ю. А. Цыганков, «Библия для всех», 2005) накладывается поверх английского | закрыто |
-| 3 | Технология плагинов — направление решено (ADR 0020): лестница `data | ui | web`, декларативный DSL — основной путь, собственный WASM-рантайм вытеснен; детали DSL и restricted mode — к API v1 | К API v1 |
-| 4 | Политика Apple для скачанного WASM | Может остаться неизвестной до подачи сборки |
-| 5 | ~~Покрытие неканонических книг версификациями~~ — закрыт: проверка на реальных пользователях (решение пользователя) | закрыто |
-| 7 | ~~Второй источник Синодального с неканоническими книгами~~ — закрыт: решено пользователем; полный Синодальный при необходимости собирается конвертерами MyBible/BibleQuote | закрыто |
-| 8 | ~~Неравные диапазоны в `.vrs`~~ — закрыт: наше правило (излишек длинной стороны к последнему стиху короткой) сохранено; сверено с исходником libpalaso — Paratext перезатирает соответствия последней строкой, наше правило точнее на Пс 89/90 и Пс 141/142; сравнение переводов идёт через версификацию ядра (DECISIONS) | закрыто |
-| 9 | ~~Стихи 0 (надписания)~~ — закрыт: в сравнении надписание — отдельная строка «надписание» над первым стихом в обеих частях (вариант А); если надписание входит в стих 1 перевода — строка пустая | закрыто |
-| 10 | ~~Искажённые строки vul.vrs~~ — закрыт: апстрим libpalaso совпадает побайтно, опечатки там же; исправлены локально с комментарием: `DAG 3:52-23`→`3:52-53`, `DAG 13:1-63 = SUS 1:63`→`SUS 1:1-63`, `DAG 14:1-42 = BEL 1:42`→`BEL 1:1-42` | закрыто |
-| 11 | Замеры времён, desktop (12.10.2026, `test/bench_test.dart`): глава 11–17 мс (лимит 50), поиск 12–21 мс (лимит 200) — холодный поиск ускорен: во все `.sb` встроен FTS5 (`module index`, `"fts": true` в modules.json), внешний `.idx` больше не строится; Dart-мост сам читает embedded FTS (при несовпадении `norm_version` — откат на `LIKE`, на web — регистрочувствительный: ограничение записано). Модуль 19–110 мс, первый loadModule 848 мс после фикса `d47c3af`. Холодный старт Windows: profile-первый-кадр 1486 мс (`build/start_up_info.json`); release-exe до появления окна: **~2.2–2.8 с → ~1.7–1.95 с** после добавления папки в исключения Defender (4 холодных прогона, `C:\StudyBible-tools\measure-start.ps1`) — Defender съедал ~0.5–1 с на скан .dll; остаток — движок/VM+загрузка ОС (`main()` ~38 мс). Рычаги дальше: keep-alive/автопрогрев. Осталось: прогон на слабом железе/телефоне | Перед релизом — на устройстве |
-| 12 | 08.10.2026 — этапы Б и А сделаны (v1.0.1): схема 3 (`vrs`, `module_ver`, канонический диапазон org), автоконтекст, `UserData::relink`, `entries_foreign` — чужие записи по кнопке в окне заметки, только по установленным модулям; вкладка «Записи» группирует по переводу; тап — переход в её перевод + окно записи. Осталось: прогон пользователем на реальных данных | Прогон пользователем |
-| 13 | ~~Сегменты стихов (`ESG 1:1a` и подобные) при разборе отбрасываются до номера~~ — закрыт: привязка к части стиха (`part`/`q`, `\fr`/`\xo`, `<catchWord>`) сохраняется конвертерами и показывается в UI («ст.1a», цитата привязки); навигация — на целый стих | закрыто |
-| 14 | ~~Нормализация иврита и конечной сигмы~~ — закрыт: `for_search` сводит конечные буквы иврита (ךםןףץ) к обычным, маккеф U+05BE → пробел, ς→σ; версия нормализации `meta.norm_version` в модуле и в ключе кэша `.idx`; веб-мост повторяет те же правила | закрыто |
-| 15 | ~~Флаги прав модуля~~ — закрыт: необязательный `meta.rights` = `no-distribute`, `no-net`, `no-ai`, `no-plugins` (ADR 0016) | закрыто |
-| 16 | ~~Чек-лист ADR 0012~~ — закрыт: синхронная прокрутка, лента книги, экран плана сделаны; масштаб шрифта ОС — системный Flutter-дефолт | закрыто |
-| 17 | ~~Шрифты древних языков~~ — закрыт: NotoSerifHebrew (he/hbo/arc), GentiumBookPlus (grc/el) встроены | закрыто |
-| 18 | ~~Путь на веб~~ — закрыт: sqlite3.wasm читает .sb в браузере, сборка `--wasm` (skwasm), COOP/COEP + gzip в serve_web.py | закрыто |
-| 19 | ~~Чтение вслух с подсветкой~~ — закрыт: TTS читает главу по стихам с подсветкой, мини-плеер, медиа-сессия Android | закрыто |
-| 20 | ~~История чтения~~ — сделано: записи `Kind::Mark` text="hist", без лимита, экран «История» | закрыто |
-| 21 | ~~Pinch-zoom по тексту; авто-ночной режим по времени; сравнение 3+ переводов; back-стек навигации~~ — закрыт: все четыре реализованы (pinch-zoom — `2de3816`; реестр вкладов — `d7b0702`; `ReaderWorkspace` со стеком 250 + `PopScope` — `144396b`; строчное сравнение со списком модулей и авто-ночь по времени — `6fbcce1`; ADR 0019/0020) | закрыто |
-| 22 | ~~Производительность на слабом железе~~ — закрыт: прогон на реальном старом Huawei (~6+ лет давности) — приложение стабильно и быстро. Прогоны AVD/web/Linux ранее тоже в норме. Известные ограничения web остаются записанными как факт: список результатов поиска монолитен, .sb целиком в RAM | закрыто |
-| 23 | ~~Веб: FTS-индекс в браузере~~ — закрыт: необязательная таблица `fts` (FTS5) внутри `.sb` (`"fts": true` в modules.json, ADR 0016 п. 11); без неё читатель строит кэш `.idx` как раньше | закрыто |
-| 24 | userdata web↔desktop разъезжается (web на localStorage); экспорт/импорт zip в ядре есть — закрыть синхронизацией | До синхронизации |
-| 25 | ~~Импорт модулей на iOS/Android~~ — закрыт: импорт проверен пользователем на Android | закрыто |
-| 26 | ~~«Стих дня»~~ — закрыт: расписание ежедневника 2026 (assets/data/daily.json), только ссылки, текст из выбранного модуля | закрыто |
-
-| 28 | ~~Режим «бесконечная книга»~~ — закрыт: `LayoutMode.book`, лента книги с заголовками глав, ленивая подгрузка | закрыто |
-| 29 | ~~Линковка моста под Android API~~ — закрыт: пакет `native_toolchain_rust` 1.0.7 вендорен в `apps/studybible-flutter/third_party/native_toolchain_rust` с `apiTarget = '21'` и подключён через `dependency_overrides` (патч pub-cache больше не нужен); контроль — `scripts/check-apk-api.ps1` по собранному APK | закрыто |
-| 30 | ~~Кнопка аудио в панели чтения~~ — закрыт: чтение вслух есть (кнопка/мини-плеер, медиа-сессия) | закрыто |
-| 31 | Диктофон вложений на web: `record` умеет MediaRecorder, но файлы локальные — хранение в localStorage ограничено ~2 МБ/файл; нужен IndexedDB | Когда-нибудь, без срока |
-| 32 | Вложения к заметкам при синхронизации userdata: сейчас файлы локальные (`attachments/` + индекс), в sync попадут как файлы рядом с userdata.db | После 1.0 |
-| 36 | ~~Нижняя навигация.~~ Закрыт, см. ниже. Было: Два варианта. **А** (совет): Главная · Библия · План · Записи · Библиотека — план чтения и инфографика на своей вкладке (как нынешний «График»); поиск — поле вверху Главной и Библии и кнопка в чтении; настройки — шестерёнка на Главной. **Б**: Сегодня · Библия · Поиск · Записи · Библиотека — «Сегодня» (бывшая Главная) показывает карточку дня плана, тап → полный экран плана с инфографикой. Решить вместе с экраном планов чтения | Beta |
-
-| 38 | ~~Источник хронологического порядка~~ Закрыто: годовой график sbr_U.pdf (OCR по колонкам), 366 дней, покрытие 66 книг проверено тестом | Закрыто |
-| 39 | ~~Лицензии нативных бинарей sherpa-onnx~~ — закрыт: решено делать как запланировано в ADR 0017 (neural-бэкенд с sherpa-onnx и Piper-пакетами) | закрыто |
-| 40 | ~~Словарь ударений для библейских имён и церковных слов~~ — закрыт иначе: автоударения нейромоделью RUAccent nn_accent (tract, `studybible-accent`, U+0301 после ударной гласной) + словарь `pronounce.dart` с приоритетом; только бэкенд neural (у system ломались бы char-offsets); омографы не разрешаются (ADR 0017) | закрыто |
-| 41 | Облачный TTS-бэкенд (Yandex SpeechKit / Azure): кэш глав на диск, сеть и ключи только по желанию пользователя | После Beta |
-| 43 | Веб-индекс поиска живёт одну сессию: `fts` достраивается в in-memory базе в фоне после открытия модуля (решение 12.10.2026 — веб-модули без встроенного `fts`). Постоянный кэш между сессиями (IndexedDB/Cache API) и/или отдача готового `.idx.gz` ленивой загрузкой — не сделано; оценить реальную цену индексации на слабом телефоне | После Beta |
-| 44 | Собственная текстовая система `studybible-text` (трек ADR 0021, пересмотрен 08.10.2026): библиотека — готовый шейпер + свой наборщик ярусов по якорям слов + композитор, оболочка Flutter текстурой; форк GPUI отменён. Первый шаг — этап 0 (модель токена и связей `\zaln`/MACULA/BCVWP). Открыто: вариант растеризатора (единый FreeType→атлас vs платформенный — решать на практике), встройка текстуры во Flutter (скролл, селекция, a11y-мост), аудио-платформы при тонком хосте | После 1.0, когда начнётся этап 0 |
-| 42 | Собственный голос (параллельная задача, отложена, план — ROADMAP «Параллельные задачи»): лицензия базового русского чекпойнта Piper на распространение производной модели; лицензия инструментов обучения (GPL — на голос не влияет, сверить); совместимость экспорта с sherpa-onnx; оборудование пользователя (микрофон, NVIDIA или облако). 12.10.2026: sherpa_onnx/onnxruntime вырезаны из релиза 1.0 ради размера (−73 МБ) — задача отложена вместе с бэкендом, возврат по ADR 0017 | Когда пользователь вернётся к задаче |
-
-## Закрытые
-
-- № 33. Сноски: вариант А по умолчанию — надстрочная буква у слова, без пробела, неразрывно; вариант Б (пунктир под словом, без знака) — если в модуле есть текст привязки (`\fq`, `<catchWord>`). В «Чтении» знаки скрыты; тап → карточка; зона нажатия ≥ 44×44 (ADR 0015).
-- № 37. Параллельные места — по частям стиха: конвертер сохраняет место знака и текст привязки (`\xq`/`\fq`, `\xo` с буквой `1:1a`); лист «Параллельные места» группирует по частям; ссылки с сегментом стиха (связь с № 13) (ADR 0015, ADR 0016).
-
-- № 36. Нижняя навигация: вариант **А** — Главная · Библия · План · Записи · Библиотека. Вариант **Б** (Сегодня · Библия · Поиск · Записи · Библиотека) — записан как альтернатива (ADR 0015).
-
-- № 34. Плитки книг: остаются насыщенными по ADR 0013; насыщенность ниже на 15–20 %, полное имя книги — опция (≥ 11 sp). Тональные плитки отклонены (ADR 0015).
-- № 35. Расширение формата модуля принято с условием простой конвертации и создания модулей (ADR 0016).
-
-- Компактная редакция схемы v1 — введена до заморозки (ADR 0016 п. 15): `book_id`,
-  единый текст стихов в `verses`, текст спанов — срезы `(verse, start, len)`,
-  `v`-маркеры только у пустых стихов. Старые `.sb` пересобираются/мигрируются,
-  обратной совместимости читателя нет.
-
-- Строчное сравнение переводов: сделано (второй перевод приглушённым под каждым стихом).
-
-- Интерфейс: Flutter + flutter_rust_bridge, выбрано по прототипу (ADR 0013);
-  пробный экран на Slint и письмо в SixtyFPS не нужны.
-- Канон: 66 книг по списку пользователя, остальное — с пометкой «неканоническое», показывается по умолчанию.
-- Названия, сокращения и порядок книг — по модулю.
-- Синодальный: вариант (а), классический текст, где встречается «Иегова».
-- Правообладатель: «StudyBible contributors».
-- Языки интерфейса: русский и английский.
-- Веб — в самом конце; сейчас только основа и проверка компиляции под wasm32.
-- Репозиторий кода пока локальный, CI — `scripts/ci.ps1`.
-- Минимальные ОС: Windows 10, macOS 12, Ubuntu 22.04, Android 8, iOS 15; память — до 150 МБ. Windows 7/8 — нет.
+| 22 | 120 fps + Hebrew on target devices | Weak-device check passed: ~30–45 fps with jank on inline comparison; acceptable in 1.0. Improvement — rendering package B |
+| 11 | Linux build | Works: 0.65 s start, ~60 fps reading, instant search |
+| 12 | Text selection | Working via a custom toolbar (copy/highlight/note/bookmark/tag) |
+| 13 | Parallel columns on a phone | Works in inline mode (line under line) |
+| 17 | Morphological search in 1.0 | Exact + prefix FTS5; morphology — later |
+| 18 | Signatures for .sbz | Not needed in v1; SHA-256 integrity |
+| 20 | User-data export | In 1.0 — JSON export |
+| 22 (old) | Performance | Closed, see №22 above |

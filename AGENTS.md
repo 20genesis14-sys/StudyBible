@@ -1,74 +1,82 @@
 # AGENTS.md
 
-## Правила работы
+## Working rules
 
-- Два локальных репозитория: `D:\StudyBible` (рабочий, кандидат для
-  GitHub) и `D:\StudyBible-priv` (приватная копия).
-  **`D:\StudyBible-priv` не трогать никогда** — ни читать, ни писать,
-  ни запускать там команды — кроме явной команды пользователя на
-  конкретное действие.
+- Two local repositories: `D:\StudyBible` (working, candidate for
+  GitHub) and `D:\StudyBible-priv` (private copy).
+  **Never touch `D:\StudyBible-priv`** — do not read, write,
+  or run commands there — except on an explicit user command for a
+  specific action.
 
+- All planned changes are written to documents first, then made in code.
+- On any change to decisions, architecture or scope, update:
+  - `docs/SPEC.md` and the relevant `docs/` section;
+  - `docs/ROADMAP.md` (local only — never push it) and `docs/OPEN-QUESTIONS.md`;
+  - a new or changed ADR in `docs/adr/`;
+  - `docs/DECISIONS.md` — the source of truth for decisions.
+- Do not start coding without an explicit user command.
+- `unsafe` is allowed when justified; every block needs a `// SAFETY:` comment (clippy checks).
+- Commit after each completed step.
+- CI is the local script `scripts/ci.ps1`.
+- Language of published documents — English.
 
-- Все планируемые изменения сначала записываются в документы, затем делаются в коде.
-- При любом изменении решений, архитектуры или объёма работ обновлять:
-  - `docs/SPEC.md` и соответствующий раздел `docs/`;
-  - `docs/ROADMAP.md` и `docs/OPEN-QUESTIONS.md`;
-  - новый или изменённый ADR в `docs/adr/`;
-  - `docs/DECISIONS.md` — источник истины по решениям.
-- Код не начинать без явной команды пользователя.
-- `unsafe` разрешён, когда оправдан; каждый блок — с комментарием `// SAFETY:` (проверяет clippy).
-- Коммит после каждого завершённого шага.
-- Репозиторий пока только локальный; CI — локальный скрипт `scripts/ci.ps1`.
-- Язык документов — русский.
+## Source of decisions
 
-## Источник решений
+- `docs/DECISIONS.md` — current decisions; `docs/SPEC.md` — table of contents;
+  `docs/adr/` — rationale; `docs/ROADMAP.md` (local only) — work progress;
+  `docs/OPEN-QUESTIONS.md` — open questions.
+- `C:\Users\Ольга\Documents\Принятые решения v2.txt` — the original version,
+  migrated into `docs/DECISIONS.md`, no longer updated.
 
-- `docs/DECISIONS.md` — текущие решения; `docs/SPEC.md` — оглавление; `docs/adr/` — обоснования;
-  `docs/ROADMAP.md` — ход работ; `docs/OPEN-QUESTIONS.md` — открытые вопросы.
-- `C:\Users\Ольга\Documents\Принятые решения v2.txt` — исходная редакция, перенесена в `docs/DECISIONS.md`, больше не обновляется.
-
-## Проверка
+## Verification
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
-Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`.
-Нужны: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
-После сборки APK проверить целевой API нативных библиотек:
+Steps: fmt, clippy (`-D warnings`), test, `cargo check` of the core for
+`wasm32-unknown-unknown`, `cargo deny check`.
+Required: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
+After building an APK check the native libraries' target API:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
-(мост обязан быть не выше minSdk; сборка — с `PUB_CACHE=D:\StudyBible-tools\pub-cache` и `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
-В ядре clippy запрещает `std::fs` и `std::thread::sleep` (`crates/studybible-core/clippy.toml`).
+(the bridge must not exceed minSdk; build with
+`PUB_CACHE=D:\StudyBible-tools\pub-cache` and `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
+In the core, clippy forbids `std::fs` and `std::thread::sleep`
+(`crates/studybible-core/clippy.toml`).
 
-## Данные
+## Data
 
-Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (у пользователя `D:\StudyBible-data`;
-`C:\StudyBible-data` — остаточный каталог).
-Для Dart-тестов моста выставлять явно: `STUDYBIBLE_DATA=D:\StudyBible-data`.
-Каталог намеренно не внутри репозитория: тексты переводов нельзя выкладывать на GitHub вместе с кодом.
+External texts live outside the repository, in `STUDYBIBLE_DATA`
+(user: `D:\StudyBible-data`; `C:\StudyBible-data` is a leftover directory).
+For Dart bridge tests set it explicitly: `STUDYBIBLE_DATA=D:\StudyBible-data`.
+The directory is deliberately outside the repository: Bible texts must not
+be published on GitHub together with the code.
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # скачать и сверить SHA-256
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # перезакрепить хэши после обновления источника
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # сверка содержимого
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # download and verify SHA-256
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # re-pin hashes after a source update
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # verify contents
 ```
 
-`data/canon/canon-66-knig.md` — исходный список канона от пользователя.
-`data/profiles/` — профили книг и неканонического; `data/versification/` — файлы Paratext (MIT);
-`data/tests/` — испытательные наборы. Проверки — `crates/studybible-convert/tests/stage0_fixtures.rs`;
-проверки по текстам пропускаются (SKIPPED), если нет каталога данных.
+`data/canon/canon-66-knig.md` — the original canon list from the user.
+`data/profiles/` — book and deuterocanonical profiles; `data/versification/` —
+Paratext files (MIT); `data/tests/` — test fixtures. Checks —
+`crates/studybible-convert/tests/stage0_fixtures.rs`; text-based checks are
+skipped (SKIPPED) when the data directory is absent.
 
-## Окружение
+## Environment
 
-- Скрипты `.ps1` с кириллицей сохранять в UTF-8 с BOM: Windows PowerShell 5 иначе читает их как ANSI.
+- Save `.ps1` scripts with Cyrillic as UTF-8 with BOM: Windows PowerShell 5
+  otherwise reads them as ANSI.
 
-- Оболочка по умолчанию (bash) — WSL Ubuntu; сборку и проверки Windows запускать в PowerShell.
+- Default shell (bash) — WSL Ubuntu; run Windows builds and checks in PowerShell.
 
-- Весь проект на диске `D:`: репозиторий `D:\StudyBible`, данные `D:\StudyBible-data`,
-  инструменты `D:\StudyBible-tools`.
-- Windows; Rust 1.99.0 (cargo, rustup установлены).
-- Flutter SDK 3.47.6 — `D:\StudyBible-tools\flutter` (в PATH нет, вызывать
+- The whole project lives on drive `D:`: repo `D:\StudyBible`, data
+  `D:\StudyBible-data`, tools `D:\StudyBible-tools`.
+- Windows; Rust 1.99.0 (cargo, rustup installed).
+- Flutter SDK 3.47.6 — `D:\StudyBible-tools\flutter` (not in PATH, call
   `D:\StudyBible-tools\flutter\bin\flutter`); Android SDK — `D:\StudyBible-tools\android-sdk`.
 - Python — `C:\Users\Ольга\AppData\Local\Programs\Python\Python311\python.exe`
-  (команда `python` не работает — алиас Microsoft Store).
-- Git 2.55.0 (`C:\Program Files\Git\cmd\git.exe`). В уже открытых оболочках PATH может быть старым — перечитать его из реестра или открыть новую оболочку.
+  (the `python` command does not work — Microsoft Store alias).
+- Git 2.55.0 (`C:\Program Files\Git\cmd\git.exe`). Already-open shells may have
+  a stale PATH — re-read it from the registry or open a new shell.

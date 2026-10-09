@@ -1,200 +1,210 @@
-# StudyBible — обзор приложения для инспекции
+# StudyBible — application overview for review
 
-Краткая выдержка по устройству и интерфейсу приложения для изучения Библии.
-Статус: рабочий прототип (Alpha), целевые платформы — Android, Windows, Web.
-Жёсткое требование: 120 fps и сложная типографика (иврит/греческий с огласовками,
-диакритикой, RTL).
+**English** | [Русский](STUDYBIBLE-OVERVIEW.ru.md)
 
-## Стек и архитектура
+A brief extract on the structure and interface of the Bible study app.
+Status: working prototype (Alpha); target platforms — Android, Windows, Web.
+Hard requirement: 120 fps and complex typography (Hebrew/Greek with
+vowel points, diacritics, RTL).
 
-- **Ядро на Rust** (`crates/`): парсинг и хранение модулей `.sb` (SQLite),
-  поиск (FTS5), версификация, пользовательские данные (`userdata.db`).
-- **UI на Flutter** (`apps/studybible-flutter`): одно приложение на
-  Android/Windows/web. Мост к ядру — flutter_rust_bridge (FFI); на web —
-  sqlite3.wasm читает те же `.sb`-файлы.
-- **Модули `.sb`** — переводы Библии, словари, комментарии, оригиналы,
-  подстрочники. Отдельно от репозитория; пользователь импортирует `.sb` файлы.
-  В сборку зашиты 8: Синодальный (1876), Русская открытая Библия
-  (CC BY-SA, ~167 тыс. пометок Стронга), WEB, KJV 2006, LSV
-  (YHWH в тексте, ~706 тыс. Стронга), BSB (public domain, ~4,8 тыс.
-  критических сносок LXX/MT/DSS/SP), OSHb (иврит WLC, Стронг),
-  UGNT (греческий). Во все инжектирован аппарат параллельных мест
-  OpenBible (top-8 ссылок на стих, конвертация версификаций —
-  Пс 22 англ. = Пс 21 рус.). Личный модуль подстрочника
-  (Kingdom Interlinear, НЗ) — парами «глосса над греческим WH».
-- **userdata.db** — заметки, закладки, выделения, теги, прогресс чтения,
-  история, настройки (JSON).
+## Stack and architecture
 
-## Принятые изменения дизайна (05.10.2026, ещё не в коде)
+- **Rust core** (`crates/`): parsing and storage of `.sb` modules (SQLite),
+  search (FTS5), versification, user data (`userdata.db`).
+- **Flutter UI** (`apps/studybible-flutter`): one app for
+  Android/Windows/web. Bridge to the core — flutter_rust_bridge (FFI); on
+  web — sqlite3.wasm reads the same `.sb` files.
+- **`.sb` modules** — Bible translations, dictionaries, commentaries,
+  original languages, interlinears. Separate from the repository; the user
+  imports `.sb` files. 8 are bundled: Synodal (1876), Russian Open Bible
+  (CC BY-SA, ~167k Strong's tags), WEB, KJV 2006, LSV
+  (YHWH in the text, ~706k Strong's), BSB (public domain, ~4.8k
+  critical notes LXX/MT/DSS/SP), OSHb (Hebrew WLC, Strong's),
+  UGNT (Greek). All have the OpenBible cross-reference apparatus
+  injected (top-8 links per verse, versification conversion —
+  Ps 22 English = Ps 21 Russian). A personal interlinear module
+  (Kingdom Interlinear, NT) — "gloss above WH Greek" pairs.
+- **userdata.db** — notes, bookmarks, highlights, tags, reading
+  progress, history, settings (JSON).
 
-Модель интерфейса Workspace → Pane → Layer (ADR 0014); визуальный язык
-«книга и киноварь», режимы «Чтение»/«Изучение», лист «Слои», нижняя панель
-Перевод · Слои · Слушать · Ещё, сетка книг с насыщенностью −15–20 % (ADR 0015);
-нижняя навигация Главная · Библия · План · Записи · Библиотека и экран «План» (ADR 0015);
-необязательные расширения формата модуля (ADR 0016).
-Ниже описано текущее состояние приложения.
+## Accepted design changes (2026-10-05, not yet in code)
 
-## Навигация
+UI model Workspace → Pane → Layer (ADR 0014); visual language
+"book and vermilion", "Reading"/"Study" modes, the "Layers" sheet, bottom
+bar Translation · Layers · Listen · More, book grid with saturation
+−15–20 % (ADR 0015); bottom navigation Home · Bible · Plan · Records ·
+Library and the "Plan" screen (ADR 0015); optional module format
+extensions (ADR 0016). The current state of the app is described below.
 
-Нижняя навигация — 5 вкладок: **Главная · Библия · График · Модули ·
-Настройки**. Все переходы — быстрые анимации ~160–200 мс (сдвиг+затухание),
-смена темы — плавное перетекание ~200 мс.
+## Navigation
 
-## Экраны
+Bottom navigation — 5 tabs: **Home · Bible · Schedule · Modules ·
+Settings**. All transitions are quick ~160–200 ms animations (shift+fade);
+theme change — a smooth ~200 ms crossfade.
 
-### Главная (08-home.png)
-- «Продолжить чтение» — карточка с последней позицией (книга + глава),
-  переход по тапу.
-- «Стих дня» — ротация по дате, тап открывает главу на нужном стихе.
-- «Недавно читали» — чипы последних глав (из сквозной истории).
-- Быстрые действия: Поиск / Модули / Закладки / История / График.
-- «График чтения» — процент прочитанного (глав отмечено из 1189).
+## Screens
 
-### Библия (01-bible-books.png)
-- Сетка книг по составу модуля: книги, которых в нём нет, скрыты
-  (модуль только с НЗ не показывает пустой ВЗ); книги вне канона 66 —
-  отдельная секция «НЕКАНОНИЧЕСКИЕ КНИГИ». Цветом плитки обозначена
-  группа (Пятикнижие, исторические, учительные, пророки и т.д.).
-- Наверху: чип **«Перевод»** — быстрый выбор основного перевода
-  (шторка со списком найденных модулей) + поле поиска книги по имени.
-- Тап по книге → сетка глав (02-chapters.png): номера глав, прочитанные
-  с галочкой, текущая глава с акцентной рамкой, полоса прогресса книги
-  и счётчик «прочитано/всего». Опционально при выборе главы —
-  выбор стиха (тумблер в настройках).
+### Home (08-home.png)
+- "Continue reading" — a card with the last position (book + chapter),
+  opens on tap.
+- "Verse of the day" — rotates by date; a tap opens the chapter at the
+  right verse.
+- "Recently read" — chips of the last chapters (from unified history).
+- Quick actions: Search / Modules / Bookmarks / History / Schedule.
+- "Reading schedule" — percentage read (chapters marked out of 1189).
 
-### Чтение (03-reading-paragraphs.png, 04-reading-verses-web.png, 13-dark-theme.png)
+### Bible (01-bible-books.png)
+- The book grid follows the module's contents: books not present are
+  hidden (an NT-only module shows no empty OT); books outside the 66-book
+  canon get a separate "NON-CANONICAL BOOKS" section. Tile color marks
+  the group (Pentateuch, historical, poetic, prophets, etc.).
+- On top: a **"Translation"** chip — quick selection of the main
+  translation (a sheet listing found modules) + a book-name search field.
+- Tapping a book → chapter grid (02-chapters.png): chapter numbers, read
+  ones with a checkmark, current chapter with an accent border, book
+  progress bar and "read/total" counter. Optionally a verse picker when
+  selecting a chapter (a toggle in settings).
 
-Три вёрстки текста: **Абзацы** (как печатная Библия), **По стихам** (каждый
-стих строкой, крупный номер слева), **Книга** (бесконечная лента всей книги
-с заголовками «Глава N»). Переключение — в Настройках, мгновенно.
+### Reading (03-reading-paragraphs.png, 04-reading-verses-web.png, 13-dark-theme.png)
 
-- Верхняя панель: «назад» · «Книга Гл.» · пилюля «Поиск по тексту».
-  Заголовок книги обрезан до ~12 симв. с многоточием — поиск всегда виден.
-- Нижняя панель (мобильная): 6 цветных действий — перевод, сравнение
-  переводов, подстрочник, чтение вслух, история, сноски. Стрелок глав нет —
-  главы листаются свайпом.
-- Обе панели — «жидкое стекло» (BackdropFilter σ2 + заливка 30% + белая
-  кайма): текст читается сквозь панель. Прячутся при прокрутке,
-  возвращаются по тапу.
-- **Листание глав свайпом — постраничная анимация**: страница следует
-  за пальцем, соседняя глава с текстом подъезжает рядом (видны обе);
-  удержание пальца останавливает переход на месте; отпускание — доводка
-  или откат (~190 мс). В режиме «Книга» свайп листает книги.
-- **Переход к стиху** работает во всех трёх вёрстках: якорь на номере
-  стиха, в ленте книги — принудительные кадры и прямые jumpTo
-  (раньше «не доезжал» до далёких глав).
-- **Выделение текста**: долгий тап → выделение → свой тулбар иконками:
-  копировать / выделить цветом / заметка / закладка / теги; потом
-  системные пункты. Заметки поддерживают вложения (изображения,
-  аудио-надиктовка).
-- **Сноски и параллельные места**: маркер «×» (или «*» для обычных
-  сносок) после стиха — акцентная плашка; тап открывает нижний лист
-  со ссылками главы, сноска выбранного стиха подсвечена рамкой;
-  ссылки внутри кликабельны (переход на стих). Дублирующий вход —
-  кнопка «Параллельные» в панели действий выделенного стиха.
-- **Сравнение переводов**: рядом/под стихом — текст второго перевода;
-  второй перевод выбирается из любого модуля (на телефоне — иконка
-  книги у переключателя «Основной/…», нижний лист). Есть режим
-  строчного сравнения (строка под строкой).
-- **Подстрочник-пары**: модули-подстрочники (пары «глосса над
-  оригиналом», напр. Kingdom Interlinear) рисуются колонками
-  слово-над-словом во всех вёрстках и в строчном сравнении.
-- **Подстрочник**: для модулей оригинала (OSHB/UGNT) — вторая строка
-  «слово к слову» с глоссой из словаря Стронга; иврит RTL с огласовками.
-- **Стронг**: в модулях с номерами (KJV-2006, RST+) тап по слову
-  открывает карточку статьи словаря (лемма, транслит, определения, KJV).
-- **Чтение вслух** (05, 06): запуск по иконке; мини-плеер над нижней
-  панелью — ‹/› по стихам, пауза, стоп, номер стиха, **перетаскиваемый
-  ползунок прогресса**; текущий стих подсвечен, экран следует за чтением.
-  Медиа-сессия Android — карточка в шторке, кнопки гарнитуры.
+Three text layouts: **Paragraphs** (like a printed Bible), **By verses**
+(each verse a line, large number on the left), **Book** (infinite scroll
+of the whole book with "Chapter N" headings). Switching — in Settings,
+instant.
 
-### Поиск (07-search.png)
-Поле запроса + выбор модуля. FTS по `.sb`, сниппеты с подсветкой,
-тап по результату → чтение на месте. Запрос пишется в историю.
+- Top bar: "back" · "Book Ch." · "Search in text" pill. The book title is
+  truncated to ~12 chars with ellipsis — search is always visible.
+- Bottom bar (mobile): 6 colored actions — translation, translation
+  comparison, interlinear, read aloud, history, footnotes. No chapter
+  arrows — chapters turn by swipe.
+- Both panels are "liquid glass" (BackdropFilter σ2 + 30 % fill + white
+  rim): text is readable through the panel. They hide on scroll and
+  return on tap.
+- **Chapter swipe — page animation**: the page follows the finger, the
+  adjacent chapter slides in next to it (both visible); holding the
+  finger stops the transition in place; releasing — completion or
+  rollback (~190 ms). In "Book" mode a swipe turns whole books.
+- **Verse navigation** works in all three layouts: an anchor on the verse
+  number; in the book ribbon — forced frames and direct jumpTo
+  (previously it "didn't reach" distant chapters).
+- **Text selection**: long tap → selection → a custom icon toolbar:
+  copy / highlight color / note / bookmark / tags; then system items.
+  Notes support attachments (images, audio dictation).
+- **Footnotes and cross-references**: the "×" marker (or "*" for regular
+  footnotes) after a verse — an accent chip; a tap opens a bottom sheet
+  with the chapter's references; the selected verse's footnote is framed;
+  links inside are tappable (jump to the verse). A duplicate entry —
+  the "Parallels" button in the selected verse's action panel.
+- **Translation comparison**: next to/under the verse — the second
+  translation's text; the second translation can be any module (on a
+  phone — a book icon near the "Main/…" switch, a bottom sheet). There is
+  an inline comparison mode (line under line).
+- **Interlinear pairs**: interlinear modules ("gloss over original"
+  pairs, e.g. Kingdom Interlinear) render as word-above-word columns in
+  all layouts and in inline comparison.
+- **Interlinear**: for original-language modules (OSHB/UGNT) — a second
+  line "word for word" with a gloss from Strong's dictionary; Hebrew RTL
+  with vowel points.
+- **Strong's**: in modules with numbers (KJV-2006, RST+) tapping a word
+  opens the dictionary entry card (lemma, transliteration, definitions,
+  KJV).
+- **Read aloud** (05, 06): start via the icon; a mini-player above the
+  bottom bar — ‹/› by verses, pause, stop, verse number, **draggable
+  progress slider**; the current verse is highlighted and the screen
+  follows the reading. Android media session — a card in the shade,
+  headset buttons.
 
-### История (09-history.png)
-Единая сквозная лента по всем модулям: открытые главы (с именем перевода
-и стихом), статьи словаря Стронга, поисковые запросы. Тап восстанавливает
-контекст: та же глава/стих в том же переводе, карточка словаря,
-экран поиска с тем же запросом.
+### Search (07-search.png)
+Query field + module selection. FTS over `.sb`, snippets with highlight,
+tapping a result → reading at that spot. The query is written to history.
 
-### Закладки (14-bookmarks.png)
-Список закладок (модуль + место + фрагмент) и группировка по тегам
-с фильтром-чипами. Тап — переход к месту.
+### History (09-history.png)
+A unified feed across all modules: opened chapters (with translation name
+and verse), Strong's dictionary entries, search queries. A tap restores
+the context: the same chapter/verse in the same translation, the
+dictionary card, the search screen with the same query.
 
-### Модули (10-modules.png)
-Список найденных модулей (id, название) с тегами вида
-«критический аппарат», «критический текст», «оригинал · иврит/греческий».
-Кнопка «Импорт .sb» (file_picker → копирует в каталог данных).
-Словарь Стронга — 14 298 статей + русский словарь Цыганкова
-(8 674 иврит + 5 523 греч.), поиск по номеру/лемме/слову.
+### Bookmarks (14-bookmarks.png)
+A list of bookmarks (module + place + fragment) and grouping by tags
+with filter chips. A tap — jumps to the place.
 
-### Настройки (11, 12)
-Оформление (светлая/тёмная/AMOLED; сепия и тёплые тона — в планах),
-язык интерфейса (рус/eng), шрифт текста (Literata/Gentium/системный) и
-масштаб ×0.8–1.6 с живым предпросмотром, вёрстка (абзацы/стихи/книга),
-ширина колонки для десктопа, тумблер выбора стиха, **основной перевод**
-(действует при запуске и во всех переходах без явного выбора),
-сброс прогресса. Всё сохраняется в userdata и переживает перезапуск.
+### Modules (10-modules.png)
+A list of found modules (id, title) with tags like
+"critical apparatus", "critical text", "original · Hebrew/Greek".
+An "Import .sb" button (file_picker → copies to the data directory).
+Strong's dictionary — 14 298 entries + Tsygankov's Russian dictionary
+(8 674 Hebrew + 5 523 Greek), search by number/lemma/word.
 
-## Процесс чтения (типовой сценарий)
+### Settings (11, 12)
+Appearance (light/dark/AMOLED; sepia and warm tones — planned),
+UI language (ru/en), text font (Literata/Gentium/system) and scale
+×0.8–1.6 with live preview, layout (paragraphs/verses/book), column
+width for desktop, the verse-picker toggle, **main translation** (applies
+at startup and in all navigation without an explicit choice), progress
+reset. Everything is saved to userdata and survives restart.
 
-1. Главная → «Продолжить чтение» или Библия → книга → глава (→ стих).
-2. Читаем: абзацы, цветные номера стихов; панели прячутся при скролле.
-3. Свайп — соседняя глава с анимацией страницы за пальцем
-   (в режиме «Книга» — соседняя книга целиком).
-4. Долгий тап по тексту — выделить/заметка/закладка/тег.
-5. Слушаем: иконка чтения → мини-плеер, листаем ползунком.
-6. Параллельные места — тап по «×» у стиха или кнопка «Параллельные»;
-   Стронг — тап по подчёркнутому слову; сравнение переводов — иконка
-   в панели, второй перевод выбирается из списка.
-7. Вернуться: История (любая глава/словарь/поиск) или «Продолжить чтение».
+## Reading flow (typical scenario)
 
-## Пользовательские данные (userdata.db)
+1. Home → "Continue reading" or Bible → book → chapter (→ verse).
+2. Read: paragraphs, colored verse numbers; panels hide on scroll.
+3. Swipe — adjacent chapter with a page animation following the finger
+   (in "Book" mode — the adjacent book in whole).
+4. Long tap on text — highlight/note/bookmark/tag.
+5. Listen: the read-aloud icon → mini-player, drag the slider.
+6. Cross-references — tap "×" near the verse or the "Parallels" button;
+   Strong's — tap an underlined word; translation comparison — the icon
+   in the panel, second translation is chosen from a list.
+7. Return: History (any chapter/dictionary/search) or "Continue reading".
 
-Единая таблица записей `kind ∈ {note, mark, hl, tag}` с якорем
-(модуль, книга, глава, стих). Служебные записи того же типа:
-история (`text='hist*'`), настройки (`module='settings'`),
-прогресс (`module='*'`). Плюс вложения заметок — файлы в каталоге данных.
+## User data (userdata.db)
 
-## Известные ограничения прототипа
+A single records table `kind ∈ {note, mark, hl, tag}` with an anchor
+(module, book, chapter, verse). Service records of the same type:
+history (`text='hist*'`), settings (`module='settings'`),
+progress (`module='*'`). Plus note attachments — files in the data
+directory.
 
-- Сепия/тёплые тона — заглушки («скоро»).
-- «График» — пока только счётчик прочитанных глав (планы чтения — после 1.0).
-- TTS на Android — системный движок (нужен русский голос; офлайн-нейро —
-  в дорожной карте).
-- На web нет userdata-сохранения (localStorage частично), диктофон скрыт.
-- Web-раздача: модули — `modules/*.sb.gz` (gzip -9, 313→123 МБ),
-  распаковка браузерным DecompressionStream; список — `index.json`.
-  Лимит передачи деплоя ~130 МБ, поэтому на сайте 6 модулей из 8 —
-  KJV 2006 и LSV импортируются файлом.
-- Пакеты/модули пользователя импортируются вручную файлами.
+## Known prototype limitations
 
-## Планы на будущее (контекст для советов)
+- Sepia/warm tones — placeholders ("soon").
+- "Schedule" — so far only a read-chapters counter (reading plans —
+  after 1.0).
+- TTS on Android — the system engine (a Russian voice is needed;
+  offline neural — on the roadmap).
+- On web there is no userdata persistence (localStorage partial), the
+  dictaphone is hidden.
+- Web serving: modules — `modules/*.sb.gz` (gzip -9, 313→123 MB),
+  decompressed by the browser's DecompressionStream; the list —
+  `index.json`. Deploy transfer limit ~130 MB, so the site carries 6 of 8
+  modules — KJV 2006 and LSV are imported as files.
+- User packages/modules are imported manually as files.
 
-- Планы чтения и график прогресса (экран «График» — пока счётчик);
-- конвертеры SWORD/MyBible/BibleQuote, репозитории модулей;
-- синхронизация пользовательских данных между устройствами;
-- аудиобиблии, офлайн-нейросинтез со словарём ударений;
-- API расширений (плагины), iOS-сборка;
-- лемматизация, Септуагинта (сетка книг уже умеет неканонические),
-  расширение аппарата (варианты прочтений как у BSB — на русском),
-  семантический поиск.
+## Future plans (context for suggestions)
 
-## Цель инспекции
+- Reading plans and a progress schedule (the "Schedule" screen is a
+  counter for now);
+- SWORD/MyBible/BibleQuote converters, module repositories;
+- user data synchronization between devices;
+- audio Bibles, offline neural synthesis with a stress dictionary;
+- extension API (plugins), iOS build;
+- lemmatization, Septuagint (the book grid already supports
+  non-canonical books), apparatus expansion (variant readings like BSB —
+  in Russian), semantic search.
 
-Важны советы по **оригинальному, но практичному дизайну** — и по
-интерфейсу, и по внутреннему устройству приложения, в том числе
-с оглядкой на будущие планы выше (дизайн, который масштабируется,
-не придётся переделывать под новые функции). Что смотреть:
+## Purpose of the review
 
-- информационная архитектура, навигация, плотность и иерархия экранов;
-- жесты, анимации, доступность, типографика чтения (включая
-  иврит/греческий и подстрочник);
-- визуальный язык «жидкого стекла», цветовые акценты, пустые состояния;
-- узнаваемость и самобытность при сохранении практичности —
-  приложение читают часами, дизайн не должен мешать тексту;
-- архитектурные решения, которые упростят будущие планы
-  (плагины, синхронизация, аудио, планы чтения).
+Advice on **original but practical design** is wanted — both for the
+interface and for the internal structure of the app, including the future
+plans above (a design that scales and will not need rework for new
+features). What to look at:
 
-Скриншоты приложены к отчёту.
+- information architecture, navigation, screen density and hierarchy;
+- gestures, animations, accessibility, reading typography (including
+  Hebrew/Greek and interlinear);
+- the "liquid glass" visual language, color accents, empty states;
+- distinctiveness while staying practical — the app is read for hours,
+  design must not get in the text's way;
+- architectural decisions that simplify future plans
+  (plugins, sync, audio, reading plans).
+
+Screenshots are attached to the report.

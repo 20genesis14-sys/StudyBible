@@ -1,183 +1,181 @@
-# ADR 0018 — формат модулей v2 (после релиза 1.0, без сроков)
+# ADR 0018 — module format v2 (after the 1.0 release, no deadlines)
 
-Статус: дальняя дорожная карта. Не реализуется до релиза 1.0.
-Задача документа — зафиксировать обоснование, раскладку и границы,
-чтобы решение не пришлось изобретать заново.
+**English** | [Русский](0018-module-format-v2.ru.md)
 
-## Контекст и мотивация
+Status: long-range roadmap. Not implemented before the 1.0 release.
+The document's job is to fix the rationale, the layout and the
+boundaries so the decision does not have to be reinvented.
 
-Текущий формат `.sb` — база SQLite + контейнер передачи `.sbz`
-(zstd поверх всего файла). Это правильное решение для 1.0:
+## Context and motivation
 
-- FTS5 из коробки (поиск, сниппеты, ранжирование);
-- зрелая библиотека на всех платформах, включая sqlite3.wasm;
-- авторы модулей проверяют файл любым SQLite-просмотрщиком.
+The current `.sb` format — a SQLite database + the `.sbz` transfer
+container (zstd over the whole file). That is the right choice for 1.0:
 
-При этом до релиза принято: `module build` выдаёт `.sbz` по умолчанию,
-приложение читает модуль через `sqlite3_deserialize` — целиком в
-память, без распакованной копии на диске. А 12.10.2026 — компактная
-схема v1 (ADR 0016 п. 15): `book_id` вместо текстового кода, текст
-стиха один раз в `verses.text` (спаны — байтовые срезы), маркеры `v`
-только у пустых стихов. Замеры и оценки ниже сняты **до** этой схемы
-и описывают худший случай; реальная дельта v2 стала меньше — это
-не отменяет остальные мотивы (ОЗУ при десериализации, веб-стриминг,
-структурный предел).
+- FTS5 out of the box (search, snippets, ranking);
+- a mature library on all platforms, including sqlite3.wasm;
+- module authors can inspect the file in any SQLite viewer.
 
-Ограничения этого подхода видны на горизонте:
+Also accepted before release: `module build` emits `.sbz` by default;
+the app reads the module through `sqlite3_deserialize` — entirely into
+memory, no unpacked copy on disk. And on 2026-10-12 — the compact v1
+schema (ADR 0016 item 15): `book_id` instead of a text code, verse text
+once in `verses.text` (spans are byte slices), `v` markers only on empty
+verses. The measurements and estimates below were taken **before** that
+schema and describe the worst case; the real v2 delta is now smaller —
+this does not cancel the other motives (RAM on deserialization, web
+streaming, structural limit).
 
-1. **Масштаб флота.** У пользователя могут быть десятки модулей:
-   переводы, комментарии, словари, оригиналы с аппаратом и
-   лемматизацией. SQLite-хранение даёт заметный служебный объём
-   над полезными данными (после компактной схемы — b-tree и
-   строковая разметка, а не дубли текста). На одном модуле
-   это единицы МБ, на флоте — сотни МБ.
-2. **ОЗУ при десериализации.** `.sbz`-в-ОЗУ держит в памяти весь
-   распакованный модуль (30–50 МБ, тяжёлый — 100+ МБ). Несколько
-   одновременно открытых модулей (сравнение, несколько окон)
-   умножают расход.
-3. **Веб.** `sqlite3.wasm` требует файл целиком: прежде чем
-   прочитана первая глава, скачан весь модуль. Плюс ~1 МБ самого
-   wasm в бандле.
-4. **Структурный предел.** Внутри SQLite уменьшить объём можно
-   только до предела b-tree и строковых ключей; дальше — только
-   внешнее сжатие (вариант А) или блочный VFS (вариант Б из
-   обсуждения, остаётся запасным планом).
+The limits of this approach are visible on the horizon:
 
-## Рассмотренные альтернативы (зафиксировано 11.10.2026)
+1. **Fleet scale.** A user may have dozens of modules: translations,
+   commentaries, dictionaries, originals with apparatus and
+   lemmatization. SQLite storage adds noticeable overhead over the
+   payload (after the compact schema — b-tree and string keys, not text
+   duplication). On one module that is single MBs; on a fleet — hundreds
+   of MB.
+2. **RAM on deserialization.** `.sbz`-in-RAM keeps the whole unpacked
+   module in memory (30–50 MB, a heavy one — 100+ MB). Several modules
+   open at once (comparison, several windows) multiply the cost.
+3. **Web.** `sqlite3.wasm` needs the whole file: before the first
+   chapter is read, the whole module is downloaded. Plus ~1 MB of the
+   wasm itself in the bundle.
+4. **Structural limit.** Inside SQLite the size can only shrink to the
+   b-tree and string-key floor; beyond that — only external compression
+   (variant A) or a block VFS (variant B from the discussion, kept as a
+   fallback plan).
 
-- **`.sbz` + десериализация в ОЗУ** — принято как промежуточное для
-  1.0. Не масштабируется по ОЗУ и не решает веб-стриминг.
-- **Блочный VFS** (свой sqlite3_vfs, распаковка страниц на лету) —
-  работоспособный вариант (прецеденты: SQLCipher, sqlite-zstd-vfs),
-  но оставляет проблему веба (свой VFS внутри sqlite3.wasm) и
-  служебный объём SQLite. Держится как запасной план.
-- **Page codec API** (`sqlite3CodecAttach`) — непубличный API,
-  форк SQLite на всех платформах, плохая степень (страница 4 КБ).
-  Отклонено.
-- **Turso/libSQL** — формат файла совместим с SQLite, сжатия не
-  добавляет; вариант «turso core» молод. Не решает задачу размера.
-  Пересмотреть при необходимости семантического поиска/sync.
-- **DuckDB** — колоночная СУБД для аналитики; ~50–100 МБ
-  бинарника, слабый FTS. Не подходит.
-- **KV-хранилища (RocksDB, redb, sled)** — только «ключ→значение»;
-  весь поисковый и структурный слой — свой код. Частный случай
-  собственного формата с чужим движком.
+## Alternatives considered (recorded 2026-10-11)
 
-## Решение: собственный упакованный формат (v2)
+- **`.sbz` + deserialization into RAM** — accepted as the interim for
+  1.0. Does not scale in RAM and does not solve web streaming.
+- **Block VFS** (our own sqlite3_vfs, decompressing pages on the fly) —
+  a workable option (precedents: SQLCipher, sqlite-zstd-vfs) but leaves
+  the web problem (a custom VFS inside sqlite3.wasm) and the SQLite
+  overhead. Kept as a fallback plan.
+- **Page codec API** (`sqlite3CodecAttach`) — non-public API, a fork of
+  SQLite on all platforms, poor ratio (4 KB page). Rejected.
+- **Turso/libSQL** — the file format is SQLite-compatible, adds no
+  compression; "turso core" is young. Does not solve the size task.
+  Revisit if semantic search/sync is needed.
+- **DuckDB** — a columnar analytics DBMS; ~50–100 MB binary, weak FTS.
+  Not suitable.
+- **KV stores (RocksDB, redb, sled)** — only "key→value"; the whole
+  search and structural layer is our code. A special case of a custom
+  format on someone else's engine.
 
-Не «вместо SQLite навсегда», а **формат чтения**. SQLite остаётся
-форматом сборки и отладки авторов (`module build` → `.sb` →
-упаковка в v2). Читатель v2 — это `studybible-core`, собранный
-нативно и под wasm: единая реализация на всех платформах,
-Dart-порт чтения модулей не нужен.
+## Decision: a custom packed format (v2)
 
-Ориентировочные параметры (замеры 11.10.2026 на rstplus, 47 МБ `.sb`):
+Not "instead of SQLite forever", but a **reading format**. SQLite stays
+the build/authoring and debugging format (`module build` → `.sb` →
+packing into v2). The v2 reader is `studybible-core` compiled natively
+and to wasm: one implementation on all platforms, no Dart port for
+module reading.
 
-- сырой текст стихов 6,0 МБ → zstd целиком ~1,0 МБ (17%),
-  блоками 64 КБ — ~1,4 МБ (23%);
-- оценка модуля v2 целиком: ~5 МБ против 47 МБ `.sb` и ~10 МБ `.sbz`;
-- для обычного перевода: ~1,5–2 МБ против ~18 МБ `.sb`;
-- ОЗУ: mmap + распаковка блоков по требованию → рабочий набор
-  5–15 МБ независимо от размера модуля;
-- веб: файл один на сервере, читатель тянет блоки по HTTP Range —
-  глава это килобайты, модуль стримится, а не скачивается.
+Approximate parameters (measurements 2026-10-11 on rstplus, 47 MB `.sb`):
 
-## Контур формата (набросок для будущего проектирования)
+- raw verse text 6.0 MB → zstd whole ~1.0 MB (17 %), in 64 KB blocks —
+  ~1.4 MB (23 %);
+- whole-module v2 estimate: ~5 MB vs 47 MB `.sb` and ~10 MB `.sbz`;
+- for a regular translation: ~1.5–2 MB vs ~18 MB `.sb`;
+- RAM: mmap + on-demand block unpacking → working set 5–15 MB regardless
+  of module size;
+- web: one file on the server, the reader pulls blocks over HTTP Range —
+  a chapter is kilobytes, the module is streamed, not downloaded.
 
-Заголовок: magic + версия формата + указатель на оглавление.
-Оглавление — таблица секций (id секции, смещение, длина, кодек).
+## Format outline (sketch for future design)
 
-Секции (необязательность — через оглавление, как `features` в v1):
+Header: magic + format version + pointer to the table of contents.
+TOC — a section table (section id, offset, length, codec).
 
-- **content** — текст по главам, каждая глава сжата отдельным
-  блоком (zstd): точечное чтение без распаковки модуля.
-  Разметка (курсив, Стронг, wj, части стиха) — смещения и
-  атрибуты внутри блока главы, текст не дублируется.
-- **index** — собственный инвертированный индекс: словарь
-  (front-coding), дельта-кодированные позиции (книга, глава,
-  стих, позиция), сжатые списки. Поиск — наш код: та же
-  нормализация `for_search`, bm25, сниппеты. Индекс строится
-  конвертером и зашивается в модуль (опциональная секция —
-  приложение может построить кэш само).
-- **xrefs** — параллельные места, числовые поля, привязка к части
-  стиха (part/q) сохраняется.
-- **entries** — словарные статьи для `kind=dictionary`.
-- **marks** — метки времени аудио.
-- **variants/readings/witnesses** — критический аппарат.
-- **meta** — JSON-блок: id, title, language, versification, права,
-  required/features — переносится из v1.
+Sections (optionality via the TOC, like `features` in v1):
 
-Поисковый язык — только то, что реально используется интерфейсом:
-слова, фраза в кавычках, фильтр по книге. Полный MATCH-синтаксис
-FTS5 не воспроизводим.
+- **content** — text by chapters, each chapter compressed as a separate
+  zstd block: point reads without unpacking the module. Markup (italic,
+  Strong's, wj, verse parts) — offsets and attributes inside the chapter
+  block, the text is not duplicated.
+- **index** — our own inverted index: a dictionary (front-coding),
+  delta-encoded positions (book, chapter, verse, position), compressed
+  lists. Search — our code: the same `for_search` normalization, bm25,
+  snippets. The index is built by the converter and baked into the
+  module (an optional section — the app can build the cache itself).
+- **xrefs** — cross-references, numeric fields, binding to a verse part
+  (part/q) preserved.
+- **entries** — dictionary entries for `kind=dictionary`.
+- **marks** — audio time marks.
+- **variants/readings/witnesses** — the critical apparatus.
+- **meta** — a JSON block: id, title, language, versification, rights,
+  required/features — carried over from v1.
 
-## Цена (честно)
+The query language — only what the UI really uses: words, a phrase in
+quotes, a book filter. The full FTS5 MATCH syntax is not reproduced.
 
-- Своя поисковая подсистема: индексатор, запросы, ранжирование,
-  сниппеты — самая объёмная часть.
-- Авторы теряют «открыть в DB Browser» — компенсируется
-  `module check`, `export`, отладочным выводом `.sb`.
-- Все края формата — наши ошибки; обязательны: `module check`,
-  золотые тесты, fuzz на битых файлах (модуль приходит откуда
-  угодно — это недоверенный ввод, сейчас его фильтрует SQLite).
+## The cost (honestly)
 
-## Порядок будущих работ
+- Our own search subsystem: indexer, queries, ranking, snippets — the
+  largest part.
+- Authors lose "open in DB Browser" — compensated by `module check`,
+  `export`, a debug `.sb` dump.
+- Every edge of the format is our bug; mandatory: `module check`, golden
+  tests, fuzzing on broken files (a module comes from anywhere — it is
+  untrusted input, currently filtered by SQLite).
 
-1. Спецификация секций с тестовым набором (золотые файлы).
-2. Контейнер: читатель + писатель, `module pack v2`.
-3. Чтение глав/стихов поверх v2, паритет со старым читателем.
-4. Инвертированный индекс: индексатор, запросы, сниппеты;
-   эталон — выдача FTS5 на тех же запросах.
-5. Перенос возможностей: xrefs, entries, marks, аппарат, словари.
-6. Веб: чтение по HTTP Range, вынос sqlite3.wasm.
-7. Миграция: конвертация `.sb`→v2, `module check v2`, политика
-   сосуществования форматов.
+## Order of future work
 
-## Расширяемость за пределы Библии
+1. Section spec with a test fixture (golden files).
+2. Container: reader + writer, `module pack v2`.
+3. Chapter/verse reading on v2, parity with the old reader.
+4. Inverted index: indexer, queries, snippets; the benchmark — FTS5
+   output on the same queries.
+5. Feature port: xrefs, entries, marks, apparatus, dictionaries.
+6. Web: reading over HTTP Range, removing sqlite3.wasm.
+7. Migration: `.sb`→v2 conversion, `module check v2`, format
+   coexistence policy.
 
-Формат и архитектура не должны быть жёстко библейскими — в
-перспективе читалка должна специализироваться на других корпусах
-(например, Коран: сура → аят; или иные иерархические тексты).
+## Extensibility beyond the Bible
 
-Что для этого нужно держать абстрактным уже сейчас:
+The format and architecture must not be rigidly biblical — eventually
+the reader should specialize in other corpora (e.g. the Quran:
+surah → ayah; or other hierarchical texts).
 
-- **Модель содержимого** — дерево «книга → глава → стих» обобщается
-  до «раздел → подраздел → единица». Координаты и навигация
-  опираются на каталог модуля (`books`), а не на вшитый канон.
-- **Версификация и имена книг** — уже профили (`name_profile`,
-  `versification`), не зашиты в читатель.
-- **Интерфейс** — панели и слои берут структуру из модуля;
-  библейские слои (сноски, параллельные, Стронг) — необязательные
-  возможности (`features`), а не обязательная часть схемы.
-- **Поиск** — индекс агностичен к семантике единиц.
+What must be kept abstract already now:
 
-В формате v2 это отражено: координаты — числовые уровни дерева,
-названия уровней и канон приходят из `meta`/каталога модуля.
-Ограничение честно: вокруг «3 уровня» (книга/глава/стих) уже много
-кода; более глубокие иерархии — предмет отдельного решения.
+- **Content model** — the "book → chapter → verse" tree generalizes to
+  "section → subsection → unit". Coordinates and navigation rely on the
+  module's catalog (`books`), not a hard-coded canon.
+- **Versification and book names** — already profiles (`name_profile`,
+  `versification`), not baked into the reader.
+- **UI** — panes and layers take structure from the module; biblical
+  layers (footnotes, cross-references, Strong's) are optional
+  capabilities (`features`), not a required part of the schema.
+- **Search** — the index is agnostic to unit semantics.
 
-## Связанные решения
+Format v2 reflects this: coordinates are numeric tree levels, level
+names and canon come from `meta`/the module catalog. An honest
+limitation: a lot of code is already built around "3 levels"
+(book/chapter/verse); deeper hierarchies are a separate decision.
 
-- ADR 0016 — расширения формата v1 (kind, features, rights, .sbz).
-- Вариант Б (блочный VFS) — запасной план между v1 и v2.
-- Заморозка: `.sb` v1 замораживается при релизе 1.0; v2 —
-  следующая версия, сосуществование через `module check` и
-  конвертер, без «молчаливой» замены у пользователя.
+## Related decisions
 
-## Дополнение 08.10.2026 — контракт для UserData и расширений
+- ADR 0016 — v1 format extensions (kind, features, rights, .sbz).
+- Variant B (block VFS) — fallback plan between v1 and v2.
+- Freeze: `.sb` v1 freezes at the 1.0 release; v2 is the next version,
+  coexistence via `module check` and the converter, without a "silent"
+  swap for the user.
 
-Прогон кросс-переводных записей (этап А) показал: идентичность
-модуля — только `meta.id`, имя файла роли не играет. Требования к v2:
+## Addendum 2026-10-08 — the contract for UserData and extensions
 
-- `meta.id`, `meta.versification`, `meta.content_hash` — неизменный
-  контракт, на них стоят привязка записей (`vrs`, `module_ver`) и
-  канонический диапазон org. Смена алгоритма `content_hash` в v2
-  допустима, но помечается версией алгоритма — иначе все записи
-  разом «увидят» смену модуля и начнут перепривязку.
-- Модуль резолвится по `meta.id` сканом каталога — файлы могут
-  лежать под любым именем (решение 08.10.2026, DECISIONS).
-- Система расширений (будущий ADR): API — уровень запросов
-  («стих», «глава», «поиск», «meta»), не уровень файла/страницы
-  SQLite. Тогда смена формата хранения расширениям невидима.
-  Плюс v2 для расширений: стриминг по HTTP Range делает возможным
-  «модуль как удалённый ресурс» без полной загрузки.
+The cross-translation-records run (stage A) showed: module identity is
+only `meta.id`, the file name plays no role. Requirements for v2:
+
+- `meta.id`, `meta.versification`, `meta.content_hash` — an unchanging
+  contract: record anchoring (`vrs`, `module_ver`) and the canonical org
+  range stand on them. Changing the `content_hash` algorithm in v2 is
+  allowed but must be tagged with an algorithm version — otherwise all
+  records at once "see" a module change and start re-anchoring.
+- A module resolves by `meta.id` via a catalog scan — files may have any
+  name (2026-10-08 decision, DECISIONS).
+- The extension system (future ADR): API at the request level ("verse",
+  "chapter", "search", "meta"), not the file/SQLite-page level. Then a
+  storage-format change is invisible to extensions. A v2 plus for
+  extensions: HTTP-Range streaming makes "module as a remote resource"
+  possible without a full download.

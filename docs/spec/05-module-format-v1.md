@@ -1,21 +1,24 @@
-# 05. Формат модуля v1
+# 05. Module format v1
 
-Статус: реализовано в `crates/studybible-store` (MVP 2).
-Режим **предзаморозки** (решение 12.10.2026): схема и семантика считаются
-финальными, но формальная заморозка отложена до отзывов реальных
-пользователей; до акта заморозки допустимы правки существующих полей
-с пересборкой модулей.
-Решения — ADR 0003 (недоверенный SQLite, FTS в кэше), ADR 0007 (поток чтения).
-Политика строгости и семантика зафиксированы 12.10.2026 — раздел «Семантика» ниже.
-Формат v2 — отдельный формат, не развитие v1 (ADR 0018): заморозка v1
-не ограничивает дизайн v2.
+**English** | [Русский](05-module-format-v1.ru.md) | [English full spec](en/05-module-format-v1.md)
 
-## Файл
+Status: implemented in `crates/studybible-store` (MVP 2).
+**Pre-freeze** mode (decision of 2026-10-12): the schema and semantics
+are considered final, but the formal freeze is postponed until feedback
+from real users; until the freeze act, edits of existing fields are
+allowed with module rebuilds.
+Decisions — ADR 0003 (untrusted SQLite, FTS in cache), ADR 0007 (reading
+stream). The strictness policy and semantics were fixed on 2026-10-12 —
+see the "Semantics" section below.
+Format v2 is a separate format, not an evolution of v1 (ADR 0018):
+freezing v1 does not constrain the design of v2.
 
-SQLite-база, кодировка UTF-8. Подпись: `PRAGMA application_id = 0x53424D31` (`SBM1`).
-В `meta` обязателен ключ `format_version = "1"`.
+## File
 
-## Таблицы
+SQLite database, UTF-8. Signature: `PRAGMA application_id = 0x53424D31`
+(`SBM1`). `meta` must contain `format_version = "1"`.
+
+## Tables
 
 ```sql
 CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -35,235 +38,257 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
                     text TEXT NOT NULL, PRIMARY KEY(book_id, chapter, verse));
 ```
 
-Компактная схема (ADR 0016 п. 15, до заморозки v1): книги адресуются
-числовым `book_id`, а не текстовым кодом, и текст хранится один раз.
+Compact schema (ADR 0016 item 15, before the v1 freeze): books are
+addressed by a numeric `book_id`, not a text code, and the text is
+stored once.
 
-- `books` — `book_id` (равен `ord`), код USFM/OSIS (`code` UNIQUE), порядок
-  `ord`, заголовок. Все остальные таблицы ссылаются на `book_id`.
-- `book_headers` — заголовки книги из USFM (`h`, `toc1`, `mt1`…), кроме `id`.
-- `blocks` — поток чтения: маркер USFM блока (`p`, `q1`, `s1`, `d`…), пустой — продолжение.
-- `verses` — канонический **сырой** текст стиха (без сносок и заголовков,
-  с пробелами между спанами, как в потоке; надписание псалма — стих 0).
-  Это единственная копия текста стиха: `spans.t` нарезается из неё, а
-  «плоский» текст снаружи — `collapse_spaces(verses.text)`. Канонический
-  текст равен отображаемому: разделитель морфем `/` в `w`-спанах
-  при записи убирается (его и раньше резал рендерер); спаны,
-  содержащие '<' (остатки тегов источника), не трогаются.
-- `spans` — строчные промежутки блока. `kind`:
-  - `t` — текст стиха: `verse`+`start`+`len` — байтовый срез `verses.text`;
-    `text` пуст. Заголовочные блоки (`verse` NULL) хранят текст в `text`.
-  - `f`/`x` — сноска/перекрёстная ссылка: `verse` — стих привязки,
-    `start` — позиция в тексте стиха (NULL у старых данных); тело в `text`.
-  - `v` — маркер стиха (`num`): записывается только у стиха без
-    текстовых спанов (пустой стих) и внутри заголовочных блоков —
-    раньше маркеры хранились и там. Для всех прочих стихов граница
-    читателем синтезируется по смене `verse` у спанов.
+- `books` — `book_id` (equal to `ord`), USFM/OSIS code (`code` UNIQUE),
+  order `ord`, title. All other tables reference `book_id`.
+- `book_headers` — book headers from USFM (`h`, `toc1`, `mt1`…), except
+  `id`.
+- `blocks` — the reading stream: the block's USFM marker (`p`, `q1`,
+  `s1`, `d`…), empty = continuation.
+- `verses` — the canonical **raw** verse text (no footnotes or headings,
+  with spaces between spans, as in the stream; a psalm superscription is
+  verse 0). This is the only copy of the verse text: `spans.t` is
+  sliced from it, and the "flat" text outside is
+  `collapse_spaces(verses.text)`. Canonical text equals display text:
+  the `/` morpheme separator in `w` spans is removed at write time (the
+  renderer used to cut it anyway); spans containing '<' (leftover
+  source tags) are untouched.
+- `spans` — inline spans of a block. `kind`:
+  - `t` — verse text: `verse`+`start`+`len` is a byte slice into
+    `verses.text`; `text` is empty. Heading blocks (`verse` NULL) store
+    text in `text`.
+  - `f`/`x` — footnote/cross-reference: `verse` — the anchor verse,
+    `start` — position in the verse text (NULL in old data); the body is
+    in `text`.
+  - `v` — verse marker (`num`): written only for a verse with no text
+    spans (empty verse) and inside heading blocks — markers were stored
+    there before. For all other verses the reader synthesizes the
+    boundary from the `verse` change across spans.
 
-## Ключи `meta`
+## `meta` keys
 
-`format_version`, `id`, `title`, `language` (BCP 47), `direction` (`ltr`/`rtl`),
-`versification` (`rsc`, `org`…), `name_profile` (`syn`, `en`), `book_order`
-(`list`, `syn`), `version`, `license`, `attribution`, `source`, `content_hash` (SHA-256
-потока чтения — часть ключа кэша поиска), `required` (список обязательных возможностей
-через запятую). Флаги прав — необязательный ключ `rights` (см. расширения
-ниже; вопрос № 15 закрыт). Прочие ключи сохраняются в `extra` и не ломают чтение.
+`format_version`, `id`, `title`, `language` (BCP 47), `direction`
+(`ltr`/`rtl`), `versification` (`rsc`, `org`…), `name_profile` (`syn`,
+`en`), `book_order` (`list`, `syn`), `version`, `license`,
+`attribution`, `source`, `content_hash` (SHA-256 of the reading stream —
+part of the search cache key), `required` (comma-separated list of
+mandatory capabilities). Rights flags — the optional `rights` key (see
+extensions below; question № 15 closed). Other keys are kept in `extra`
+and do not break reading.
 
-## Безопасное открытие (`Module::open`)
+## Safe opening (`Module::open`)
 
-- `SQLITE_OPEN_READ_ONLY` + `PRAGMA query_only=ON` — запись запрещена.
-- `PRAGMA trusted_schema=OFF` и `SQLITE_DBCONFIG_DEFENSIVE=ON` — защита от вредоносной
-  схемы; `DQS` выключен.
-- Проверки: `application_id`, наличие всех таблиц, ожидаемые столбцы (подготовка
-  `SELECT … LIMIT 0`), `format_version`, непустой `id`. Любая обязательная возможность
-  из `required` — отказ (`UnsupportedFeature`), т. к. поддерживаемых пока нет.
+- `SQLITE_OPEN_READ_ONLY` + `PRAGMA query_only=ON` — writing forbidden.
+- `PRAGMA trusted_schema=OFF` and `SQLITE_DBCONFIG_DEFENSIVE=ON` —
+  protection from a malicious schema; `DQS` off.
+- Checks: `application_id`, presence of all tables, expected columns
+  (`SELECT … LIMIT 0` preparation), `format_version`, non-empty `id`.
+  Any mandatory capability in `required` — refusal
+  (`UnsupportedFeature`), since none are supported yet.
 
-## Запись (`ModuleWriter`)
+## Writing (`ModuleWriter`)
 
-`create` → `add_book` → `add_chapter` (пишет `blocks`, `spans`, `verses`, копит хэш) →
-`finish` (пишет `content_hash`, `COMMIT`, `PRAGMA optimize`). Всё в одной транзакции.
+`create` → `add_book` → `add_chapter` (writes `blocks`, `spans`,
+`verses`, accumulates the hash) → `finish` (writes `content_hash`,
+`COMMIT`, `PRAGMA optimize`). All in one transaction.
 
-## Необязательные расширения (ADR 0016, до заморозки 1.0)
+## Optional extensions (ADR 0016, before the 1.0 freeze)
 
-Ничего из этого не обязательно и не идёт в `required`.
+None of this is required and none goes into `required`.
 
-- `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` | `layer` | `critical`.
+- `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` |
+  `layer` | `critical`.
 - `meta.features`: `strongs,morph,tokens,alignment,variants,entries,fts,marks`
-  (через запятую).
+  (comma-separated).
 - `entries(ord INTEGER PRIMARY KEY, headword TEXT NOT NULL,
   norm TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '')` —
-  словарные статьи для `kind=dictionary`: `ord` — порядок в словаре,
-  `norm` — строчная форма заголовка для поиска (индексы по `headword`
-  и `norm`). Модуль-словарь может не иметь книг и глав — `books` пустая.
-  Вход автора — TSV `заголовок  текст` (`format="entries"` в
-  modules.json; `norm` можно задать третьим столбцом).
+  dictionary entries for `kind=dictionary`: `ord` — order in the
+  dictionary, `norm` — lowercase headword form for search (indexes on
+  `headword` and `norm`). A dictionary module may have no books or
+  chapters — `books` is empty. Author input — TSV `headword  text`
+  (`format="entries"` in modules.json; `norm` may be given as a third
+  column).
 - `tokens(book_id, chapter, verse, seq, surface, lemma, strong, morph, gloss)` —
-  слова оригинала. Источник: OSIS `<w lemma morph>`, USFM `\w …|strong lemma x-morph\w*`,
-  теги Стронга MyBible/BibleQuote. Заполняет конвертер.
+  original words. Source: OSIS `<w lemma morph>`, USFM
+  `\w …|strong lemma x-morph\w*`, MyBible/BibleQuote Strong's tags.
+  Filled by the converter.
 - `alignment(book_id, chapter, verse, token_seq, block, span)` —
-  связь токена со спаном потока (`block` = `blocks.seq`, `span` = `spans.seq`).
-  Вход автора — TSV `ссылка  оригинал  глосса`.
-  Старый вид подстрочника (`spans.attrs` = `gr="…"`) читается без изменений.
+  a link between a token and a stream span (`block` = `blocks.seq`,
+  `span` = `spans.seq`). Author input — TSV `reference  original  gloss`.
+  The old interlinear form (`spans.attrs` = `gr="…"`) is still read.
 - `variants(id, book_id, chapter, verse, token_from, token_to)`,
   `readings(variant_id, seq, text, is_base)`, `witnesses(reading_id, siglum)` —
-  критический аппарат. Вход — TSV/JSON.
-- `.sbz` — `.sb`, сжатый внешним кодеком, только для передачи; импорт
-  распаковывает. Заголовок: `magic "SBZ1"` + `codec_id` (1 байт) + payload.
-  Кодеки: `0` = zstd (обязателен), `1` = brotli, `2` = xz (зарезервирован);
-  прочие — на будущее, неизвестный кодек = понятная ошибка.
-- `meta.rights` — флаги прав через запятую: `no-distribute`, `no-net`,
-  `no-ai`, `no-plugins`. Отсутствие ключа = всё разрешено; честное
-  соглашение, не DRM (вопрос № 15).
-- `fts` — виртуальная таблица FTS5 `fts(book UNINDEXED, chapter UNINDEXED,
+  the critical apparatus. Input — TSV/JSON.
+- `.sbz` — a `.sb` compressed by an external codec, for transfer only;
+  import unpacks it. Header: `magic "SBZ1"` + `codec_id` (1 byte) +
+  payload. Codecs: `0` = zstd (required), `1` = brotli, `2` = xz
+  (reserved); others — for the future, an unknown codec = a clear error.
+- `meta.rights` — comma-separated rights flags: `no-distribute`,
+  `no-net`, `no-ai`, `no-plugins`. No key = everything allowed; an
+  honest agreement, not DRM (question № 15).
+- `fts` — FTS5 virtual table `fts(book UNINDEXED, chapter UNINDEXED,
   verse UNINDEXED, norm)` (`tokenize='unicode61'`, `norm` = `for_search`
-  текста стиха) — готовый поисковый индекс внутри модуля. Собирается
-  конвертером по `"fts": true` в modules.json; читатель без неё строит
-  кэш `.idx` как раньше (вопрос № 23).
-- `marks(book_id, chapter, verse, seq, offset_ms, dur_ms, text)` — метки
-  времени: смещение от начала аудиодорожки главы (мс), `dur_ms` —
-  длительность (NULL = до следующей метки), `text` — слово/фраза для
-  подсветки. Под аудиобиблии и пословную подсветку TTS. Вход — TSV
-  (`"marks"` в modules.json): `стих<TAB>смещение_мс[<TAB>длит_мс][<TAB>слово]`,
-  `seq` — порядок строки в стихе.
-- Место сноски и ссылки в стихе: span `f`/`x` уже стоит в потоке на своём месте
-  (часть стиха) — и для сносок, и для параллельных мест. Принято (ADR 0015,
-  0016): текст привязки из USFM `\fq`/`\xq`, OSIS `<catchWord>` и буква
-  части из `\fr`/`\xo` (`1:1a`). Хранится в `spans.attrs` сноски:
-  `part="a"` (буква части), `q="…"` (цитируемый текст привязки).
-  В JSON главы — поле `a` у промежутков `f`/`x`.
+  of the verse text) — a ready search index inside the module. Built by
+  the converter at `"fts": true` in modules.json; a reader without it
+  builds the `.idx` cache as before (question № 23).
+- `marks(book_id, chapter, verse, seq, offset_ms, dur_ms, text)` — time
+  marks: offset from the start of the chapter's audio track (ms),
+  `dur_ms` — duration (NULL = until the next mark), `text` — the
+  word/phrase for highlighting. For audio Bibles and per-word TTS
+  highlighting. Input — TSV (`"marks"` in modules.json):
+  `verse<TAB>offset_ms[<TAB>dur_ms][<TAB>word]`, `seq` — row order in
+  the verse.
+- The place of a footnote and a reference within a verse: an `f`/`x`
+  span already stands at its position in the stream (a verse part) —
+  for footnotes and cross-references alike. Accepted (ADR 0015, 0016):
+  anchor text from USFM `\fq`/`\xq`, OSIS `<catchWord>`, and the part
+  letter from `\fr`/`\xo` (`1:1a`). Stored in the footnote's
+  `spans.attrs`: `part="a"` (part letter), `q="…"` (quoted anchor
+  text). In the chapter JSON — field `a` on `f`/`x` spans.
 
-Точные столбцы и индексы фиксируются при реализации, до заморозки 1.0.
-Инструменты: `studybible module check`, `studybible module pack`, шаблоны TSV.
+Exact columns and indexes are fixed at implementation, before the 1.0
+freeze. Tools: `studybible module check`, `studybible module pack`, TSV
+templates.
 
-### Соответствие чужих форматов
+### Foreign-format mapping
 
-| Формат | Текст и стихи | Стронг/лемма/морф. | Сноски | Ссылки | Аппарат |
+| Format | Text and verses | Strong's/lemma/morph. | Footnotes | References | Apparatus |
 |---|---|---|---|---|---|
-| OSIS | `<div type="chapter">`, `<verse>` | `<w lemma strong morph>` → `tokens` | `<note>` → `f`, `<catchWord>` → привязка | `<reference>` в `<note type="crossReference">` → `x` | `<rdg>`/`<note type="critical">` → `variants` |
-| USFM | `\c`, `\v`, блоки `\p \q \s \d` | `\w …\|strong="…" lemma="…" x-morph="…"\w*` → `tokens` | `\f … \f*`, `\fq` → привязка | `\x … \x*`, `\xo`, `\xq` → `x` + привязка | отдельный TSV автора |
-| Zefania | `<BIBLEBOOK><CHAPTER><VERS>` | `<gr str="…">`/`<gr morph="…">` → `tokens` | `<NOTE>` → `f` | атрибуты ссылок → `x` | нет |
-| MyBible | `verses` + теги `<S>####</S>` | `<S>` → `tokens.strong` | `<f>` → `f` | `<x>`/TSK → `x` | нет |
-| BibleQuote | теги глав/стихов в htm | теги `<S>` → `tokens.strong` | сноски htm → `f` | ссылки htm → `x` | нет |
+| OSIS | `<div type="chapter">`, `<verse>` | `<w lemma strong morph>` → `tokens` | `<note>` → `f`, `<catchWord>` → anchor | `<reference>` in `<note type="crossReference">` → `x` | `<rdg>`/`<note type="critical">` → `variants` |
+| USFM | `\c`, `\v`, blocks `\p \q \s \d` | `\w …\|strong="…" lemma="…" x-morph="…"\w*` → `tokens` | `\f … \f*`, `\fq` → anchor | `\x … \x*`, `\xo`, `\xq` → `x` + anchor | separate author TSV |
+| Zefania | `<BIBLEBOOK><CHAPTER><VERS>` | `<gr str="…">`/`<gr morph="…">` → `tokens` | `<NOTE>` → `f` | reference attributes → `x` | none |
+| MyBible | `verses` + `<S>####</S>` tags | `<S>` → `tokens.strong` | `<f>` → `f` | `<x>`/TSK → `x` | none |
+| BibleQuote | chapter/verse tags in htm | `<S>` tags → `tokens.strong` | htm footnotes → `f` | htm references → `x` | none |
 
-Правило: что источник не даёт — не выдумывается; таблица просто не пишется.
+Rule: what the source does not provide is not invented; the table is
+simply not written.
 
-## Эволюция формата
+## Format evolution
 
-Менять или удалять существующие поля нельзя. Новое — только необязательные таблицы
-и необязательные ключи `meta`. Возможность, без которой читать нельзя, идёт в `required`
-— старые читатели откажутся с понятной ошибкой.
+Existing fields must not be changed or removed. New — only optional
+tables and optional `meta` keys. A capability without which reading is
+impossible goes into `required` — old readers refuse with a clear
+error.
 
-Исключение до заморозки: компактная схема (выше) — последнее изменение
-существующих полей до 1.0, принятое сознательно (ADR 0016 п. 15):
-формат ещё не опубликован, все выпущенные `.sb` локальные и пересобираются
-конвертером. Читатель старые `.sb` не открывает — отказ на проверке
-столбцов с понятной ошибкой; миграция = повторная сборка из источника.
+Pre-freeze exception: the compact schema (above) is the last change of
+existing fields before 1.0, accepted deliberately (ADR 0016 item 15):
+the format is not published yet, all released `.sb` are local and are
+rebuilt by the converter. The reader does not open old `.sb` — refusal
+at the column check with a clear error; migration = rebuilding from the
+source.
 
-## Семантика
+## Semantics
 
-Схема описывает, как байты уложены; этот раздел — что они означают.
-Семантика замораживается вместе со схемой: менять смысл существующих
-полей нельзя, даже если тип столбца остаётся прежним.
+The schema describes how the bytes are laid out; this section — what
+they mean. Semantics freezes together with the schema: the meaning of
+existing fields must not change even if the column type stays the same.
 
-### Политика строгости читателя (решение 12.10.2026)
+### Reader strictness policy (decision of 2026-10-12)
 
-- **Структурные ошибки — отказ** `BadFormat`: нет обязательной таблицы или
-  столбца, `application_id`, `format_version`, битый срез `(start,len)`
-  вне текста стиха, значение вне диапазона типа поля.
-- **Семантические аномалии — мягко**: модуль читается, аномалия
-  игнорируется или показывается без слоя. Сюда входят: `v`-маркер у
-  стиха с текстовыми спанами; `features` объявлена, а таблицы/данных
-  нет; неизвестное значение `kind`; `f`/`x` без `start` (привязка к
-  целому стиху); лишние `meta`-ключи и таблицы.
-- `module check` показывает аномалии как **предупреждения**, не ошибки.
+- **Structural errors — `BadFormat` refusal**: a required table or
+  column missing, `application_id`, `format_version`, a broken
+  `(start,len)` slice outside the verse text, a value outside the
+  field type's range.
+- **Semantic anomalies — soft**: the module is read, the anomaly is
+  ignored or shown without the layer. These include: a `v` marker on a
+  verse with text spans; a `features` declared without the
+  table/data; an unknown `kind` value; `f`/`x` without `start`
+  (whole-verse anchor); extra `meta` keys and tables.
+- `module check` shows anomalies as **warnings**, not errors.
 
-### Правила (для тестов ссылаемся на номера)
+### Rules (tests reference the numbers)
 
-- **С-1.** `spans.t`: `start`/`len` — **байтовые** смещения UTF-8 в
-  `verses.text` стиха. Срез обязан лежать в границах текста и не резать
-  символ посередине; нарушение — структурная ошибка.
-- **С-2.** `verses.text` — канонический текст стиха, равный
-  отображаемому: разделитель морфем `/` в `w`-спанах убран при записи;
-  «плоский» текст = `collapse_spaces(verses.text)`. Читатель и поиск
-  работают с уже очищенным текстом.
-- **С-3.** `verse = 0` — надписание/предисловие (не стих): показывается
-  отдельно, в навигацию по стихам не входит. `verse = NULL` — спан вне
-  стихового контекста (заголовочный блок), текст — в `spans.text`.
-- **С-4.** Маркер `v` записывается только у стиха без текстовых спанов
-  и в заголовочных блоках; только у `v` определено поле `num` (номер
-  стиха), у прочих `kind` оно `NULL`. Читатель **обязан** синтезировать
-  границу стиха по смене `verse` у спанов; лишний `v` — аномалия
-  (мягко). В `bible`/`interlinear` номера стихов в главе **не убывают**
-  (повтор/прыжок назад — аномалия); в `commentary`/`critical` повторы
-  законны (цитата стиха).
-- **С-5.** `f`/`x`: `verse` — стих привязки, `start` — байтовая позиция
-  в его тексте; `start = NULL` — привязка к целому стиху.
-  `attrs`: `part` — буква части стиха (`1:1a` → `part="a"`),
-  `q` — цитируемый текст привязки (`\fq`/`\xq`, `<catchWord>`).
-- **С-6.** `blocks.marker` определяет вёрстку: пустой — продолжение
-  предыдущего блока; `q1`/`q2`… — поэзия; `s1`/`s2`… — заголовок
-  раздела; `d` — надписание; `p`, `m`, `pi`… — абзацы.
-  Словари `blocks.marker`, `spans.style` и ключей `spans.attrs` —
-  **открытые** (решение 12.10.2026): стандартный набор
-  документируется, неизвестный маркер читается как абзац,
-  неизвестный стиль — как обычный текст, неизвестный ключ `attrs`
-  игнорируется.
-- **С-7.** Порядковые поля имеют свою область: `blocks.seq` — внутри
-  главы, `spans.seq` — внутри блока, `tokens.seq` — внутри стиха,
-  `marks.seq` — внутри стиха, `entries.ord` — внутри словаря.
-- **С-8.** `meta.kind` — контракт состава: `bible` — текст с стихами;
-  `interlinear` — тот же + `alignment`/`tokens`; `commentary` — блоки
-  привязаны к стихам, стихового текста нет; `dictionary` и `layer` —
-  `books` может быть пустой (контент в `entries`/аппарате);
-  `critical` — несёт `variants`. Неизвестный `kind` — читается как
-  `bible` (мягко).
-- **С-9.** `meta.features` — **открытый** список. Известные значения
+- **C-1.** `spans.t`: `start`/`len` are **byte** UTF-8 offsets into the
+  verse's `verses.text`. The slice must lie within the text and not cut
+  a character in the middle; a violation is a structural error.
+- **C-2.** `verses.text` — the canonical verse text, equal to the
+  displayed one: the `/` morpheme separator in `w` spans is removed at
+  write time; the "flat" text = `collapse_spaces(verses.text)`. The
+  reader and search work with the already-cleaned text.
+- **C-3.** `verse = 0` — a superscription/preface (not a verse): shown
+  separately, not part of verse navigation. `verse = NULL` — a span
+  outside verse context (a heading block), text in `spans.text`.
+- **C-4.** A `v` marker is written only for a verse with no text spans
+  and in heading blocks; only `v` has a defined `num` field (verse
+  number), for other `kind` it is `NULL`. The reader **must**
+  synthesize the verse boundary from the `verse` change across spans; a
+  superfluous `v` — an anomaly (soft). In `bible`/`interlinear`, verse
+  numbers in a chapter **do not decrease** (a repeat/jump backward is an
+  anomaly); in `commentary`/`critical` repeats are legal (a verse
+  quote).
+- **C-5.** `f`/`x`: `verse` — the anchor verse, `start` — a byte
+  position in its text; `start = NULL` — whole-verse anchor.
+  `attrs`: `part` — the verse-part letter (`1:1a` → `part="a"`),
+  `q` — the quoted anchor text (`\fq`/`\xq`, `<catchWord>`).
+- **C-6.** `blocks.marker` determines the layout: empty — continuation
+  of the previous block; `q1`/`q2`… — poetry; `s1`/`s2`… — a section
+  heading; `d` — a superscription; `p`, `m`, `pi`… — paragraphs.
+  The vocabularies of `blocks.marker`, `spans.style` and `spans.attrs`
+  keys are **open** (decision of 2026-10-12): the standard set is
+  documented, an unknown marker reads as a paragraph, an unknown style
+  as plain text, an unknown `attrs` key is ignored.
+- **C-7.** Ordinal fields have their own scope: `blocks.seq` — within a
+  chapter, `spans.seq` — within a block, `tokens.seq` — within a
+  verse, `marks.seq` — within a verse, `entries.ord` — within a
+  dictionary.
+- **C-8.** `meta.kind` — a composition contract: `bible` — text with
+  verses; `interlinear` — the same + `alignment`/`tokens`;
+  `commentary` — blocks bound to verses, no verse text; `dictionary`
+  and `layer` — `books` may be empty (content in `entries`/apparatus);
+  `critical` — carries `variants`. An unknown `kind` reads as `bible`
+  (soft).
+- **C-9.** `meta.features` — an **open** list. Known values
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,
-  `fts`, `marks`) включают слои UI. Значения с префиксом `x-` —
-  экспериментальные и игнорируются; прочие неизвестные — тоже.
-  Флаг без данных — слой не показывается (мягко).
-- **С-10.** `meta.required` — любое значение = `UnsupportedFeature`,
-  читатель обязан отказать. Поддерживаемых значений в v1 нет.
-- **С-11.** `meta.rights` — поведенческое обязательство приложения:
-  `no-distribute` — не экспортировать/раздавать; `no-net` — не
-  отдавать по сети; `no-ai` — не передавать ИИ-функциям; `no-plugins` —
-  не отдавать плагинам (технически: host-функции API v1 отказывают).
-- **С-12.** `meta.content_hash` — SHA-256 (hex) канонической
-  сериализации потока чтения. Алгоритм (точный, решение 12.10.2026):
-  для каждого блока главы по порядку пишется
-  `"{book} {chapter} {index} {marker}\x00"`, затем каждый спан:
+  `fts`, `marks`) enable UI layers. `x-`-prefixed values are
+  experimental and ignored; other unknowns — likewise. A flag without
+  data — the layer is not shown (soft).
+- **C-10.** `meta.required` — any value = `UnsupportedFeature`, the
+  reader must refuse. No supported values in v1.
+- **C-11.** `meta.rights` — a behavioral commitment of the app:
+  `no-distribute` — do not export/redistribute; `no-net` — do not serve
+  over the network; `no-ai` — do not pass to AI features; `no-plugins`
+  — do not give to plugins (technically: API v1 host functions refuse).
+- **C-12.** `meta.content_hash` — SHA-256 (hex) of the canonical
+  reading-stream serialization. Algorithm (exact, decision of
+  2026-10-12): for each chapter block in order write
+  `"{book} {chapter} {index} {marker}\x00"`, then each span:
   `v` → `"v{num}\x00"`, `t` → `"t{style}\x01{attrs}\x01{text}\x00"`,
-  `f`/`x` → `"n{kind}{caller}\x01{attrs}\x01{text}\x00"`. Книги и главы
-  идут в порядке `books.ord`, главы — по возрастанию. Хэш — часть
-  ключа поискового кэша; читатель обязан хранить его как строку,
-  пересчитывать не требуется. Инструмент, правящий готовый `.sb`
-  (напр. `inject_xrefs`), **обязан** пересчитать хэш по читаемому
-  потоку (`Module::compute_content_hash`, команда `module rehash`).
-- **С-13.** `for_search` (нормализация поиска, `norm_version="2"`):
-  нижний регистр, `ё`→`е`, дореформенные `ѣ`→`е`, `і`→`и`, `ѳ`→`ф`,
-  `ѵ`→`и`; удаление мягких переносов U+00AD и комбинируемых знаков по
-  фиксированному списку диапазонов (U+0300–036F, 0483–0489,
-  0591–05BD, 05BF, 05C1–05C2, 05C4–05C5, 05C7, 0610–061A,
-  064B–065F, 0670, 1AB0–1AFF, 1DC0–1DFF, 20D0–20FF, FE20–FE2F);
-  конечные буквы иврита `ךםןףץ` → обычные; маккеф U+05BE → пробел;
-  `ς`/`Ϲ`→`σ`; `й` сохраняется (скрывается за символ частной области
-  до NFD и возвращается). Алгоритм — часть формата: `entries.norm` и
-  `fts.norm` строятся теми же правилами.
-- **С-14.** `meta.versification` и `meta.name_profile` — имена профилей
-  из реестра `data/versification/` и `data/profiles/`. Читатель обязан
-  понимать встроенные профили; неизвестное имя — мягко (профиль
-  модуля по умолчанию или `org`).
-- **С-15.** `meta.direction` (`ltr`/`rtl`) — направление вёрстки текста;
-  `meta.language` — язык TTS и поисковой нормализации.
-- **С-16.** `marks.offset_ms` — смещение от начала аудиодорожки главы;
-  `dur_ms = NULL` — до следующей метки; `text` — контрольное слово.
-- **С-17.** `.sbz`: обязателен только кодек `0` (zstd); предел
-  распаковки читателя — до ~1 ГиБ (модуль больше — правомерный отказ).
-- **С-18.** Неизвестные таблицы, столбцы, `meta`-ключи и `features`
-  игнорируются — это и есть механизм эволюции формата.
-- **С-19.** `chapter = 0` — введение/предисловие книги: показывается
-  до главы 1, не является стиховой главой (BibleQuote-комментарии уже
-  так пишут).
-- **С-20.** Необязательные таблицы (`entries`, `tokens`, `marks` и др.)
-  законны при любом `kind`: `kind` описывает основной контракт, но не
-  запрещает расширений. Библия со встроенным лексиконом —
+  `f`/`x` → `"n{kind}{caller}\x01{attrs}\x01{text}\x00"`. Books and
+  chapters go in `books.ord` order, chapters ascending. The hash is
+  part of the search-cache key; the reader must store it as a string,
+  recomputation is not required. A tool editing a ready `.sb` (e.g.
+  `inject_xrefs`) **must** recompute the hash from the readable stream
+  (`Module::compute_content_hash`, the `module rehash` command).
+- **C-13.** `for_search` (search normalization, `norm_version="2"`):
+  lowercase, `ё`→`е`, pre-reform `ѣ`→`е`, `і`→`и`, `ѳ`→`ф`,
+  `ѵ`→`и`; removal of soft hyphens U+00AD and combining marks by a
+  fixed range list (U+0300–036F, 0483–0489, 0591–05BD, 05BF,
+  05C1–05C2, 05C4–05C5, 05C7, 0610–061A, 064B–065F, 0670,
+  1AB0–1AFF, 1DC0–1DFF, 20D0–20FF, FE20–FE2F); Hebrew final
+  letters `ךםןףץ` → regular; maqqef U+05BE → space; `ς`/`Ϲ`→`σ`;
+  `й` is preserved (hidden behind a private-use char until NFD and
+  returned). The algorithm is part of the format: `entries.norm` and
+  `fts.norm` are built by the same rules.
+- **C-14.** `meta.versification` and `meta.name_profile` — profile
+  names from the `data/versification/` and `data/profiles/` registries.
+  The reader must understand built-in profiles; an unknown name — soft
+  (the module's default profile or `org`).
+- **C-15.** `meta.direction` (`ltr`/`rtl`) — text layout direction;
+  `meta.language` — the language for TTS and search normalization.
+- **C-16.** `marks.offset_ms` — offset from the start of the chapter's
+  audio track; `dur_ms = NULL` — until the next mark; `text` — the
+  check word.
+- **C-17.** `.sbz`: only codec `0` (zstd) is required; the reader's
+  unpack limit is ~1 GiB (a bigger module — a rightful refusal).
+- **C-18.** Unknown tables, columns, `meta` keys and `features` are
+  ignored — this is the format's evolution mechanism.
+- **C-19.** `chapter = 0` — a book introduction/preface: shown before
+  chapter 1, is not a verse chapter (BibleQuote commentaries already
+  write it this way).
+- **C-20.** Optional tables (`entries`, `tokens`, `marks` etc.) are
+  legal with any `kind`: `kind` describes the main contract but does
+  not forbid extensions. A Bible with a built-in lexicon is
   `kind=bible` + `features=entries`.

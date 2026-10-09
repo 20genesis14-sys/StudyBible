@@ -1,55 +1,59 @@
-# Спецификация StudyBible — оглавление
+# StudyBible specification — table of contents
 
-Этот файл — только оглавление. Решения записаны в [DECISIONS.md](DECISIONS.md),
-обоснования — в [adr/](adr/). Подробные разделы пишутся вместе с испытательным набором своего этапа.
+**English** | [Русский](SPEC.ru.md)
 
-## Документы
+This file is only a table of contents. Decisions are recorded in
+[DECISIONS.md](DECISIONS.md), rationale in [adr/](adr/). Detailed sections
+are written together with the test fixture of their stage.
 
-- [DECISIONS.md](DECISIONS.md) — принятые решения (источник истины).
-- [ROADMAP.md](ROADMAP.md) — дорожная карта и ход работ.
-- [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) — открытые вопросы.
-- [BUGS.md](BUGS.md) — журнал исправленных багов и недочётов.
+## Documents
 
-## Разделы
+- [DECISIONS.md](DECISIONS.md) — accepted decisions (source of truth).
+- [ROADMAP.md](ROADMAP.md) — roadmap and work progress (local only, not
+  published).
+- [OPEN-QUESTIONS.md](OPEN-QUESTIONS.md) — open questions.
+- [BUGS.md](BUGS.md) — log of fixed bugs and flaws.
 
-| № | Раздел | Где сейчас | Статус |
+## Sections
+
+| № | Section | Current location | Status |
 |---|---|---|---|
-| 01 | Видение | DECISIONS: «Цели», «Принципы» | — |
-| 02 | Требования | DECISIONS: «Измеримые требования» | — |
-| 03 | Архитектура | DECISIONS: «Платформы и технологии»; ADR 0001, 0011 | — |
-| 04 | Модель данных и координаты | DECISIONS: «Данные и модули»; ADR 0004, 0005, 0006 | — |
-| 05 | Формат модуля | [spec/05-module-format-v1.md](spec/05-module-format-v1.md) ([English](spec/en/05-module-format-v1.md)); DECISIONS: «Формат модуля v1»; ADR 0003, 0007, 0016 | схема v1 реализована; компактная редакция (`book_id`, единый текст стихов, срезы спанов); семантика С-1…С-20 зафиксирована 12.10.2026 |
-| 06 | Пользовательские данные | [spec/06-user-data.md](spec/06-user-data.md); DECISIONS: «Синхронизация»; ADR 0008 | v1 реализован |
-| 07 | Поиск | DECISIONS: «Поиск»; ADR 0003, 0006 | точная форма в кэше FTS5; стемминг и фразы — позже |
-| 08 | Оригиналы и подстрочник | DECISIONS: «Данные для чтения и изучения» | — |
-| 09 | Расширения | DECISIONS: «Расширения»; ADR 0009 | нормативная форма к 1.0 |
-| 10 | Сеть, репозитории, ИИ | DECISIONS: «Сеть, репозитории, ИИ» | — |
-| 11 | Конвертер | DECISIONS: «Конвертер»; ADR 0016 | входы USFM, OSIS, Zefania, MyBible, BibleQuote, TSV |
-| 12 | Интерфейс | DECISIONS: «Интерфейс»; ADR 0012–0015 | Flutter выбран; дизайн-система утверждена прототипом |
-| 13 | Источники и лицензии | DECISIONS: «Лицензии», «Данные для чтения и изучения»; ADR 0002 | тексты и модули вне git, каталог `STUDYBIBLE_DATA` |
-| 14 | Голос и доступность | DECISIONS: «Голос и доступность»; ADR 0010, 0017 | TTS по стихам, медиа-сессия; голосовой движок реализован (бэкенды system/neural, RUAccent, пакеты); аудиобиблии — после 1.0 |
+| 01 | Vision | DECISIONS: "Goals", "Principles" | — |
+| 02 | Requirements | DECISIONS: "Measurable requirements" | — |
+| 03 | Architecture | DECISIONS: "Platforms and technologies"; ADR 0001, 0011 | — |
+| 04 | Data model and coordinates | DECISIONS: "Data and modules"; ADR 0004, 0005, 0006 | — |
+| 05 | Module format | [spec/05-module-format-v1.md](spec/05-module-format-v1.md) ([English](spec/en/05-module-format-v1.md)); DECISIONS: "Module format v1"; ADR 0003, 0007, 0016 | v1 schema implemented; compact revision (`book_id`, single verse text, span slices); semantics C-1…C-20 fixed 2026-10-12 |
+| 06 | User data | [spec/06-user-data.md](spec/06-user-data.md); DECISIONS: "Synchronization"; ADR 0008 | v1 implemented |
+| 07 | Search | DECISIONS: "Search"; ADR 0003, 0006 | exact form in FTS5 cache; stemming and phrases — later |
+| 08 | Originals and interlinear | DECISIONS: "Data for reading and study" | — |
+| 09 | Extensions | DECISIONS: "Extensions"; ADR 0009 | normative form by 1.0 |
+| 10 | Network, repositories, AI | DECISIONS: "Network, repositories, AI" | — |
+| 11 | Converter | DECISIONS: "Converter"; ADR 0016 | inputs USFM, OSIS, Zefania, MyBible, BibleQuote, TSV |
+| 12 | Interface | DECISIONS: "Interface"; ADR 0012–0015 | Flutter chosen; design system approved by prototype |
+| 13 | Sources and licenses | DECISIONS: "Licenses", "Data for reading and study"; ADR 0002 | texts and modules outside git, `STUDYBIBLE_DATA` directory |
+| 14 | Voice and accessibility | DECISIONS: "Voice and accessibility"; ADR 0010, 0017 | per-verse TTS, media session; voice engine implemented (system/neural backends, RUAccent, packages); audio Bibles — after 1.0 |
 
-## ADR
+## ADRs
 
-| № | Решение |
+| № | Decision |
 |---|---|
-| [0001](adr/0001-rust-core-ports-adapters.md) | Ядро на Rust, порты и адаптеры, заменяемый интерфейс |
-| [0002](adr/0002-licensing.md) | Код MIT OR Apache-2.0, тексты отдельно |
-| [0003](adr/0003-sqlite-module-fts-cache.md) | Модуль — недоверенный SQLite, FTS в кэше |
-| [0004](adr/0004-coordinates.md) | Координаты вместо единого якоря |
-| [0005](adr/0005-versification-canon-as-data.md) | Версификации, канон и названия книг — данные |
-| [0006](adr/0006-normalization.md) | NFC для переводов, оригиналы как в источнике |
-| [0007](adr/0007-reading-stream.md) | Поток чтения в формате модуля |
-| [0008](adr/0008-user-data-local.md) | Данные пользователя только на устройстве |
-| [0009](adr/0009-extensions-narrow-api.md) | Расширения: узкий API v1 |
-| [0010](adr/0010-voice-accessibility.md) | Голос и доступность |
-| [0011](adr/0011-web-last-local-ci.md) | Веб в конце, основа под веб, локальный CI |
-| [0012](adr/0012-ui-by-pilot-screen.md) | Интерфейс выбирается по пробному экрану |
-| [0013](adr/0013-flutter-ui-design.md) | Интерфейс: Flutter; дизайн-система пробного экрана |
-| [0014](adr/0014-workspace-pane-layer.md) | Интерфейс как данные: Workspace → Pane → Layer |
-| [0015](adr/0015-visual-language-reading-study.md) | Визуальный язык «книга и киноварь», режимы «Чтение» и «Изучение» |
-| [0016](adr/0016-module-format-extensions.md) | Необязательные расширения формата модуля |
-| [0017](adr/0017-voice-engine.md) | Голосовой движок: бэкенды, нейросинтез sherpa-onnx, голосовые пакеты |
-| [0018](adr/0018-module-format-v2.md) | Формат модулей v2 — дорожная карта после 1.0; расширяемость за пределы Библии |
-| [0019](adr/0019-navigation-workspace.md) | Навигация: единое рабочее место, стек позиций, панели без дублирования логики |
-| [0020](adr/0020-contributions.md) | Реестр вкладов и движок расширений (data/ui/web) |
+| [0001](adr/0001-rust-core-ports-adapters.md) | Rust core, ports and adapters, replaceable UI |
+| [0002](adr/0002-licensing.md) | Code MIT OR Apache-2.0, texts separate |
+| [0003](adr/0003-sqlite-module-fts-cache.md) | Module = untrusted SQLite, FTS in cache |
+| [0004](adr/0004-coordinates.md) | Coordinates instead of a single anchor |
+| [0005](adr/0005-versification-canon-as-data.md) | Versifications, canon and book names as data |
+| [0006](adr/0006-normalization.md) | NFC for translations, originals as in the source |
+| [0007](adr/0007-reading-stream.md) | Reading stream in the module format |
+| [0008](adr/0008-user-data-local.md) | User data on device only |
+| [0009](adr/0009-extensions-narrow-api.md) | Extensions: narrow API v1 |
+| [0010](adr/0010-voice-accessibility.md) | Voice and accessibility |
+| [0011](adr/0011-web-last-local-ci.md) | Web last, web-ready foundation, local CI |
+| [0012](adr/0012-ui-by-pilot-screen.md) | UI is chosen by a pilot screen |
+| [0013](adr/0013-flutter-ui-design.md) | UI: Flutter; pilot-screen design system |
+| [0014](adr/0014-workspace-pane-layer.md) | UI as data: Workspace → Pane → Layer |
+| [0015](adr/0015-visual-language-reading-study.md) | Visual language "book and vermilion", "Reading" and "Study" modes |
+| [0016](adr/0016-module-format-extensions.md) | Optional module format extensions |
+| [0017](adr/0017-voice-engine.md) | Voice engine: backends, sherpa-onnx neural synthesis, voice packages |
+| [0018](adr/0018-module-format-v2.md) | Module format v2 — post-1.0 roadmap; extensibility beyond the Bible |
+| [0019](adr/0019-navigation-workspace.md) | Navigation: unified workspace, position stack, panes without duplicated logic |
+| [0020](adr/0020-contributions.md) | Contribution registry and extension engine (data/ui/web) |

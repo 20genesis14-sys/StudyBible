@@ -1,175 +1,175 @@
-# 0021. Собственная текстовая система `studybible-text` (пост-1.0 трек)
+# 0021. Our own text system `studybible-text` (post-1.0 track)
 
-Статус: принято как направление развития после 1.0 (решение
-пользователя, 12.10.2026; **перезаписано 08.10.2026** — трек
-переориентирован с форка GPUI на библиотечный путь по анализу
-схемы `bible-text-scheme`, решение пользователя). Реализация не
-начата; Flutter остаётся боевым фронтендом на всех платформах,
-снятие оболочки — опционально и откладывается.
+**English** | [Русский](0021-gpui-ui-track.ru.md)
 
-## Контекст
+Status: accepted as a development direction after 1.0 (user decision,
+2026-10-12; **rewritten 2026-10-08** — the track was re-aimed from a
+GPUI fork to the library path based on the `bible-text-scheme` analysis,
+user decision). Implementation has not begun; Flutter remains the
+production frontend on all platforms, removing the shell is optional
+and postponed.
 
-Пределы Flutter для нашей задачи подтверждены замерами: холодный старт
-Windows release ~1.7–2.8 с при поле пустого приложения ~1.4–1.6 с,
-APK ~80–126 МБ, wasm-веб без файловой системы. Глубже — модель:
-тонкая типографика (текст над текстом, рубины, интерлиньяр, аппарат),
-кастомные слои и сложные письменности упираются в закрытый текстовый
-конвейер движка. Rust-ядро уже изолировано и UI-агностично — цена
-миграции это цена только фронтенда.
+## Context
 
-Три равнозначных принципа будущего интерфейса (зафиксированы как
-приёмочные критерии каждого этапа):
+Flutter's limits for our task are confirmed by measurements: Windows
+release cold start ~1.7–2.8 s with ~1.4–1.6 s for an empty app field,
+APK ~80–126 MB, wasm web without a file system. Deeper — the model:
+fine typography (text over text, ruby, interlinear, apparatus), custom
+layers and complex scripts hit the engine's closed text pipeline. The
+Rust core is already isolated and UI-agnostic — the cost of migration is
+the cost of the frontend only.
 
-1. **Высочайшее качество текста** на всех платформах, в любом виде,
-   на любом языке.
-2. **Безупречная скорость и плавность** работы.
-3. **Полная кастомизируемость и расширяемость**: слои, оверлеи,
-   произвольные композиции («текст над текстом») — штатные
-   примитивы рендера.
+Three equal principles of the future UI (fixed as acceptance criteria of
+every stage):
 
-## Ключевой вывод анализа (08.10.2026)
+1. **Highest text quality** on all platforms, in any form, in any
+   language.
+2. **Flawless speed and smoothness** of operation.
+3. **Full customizability and extensibility**: layers, overlays,
+   arbitrary compositions ("text over text") — standard render
+   primitives.
 
-Продукт — не тулкит, а **наборщик**. Ярусов по якорям слов нет ни в
-одном готовом UI-фреймворке (GPUI, Parley, SkParagraph, Slint, Qt —
-проверено). Форк GPUI не покупает главное: его текстовый путь —
-платформенный (Core Text / DirectWrite / cosmic-text), один стих
-получает разные позиции глифов на разных ОС, что ломает принцип № 1;
-а дописывание Android/iOS-веба равносильно написанию embedder'а —
-повторной оплате цены Flutter. Вывод: владеть моделью токенов,
-наборщиком ярусов и композитором; шейпер взять готовый; оболочку
-оставить сменяемой.
+## Key analysis finding (2026-10-08)
 
-## Решение
+The product is not a toolkit but a **composer**. Tiered layout anchored
+on words exists in no ready UI framework (GPUI, Parley, SkParagraph,
+Slint, Qt — checked). A GPUI fork does not buy the main thing: its text
+path is platform-based (Core Text / DirectWrite / cosmic-text), one
+verse gets different glyph positions on different OSes, breaking
+principle № 1; and writing Android/iOS-web support equals writing an
+embedder — paying Flutter's price a second time. Conclusion: own the
+token model, the tier composer and the compositor; take a ready-made
+shaper; keep the shell replaceable.
 
-Rust-библиотека **`studybible-text`** (рабочее имя) — пять слоёв,
-своих три:
+## Decision
 
-| Слой | Реализация |
+A Rust library **`studybible-text`** (working name) — five layers, three
+of them ours:
+
+| Layer | Implementation |
 |---|---|
-| Шейпер | готовый: HarfBuzz или HarfRust/rustybuzz — **свой шейпер не пишем**: mark/mkmk, никуд, теамим, политоника уже там. Единый шейпер на всех платформах = условие паритета текста; ОС-шейперы не используются для писания |
-| **Наборщик ярусов** | **свой** — кладёт ярусы и выравнивает их по **якорям слов**, не по строке. Подстрочник, колонки, аппарат, «текст над текстом» — его работа |
-| Растеризатор | один и тот же путь «глиф → кэш картинок» на десктопе, мобилке и вебе, иначе стих разъедется. **Открыто** (см. ниже): вариант A — единый FreeType→атлас везде; вариант B — платформенная растеризация. Решение — когда дойдём на практике |
-| Композитор | свой, тонкий: квады на GPU, только видимые стихи на экране, грязные области (идеи заимствованы у GPUI — без репозитория) |
-| Оболочка | сменяемая: сейчас **Flutter текстурой**; позже, если вес и ограничения ещё болят — тонкий нативный хост; веб — тот же crate в Wasm |
+| Shaper | ready-made: HarfBuzz or HarfRust/rustybuzz — **we do not write our own shaper**: mark/mkmk, niqqud, te'amim, polytonic are already there. One shaper on all platforms = the condition of text parity; OS shapers are not used for scripture |
+| **Tier composer** | **ours** — lays out tiers and aligns them by **word anchors**, not by the line. Interlinear, columns, apparatus, "text over text" — its job |
+| Rasterizer | one and the same "glyph → image cache" path on desktop, mobile and web, otherwise the verse falls apart. **Open** (see below): option A — a single FreeType→atlas everywhere; option B — platform rasterization. Decision — when we get there in practice |
+| Compositor | ours, thin: quads on GPU, only visible verses on screen, dirty regions (ideas borrowed from GPUI — without the repository) |
+| Shell | replaceable: now **Flutter as a texture**; later, if weight and limits still hurt — a thin native host; web — the same crate in Wasm |
 
-**Модель данных важнее рендера.** Подстрочник не считается из сырой
-строки: нужны стабильные идентификаторы токенов и связи «эти слова
-оригинала = эти слова перевода». Источники связей существуют:
-USFM (`\zaln`, `\w`), MACULA, схема BCVWP. Заметки, подсветка и
-расширения ссылаются на ID токена, не на пиксель и не на смещение в
-строке. Поиск и подсветка не режут слово до шейпинга: слово шейпится
-целиком, красится кусок — иначе точки и ударения съезжают на границе
-подсветки. Показ/скрытие огласовок — другой ключ кэша, не ручная
-правка глифов. Ключ кэша шейпа: текст, шрифт, OpenType-фичи,
-корзина масштаба (корпус конечный — шейп кэшируется).
+**The data model matters more than the render.** Interlinear is not
+computed from a raw string: it needs stable token identifiers and links
+"these original words = these translation words". Sources of links
+exist: USFM (`\zaln`, `\w`), MACULA, the BCVWP scheme. Notes,
+highlights and extensions reference a token ID, not a pixel and not a
+string offset. Search and highlighting do not cut a word before
+shaping: the word is shaped whole, a piece is painted — otherwise dots
+and accents drift at the highlight boundary. Showing/hiding vowel
+points — a different cache key, not manual glyph editing. Shape cache
+key: text, font, OpenType features, scale bucket (the corpus is finite —
+the shape is cached).
 
-**Расширения** (будущий API, ADR 0020) вызывают наборщик в Rust —
-не виджеты Flutter/GPUI/Slint.
+**Extensions** (future API, ADR 0020) call the composer in Rust — not
+Flutter/GPUI/Slint widgets.
 
-**Объём платформенного слоя при снятии оболочки** (если дойдём до
-тонкого хоста): жизненный цикл, IME/клавиатура, жесты, буфер
-обмена, доступность (AccessKit), аудио/TTS (SAPI, AVSpeechSynthesizer,
-android.speech.tts, speech-dispatcher, Web Speech API), проигрывание
-аудиобиблий. Пока оболочка — Flutter, эти статьи расходов не наши.
+**Platform-layer scope when the shell is removed** (if we get to a thin
+host): lifecycle, IME/keyboard, gestures, clipboard, accessibility
+(AccessKit), audio/TTS (SAPI, AVSpeechSynthesizer, android.speech.tts,
+speech-dispatcher, Web Speech API), audio-Bible playback. While the
+shell is Flutter, these cost items are not ours.
 
-## Что осознанно не писать
+## What we deliberately do not write
 
-- Свой шейпер — проиграет HarfBuzz на теамим и займёт годы.
-- Форк GPUI и GPUI Kit (ранее принято — **отменено 08.10.2026**):
-  платформенный шейпинг расходится по ОС; нет модели ярусов и
-  якорей; mobile/web = свой embedder; GPUI Kit — десктопные
-  контролы, подстрочник не верстает; сопровождение привязано к
-  циклу Zed; версии меняются под Zed. Из GPUI берём только две
-  идеи: GPU-квады и грязные области.
-- Замена текстового движка внутри Slint — абзацная модель мешает
-  произвольной вёрстке, лицензия GPL-3/коммерческая.
+- Our own shaper — it would lose to HarfBuzz on te'amim and take years.
+- A GPUI fork and GPUI Kit (previously accepted — **cancelled
+  2026-10-08**): platform shaping diverges by OS; no tier/anchor model;
+  mobile/web = our own embedder; GPUI Kit is desktop controls, does not
+  typeset interlinear; maintenance is tied to the Zed cycle; versions
+  change under Zed. From GPUI we take only two ideas: GPU quads and
+  dirty regions.
+- Replacing the text engine inside Slint — the paragraph model hinders
+  arbitrary layout, GPL-3/commercial license.
 
-## Что берём готовым
+## What we take ready-made
 
-- HarfBuzz / HarfRust (rustybuzz) — шейпинг.
-- Parley (Linebender) — только обычный абзац: перенос, BiDi,
-  fallback, выделение. Ярусы он не делает.
-- AccessKit — карта «глиф → токен» для экранного диктора, заложить
-  сразу.
-- Атлас глифов проще Vello для чтения стихов; Vello — вариант для
-  кривых и зума, но требует compute-шейдеров (старый Android и
-  часть веба выпадут) — не база.
+- HarfBuzz / HarfRust (rustybuzz) — shaping.
+- Parley (Linebender) — only the plain paragraph: wrapping, BiDi,
+  fallback, selection. It does not do tiers.
+- AccessKit — a "glyph → token" map for the screen reader, design for it
+  from the start.
+- A glyph atlas is simpler than Vello for reading verses; Vello is an
+  option for curves and zoom but requires compute shaders (old Android
+  and part of the web fall out) — not the base.
 
-## Этапы
+## Stages
 
-0. **Модель токена и связей** (без рендера): ID токена, связи
-   оригинал↔перевод из `\zaln`/`\w`/MACULA/BCVWP; заметки уже
-   вешаются на ID.
-1. **Шейп слова целиком** + кэш по ключу выше; золотые тесты
-   начинаются здесь.
-2. **Наборщик ярусов** поверх готовых ран: сначала подстрочник,
-   потом колонки и аппарат.
-3. **Композитор**: рисует раны, отдаёт хит-тест «точка → токен».
-4. **Встройка во Flutter текстурой**; расширения ходят в библиотеку.
-   Это этап реальной сложности: скролл-физика, селекция, a11y-проброс
-   — проверяется до больших вложений.
-5. **Золотые тесты стихов** до вопроса об оболочке. Минимум:
-   Быт 1:1 (никуд+теамим), Пс 119, политонический Ин 1:1,
-   смешанный стих с числами.
-6. **Векторный экспорт** теми же позициями глифов (PDF, печать) —
-   GPU-атлас этого сам не даёт.
-7. **Снятие Flutter** — только если вес и ограничения ещё болят
-   после этапа 4; тонкий нативный хост по платформам.
-8. **Веб** — тот же crate в Wasm (WebGPU/WebGL2); до готовности веб
-   остаётся на Flutter.
+0. **Token and link model** (no rendering): token ID, original↔
+   translation links from `\zaln`/`\w`/MACULA/BCVWP; notes already hang
+   on IDs.
+1. **Shape a word whole** + cache by the key above; golden tests start
+   here.
+2. **Tier composer** on top of ready runs: interlinear first, then
+   columns and apparatus.
+3. **Compositor**: draws runs, returns a "point → token" hit test.
+4. **Embedding into Flutter as a texture**; extensions call the
+   library. This is the stage of real complexity: scroll physics,
+   selection, a11y bridging — checked before major investment.
+5. **Golden verse tests** before the shell question. Minimum: Gen 1:1
+   (niqqud+te'amim), Ps 119, polytonic John 1:1, a mixed verse with
+   numbers.
+6. **Vector export** with the same glyph positions (PDF, print) — the
+   GPU atlas does not give this itself.
+7. **Removing Flutter** — only if weight and limits still hurt after
+   stage 4; a thin native host per platform.
+8. **Web** — the same crate in Wasm (WebGPU/WebGL2); until ready, web
+   stays on Flutter.
 
-## Неотложные требования (держать в модели с начала)
+## Urgent requirements (keep in the model from the start)
 
-- Выделение, копирование, чтение вслух; на мобилке — ручки
-  выделения, лупа, IME иврита/греческого (месяцы работы — причина
-  не снимать Flutter рано).
-- Доступность: диктор получает диапазоны текста, не картинку.
-- Тёмная тема: поправка гаммы тонких светлых штрихов на тёмном фоне.
-- Зум: корзины масштаба или кривые на GPU (атлас на одном кегле
-  мылится).
-- Письменности шире иврита/греческого: арабица, сирийский, геэз —
-  направление закладывать в модель сразу.
-- Лицензии шрифтов (SBL Hebrew, SBL Greek) и текстов.
-- Два режима раскладки: чтение и изучение — один движок, разные
-  политики.
-- «Лучший вид на этой ОС» и «один и тот же стих везде» не
-  совпадают: для писания важнее одинаковые позиции; хром приложения
-  может быть системным — писание нет.
+- Selection, copying, read-aloud; on mobile — selection handles,
+  magnifier, Hebrew/Greek IME (months of work — the reason not to drop
+  Flutter early).
+- Accessibility: the screen reader gets text ranges, not a picture.
+- Dark theme: gamma correction for thin light strokes on a dark
+  background.
+- Zoom: scale buckets or GPU curves (a single-size atlas blurs).
+- Scripts wider than Hebrew/Greek: Arabic, Syriac, Ge'ez — direction is
+  designed into the model from the start.
+- Font licenses (SBL Hebrew, SBL Greek) and text licenses.
+- Two layout modes: reading and study — one engine, different policies.
+- "Best look on this OS" and "the same verse everywhere" do not
+  coincide: for scripture identical positions matter more; the app
+  chrome may be system — the scripture may not.
 
-## Альтернативы (проверены, отклонены)
+## Alternatives (checked, rejected)
 
-- **Форк GPUI + GPUI Kit** — прежнее решение, отменено выше.
-- **Slint** — абзацная модель, FemtoVG/software слабые для текста,
-  лицензия GPL-3/коммерческая.
-- **Makepad** — своя текстовая система с непроверенным качеством на
-  наших скриптах, маленькая экосистема.
-- **rust-skia без Flutter** — бинарник снова большой (размер Flutter
-  во многом и есть Skia), подстрочник всё равно свой.
-- **Qt через свой элемент** — лучший готовый текст, но LGPL/
-  коммерческая, C++-граница, крупный бинарник.
-- **iced/floem/egui/Dear ImGui** — нет mobile или атласный текст
-  слабого класса.
-- **Typst как экран** — статичная страница, нет наведения на
-  морфологию.
-- **Vello как обязательная база** — compute-шейдеры сужают охват.
-- **Форк flutter_windows/engine** — не окупается (см. анализ старта).
+- **GPUI fork + GPUI Kit** — the previous decision, cancelled above.
+- **Slint** — paragraph model, weak FemtoVG/software for text, GPL-3/
+  commercial license.
+- **Makepad** — its own text system of unverified quality on our
+  scripts, small ecosystem.
+- **rust-skia without Flutter** — the binary is big again (much of
+  Flutter's size is Skia), interlinear is ours anyway.
+- **Qt via a custom element** — the best ready text, but LGPL/
+  commercial, a C++ boundary, a large binary.
+- **iced/floem/egui/Dear ImGui** — no mobile or atlas-class text is
+  weak.
+- **Typst as a screen** — a static page, no hovering on morphology.
+- **Vello as a mandatory base** — compute shaders narrow the reach.
+- **Forking flutter_windows/engine** — does not pay off (see the start
+  analysis).
 
-## Риски (зафиксированы)
+## Risks (recorded)
 
-- встройка текстуры во Flutter: скролл-физика, сенсорная селекция,
-  a11y-мост — проверяется на этапе 4 до вложений в оболочку;
-- два живых фронтенда на переходный период (Flutter + текстура);
-- аудио/TTS на тонком хосте — наш код на каждой ОС, если оболочку
-  снимем;
-- размер команды: один наборщик поверх готового шейпера — одно
-  направление; форк тулкита + четыре платформы было бы несколькими.
+- embedding a texture into Flutter: scroll physics, touch selection,
+  a11y bridge — checked at stage 4 before investing in the shell;
+- two live frontends for a transition period (Flutter + texture);
+- audio/TTS on a thin host — our code on every OS if we drop the shell;
+- team size: one composer over a ready shaper is one direction; a
+  toolkit fork + four platforms would be several.
 
-## Связи
+## Links
 
-- ADR 0017 (голосовой движок): пока оболочка — Flutter, TTS живёт
-  там; при тонком хосте — ОС-API в объёме платформенного слоя.
-- ADR 0018/0020: формат v2 и реестр вкладов не зависят от UI;
-  расширения целятся в наборщик, а не в виджеты.
-- `bible-text-scheme` (архив от пользователя, 08.10.2026) — источник
-  пересмотра: модель токенов, якоря слов, ярусы, порядок этапов.
-</content>
+- ADR 0017 (voice engine): while the shell is Flutter, TTS lives there;
+  on a thin host — OS APIs within the platform layer's scope.
+- ADR 0018/0020: format v2 and the contribution registry do not depend
+  on the UI; extensions target the composer, not widgets.
+- `bible-text-scheme` (archive from the user, 2026-10-08) — the source
+  of the revision: the token model, word anchors, tiers, stage order.

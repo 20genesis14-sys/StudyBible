@@ -1,19 +1,24 @@
-# 0003. Модуль — недоверенный SQLite, FTS в кэше
+# 0003. Module = untrusted SQLite, FTS in cache
 
-Статус: принято.
+**English** | [Русский](0003-sqlite-module-fts-cache.ru.md)
 
-## Контекст
+Status: accepted.
 
-FTS-индекс внутри модуля замораживает токенизатор вместе с форматом, а по индексу
-восстанавливается текст. Модули приходят из недоверенных источников.
+## Context
 
-## Решение
+An FTS index inside the module freezes the tokenizer together with the
+format, and the text can be recovered from the index. Modules come from
+untrusted sources.
 
-Модуль — собственный формат SQLite: текст, разметка, токены, метаданные; индекса в нём нет.
-FTS5 лежит в локальном кэше, ключ — хэш содержимого модуля + версия токенизатора.
-Модуль открывается только на чтение, с `SQLITE_DBCONFIG_DEFENSIVE`, `trusted_schema=OFF`
-и проверкой схемы и версии формата.
+## Decision
 
-## Последствия
+A module is our own SQLite format: text, markup, tokens, metadata; no
+index inside. FTS5 lives in a local cache; the key is the module content
+hash + tokenizer version.
+A module is opened read-only, with `SQLITE_DBCONFIG_DEFENSIVE`,
+`trusted_schema=OFF`, and a schema/format-version check.
 
-Токенизатор и нормализацию можно менять после 1.0 без перевыпуска модулей.
+## Consequences
+
+The tokenizer and normalization can change after 1.0 without reissuing
+modules.

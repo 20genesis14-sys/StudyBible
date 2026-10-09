@@ -1,64 +1,69 @@
-# 0013. Интерфейс: Flutter, дизайн-система пробного экрана
+# 0013. UI: Flutter, pilot-screen design system
 
-Статус: принято (выбор интерфейса — Flutter). Нижнее меню и подача маркеров заменены ADR 0015; насыщенность плиток и полное имя книги уточнены там же.
+**English** | [Русский](0013-flutter-ui-design.ru.md)
 
-## Контекст
+Status: accepted (UI choice — Flutter). The bottom menu and marker
+presentation are superseded by ADR 0015; tile saturation and full book
+names are refined there too.
 
-По ADR 0012 интерфейс выбирался по пробному экрану между Slint и Flutter.
-Сначала были собраны два макета в Figma (пробный экран по чек-листу ADR 0012
-и поток «сетка книг → сетка глав → чтение» для мобильного и десктопа),
-затем живой прототип на Flutter (`apps/studybible-flutter`) на реальных
-текстах из модулей russyn / engwebp / eng-kjv2006. По результатам показа
-пользователь выбрал Flutter; пробный экран на Slint не строится —
-письмо в SixtyFPS не требуется.
+## Context
 
-## Решение
+Per ADR 0012 the UI was being chosen by a pilot screen between Slint and
+Flutter. First two mockups were built in Figma (the pilot screen per the
+ADR 0012 checklist and the "book grid → chapter grid → reading" flow for
+mobile and desktop), then a live Flutter prototype
+(`apps/studybible-flutter`) on real texts from the russyn / engwebp /
+eng-kjv2006 modules. After the demonstration the user chose Flutter; the
+Slint pilot screen is not built — no letter to SixtyFPS needed.
 
-Интерфейс — Flutter, связка с ядром — flutter_rust_bridge (тонкая,
-как записано в DECISIONS «Платформы и технологии»).
+## Decision
 
-Утверждённые решения пробного экрана (прототип → приложение):
+UI — Flutter, binding to the core — flutter_rust_bridge (thin, as
+recorded in DECISIONS "Platforms and technologies").
 
-- **Навигация каноном.** Книги — непрерывная сетка (без разрывов по группам)
-  в два блока: Еврейские Писания / Христианские Греческие Писания;
-  группы книг различаются только цветом плитки. Главы — сетка.
-  Листание глав свайпом и клавишами ← →, через границу книг с баннером
-  «Конец X → Y». Опциональный выбор стиха (тумблер в настройках).
-- **Группы книг.** 10 групп с фирменным цветом (пятикнижие — индиго,
-  исторические — изумруд, поэтические — янтарь, большие пророки — фиолет,
-  малые пророки — тёмно-розовый; евангелия — синий, Деяния — бирюза,
-  послания Павла — терракот, соборные — оливковый, Откровение — графит).
-  Текст на плитке белый, контраст ≥ 4.5:1. Номера стихов в тексте главы —
-  цветом группы книги, полужирные. Вариант «нейтральная плитка + цветная
-  полоска» отклонён: слабее читается с экрана.
-- **Вёрстка текста.** Два режима: абзацами (красная строка, межстрочник 1.66)
-  и «стих на строку» (отступы плотнее). Размер шрифта — слайдер и
-  Ctrl+колёсико. Ширина колонки — опция «Чтение» (~720 px по центру,
-  длинные строки на десктопе неудобны).
-- **Взаимодействие со стихом.** Тап по номеру стиха → панель действий
-  (выделить, заметка, копировать, поделиться, сравнить) и, на широком экране,
-  боковая панель «Сноски и параллельные» с привязкой сносок к стихам.
-  Двойной тап по стиху → режим сравнения переводов. Тап по слову со
-  Стронгом → карточка слова. Выделение текста мышью для копирования.
-- **Темы.** Светлая; тёмная «для глаз» (тёмно-серая); AMOLED (чистый чёрный).
-  В плане: сепия и тёплые тона — архитектура тем это допускает.
-- **Шрифты чтения.** Встроенные Literata (по умолчанию, для экранного чтения)
-  и Gentium Book Plus (запас под иврит/греческий), системный — опция.
-- **Прогресс.** Прочитанная глава — галочка-чип и цветная рамка на плитке;
-  полоса «N из глав» в шапке книги; маркер «продолжить»; автоскролл к
-  последнему стиху при повторном открытии главы; тонкая полоса прокрутки
-  под шапкой. Пока в памяти прототипа; постоянное хранение — через
-  `store::UserData` в приложении.
-- **Нижнее меню (мобильное).** Главная / Библия / График чтения / Словари /
-  Настройки — последние три пока заглушки под будущие разделы.
+Approved pilot-screen decisions (prototype → application):
 
-## Последствия
+- **Canon navigation.** Books — a continuous grid (no breaks by groups)
+  in two blocks: Hebrew Scriptures / Christian Greek Scriptures; book
+  groups differ only by tile color. Chapters — a grid. Chapter paging by
+  swipe and ← → keys, across book boundaries with an "End of X → Y"
+  banner. Optional verse picker (a toggle in settings).
+- **Book groups.** 10 groups with a signature color (Pentateuch —
+  indigo, historical — emerald, poetic — amber, major prophets — violet,
+  minor prophets — dark pink; Gospels — blue, Acts — turquoise, Paul's
+  epistles — terracotta, general epistles — olive, Revelation —
+  graphite). White text on the tile, contrast ≥ 4.5:1. Verse numbers in
+  the chapter text — in the book-group color, bold. The "neutral tile +
+  colored stripe" variant was rejected: reads worse on screen.
+- **Text layout.** Two modes: paragraphs (indent, 1.66 line height) and
+  "verse per line" (tighter spacing). Font size — a slider and
+  Ctrl+wheel. Column width — a "Reading" option (~720 px centered; long
+  lines are uncomfortable on desktop).
+- **Verse interaction.** Tap a verse number → action panel (highlight,
+  note, copy, share, compare) and, on a wide screen, a "Footnotes and
+  parallels" side panel with footnotes bound to verses. Double-tap a
+  verse → translation comparison mode. Tap a word with a Strong's tag →
+  the word card. Mouse text selection for copying.
+- **Themes.** Light; dark "for the eyes" (dark gray); AMOLED (pure
+  black). Planned: sepia and warm tones — the theme architecture allows
+  it.
+- **Reading fonts.** Bundled Literata (default, for screen reading) and
+  Gentium Book Plus (reserve for Hebrew/Greek); system — an option.
+- **Progress.** A read chapter — a checkmark chip and a colored frame on
+  the tile; an "N of chapters" bar in the book header; a "continue"
+  marker; autoscroll to the last verse on reopening a chapter; a thin
+  scroll bar under the header. Held in prototype memory for now;
+  persistent storage — via `store::UserData` in the app.
+- **Bottom menu (mobile).** Home / Bible / Reading schedule /
+  Dictionaries / Settings — the last three are stubs for future
+  sections.
 
-- Плагины не рисуют собственный интерфейс до API v1 (как в ADR 0009).
-- Публичное веб-превью прототипа — статический снимок на момент деплоя
-  (`web-*.devinapps.com`), не часть продукта; веб остаётся «в самом конце»
-  по ADR 0011.
-- Прототип читает предвыгруженный JSON; приложение читает модули `.sb`
-  напрямую через мост. Пользовательские модули (например собранные из
-  присланных источников) — данные пользователя, не входят в репозиторий
-  и в публичную сборку.
+## Consequences
+
+- Plugins do not draw their own UI until API v1 (as in ADR 0009).
+- The public web preview of the prototype is a static snapshot at deploy
+  time (`web-*.devinapps.com`), not part of the product; web remains "at
+  the very end" per ADR 0011.
+- The prototype reads preloaded JSON; the app reads `.sb` modules
+  directly through the bridge. User modules (e.g. built from submitted
+  sources) are user data, not part of the repository or public build.

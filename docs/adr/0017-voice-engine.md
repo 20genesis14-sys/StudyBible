@@ -1,148 +1,161 @@
-# 0017. Голосовой движок: бэкенды, нейросинтез, голосовые пакеты
+# 0017. Voice engine: backends, neural synthesis, voice packages
 
-Статус: принято.
+**English** | [Русский](0017-voice-engine.ru.md)
 
-Уточняет ADR 0010: офлайн-нейросинтез и аудиобиблии перенесены с «после 1.0» на Beta
-(решение пользователя 06.10.2026). Обязательство про espeak-ng сохраняется:
-GPL-компоненты не входят в ядро.
+Status: accepted.
 
-## Контекст
+Refines ADR 0010: offline neural synthesis and audio Bibles moved from
+"after 1.0" to Beta (user decision 2026-10-06). The espeak-ng commitment
+stands: GPL components do not enter the core.
 
-Чтение вслух идёт через системные синтезаторы (`flutter_tts`). Этого мало:
-качество голосов разное на каждой ОС, движок/голос языка может отсутствовать,
-пауза внутри стиха невозможна (resume = стих с начала), пословной подсветки нет,
-а аудиобиблий формат не предусматривает (таблица `marks` — только задел).
+## Context
 
-## Решение
+Read-aloud goes through system synthesizers (`flutter_tts`). That is not
+enough: voice quality varies per OS, the language engine/voice may be
+missing, a pause inside a verse is impossible (resume = the verse from
+the start), there is no per-word highlighting, and the format does not
+provide for audio Bibles (the `marks` table is only groundwork).
 
-### Абстракция бэкенда
+## Decision
 
-`VoiceBackend` — узкий интерфейс в UI-слое (адаптер, не домен):
-`available(language)`, `prepare`, `speak(text)` (await = фраза договорила),
-`pause`/`resume`/`stop`, опциональный поток пословных меток (char-offsets).
-`ReaderTtsService` по-прежнему владеет очередью стихов, медиа-сессией и
-подсветкой стиха — меняется только «кто говорит».
+### Backend abstraction
 
-Бэкенды:
+`VoiceBackend` — a narrow interface in the UI layer (an adapter, not
+domain): `available(language)`, `prepare`, `speak(text)` (await = the
+phrase finished), `pause`/`resume`/`stop`, optional per-word mark stream
+(char offsets). `ReaderTtsService` still owns the verse queue, the media
+session and verse highlighting — only "who speaks" changes.
 
-- `system` — `flutter_tts` (все платформы, включая web);
-- `neural` — `sherpa_onnx` (VITS/Piper-модели; нативные платформы: Windows,
-  Linux, macOS, Android, iOS; на web недоступен — откат на system);
-- `file` (заготовка) — аудиобиблия: файлы главы + таблица `marks` модуля.
+Backends:
 
-Почему `sherpa_onnx`, а не ONNX Runtime в ядре: готовые FFI-бинари под все
-платформы (Android включён — `ort` под Android в Rust требовал бы отдельной
-линковки), проверенные Piper-совместимые модели у k2-fsa, синтез на CPU за
-сотни миллисекунд на стих. Пакет не в ядре — это адаптер рядом с `flutter_tts`.
+- `system` — `flutter_tts` (all platforms including web);
+- `neural` — `sherpa_onnx` (VITS/Piper models; native platforms: Windows,
+  Linux, macOS, Android, iOS; unavailable on web — falls back to
+  system);
+- `file` (stub) — an audio Bible: chapter files + the module's `marks`
+  table.
 
-### Голосовые пакеты
+Why `sherpa_onnx` and not ONNX Runtime in the core: ready FFI binaries
+for all platforms (Android included — `ort` on Android in Rust would
+need separate linking), proven Piper-compatible models from k2-fsa,
+CPU synthesis in hundreds of ms per verse. The package is not in the
+core — it is an adapter next to `flutter_tts`.
 
-Каталог `STUDYBIBLE_DATA/voices/<id>/` — вне репозитория и сборок (модели
-20–100+ МБ, как модули). Пакет = распакованный набор `vits-piper-*` с релизов
-k2-fsa (содержит `*.onnx`, `tokens.txt`, `espeak-ng-data/`) либо сырой
-Piper-голос (`*.onnx` + `*.onnx.json` — язык/дикторы читаем из json).
-Необязательный `voice.json` задаёт имя, язык BCP 47, число дикторов.
+### Voice packages
 
-Импорт — как у модулей: выбор папки или архива `.tar.bz2`/`.zip`
-(`file_picker` + `archive`), копирование/распаковка в `voices/`.
+Directory `STUDYBIBLE_DATA/voices/<id>/` — outside the repository and
+builds (models are 20–100+ MB, like modules). A package = an unpacked
+`vits-piper-*` bundle from k2-fsa releases (contains `*.onnx`,
+`tokens.txt`, `espeak-ng-data/`) or a raw Piper voice (`*.onnx` +
+`*.onnx.json` — language/speakers read from the json). An optional
+`voice.json` sets the name, BCP 47 language, speaker count.
 
-### Настройки
+Import — like modules: pick a folder or a `.tar.bz2`/`.zip` archive
+(`file_picker` + `archive`), copy/unpack into `voices/`.
 
-`voiceEngine` = `auto | system | neural` (`auto` — нейро, если для языка
-модуля есть установленный голос, иначе системный). Голос выбирается на язык
-(`neuralVoices`: `ru → id`), скорость отдельным ползунком. Всё персистентно
-там же, где тема, — JSON в userdata.
+### Settings
 
-### Качество чтения
+`voiceEngine` = `auto | system | neural` (`auto` — neural if the module
+language has an installed voice, else system). The voice is chosen per
+language (`neuralVoices`: `ru → id`), speed is a separate slider. All
+persisted where the theme is — JSON in userdata.
 
-- Прегенерация следующего стиха во время воспроизведения текущего
-  (prefetch-1): переходы между стихами без паузы движка.
-- Точная пауза внутри стиха у нейро-бэкенда (audioplayers pause/resume —
-  аудио уже готово; у системного resume = стих с начала, как раньше).
-- Пословная подсветка (опция, по умолчанию выкл): у `system` — точная,
-  из progress-событий `flutter_tts` (Android/iOS/macOS/web отдают
-  char-offsets слова); у `neural` — оценочная, по позиции аудио
-  пропорционально длине слов; у `file` — точная из `marks`.
-- Словарь произношения (`pronounce.dart`, только `neural`): подмены
-  «слово → слово» с ударением U+0301 применяются к тексту синтеза —
-  показанный стих не меняется. Базовый набор (библейские имена,
-  церковная лексика) переопределяется `pronounce.tsv` в папке пакета.
-  У `system` словарь не применяется — char-offsets прогресса
-  относились бы к подменённому тексту и ломали подсветку.
+### Reading quality
 
-### Фронтенд языка: автоударения и паузы
+- Pre-generation of the next verse during playback of the current
+  (prefetch-1): transitions between verses without engine pause.
+- Exact pause inside a verse on the neural backend (audioplayers
+  pause/resume — the audio is already there; on system, resume = the
+  verse from the start, as before).
+- Per-word highlighting (option, off by default): on `system` — exact,
+  from `flutter_tts` progress events (Android/iOS/macOS/web return word
+  char-offsets); on `neural` — estimated by audio position proportional
+  to word lengths; on `file` — exact from `marks`.
+- Pronunciation dictionary (`pronounce.dart`, `neural` only):
+  "word → word" substitutions with a U+0301 stress mark are applied to
+  the synthesis text — the displayed verse is unchanged. The base set
+  (Bible names, church vocabulary) is overridden by `pronounce.tsv` in
+  the package folder. The dictionary is not applied to `system` — the
+  progress char-offsets would refer to the substituted text and break
+  highlighting.
 
-Главная причина «неестественного» звучания русских Piper-голосов —
-espeak-ng ставит ударения по правилам и часто ошибается. Проверено:
-U+0301 после ударной гласной реально меняет синтез («за́мок» ≠
-«замо́к»), а «+» читается вслух — выводим только U+0301.
+### Language frontend: auto-stress and pauses
 
-- Ударения ставит нейромодель RUAccent `nn_accent` (MIT, RoFormer по
-  символам, ~2 МБ). Она ставится один раз на язык, а не на перевод —
-  работает с любым русским текстом во время чтения.
-- «ё» восстанавливается по словарю `yo_words` RUAccent (TSV-ассет
-  `без_ё<TAB>с_ё`): «еще» → «ещё». Омографы (все/всё) не разрешаются —
-  это не идеально, но осознанно: контекстный разбор ценой второй
-  модели пока не окупается.
-- Модель — ассет приложения (`assets/voice/ru/`: `accent.onnx`,
-  `vocab.txt`, `yo_words.tsv`, LICENSE). Инференс — чистый Rust на
-  `tract` в крейте `studybible-accent`: вторая копия onnxruntime рядом
-  с sherpa дала бы конфликт DLL, потому tract, а не `ort`.
-- Применяется только к бэкенду `neural`: у `system` char-offsets
-  прогресса сломались бы на подменённом тексте, и системные движки
-  ставят ударения сами.
-- Порядок в тексте синтеза: `pronounce.dart` (словарь произношения)
-  → автоударения. На слово: словарь ё → лексикон ударений →
-  нейросеть. Лексикон — тоже один на язык, а не на перевод: собран
-  инструментом (`apps/studybible-cli` `build_lexicon`) из пересечения
-  словаря RUAccent `accents.json.gz` со словоформами русских
-  переводов из каталога модулей (russyn, rstplus, ru_rob —
-  52 216 слов, покрытие ~81 % встретившихся словоформ); омографы
-  (`omographs.json.gz`) исключены — их разрешает нейросеть.
-  Используется для любого русского текста, не только для стихов
-  модулей, на которых собран.
-- Одно ударение на слово: из кандидатов STRESS_PRIMARY с оценкой
-  ≥ 0.55 берётся позиция с максимальной вероятностью и только на
-  гласную. Односложные слова (≤ 1 гласной) ударения не получают —
-  иначе речь рубленая («же́», «на́д»); исключение — подмена «е→ё»
-  словарём yo_words («днём»).
-- Словари в ассетах сжаты gzip (`yo_words.tsv.gz`, `lexicon.tsv.gz`),
-  распаковка — в мосте (flate2), крейт получает строки. Итого ассеты
-  `assets/voice/ru/`: accent.onnx 2,3 МБ, vocab.txt 0,1 КБ,
-  yo_words.tsv.gz 0,5 МБ, lexicon.tsv.gz 0,35 МБ (~3,1 МБ суммарно).
-- Слово, где уже есть U+0301 или «ё», словари и нейросеть не
-  трогают — словарь произношения имеет приоритет.
-- Паузы: стих делится на фразы по `, ; : . ! ?` — каждая синтезируется
-  отдельно, между ними вставляется тишина (запятая 120 мс, `; :` —
-  220 мс, `. ! ?` — 350 мс; константы в `lib/voice/phrases.dart`).
+The main reason Russian Piper voices sound "unnatural" is that espeak-ng
+stresses by rules and is often wrong. Verified: U+0301 after a stressed
+vowel really changes the synthesis ("за́мок" ≠ "замо́к"), while "+" is
+read aloud — we output only U+0301.
 
-Выбор системного движка и голоса (Android: `getEngines`/`setEngine`;
-Windows: `getVoices`/`setVoice`) вынесен в настройки — пользователь
-может поставить качественный движок (RuVoice на Silero, голоса Google)
-и выбрать его, приложение при этом весит 0 МБ голосовых данных.
+- Stress is placed by the RUAccent `nn_accent` neural model (MIT,
+  char-level RoFormer, ~2 MB). It is installed once per language, not
+  per translation — it works with any Russian text during reading.
+- "ё" is restored via the RUAccent `yo_words` dictionary (a TSV asset
+  `without_yo<TAB>with_yo`): "еще" → "ещё". Homographs (все/всё) are not
+  resolved — imperfect but deliberate: contextual disambiguation at the
+  cost of a second model does not pay off yet.
+- The model is an app asset (`assets/voice/ru/`: `accent.onnx`,
+  `vocab.txt`, `yo_words.tsv`, LICENSE). Inference — pure Rust on
+  `tract` in the `studybible-accent` crate: a second copy of onnxruntime
+  next to sherpa would conflict on DLLs, hence tract and not `ort`.
+- Applied only to the `neural` backend: on `system` the progress
+  char-offsets would break on substituted text, and system engines place
+  stress themselves.
+- Order in the synthesis text: `pronounce.dart` (pronunciation
+  dictionary) → auto-stress. Per word: yo dictionary → stress lexicon →
+  the neural net. The lexicon is also per-language, not per-translation:
+  built by a tool (`apps/studybible-cli` `build_lexicon`) from the
+  intersection of the RUAccent `accents.json.gz` dictionary with word
+  forms of Russian translations from the module catalog (russyn,
+  rstplus, ru_rob — 52 216 words, ~81 % coverage of encountered word
+  forms); homographs (`omographs.json.gz`) are excluded — the neural net
+  resolves them. It is used for any Russian text, not only verses of
+  the modules it was built on.
+- One stress per word: among STRESS_PRIMARY candidates with score
+  ≥ 0.55 the position with the highest probability is taken, and only
+  on a vowel. Single-syllable words (≤ 1 vowel) get no stress —
+  otherwise speech is choppy ("же́", "на́д"); the exception is the
+  "е→ё" yo_words substitution ("днём").
+- Asset dictionaries are gzip-compressed (`yo_words.tsv.gz`,
+  `lexicon.tsv.gz`), decompression — in the bridge (flate2), the crate
+  receives strings. Total `assets/voice/ru/` assets: accent.onnx 2.3 MB,
+  vocab.txt 0.1 KB, yo_words.tsv.gz 0.5 MB, lexicon.tsv.gz 0.35 MB
+  (~3.1 MB total).
+- A word already containing U+0301 or "ё" is not touched by the
+  dictionaries or the net — the pronunciation dictionary has priority.
+- Pauses: a verse is split into phrases at `, ; : . ! ?` — each is
+  synthesized separately with silence inserted between them (comma
+  120 ms, `; :` — 220 ms, `. ! ?` — 350 ms; constants in
+  `lib/voice/phrases.dart`).
 
-Облачный бэкенд (Yandex SpeechKit / Azure, кэш глав на диск) —
-отложен, записан в OPEN-QUESTIONS («после Beta»).
+Choosing the system engine and voice (Android: `getEngines`/`setEngine`;
+Windows: `getVoices`/`setVoice`) is moved to settings — the user can
+install a quality engine (RuVoice on Silero, Google voices) and select
+it, while the app weighs 0 MB of voice data.
 
-### Последствия и риски
+A cloud backend (Yandex SpeechKit / Azure, caching chapters on disk) —
+postponed, recorded in OPEN-QUESTIONS ("after Beta").
 
-- `sherpa_onnx` тянет onnxruntime-бинари: APK/exe растут на десятки МБ —
-  цена офлайн-нейросинтеза, принимается. Пакет обновлён недавно, версию
-  фиксируем.
-- espeak-ng (GPL) может оказаться внутри нативной библиотеки sherpa-onnx
-  для Piper-голосов: `espeak-ng-data` в пакетах — данные, но код espeak-ng
-  в `sherpa_onnx.so`/dll — проверка лицензий нативных бинарей вынесена
-  в OPEN-QUESTIONS перед публичной сборкой с neural-бэкендом.
-- Древние языки по-прежнему не озвучиваем (ADR 0010) — нейробэкенд
-  применяется к тем же языкам, что системный.
+### Consequences and risks
 
-### Статус 12.10.2026 — нейробэкенд вырезан из релиза 1.0
+- `sherpa_onnx` pulls onnxruntime binaries: APK/exe grow by tens of MB —
+  the price of offline neural synthesis, accepted. The package was
+  recently updated; we pin the version.
+- espeak-ng (GPL) may end up inside the sherpa-onnx native library for
+  Piper voices: `espeak-ng-data` in the packages is data, but espeak-ng
+  code in `sherpa_onnx.so`/dll — the license check of native binaries
+  was moved to OPEN-QUESTIONS before a public build with the neural
+  backend.
+- Ancient languages are still not voiced (ADR 0010) — the neural backend
+  applies to the same languages as the system one.
 
-`sherpa_onnx` + `libonnxruntime` (~73 МБ нативного кода ×3 ABI) удалены:
-зависимость снята в pubspec, `voice_neural_io.dart` удалён (в истории
-git), shim `voice_neural.dart` экспортирует заглушку на всех платформах,
-выбор «neural» и раздел голосовых пакетов убраны из настроек. Системный
-движок и автоударения (tract, RUAccent) остаются. Возврат: восстановить
-файл + зависимость или собрать sherpa-onnx в TTS-only конфигурации
-(готовый AAR тащит ASR/VAD и лишние ~30–50 %). Решение о собственном
-голосе (OPEN-QUESTIONS № 42) откладывается вместе с бэкендом.
+### Status 2026-10-12 — neural backend cut from the 1.0 release
+
+`sherpa_onnx` + `libonnxruntime` (~73 MB of native code ×3 ABI) removed:
+the dependency was dropped in pubspec, `voice_neural_io.dart` deleted
+(in git history), the `voice_neural.dart` shim exports a stub on all
+platforms, the "neural" choice and the voice-package section removed
+from settings. The system engine and auto-stress (tract, RUAccent)
+remain. To bring it back: restore the file + dependency or build
+sherpa-onnx in a TTS-only configuration (the ready AAR drags in ASR/VAD
+and extra ~30–50 %). The own-voice decision (OPEN-QUESTIONS № 42) is
+postponed together with the backend.

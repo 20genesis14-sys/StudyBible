@@ -1,22 +1,27 @@
-# 0006. NFC для переводов, оригиналы как в источнике
+# 0006. NFC for translations, originals as in the source
 
-Статус: принято.
+**English** | [Русский](0006-normalization.ru.md)
 
-## Контекст
+Status: accepted.
 
-Нормализация Unicode переставляет пары огласовок в иврите.
+## Context
 
-## Решение
+Unicode normalization reorders vowel-mark pairs in Hebrew.
 
-Переводы хранятся в NFC. Оригиналы — как в источнике. NFC и прочая нормализация применяются
-только к поисковым ключам. Уровни нормализации названы явно:
+## Decision
 
-- русский — регистр; ё = е; ударения и мягкие переносы; дореформенные ѣ, і, ѳ, ѵ;
-- иврит — теамим; огласовки; конечные буквы; маккеф;
-- греческий — регистр; ударения и придыхания; конечная сигма; подписная йота.
+Translations are stored in NFC. Originals — as in the source. NFC and
+other normalization apply only to search keys. Normalization levels are
+named explicitly:
 
-Оригиналы ищутся по лемме, Стронгу и морфологии, без стемминга.
+- Russian — case; ё = е; stress marks and soft hyphens; pre-reform
+  ѣ, і, ѳ, ѵ;
+- Hebrew — te'amim; vowel points; final letters; maqqef;
+- Greek — case; accents and breathings; final sigma; iota subscript.
 
-## Последствия
+Originals are searched by lemma, Strong's and morphology, without
+stemming.
 
-Текст оригиналов не искажается; поиск настраивается уровнями.
+## Consequences
+
+Original texts are not distorted; search is tuned by levels.

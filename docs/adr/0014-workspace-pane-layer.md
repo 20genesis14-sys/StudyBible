@@ -1,53 +1,62 @@
-# 0014. Интерфейс как данные: Workspace → Pane → Layer
+# 0014. UI as data: Workspace → Pane → Layer
 
-Статус: принято (05.10.2026).
+**English** | [Русский](0014-workspace-pane-layer.ru.md)
 
-## Контекст
+Status: accepted (2026-10-05).
 
-Экран чтения (`reading_screen.dart`, ~3600 строк, 34 `setState`) держит в одном
-состоянии позицию, вёрстку, модули, сравнение, подстрочник, чтение вслух,
-выделение, заметки и свайп. Новую панель или слой добавить трудно.
-Цель после 1.0 — полная кастомизация интерфейса пользователем
-(перемещать панели, переводы, части интерфейса) на Android, десктопе и вебе.
+## Context
 
-## Решение
+The reading screen (`reading_screen.dart`, ~3600 lines, 34 `setState`)
+holds in a single state the position, layout, modules, comparison,
+interlinear, read-aloud, selection, notes and swiping. Adding a new pane
+or layer is hard.
+The post-1.0 goal is full user customization of the UI (moving panes,
+translations, UI parts) on Android, desktop and web.
 
-Интерфейс описывается данными (JSON в userdata):
+## Decision
+
+The UI is described by data (JSON in userdata):
 
 ```
 Workspace  layout: single | split(h|v, ratio) | tabs;  panes: [Pane]
 Pane       type: reader | lexicon | notes | search | commentary | plugin:<id>
-           source: id модуля или «основной перевод»
-           link_group: панели одной группы синхронны по стиху
+           source: module id or "main translation"
+           link_group: panes of one group stay in sync by verse
            layers: [Layer]
 Layer      type: text | second_translation | interlinear | footnotes | xrefs
                  | strongs | apparatus | notes;  options: {...}
 ```
 
-- Телефон показывает одну панель и нижние листы; планшет и десктоп — панели рядом.
-- Пресеты («Чтение», «Изучение», «Сравнение») — готовые JSON.
-- Слои — точки расширения для плагинов (ADR 0009: данные даёт плагин, рисует приложение).
-- Экран чтения делится: `ReaderController` (состояние без виджетов),
-  `ChapterRenderer` (глава + слои → строки, чистая функция), `ReaderPane`
-  (виджет панели), отдельные `TtsService`, `PageSwipe`, листы и диалоги.
-- Редактор раскладки (drag-and-drop) — после 1.0; модель вводится сейчас.
-- Первая реализация: модель `WorkspaceConfig`/`PaneConfig`/`LayerConfig`
-  сериализуется в JSON, но ещё не пишется в userdata — постоянное хранение
-  и выбор пресетов появляются вместе с редактором раскладки. Экран чтения
-  разбит на `reader_controller.dart` (навигация, загрузка, записи),
-  `chapter_renderer.dart` (спаны и все вёрстки главы), `reader_pane.dart`
-  (область чтения и сравнение), `reader_chrome.dart` (верхняя/нижняя панель,
-  мини-плеер и панель действий), `page_swipe.dart` (постраничный жест),
-  `tts_service.dart` (очередь TTS и медиа-сессия), `notes_sheet.dart` и
-  `reader_dialogs.dart` (сноски, заметки, теги, карточка Стронга).
-- На первом шаге разделения общие методы остаются `part`-расширениями
-  `_ReadingScreenState`: это сохраняет доступ к одному состоянию без
-  переписывания всех обратных вызовов. Поля и жизненный цикл остаются в
-  `reading_screen.dart`; следующий шаг может заменить расширения на
-  самостоятельные классы с явными контекстами отображения.
+- A phone shows one pane and bottom sheets; tablet and desktop — panes
+  side by side.
+- Presets ("Reading", "Study", "Comparison") — ready-made JSON.
+- Layers are extension points for plugins (ADR 0009: the plugin supplies
+  data, the app draws).
+- The reading screen is split: `ReaderController` (state without
+  widgets), `ChapterRenderer` (chapter + layers → lines, a pure
+  function), `ReaderPane` (the pane widget), separate `TtsService`,
+  `PageSwipe`, sheets and dialogs.
+- Layout editor (drag-and-drop) — after 1.0; the model is introduced
+  now.
+- First implementation: the `WorkspaceConfig`/`PaneConfig`/`LayerConfig`
+  model serializes to JSON but is not yet written to userdata —
+  persistence and preset selection arrive together with the layout
+  editor. The reading screen is split into `reader_controller.dart`
+  (navigation, loading, records), `chapter_renderer.dart` (spans and all
+  chapter layouts), `reader_pane.dart` (reading area and comparison),
+  `reader_chrome.dart` (top/bottom bars, mini-player and action panel),
+  `page_swipe.dart` (page gesture), `tts_service.dart` (TTS queue and
+  media session), `notes_sheet.dart` and `reader_dialogs.dart`
+  (footnotes, notes, tags, Strong's card).
+- At the first split step the shared methods remain `part` extensions of
+  `_ReadingScreenState`: this preserves access to one state without
+  rewriting all callbacks. Fields and lifecycle stay in
+  `reading_screen.dart`; the next step may replace the extensions with
+  standalone classes with explicit display contexts.
 
-## Последствия
+## Consequences
 
-- Один код Flutter на всех платформах читает одну модель.
-- Перемещение блока — изменение JSON, а не переделка экрана.
-- Переход делается без смены внешнего вида; поведение сверяется по скриншотам.
+- One Flutter codebase on all platforms reads one model.
+- Moving a block is a JSON change, not a screen rework.
+- The transition happens without changing the look; behavior is checked
+  against screenshots.

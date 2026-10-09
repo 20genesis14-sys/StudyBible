@@ -1,18 +1,24 @@
-# 0011. Веб в конце, основа под веб, локальный CI
+# 0011. Web last, web-ready foundation, local CI
 
-Статус: принято.
+**English** | [Русский](0011-web-last-local-ci.ru.md)
 
-## Контекст
+Status: accepted.
 
-Веб приносит меньше всего пользы относительно затрат, но ограничения wasm32 определяют порты ядра.
-Репозиторий кода пока локальный.
+## Context
 
-## Решение
+The web brings the least benefit relative to cost, but wasm32
+constraints shape the core's ports. The code repository is local for
+now.
 
-Веб финализируется и тестируется в самом конце. Сейчас — только основа: ядро без `std::fs`
-и блокировок, проверка компиляции ядра под `wasm32-unknown-unknown`. CI — локальный скрипт
-`scripts/ci.ps1` (fmt, clippy, test, wasm32 check, cargo-deny). Сборки Android и iOS добавляются к Beta.
+## Decision
 
-## Последствия
+The web is finalized and tested at the very end. For now — only the
+foundation: the core without `std::fs` and blocking, a compile check of
+the core for `wasm32-unknown-unknown`. CI — the local script
+`scripts/ci.ps1` (fmt, clippy, test, wasm32 check, cargo-deny). Android
+and iOS builds are added at Beta.
 
-При переносе на хостинг Git скрипт превращается в конвейер CI без изменения шагов.
+## Consequences
+
+When moved to a Git host, the script becomes a CI pipeline without
+changing the steps.

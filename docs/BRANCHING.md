@@ -1,55 +1,61 @@
-# Работа с ветками — шпаргалка
+# Working with branches — cheat sheet
 
-Две постоянные ветки + временные feature-ветки + фичефлаги для длинной работы.
+**English** | [Русский](BRANCHING.ru.md)
+
+Two permanent branches + temporary feature branches + feature flags for
+long work.
 
 ```
-main ────●─────────────●───   только релизы + теги (v1.0.1, v1.1…)
+main ────●─────────────●───   releases + tags only (v1.0.1, v1.1…)
           \           ↑
-dev  ──────●──●──●──●─┘       вся текущая работа
+dev  ──────●──●──●──●─┘       all current work
               ↑    ↑
-feature/… ───┘    └── короткие ветки под задачи (дни, не месяцы)
+feature/… ───┘    └── short branches per task (days, not months)
 ```
 
-## Правила
+## Rules
 
-- **main** — только проверенное. Мержится из `dev` при релизе + тег `vX.Y.Z`.
-- **dev** — рабочая ветка: фиксы, фичи, 1.0.x/1.1.
-- **feature/…** или **fix/…** — комната под одну задачу. Умирает после merge.
-- **hotfix** — ветка от `main`, мержится в `main` И в `dev` (чтоб не потерялся).
-- Нет постоянной «experimental»: длинная работа идёт кусками в `dev` за флагом.
+- **main** — only verified code. Merged from `dev` at release + tag `vX.Y.Z`.
+- **dev** — the working branch: fixes, features, 1.0.x/1.1.
+- **feature/…** or **fix/…** — a room for one task. Dies after merge.
+- **hotfix** — a branch off `main`, merged into `main` AND `dev` (so it is
+  not lost).
+- No permanent "experimental": long work lands in `dev` in pieces behind
+  a flag.
 
-## Команды по памяти
+## Commands by heart
 
 ```powershell
-git switch dev                       # встал на рабочую
-git switch -c feature/имя-задачи     # создал комнату
-# …код, коммиты…
-git switch dev && git merge feature/имя-задачи   # влил
-git branch -d feature/имя-задачи     # снёс комнату
+git switch dev                       # stand on the working branch
+git switch -c feature/task-name      # create a room
+# …code, commits…
+git switch dev && git merge feature/task-name   # merge it
+git branch -d feature/task-name      # tear down the room
 ```
 
-Релиз:
+Release:
 ```powershell
 git switch main && git merge dev
-git tag -a vX.Y.Z -m 'Релиз X.Y.Z' && git push --tags
+git tag -a vX.Y.Z -m 'Release X.Y.Z' && git push --tags
 ```
 
-## Фичефлаг = «выключатель в коде»
+## Feature flag = "a switch in code"
 
 ```dart
-const bool kColumnCompareEnabled = false;   // недоделанное скрыто
-if (kColumnCompareEnabled) { /* кнопка/экран */ }
+const bool kColumnCompareEnabled = false;   // unfinished is hidden
+if (kColumnCompareEnabled) { /* button/screen */ }
 ```
 
-Позволяет мержить большую работу в `dev` кусками — код есть,
-пользователь не видит. Готово → `false` меняется на `true`.
-После стабилизации `if` и мёртвый код убирают (флаг — временный).
+Lets you merge big work into `dev` in pieces — the code is there,
+the user does not see it. Ready → `false` becomes `true`.
+After stabilization the `if` and dead code are removed (the flag is
+temporary).
 
-## Когда что
+## What goes where
 
-| Задача | Куда |
+| Task | Where |
 |---|---|
-| Фикс, текст, кнопка | прямо в `dev` |
-| Дни работы / риск | `feature/…` |
-| Недели+ (формат v2, studybible-text) | `feature/…` кусками + флаг в `dev` |
-| Срочный баг в выпущенной версии | `hotfix/…` от `main` |
+| Fix, text, button | straight into `dev` |
+| Days of work / risk | `feature/…` |
+| Weeks+ (format v2, studybible-text) | `feature/…` in pieces + flag in `dev` |
+| Urgent bug in a released version | `hotfix/…` off `main` |

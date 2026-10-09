@@ -1,80 +1,86 @@
-# 06. Пользовательские данные
+# 06. User data
 
-Статус: реализовано в `crates/studybible-store/src/userdata.rs` (MVP 5).
-Решения — ADR 0008 (данные только на устройстве), DECISIONS: «Синхронизация».
+**English** | [Русский](06-user-data.ru.md)
 
-## База
+Status: implemented in `crates/studybible-store/src/userdata.rs` (MVP 5).
+Decisions — ADR 0008 (data on device only), DECISIONS: "Synchronization".
 
-Отдельная SQLite (`userdata.db` в корне данных, `--db` переопределяет),
-`journal_mode=WAL`, версия схемы в `meta` (`schema = 3`) — миграции добавляются,
-не переписываются (1→3: `vrs`, `module_ver`, `canon_*`; 2→3: только `canon_*`).
-В `meta` также `device` — уникальный id базы, генерируется
-при создании.
+## Database
 
-## Таблица `entries`
+A separate SQLite (`userdata.db` in the data root, `--db` overrides),
+`journal_mode=WAL`, schema version in `meta` (`schema = 3`) — migrations
+are added, not rewritten (1→3: `vrs`, `module_ver`, `canon_*`; 2→3: only
+`canon_*`). `meta` also has `device` — a unique database id, generated
+at creation.
+
+## Table `entries`
 
 ```
-id      TEXT PRIMARY KEY          — hex «миллисекунды + счётчик»
-module  TEXT                      — meta.id модуля (не путь к файлу)
+id      TEXT PRIMARY KEY          — hex "milliseconds + counter"
+module  TEXT                      — module meta.id (not the file path)
 kind    TEXT                      — note | mark | hl
-book, chapter, verse              — стиховая координата (запасной якорь всегда)
-text    TEXT                      — текст заметки / подпись закладки / цвет выделения
-context TEXT                      — контрольный фрагмент текста для перепривязки
-created, updated INTEGER          — unix-миллисекунды
-deleted INTEGER                   — 0 = живая; иначе время удаления (надгробие)
-device  TEXT                      — чей правка последняя
-rev     INTEGER                   — номер ревизии, растёт при правке
-vrs     TEXT                      — версификация модуля на момент записи (схема 2)
-module_ver TEXT                   — content_hash модуля (иначе version), схема 2
+book, chapter, verse              — verse coordinate (always a fallback anchor)
+text    TEXT                      — note text / bookmark label / highlight color
+context TEXT                      — a text check fragment for re-anchoring
+created, updated INTEGER          — unix milliseconds
+deleted INTEGER                   — 0 = live; otherwise deletion time (tombstone)
+device  TEXT                      — whose edit was last
+rev     INTEGER                   — revision number, grows on edit
+vrs     TEXT                      — module versification at write time (schema 2)
+module_ver TEXT                   — module content_hash (else version), schema 2
 canon_book, canon_c1, canon_v1,
-canon_c2, canon_v2                — канонический диапазон стиха в сетке org
-                                  (схема 3, этап А); canon_book='' — не записан
+canon_c2, canon_v2                — the verse's canonical range in the org grid
+                                  (schema 3, stage A); canon_book='' — not written
 ```
 
-## Перепривязка (схема 2, вопрос № 12, этап Б)
+## Re-anchoring (schema 2, question № 12, stage B)
 
-При создании записи мост (`entry_add`) и CLI (`user add`) сами пишут `vrs`,
-`module_ver` и `context` (до 40 знаков текста стиха) из установленного модуля;
-Dart-стороне передавать их не нужно. `UserData::relink` проверяет живые записи
-к установленным модулям: мета совпала — свежая; `vrs`/`module_ver` сменились —
-ищем `context` в якорном стихе, затем в ±2 стихах той же главы (нашли —
-переезд якоря с `rev+1`, не нашли — сирота, запись не тронута, id в отчёте);
-записи без контекста получают фрагмент текущего стиха и свежую мету.
-Вызовы: `user relink`, фоновый прогон при старте приложения, после импорта
-модуля. Штамповка и переезд обновляют и канонический диапазон.
-Список сирот прогона — в `meta.orphans` (JSON-массив id, каждый прогон
-перезаписывает; схема не меняется): экран «Записи» показывает их
-секцией «Потерянные».
+When a record is created, the bridge (`entry_add`) and CLI (`user add`)
+write `vrs`, `module_ver` and `context` (up to 40 chars of verse text)
+from the installed module themselves; the Dart side does not need to
+pass them. `UserData::relink` checks live records against installed
+modules: meta matched — fresh; `vrs`/`module_ver` changed — look for
+`context` in the anchor verse, then in ±2 verses of the same chapter
+(found — the anchor moves with `rev+1`; not found — an orphan, the
+record is untouched, its id in the report); records without context get
+a fragment of the current verse and fresh meta.
+Calls: `user relink`, a background run at app start, after a module
+import. Stamping and moving also update the canonical range.
+The run's orphan list goes to `meta.orphans` (a JSON array of ids, each
+run overwrites; the schema does not change): the "Records" screen shows
+them in a "Lost" section.
 
-## Кросс-переводные записи (схема 3, вопрос № 12, этап А)
+## Cross-translation records (schema 3, question № 12, stage A)
 
-При создании записи и при перепривязке пишется канонический диапазон —
-крайние точки `vrs.to_org(якорь)`; диапазон покрывает разбиение и слияние
-стихов одной формой. `UserData::entries_foreign(module, org_keys,
-installed)` отдаёт живые записи других модулей, чей диапазон содержит
-org-ключи запрошенного стиха; `installed` отсекает неустановленные модули
-(по решению — записи к ним видны только во вкладке «Записи»). Мост:
-`entries_foreign_list`. Отображение: в тексте — только свои; чужие —
-кнопка «Записи в других переводах» внутри диалога заметки; тап по чужой —
-переход на её стих в её переводе + окно записи; вкладка «Записи»
-группирует записи по `module`.
+When a record is created and when re-anchored, the canonical range is
+written — edge points `vrs.to_org(anchor)`; the range covers verse
+splits and merges in one form. `UserData::entries_foreign(module,
+org_keys, installed)` returns live records of other modules whose range
+contains the requested verse's org keys; `installed` cuts off
+uninstalled modules (by the decision — records for them are visible
+only in the "Records" tab). Bridge: `entries_foreign_list`. Display: in
+text — only own; foreign ones — a "Records in other translations"
+button inside the note dialog; tapping a foreign one — navigates to its
+verse in its translation + the record window; the "Records" tab groups
+records by `module`.
 
-## Экспорт и импорт
+## Export and import
 
-zip (без сжатия) с одним файлом `userdata.json`:
+A zip (uncompressed) with a single `userdata.json` file:
 `{"format": "studybible-userdata", "version": "3", "entries": […]}` —
-включая надгробия; принимаются также выгрузки `"version": "1"` и `"2"`
-(новые поля — serde default). Экспорт в Markdown — `user export-md` (1.0.1): только экспорт,
-живые записи, группировка модуль → вид, списком с датой создания.
+including tombstones; `"version": "1"` and `"2"` exports are also
+accepted (new fields — serde default). Markdown export —
+`user export-md` (1.0.1): export only, live records, grouped by
+module → kind, a list with creation dates.
 
-Слияние: запись применяется, если её `updated` новее имеющейся; надгробие
-побеждает старую живую запись, свежая правка — старое надгробие. Ничья
-детерминирована одинаковым `updated`. Идём по списку импорта: added / updated /
-skipped.
+Merge: a record is applied if its `updated` is newer than the existing
+one; a tombstone beats an old live record, a fresh edit beats an old
+tombstone. A tie is resolved deterministically by equal `updated`. We
+walk the import list: added / updated / skipped.
 
-**Упрощение v1:** конфликт одновременных правок одной заметки решается
-«побеждает свежее» — вторая версия не сохраняется (решение «обе версии»
-отложено до настоящей синхронизации через папку).
+**v1 simplification:** a conflict of simultaneous edits of one note is
+resolved as "newest wins" — the second version is not kept (the "keep
+both versions" decision is postponed until real folder sync).
 
-Чего в схеме нет: внутристихового смещения (запись привязана к стиху
-целиком) и канонической части диапазона для подстихов — не требовалось.
+What the schema lacks: an intra-verse offset (a record is bound to a
+whole verse) and a canonical range part for sub-verses — not needed.

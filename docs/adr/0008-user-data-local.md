@@ -1,40 +1,46 @@
-# 0008. Данные пользователя только на устройстве
+# 0008. User data on device only
 
-Статус: принято.
+**English** | [Русский](0008-user-data-local.ru.md)
 
-## Контекст
+Status: accepted.
 
-Заметки — личные данные пользователя. Своего сервера у проекта нет и не планируется.
+## Context
 
-## Решение
+Notes are the user's personal data. The project has no server and none is
+planned.
 
-Данные хранятся только на устройстве, телеметрии нет. Перенос — экспорт и импорт zip:
-JSON — источник истины с версией схемы, Markdown — только экспорт. У записи uuid, updated_at,
-device_id, номер ревизии; удаление — надгробие; ничья детерминирована; конфликт правок заметки
-сохраняет обе версии. После 1.0 — синхронизация через папку, выбранную пользователем.
+## Decision
 
-## Последствия
+Data is stored on the device only, no telemetry. Transfer — zip export
+and import: JSON is the source of truth with a schema version, Markdown
+is export-only. A record has uuid, updated_at, device_id, revision
+number; deletion is a tombstone; ties are deterministic; a note-edit
+conflict keeps both versions. After 1.0 — sync through a folder chosen
+by the user.
 
-Отдельная обработка персональных данных на сервере не нужна.
+## Consequences
 
-## Дополнение 08.10.2026 (вопрос № 12, этап Б)
+No separate server-side personal-data processing needed.
 
-Схема userdata поднята до 2: у записи `vrs` (версификация модуля на момент
-записи), `module_ver` (`meta.content_hash`, иначе `version`) и заполненный
-`context` (до 40 знаков текста стиха). Миграция 1→2 — `ALTER TABLE`; выгрузки
-`version: "1"` принимаются. `UserData::relink` перепривязывает записи к
-обновлённым модулям по контексту (якорный стих, затем ±2); переезд — с `rev+1`,
-несовпадение — сирота в отчёте, запись не тронута. Кросс-переводные записи
-(этап А: каноническая координата в `org`) отложены до фидбэка по этапу Б.
+## Addendum 2026-10-08 (question № 12, stage B)
 
-## Дополнение 08.10.2026 (вопрос № 12, этап А)
+Userdata schema raised to 2: a record has `vrs` (module versification at
+the time of writing), `module_ver` (`meta.content_hash`, else `version`)
+and a filled `context` (up to 40 chars of verse text). Migration 1→2 is
+`ALTER TABLE`; `version: "1"` exports are accepted. `UserData::relink`
+re-anchors records to updated modules by context (anchor verse, then
+±2); a move — with `rev+1`, a mismatch — an orphan in the report, the
+record untouched. Cross-translation records (stage A: canonical
+coordinate in `org`) postponed until feedback on stage B.
 
-Схема 3: канонический диапазон org (`canon_book`, `canon_c1`, `canon_v1`,
-`canon_c2`, `canon_v2`) — разбиение и слияние стихов одной формой; крайние
-точки `to_org(якорь)`, восполняется миграцией и relink'ом. Отображение
-(решение пользователя): в тексте — только свои; чужие — кнопка «Записи в
-других переводах» в окне своей заметки и только по установленным модулям
-(неустановленные — только во вкладке «Записи»); тап по чужой — переход на
-её стих в её переводе + окно записи; вкладка «Записи» группирует по
-`module`. Механизм единый для заметок/закладок/выделений; «чужой» —
-другой `meta.id`.
+## Addendum 2026-10-08 (question № 12, stage A)
+
+Schema 3: canonical org range (`canon_book`, `canon_c1`, `canon_v1`,
+`canon_c2`, `canon_v2`) — verse splits and merges in one form; edge
+points `to_org(anchor)`, filled by migration and relink. Display (user
+decision): in text — only own records; foreign ones — a "Records in
+other translations" button in the own note window and only for installed
+modules (uninstalled — only in the "Records" tab); tapping a foreign
+record — navigates to its verse in its translation + the record window;
+the "Records" tab groups by `module`. One mechanism for
+notes/bookmarks/highlights; "foreign" = different `meta.id`.

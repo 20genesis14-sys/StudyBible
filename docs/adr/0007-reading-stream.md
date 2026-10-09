@@ -1,20 +1,23 @@
-# 0007. Поток чтения в формате модуля
+# 0007. Reading stream in the module format
 
-Статус: принято.
+**English** | [Русский](0007-reading-stream.ru.md)
 
-## Контекст
+Status: accepted.
 
-Без абзацев, поэзии и символьных стилей модуль не сохраняет USFM, а чтение превращается
-в ленту стихов.
+## Context
 
-## Решение
+Without paragraphs, poetry and character styles a module does not
+preserve USFM, and reading turns into a flat verse feed.
 
-Глава — последовательность блоков (абзац, поэзия с уровнями, заголовок раздела) и строчных
-промежутков (маркер стиха, добавленные слова, слова Иисуса, имя Бога, выноска сноски, ссылка).
-Перечисленное подмножество USFM проходит круговое преобразование. Слой разметки отделён
-от слоя токенов. Заморозка формата в 1.0 — запрет ломать существующие поля; новое — только
-необязательные таблицы.
+## Decision
 
-## Последствия
+A chapter is a sequence of blocks (paragraph, poetry with levels, section
+heading) and inline spans (verse marker, added words, words of Jesus,
+God's name, footnote callout, reference). The listed USFM subset survives
+a round-trip conversion. The markup layer is separate from the token
+layer. Format freeze in 1.0 = no breaking existing fields; new — only
+optional tables.
 
-Конвертер проверяется круговым тестом USFM → модуль → USFM.
+## Consequences
+
+The converter is verified by a round-trip test USFM → module → USFM.

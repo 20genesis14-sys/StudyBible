@@ -1,108 +1,112 @@
-# 0020. Реестр вкладов и движок расширений
+# 0020. Contribution registry and extension engine
 
-Статус: принято (12.10.2026, решения пользователя). Реестр вкладов —
-в объёме 1.0 (фундамент под № 21 и кастомизацию); внешние расширения —
-после 1.0.
+**English** | [Русский](0020-contributions.ru.md)
 
-## Контекст
+Status: accepted (2026-10-12, user decisions). The contribution
+registry — in the 1.0 scope (the foundation under № 21 and
+customization); external extensions — after 1.0.
 
-Новые формы отображения (сравнение 3+ переводов, аппарат, лемматизация)
-и будущие плагины требуют единого способа добавлять «что показать и где»,
-а не новых флагов в монолите читалки. Обзор зрелых систем расширений
-(«Лучшие практики расширений», документ пользователя) даёт устойчивый
-набор правил: два слоя — данные и код; манифест без запуска кода;
-события и преобразователи; ленивая активация; жизненный цикл и
-миграции; один владелец слота; ошибка называет расширение; флагманские
-расширения проверяются в CI хозяина.
+## Context
 
-## Решение
+New display forms (comparison of 3+ translations, apparatus,
+lemmatization) and future plugins need a single way to add "what to show
+and where", not new flags in the reader monolith. The survey of mature
+extension systems ("Extension best practices", the user's document)
+gives a stable set of rules: two layers — data and code; a manifest
+without running code; events and transformers; lazy activation;
+lifecycle and migrations; one owner per slot; an error names the
+extension; flagship extensions are checked in the host's CI.
 
-### Реестр вкладов — фундамент, в 1.0
+## Decision
+
+### Contribution registry — the foundation, in 1.0
 
 - `ContributionRegistry`: `register(typeId, descriptor)` +
-  `resolve(typeId)`. Дескриптор: `id` (неизменен после публикации —
-  правило SMAPI), `kind` (`layer | pane | action | preset`), `title`,
-  `requires` (данные/возможности, например `tokens`), `order`
-  (приоритет при конфликте на один слот), `builder`.
-- **Наши фичи — первые вклады.** Слои (сравнение, подстрочник, сноски),
-  действия меню стиха, пресеты «Чтение»/«Изучение» оформляются через
-  реестр тем же дескриптором, что будет у внешних плагинов. Рендерер
-  перебирает `layers.map(resolve)` вместо switch по типам.
-- Каркас — вне реестра: стек позиций, TTS, рендерер потока текста,
-  навигация, панели. «Всё есть вклад» отклонено (ловушка Eclipse).
-- Неизвестный `typeId` в сохранённой раскладке — мягкий пропуск
-  (правило «неизвестное игнорируется», как в формате модулей).
-- Слой декларирует потребности в данных (`needsData`), контроллер
-  собирает их одним пакетом на главу — пакетный конвейер из ADR 0009.
+  `resolve(typeId)`. Descriptor: `id` (immutable after publication —
+  the SMAPI rule), `kind` (`layer | pane | action | preset`), `title`,
+  `requires` (data/capabilities, e.g. `tokens`), `order` (priority on a
+  slot conflict), `builder`.
+- **Our features are the first contributions.** Layers (comparison,
+  interlinear, footnotes), verse-menu actions, the "Reading"/"Study"
+  presets are registered through the registry with the same descriptor
+  external plugins will get. The renderer iterates
+  `layers.map(resolve)` instead of a switch over types.
+- The framework stays outside the registry: position stack, TTS, the
+  text-stream renderer, navigation, panes. "Everything is a
+  contribution" rejected (the Eclipse trap).
+- An unknown `typeId` in a saved layout — a soft skip (the "unknown is
+  ignored" rule, as in the module format).
+- A layer declares data needs (`needsData`), the controller collects
+  them in one batch per chapter — the batch pipeline from ADR 0009.
 
-### Движок расширений — лестница движков, после 1.0
+### Extension engine — an engine ladder, after 1.0
 
-Пакет расширения = `manifest.json` + данные (+ ресурсы). Манифест:
-`id` (вечный), `api` (SemVer-диапазон), `engine`, `contributes`
-(какие точки: слой/панель/действие/словарь/настройки),
-`activationEvents` (ленивый старт), `permissions`.
+An extension package = `manifest.json` + data (+ resources). Manifest:
+`id` (eternal), `api` (SemVer range), `engine`, `contributes` (which
+points: layer/pane/action/dictionary/settings), `activationEvents`
+(lazy start), `permissions`.
 
-- `engine: "data"` — пакет `.sbz` + манифест: словари, комментарии,
-  аппарат, планы. Ноль движка, уже почти готово.
-- `engine: "ui"` — декларативный DSL: JSON-дерево представления +
-  запросы к данным + малый язык выражений; рендерит наш Flutter-код.
-  Основной путь — нет шва WebView, нет ревью-риска iOS, тема и
-  доступность применяются по построению.
-- `engine: "web"` — запасной люк: HTML/JS/WASM в системном WebView
-  (законно на iOS — код исполняет WebKit Apple), только целый экран,
-  сеть по белому списку. Не реализуется в обозримом будущем.
-- Вычислений общего назначения нет и не будет: сложное автор
-  предвычисляет дома и кладёт данными в `.sbz`. Реальная потребность
-  в исполняемом коде — сигнал открыть `web`-ступень.
+- `engine: "data"` — a `.sbz` package + manifest: dictionaries,
+  commentaries, apparatus, plans. Zero engine, almost done already.
+- `engine: "ui"` — a declarative DSL: a JSON view tree + data queries +
+  a small expression language; our Flutter code renders it. The main
+  path — no WebView seam, no iOS review risk, theme and accessibility
+  apply by construction.
+- `engine: "web"` — a fallback hatch: HTML/JS/WASM in the system WebView
+  (legal on iOS — Apple's WebKit runs the code), whole screens only,
+  network by allowlist. Not implemented in the foreseeable future.
+- No general-purpose computation and never will be: anything complex the
+  author precomputes at home and ships as data in `.sbz`. A real need
+  for executable code is the signal to open the `web` rung.
 
-### Правила API расширений (зафиксированы заранее)
+### Extension API rules (fixed in advance)
 
-- API делится на **события** (слушает — `chapterOpened` и т. п.) и
-  **преобразователи** (получает пакет — возвращает значение);
-  имена с префиксом и навсегда.
-- Рукопожатие возможностей (capabilities) при активации вместо
-  «поддерживаем все версии».
-- Плагин получает скоуп-хранилище в userdata со своей версией схемы
-  и миграциями; `id` неизменен после публикации.
-- Один владелец спорного слота; настройки пользователя выше вкладов
-  плагина; ошибки называют расширение, хозяин жив.
-- Настройки плагина — декларативная схема, рисует общий экран
-  настроек, а не сам плагин.
+- The API is split into **events** (listens — `chapterOpened` etc.) and
+  **transformers** (gets a batch — returns a value); prefixed names,
+  forever.
+- Capability handshake on activation instead of "we support all
+  versions".
+- A plugin gets a scoped store in userdata with its own schema version
+  and migrations; `id` is immutable after publication.
+- One owner per contested slot; user settings outrank plugin
+  contributions; errors name the extension, the host survives.
+- Plugin settings — a declarative schema drawn by the shared settings
+  screen, not by the plugin.
 
-### Что осознанно не делаем
+### What we deliberately do not do
 
-- Сервис-локатор/Provider/get_it — пока сервисы «вечные и
-  единственные» (глобальные `ChangeNotifier` в `state.dart`).
-  Переход — механический рефакторинг при появлении контекстов
-  (профили, второе окно, плагины, ленивые движки).
-- Собственный WASM-рантайм (Component Model/Extism) — вытеснен
-  связкой `ui` + `web`.
-- Магазин/подписи — до каталога; формат пакета резервирует место под
-  подпись. Restricted mode (плагины выключены по умолчанию) —
-  открытый вопрос к API v1.
+- Service locator/Provider/get_it — while services are "eternal and
+  unique" (global `ChangeNotifier` in `state.dart`). The transition is a
+  mechanical refactor when contexts appear (profiles, second window,
+  plugins, lazy engines).
+- Our own WASM runtime (Component Model/Extism) — displaced by the
+  `ui` + `web` pair.
+- Store/signatures — until the catalog; the package format reserves room
+  for a signature. Restricted mode (plugins off by default) — an open
+  question for API v1.
 
-## Статус реализации (12.10.2026)
+## Implementation status (2026-10-12)
 
-В 1.0 сделан минимальный фундамент: `ContributionRegistry`
-(`lib/workspace/contributions.dart`) с дескрипторами `id/kind/title/
-subtitle/requires/order`; встроенные слои и пресеты зарегистрированы
-тем же форматом. Лист «Слои» строит строки из реестра с фильтром
-`requires` по `features` модуля; неизвестный `typeId` — мягкий
-пропуск. **Пока не сделано:** перебор `layers.map(resolve)` в самом
-рендерере (слои по-прежнему рисуются встроенным кодом), вклады
-`action`/`pane`, `needsData`-пакет, DSL — после 1.0.
+In 1.0 the minimal foundation is done: `ContributionRegistry`
+(`lib/workspace/contributions.dart`) with `id/kind/title/subtitle/
+requires/order` descriptors; built-in layers and presets are registered
+in the same format. The "Layers" sheet builds rows from the registry
+with a `requires` filter on module `features`; an unknown `typeId` — a
+soft skip. **Not done yet:** `layers.map(resolve)` iteration in the
+renderer itself (layers are still drawn by built-in code), `action`/
+`pane` contributions, the `needsData` batch, the DSL — after 1.0.
 
-Отдельный нормативный документ (раздел 09 в `docs/spec/`) не
-пишется — решение 12.10.2026: раздел «Расширения» в DECISIONS
-приведён к этому ADR; нормативная спецификация API (русская и
-английская) выходит вместе с API v1 после 1.0.
+A separate normative document (section 09 in `docs/spec/`) is not
+written — decision of 2026-10-12: the "Extensions" section in DECISIONS
+points to this ADR; the normative API spec (Russian and English) ships
+together with API v1 after 1.0.
 
-## Последствия
+## Consequences
 
-- Сравнение 3+ переводов = слой `compare` со списком `modules`;
-  многоколоночное сравнение — синхронные дополнительные панели
-  (ADR 0019), а не режим.
-- Пресеты «Чтение»/«Изучение» — сохранённые раскладки, редактируемые
-  пользователем; редактор раскладки (после 1.0) пишет те же JSON.
-- API внешних расширений обкатывается на встроенных вкладах до
-  публикации — дисциплина «флагманы в CI».
+- Comparison of 3+ translations = a `compare` layer with a `modules`
+  list; multi-column comparison — synchronized additional panes
+  (ADR 0019), not a mode.
+- The "Reading"/"Study" presets are saved layouts editable by the user;
+  the layout editor (after 1.0) writes the same JSON.
+- The external extension API is hardened on the built-in contributions
+  before publication — the "flagships in CI" discipline.

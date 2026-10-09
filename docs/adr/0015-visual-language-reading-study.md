@@ -1,88 +1,98 @@
-# 0015. Визуальный язык «книга и киноварь», режимы «Чтение» и «Изучение»
+# 0015. Visual language "book and vermilion", "Reading" and "Study" modes
 
-Статус: принято (05.10.2026), по локальным макетам дизайн-ревью.
+**English** | [Русский](0015-visual-language-reading-study.ru.md)
 
-## Контекст
+Status: accepted (2026-10-05), per the local design-review mockups.
 
-Прототип практичен, но выглядит как стандартный Material 3. У приложения две
-аудитории: читатели и изучающие. Метки изучения (подчёркивания Стронга,
-маркеры сносок и параллельных мест) мешают простому чтению.
+## Context
 
-## Решение
+The prototype is practical but looks like stock Material 3. The app has
+two audiences: readers and studiers. Study markers (Strong's
+underlines, footnote and cross-reference markers) get in the way of
+plain reading.
 
-- Визуальный язык: тёплая бумага, тушь, один акцент — киноварь (красный).
-  Номер главы — буквица киноварью; номера стихов — мелкие надстрочные.
-  Киноварь — только для навигации и активного состояния.
-- Один переключатель «Чтение / Изучение» в верхней панели.
-  «Чтение»: чистый текст, нет меток. «Изучение»: стих на строку, точка на поле —
-  параллельные места, буква после слова — сноска, остальное — по слоям.
-- Лист «Слои»: сноски, параллельные места, номера Стронга, второй перевод,
-  подстрочник — переключатели. Это интерфейс модели Layer (ADR 0014).
-- Нижняя панель чтения: 4 монохромные кнопки — Перевод · Слои · Слушать · Ещё.
-  Под панелью — градиент фона вместо размытия.
-- Верхняя панель: тап по «Книга Гл. ▾» — быстрый переход (книга → глава);
-  тап по имени перевода — список переводов. «Ещё»: история, переход к стиху,
-  вёрстка, шрифт и тема, закладка главы, копировать/поделиться, настройки чтения.
-- Нижняя навигация, вариант А (принят): Главная · Библия · План · Записи ·
-  Библиотека. Поиск — поле вверху Главной и Библии, кнопка в чтении;
-  настройки — шестерёнка на Главной. Причины: у планов несколько экранов
-  (выбор, календарь, статистика); вкладка «График» уже знакома; поиск есть
-  на всех главных экранах.
-- Альтернатива Б (не принята, сохранена): Сегодня · Библия · Поиск · Записи ·
-  Библиотека. «Сегодня» — Главная с карточкой дня плана; тап открывает
-  полный экран плана. Вернуться к Б, если вкладка «План» мало используется.
-- Экран «План»: кольцо прогресса, серия дней, неделя, «Сегодня» с отметками,
-  «Карта прочитанного» по 66 книгам, другие планы (макеты 05, 06).
-  Планы первой версии: «Хронологический» и «Евангелия»; план — данные JSON.
-- Сетка книг: раскладка ADR 0013 и насыщенные плитки остаются;
-  насыщенность ниже на 15–20 %; полное имя книги — опция (≥ 11 sp).
-  Тональные плитки (макет 3) отклонены: хуже читаются.
-- Сноски (05.10.2026): вариант А по умолчанию — надстрочная буква у слова,
-  без пробела, неразрывно; вариант Б — пунктир под словом без знака, если в
-  модуле есть текст привязки (`\fq`). Варианты А′ (по правилу языка в конце
-  фразы) и В (знак только на поле) отклонены. Тап → карточка; зона ≥ 44×44.
-- Параллельные места — по частям стиха: знак ° после фразы, лист
-  «Параллельные места» по частям (`Мф 1:1a · «…»`). Нет привязки — к стиху.
-- Сепия и подстрочник «оригинал над глоссой» — как на макете 4.
+## Decision
 
-## Сравнение через версификацию и надписания (вопросы 8–10, 07.10.2026)
+- Visual language: warm paper, ink, one accent — vermilion (red).
+  The chapter number is a vermilion initial; verse numbers — small
+  superscript. Vermilion is only for navigation and the active state.
+- A single "Reading / Study" toggle in the top bar.
+  "Reading": clean text, no markers. "Study": verse per line, a dot in
+  the margin — cross-references, a letter after a word — a footnote, the
+  rest per the layers.
+- The "Layers" sheet: footnotes, cross-references, Strong's numbers,
+  second translation, interlinear — toggles. This is the UI of the Layer
+  model (ADR 0014).
+- Bottom reading bar: 4 monochrome buttons — Translation · Layers ·
+  Listen · More. A background gradient under the bar instead of blur.
+- Top bar: tapping "Book Ch. ▾" — quick navigation (book → chapter);
+  tapping the translation name — the translation list. "More": history,
+  go to verse, layout, font and theme, chapter bookmark,
+  copy/share, reading settings.
+- Bottom navigation, variant A (accepted): Home · Bible · Plan ·
+  Records · Library. Search — a field at the top of Home and Bible, a
+  button in reading; settings — a gear on Home. Reasons: plans have
+  several screens (picker, calendar, statistics); the "Schedule" tab was
+  already familiar; search is present on all main screens.
+- Alternative B (not accepted, kept): Today · Bible · Search · Records ·
+  Library. "Today" is Home with the plan-day card; a tap opens the full
+  plan screen. Return to B if the "Plan" tab is little used.
+- The "Plan" screen: progress ring, day streak, week, "Today" with
+  checkmarks, a "Read map" over 66 books, other plans (mockups 05, 06).
+  First-version plans: "Chronological" and "Gospels"; a plan is JSON
+  data.
+- Book grid: the ADR 0013 layout and saturated tiles stay; saturation
+  lowered by 15–20 %; full book name — an option (≥ 11 sp). Tonal tiles
+  (mockup 3) rejected: read worse.
+- Footnotes (2026-10-05): variant A by default — a superscript letter at
+  the word, no space, non-breaking; variant B — a dotted underline on
+  the word with no sign, if the module has anchor text (`\fq`). Variants
+  A′ (per the language rule at the end of the phrase) and B (sign only
+  in the margin) rejected. Tap → a card; hit area ≥ 44×44.
+- Cross-references — per verse parts: a ° sign after the phrase, a
+  "Cross-references" sheet by parts (`Mt 1:1a · "…"`). No anchor — to
+  the whole verse.
+- Sepia and the "original above gloss" interlinear — as in mockup 4.
 
-- Механика: `convertVerse` ядра переводит стих между версификациями
-  модулей через org (`Versification::convert`); на нативных платформах —
-  FRB-мост `api::convert_verse`, на web — Dart-порт парсера
-  (`lib/vrs_parser.dart`) над теми же `.vrs` из ассетов
-  `assets/data/vrs/` (parity проверяется тестами). Одинаковые
-  версификации — короткий путь без моста; результат кэшируется на
-  главу (`_conv` в экране чтения).
-- Строчное сравнение: под стихом основного — все соответствующие
-  стихи второго перевода подряд; номер второго показывается маленьким
-  приглушённым префиксом «глава:стих», когда отличается от основного
-  (rsc Пс 89:2 → eng «90:1»). Пустое соответствие — «…». Подстрочник
-  (слова оригинала) конвертируется той же ссылкой.
-- Колоночное сравнение: строки второй колонки идут по стихам
-  основного с номерами второй версификации; главы, куда ведут
-  соответствия, догружаются лениво; стихи второй главы без
-  соответствия дописываются в конец со своими номерами.
-- Экран «Сравнить»: исходная координата — в версификации основного
-  модуля (параметр `fromVrs`); для каждого перевода — конвертация,
-  несколько соответствий перечислены с «глава:стих», тап ведёт на
-  первую координату (глава и книга могут отличаться). Пустое
-  соответствие — «нет в этом переводе».
-- Карточки сносок/параллельных: ссылки в данных — в версификации
-  модуля-источника; текст из xrefModule берётся по конвертированным
-  координатам (каждый стих диапазона), тап навигирует к
-  конвертированному месту в xrefModule.
-- Надписание (стих 0, вариант А): отдельная строка над первым стихом
-  с подписью «надписание»/«superscription»; у каждой части сравнения
-  свой текст стиха 0 (у второго — по конверсии, стих 0 участвует в
-  отображениях `.vrs`), у перевода без стиха 0 — прочерк. Если
-  надписание слито в стих 1 целевого модуля — считается «пусто»,
-  дедупликация не делается.
-- Данные: три опечатки апстрима `vul.vrs` исправлены локально
-  (комментарий «# исправлено StudyBible»): `DAG 3:52-23` → `3:52-53`,
-  `SUS 1:63` → `1:1-63`, `BEL 1:42` → `1:1-42`.
+## Comparison via versification and superscriptions (questions 8–10, 2026-10-07)
 
-## Последствия
+- Mechanics: the core's `convertVerse` maps a verse between module
+  versifications via org (`Versification::convert`); on native platforms
+  — the FRB bridge `api::convert_verse`, on web — a Dart port of the
+  parser (`lib/vrs_parser.dart`) over the same `.vrs` from the
+  `assets/data/vrs/` assets (parity checked by tests). Identical
+  versifications — a shortcut without the bridge; the result is cached
+  per chapter (`_conv` in the reading screen).
+- Inline comparison: under the main verse — all corresponding verses of
+  the second translation in a row; the second verse number is shown as a
+  small muted "chapter:verse" prefix when it differs from the main one
+  (rsc Ps 89:2 → eng "90:1"). An empty correspondence — "…". The
+  interlinear (original words) is converted by the same reference.
+- Column comparison: second-column lines follow the main column's
+  verses with the second versification's numbers; chapters pointed to by
+  correspondences load lazily; second-chapter verses without a
+  correspondence are appended at the end with their own numbers.
+- The "Compare" screen: the source coordinate is in the main module's
+  versification (`fromVrs` parameter); for each translation — a
+  conversion, multiple correspondences are listed with "chapter:verse",
+  a tap navigates to the first coordinate (chapter and book may differ).
+  An empty correspondence — "not in this translation".
+- Footnote/parallel cards: references in the data are in the source
+  module's versification; text from xrefModule is taken by the converted
+  coordinates (each verse of the range), a tap navigates to the
+  converted place in xrefModule.
+- Superscription (verse 0, variant A): a separate line above the first
+  verse labeled "superscription"; each comparison part has its own
+  verse-0 text (the second one via conversion — verse 0 participates in
+  `.vrs` mappings); for a translation without verse 0 — a dash. If the
+  superscription is merged into verse 1 of the target module, it counts
+  as "empty" — no deduplication is done.
+- Data: three upstream `vul.vrs` typos fixed locally (comment
+  "# fixed by StudyBible"): `DAG 3:52-23` → `3:52-53`, `SUS 1:63` →
+  `1:1-63`, `BEL 1:42` → `1:1-42`.
 
-Заменяет пункт ADR 0013 «нижнее меню» и подачу маркеров «×».
-Цвета групп книг по ADR 0013 остаются, с поправкой насыщенности.
+## Consequences
+
+Supersedes the ADR 0013 "bottom menu" item and the "×" marker
+presentation. Book-group colors per ADR 0013 remain, with the saturation
+adjustment.

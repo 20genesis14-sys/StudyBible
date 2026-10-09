@@ -1,44 +1,44 @@
 ﻿# Changelog
 
-Все заметные изменения после релиза 1.0 — отдельными строками.
+All notable changes after the 1.0 release — one per line.
 
-## 1.0.1 (09.10.2026)
+## 1.0.1 (2026-10-09)
 
-- Пользовательские записи: схема 2 — у заметки/закладки/выделения есть
-  версификация модуля, идентичность модуля (content_hash) и контрольный
-  фрагмент стиха; старые базы мигрируют автоматически.
-- Перепривязка записей при обновлении модуля: переезд по контексту в
-  соседний стих (±2), сироты в отчёте; запуск — при старте приложения,
-  после импорта модуля и командой `user relink`.
-- Кросс-переводные записи (этап А): у записи каноническая координата org;
-  в окне своей заметки — кнопка «записи в других переводах»; тап по чужой
-  записи открывает её стих в её переводе; вкладка «Записи» показывает все
-  записи по переводам.
-- Исправлено: модуль резолвится по `meta.id`, а не по имени файла —
-  импортированный под «левым» именем модуль получал записи без меты
-  и канона и был невидим для кросс-переводных записей и перепривязки.
-- Импорт сохраняет файл как `<meta.id>.<ext>` — повторный импорт того
-  же модуля перезаписывает, а не плодит копии.
-- Исправлено: перепривязка доштамповывает канонический диапазон записям,
-  у которых мета совпадает, но канон пуст.
-- Порядок переводов в сравнении: выбранные модули переставляются
-  стрелками — в листе выбора у строки сравнения и в настройках.
-- Экспорт всех записей в Markdown: `studybible user export-md <файл.md>` —
-  группировка по переводу и виду записей (только экспорт).
-- Экран «Записи»: кнопки экспорта/импорта записей — меню экспорта
-  в zip (перенос между устройствами, слияние «свежее побеждает»)
-  и в Markdown (читаемый список, только экспорт).
-- Экран «Записи»: секция «Потерянные» — записи, потерявшие привязку
-  при обновлении модуля (сироты перепривязки), с текстом и удалением.
-- Десктоп: Alt+←/→ и боковые кнопки мыши X1/X2 ходят по стеку
-  переходов назад/вперёд, как в браузере.
-- Внешние экраны читалки (Поиск, История, «Стих во всех переводах»)
-  открываются как позиции рабочего места (kind='screen'), без нового
-  маршрута: «назад»/Alt+←/X1 возвращают к стиху; переход к записи из
-  списка чужих записей — тоже шаг стека, а не новый экран.
-- Экран «Записи»: кнопка «поделиться» у заметки копирует её в буфер
-  обмена в формате «Ссылка — текст (перевод)».
-- Исправлено (один из источников): параллельные места привязывались
-  к маркерам по порядку и неверному номеру стиха-якоря — у стихов
-  с двумя и более маркерами все после первого показывали пустую
-  карточку или чужие ссылки. Теперь привязка прямая по id маркера.
+- User records: schema 2 — a note/bookmark/highlight now carries the
+  module's versification, module identity (content_hash) and a control
+  fragment of the verse; old databases migrate automatically.
+- Record relinking on module update: move by context to a neighbouring
+  verse (±2), orphans reported; runs at app start, after module import
+  and via `user relink`.
+- Cross-translation records (stage A): a record has a canonical org
+  coordinate; the note window has a "records in other translations"
+  button; tapping a foreign record opens its verse in its translation;
+  the "Records" tab shows all records grouped by translation.
+- Fixed: a module resolves by `meta.id`, not by file name — a module
+  imported under a foreign name received records without meta and canon
+  and was invisible to cross-translation records and relinking.
+- Import saves the file as `<meta.id>.<ext>` — re-importing the same
+  module overwrites instead of producing copies.
+- Fixed: relinking stamps the canonical range on records whose meta
+  matches but canon is empty.
+- Translation order in comparison: selected modules are reordered with
+  arrows — in the comparison selection sheet and in settings.
+- Export all records to Markdown: `studybible user export-md <file.md>` —
+  grouped by translation and record kind (export only).
+- "Records" screen: export/import buttons — an export menu to zip
+  (transfer between devices, "newest wins" merge) and to Markdown
+  (readable list, export only).
+- "Records" screen: "Lost" section — records that lost their anchor on
+  module update (relink orphans), with text and deletion.
+- Desktop: Alt+←/→ and mouse side buttons X1/X2 walk the
+  back/forward stack, like in a browser.
+- The reader's external screens (Search, History, "Verse in all
+  translations") open as workspace positions (kind='screen') without a
+  new route: "back"/Alt+←/X1 return to the verse; jumping to a record
+  from the foreign-records list is a stack step too, not a new screen.
+- "Records" screen: a note's "share" button copies it to the clipboard
+  as "Reference — text (translation)".
+- Fixed (one of the sources): cross-references were bound to markers by
+  order and a wrong anchor verse number — in verses with two or more
+  markers, all after the first showed an empty card or foreign links.
+  Now binding is direct by marker id.

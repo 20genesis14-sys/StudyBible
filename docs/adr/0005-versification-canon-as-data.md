@@ -1,22 +1,29 @@
-# 0005. Версификации, канон и названия книг — данные
+# 0005. Versifications, canon and book names as data
 
-Статус: принято.
+**English** | [Русский](0005-versification-canon-as-data.ru.md)
 
-## Контекст
+Status: accepted.
 
-Синодальный, английские и оригинальные тексты нумеруют стихи по-разному; одни и те же
-сокращения в разных профилях могут означать разные книги.
+## Context
 
-## Решение
+Synodal, English and original-language texts number verses differently;
+the same abbreviations may mean different books in different profiles.
 
-Версификации — данные Paratext (MIT) со сверкой по TVTMS; отображения учитывают 1→N, N→1,
-части стихов и «нет соответствия». Коды Paratext/USFM ↔ OSIS — таблица-данные.
-Профили-данные: канон (66 книг по списку пользователя, остальное помечено «неканоническое»,
-включая вставки внутри книг), названия и сокращения (синодальные, английские), порядок книг.
-Профиль по умолчанию задаёт модуль. Парсер ссылок знает версификацию и профиль названий.
+## Decision
 
-## Последствия
+Versifications are Paratext data (MIT) cross-checked against TVTMS;
+mappings account for 1→N, N→1, verse parts and "no correspondence".
+Paratext/USFM ↔ OSIS codes — a data table.
+Data profiles: canon (66 books per the user's list, everything else
+marked "non-canonical", including insertions inside books), names and
+abbreviations (Synodal, English), book order.
+The default profile is set by the module. The reference parser knows the
+versification and the name profile.
 
-Новые традиции добавляются данными, без кода. Каждое расхождение покрывается тестом.
-Метка в модуле — нумерация файла, а не сетка языка оригинала: eBible KJV и WEB — `eng`
-(Мал 4, Иоил 2:28), Синодальный russyn — `rsc`.
+## Consequences
+
+New traditions are added as data, without code. Every discrepancy is
+covered by a test.
+The tag in a module is the file's numbering, not the original-language
+grid: eBible KJV and WEB are `eng` (Mal 4, Joel 2:28), Synodal russyn is
+`rsc`.

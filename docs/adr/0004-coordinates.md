@@ -1,23 +1,29 @@
-# 0004. Координаты вместо единого якоря
+# 0004. Coordinates instead of a single anchor
 
-Статус: принято (заменяет «стих org + диапазон слов»).
+**English** | [Русский](0004-coordinates.ru.md)
 
-## Контекст
+Status: accepted (replaces "org verse + word range").
 
-Версификация задаёт сетку стихов, но не поток слов; границы слов у изданий разные; выравнивание —
-связи многие-ко-многим; у переводов нет стабильных id слов.
+## Context
 
-## Решение
+Versification defines the verse grid but not the word stream; word
+boundaries differ between editions; alignment is many-to-many;
+translations have no stable word ids.
 
-- стих — (версификация, книга OSIS, глава, стих, необязательный сегмент);
-- слово оригинала — стабильный id токена в именованном издании;
-- выравнивание — связи между id;
-- позиция в переводе — стих + смещение символов + контрольный фрагмент;
-- нестиховое содержимое — id элемента.
+## Decision
 
-Пользовательская запись хранит id и версию модуля, тип указателя и всегда стиховую координату.
-При обновлении модуля: карта id → перепривязка по фрагменту → откат к стиху.
+- verse — (versification, OSIS book, chapter, verse, optional segment);
+- original word — stable token id in a named edition;
+- alignment — links between ids;
+- position in a translation — verse + character offset + check fragment;
+- non-verse content — element id.
 
-## Последствия
+A user record stores the module id and version, the pointer type, and
+always the verse coordinate.
+On module update: id map → re-anchoring by fragment → fallback to the
+verse.
 
-Заметки переживают обновление модулей; лингвистика не зависит от разметки переводов.
+## Consequences
+
+Notes survive module updates; linguistics does not depend on translation
+markup.

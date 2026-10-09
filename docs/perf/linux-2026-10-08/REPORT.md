@@ -1,47 +1,69 @@
-# Отчёт: сборка и тестирование Linux-версии StudyBible
+# Report: building and testing the Linux version of StudyBible
 
-Дата: 2026-10-08. Стенд: Devin VM (KDE/Plasma, X11, дисплей 3200×2400), релиз-сборка GTK + Impeller (OpenGL ES). Профильный прогон — `flutter run --profile -d linux`, VM Service, снятие кадров через collect_frames.py. Данные — 5 модулей из STUDYBIBLE_DATA (.sb).
+**English** | [Русский](REPORT.ru.md)
 
-## 1. Сборка
+Date: 2026-10-08. Test bench: Devin VM (KDE/Plasma, X11, 3200×2400
+display), release build GTK + Impeller (OpenGL ES). Profile run —
+`flutter run --profile -d linux`, VM Service, frame capture via
+collect_frames.py. Data — 5 modules from STUDYBIBLE_DATA (.sb).
 
-`flutter build linux --release` — потребовались пакеты:
-`cmake ninja-build clang pkg-config libgtk-3-dev libblkid-dev liblzma-dev libstdc++-12-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev` (audioplayers_linux требует gstreamer).
+## 1. Build
 
-Нюанс: `ninja install` пытается ставить в `/usr/local` — обходится `DESTDIR=...` (бинарь + lib/*.so + data/flutter_assets). Запуск: `LD_LIBRARY_PATH=lib` + `STUDYBIBLE_DATA=...` — стартует на Impeller (GL backend), rust-мост и SQLite нативные.
+`flutter build linux --release` — required packages:
+`cmake ninja-build clang pkg-config libgtk-3-dev libblkid-dev liblzma-dev libstdc++-12-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev` (audioplayers_linux requires gstreamer).
 
-## 2. Функциональный прогон
+Nuance: `ninja install` tries to install into `/usr/local` — worked around
+with `DESTDIR=...` (binary + lib/*.so + data/flutter_assets). Launch:
+`LD_LIBRARY_PATH=lib` + `STUDYBIBLE_DATA=...` — starts on Impeller (GL
+backend), the Rust bridge and SQLite are native.
 
-| Сценарий | Результат |
+## 2. Functional run
+
+| Scenario | Result |
 |---|---|
-| Запуск, главный экран, вкладки | OK |
-| Сетка книг → Пс → глава 118 | OK, мгновенно |
-| Чтение главы, скролл | OK |
-| Строчное сравнение (RUSSYN + OSHB, иврит) | OK — вторые строки иврита отображаются корректно (RTL) |
-| Поиск «милости» | OK, результаты сразу (нативный FTS) |
-| Позиция/история (userdata.db) | OK — после перезапуска «Продолжить чтение: Пс 118» |
+| Launch, home screen, tabs | OK |
+| Book grid → Ps → chapter 118 | OK, instantly |
+| Chapter reading, scroll | OK |
+| Inline comparison (RUSSYN + OSHB, Hebrew) | OK — Hebrew second lines render correctly (RTL) |
+| Search "милости" | OK, results immediately (native FTS) |
+| Position/history (userdata.db) | OK — after restart "Continue reading: Ps 118" |
 
-Замечания:
-- В логе однократный `userdata.db locked` при гонке первого старта (два инстанса на одну БД) — не блокирует.
-- dbind/AT-SPI warning — отсутствует шина доступности на тестовой VM, на нормальном дистрибутиве её нет.
-- Наблюдение: OSHB как *второй* модуль работает; греческий NT без Пс 118 корректно показывает «глава не найдена».
+Remarks:
+- One `userdata.db locked` in the log at a first-start race (two
+  instances on one DB) — does not block.
+- dbind/AT-SPI warning — the test VM lacks the accessibility bus; a
+  normal distro has it.
+- Observation: OSHB works as a *second* module; the Greek NT without
+  Ps 118 correctly shows "chapter not found".
 
-## 3. Метрики производительности
+## 3. Performance metrics
 
-Холодный старт (релиз, окно на экране): **0.64–0.65 с** (3 прогона).
+Cold start (release, window on screen): **0.64–0.65 s** (3 runs).
 
-Скролл Пс 118 (profile, VM Service, кадры UI+raster):
+Scrolling Ps 118 (profile, VM Service, UI+raster frames):
 
-| Сценарий | p50 | p90 | max | оценка |
+| Scenario | p50 | p90 | max | rating |
 |---|---|---|---|---|
-| Чтение | 10.0 мс | 19.8 | 34.8 | ~60 fps, плавно |
-| Подстрочное сравнение (RUSSYN+OSHB) | 19.2 мс | 33.6 | 64.8 | ~30–50 fps при прыжках скролла |
+| Reading | 10.0 ms | 19.8 | 34.8 | ~60 fps, smooth |
+| Inline comparison (RUSSYN+OSHB) | 19.2 ms | 33.6 | 64.8 | ~30–50 fps on scroll jumps |
 
-Поиск по модулям: мгновенно (<1 с до полного списка результатов).
+Module search: instant (<1 s to the full result list).
 
-Эксперимент «слабый CPU» (cpulimit 30% одного ядра): интерфейс заметно тормозил — клики отрабатывали с задержкой в секунды; снятие ограничения сразу вернуло отзывчивость. Точной ёмкости для экстраполяции нет, но резерв у десктопной сборки большой.
+"Weak CPU" experiment (cpulimit 30 % of one core): the UI visibly lagged
+— clicks took seconds; lifting the limit instantly restored
+responsiveness. No exact capacity for extrapolation, but the desktop
+build has a large reserve.
 
-## 4. Выводы
+## 4. Conclusions
 
-- Linux-сборка полностью рабочая и самая быстрая из протестированных: старт 0.65 с, чтение ~60 fps, поиск мгновенный — все лимиты № 11/№ 22 соблюдены.
-- Подстрочное сравнение снова самый тяжёлый вид (×2 к чтению: p50 19 мс, хвосты до 65 мс) — та же причина: вся глава одним Column без виртуализации. Пакет B остаётся актуальным, но на десктопном железе запас настолько большой, что jank заметен только при агрессивном скролле.
-- Для инсталлятора: install-цель ставит в `/usr/local` без выбора префикса — для дистрибуции (AppImage/deb) потребуется DESTDIR или FHS-раскладка.
+- The Linux build is fully working and the fastest of those tested:
+  start 0.65 s, reading ~60 fps, instant search — all limits
+  № 11/№ 22 met.
+- Inline comparison is again the heaviest view (×2 vs reading: p50 19 ms,
+  tails up to 65 ms) — same reason: the whole chapter in one Column
+  without virtualization. Package B remains relevant, but the reserve on
+  desktop hardware is so large that jank is visible only on aggressive
+  scrolling.
+- For the installer: the install target puts files in `/usr/local`
+  without a prefix choice — distribution (AppImage/deb) will need
+  DESTDIR or an FHS layout.

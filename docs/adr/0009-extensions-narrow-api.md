@@ -1,19 +1,23 @@
-# 0009. Расширения: узкий API v1
+# 0009. Extensions: narrow API v1
 
-Статус: принято.
+**English** | [Русский](0009-extensions-narrow-api.ru.md)
 
-## Контекст
+Status: accepted.
 
-Пять уровней расширений — классификация. Замороженный в 1.0 широкий API потом не сузить;
-iOS не пропускает исполняемый загружаемый код.
+## Context
 
-## Решение
+Five extension levels — a classification. A wide API frozen in 1.0
+cannot be narrowed later; iOS does not allow downloadable executable
+code.
 
-API v1: данные от плагинов, пакетный конвейер вывода (на главу или экран), точки расширения UI,
-где рисует приложение. Холст и собственный интерфейс плагина — после 1.0. Полная замена
-интерфейса — альтернативный фронтенд, не плагин. Технология выбирается к API v1. SemVer, разрешения.
-На iOS исполняемые плагины не обещаем.
+## Decision
 
-## Последствия
+API v1: data from plugins, a batched output pipeline (per chapter or
+screen), UI extension points where the app draws. Canvas and a plugin's
+own UI — after 1.0. A full UI replacement is an alternative frontend,
+not a plugin. The technology is chosen by API v1. SemVer, permissions.
+Executable plugins are not promised on iOS.
 
-Спецификация формата и API к API v1 — также на английском.
+## Consequences
+
+The format and API specification for API v1 — also in English.

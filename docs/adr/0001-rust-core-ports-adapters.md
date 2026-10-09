@@ -1,19 +1,24 @@
-# 0001. Ядро на Rust, порты и адаптеры, заменяемый интерфейс
+# 0001. Rust core, ports and adapters, replaceable UI
 
-Статус: принято.
+**English** | [Русский](0001-rust-core-ports-adapters.ru.md)
 
-## Контекст
+Status: accepted.
 
-Шесть платформ, мгновенный отклик, низкое потребление ресурсов. Интерфейс ещё не выбран
-и может быть переписан.
+## Context
 
-## Решение
+Six platforms, instant response, low resource consumption. The UI is not
+chosen yet and may be rewritten.
 
-Домен — только в Rust (`studybible-core`). Внешний мир — через порты: хранилище модулей,
-пользовательская база, кэш индексов, речь; позже — репозитории и сеть. Адаптеры живут вне ядра.
-Связка с интерфейсом одна и тонкая, выбирается вместе с интерфейсом. На десктопе и мобильных нет JS и webview.
+## Decision
 
-## Последствия
+The domain lives only in Rust (`studybible-core`). The outside world is
+reached through ports: module storage, user database, index cache,
+speech; later — repositories and network. Adapters live outside the core.
+The binding to the UI is single and thin, chosen together with the UI.
+No JS and no webview on desktop and mobile.
 
-Интерфейс заменяем без переписывания ядра. В ядре запрещены `std::fs` и `std::thread::sleep`
+## Consequences
+
+The UI can be replaced without rewriting the core. `std::fs` and
+`std::thread::sleep` are forbidden in the core
 (`crates/studybible-core/clippy.toml`).
