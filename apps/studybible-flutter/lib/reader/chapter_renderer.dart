@@ -133,6 +133,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     bool hlWord = false,
   }) {
     var ni = 0;
+    _hlRaw = 0; // спаны стиха строятся с начала — курсор кусков с нуля
     _ttsWordCtx = hlWord && v == _ttsVerse && _ttsWord != null;
     if (_ttsWordCtx) {
       _ttsInVerse = true;
@@ -170,7 +171,8 @@ extension _ChapterRenderer on _ReadingScreenState {
       // Маркеры: выделение — янтарный фон номера, заметка — точка-маркер,
       // TTS — акцентный фон читаемого стиха.
       // В режиме «книга» маркеры показываются только для текущей главы.
-      final hlEntry = inChapter ? _highlights[s.verse] : null;
+      final hlEntry = inChapter ? _wholeHl(s.verse) : null;
+      _hlRaw = 0; // новый стих — новый курсор частичных выделений
       // Якорь стиха: ключ на невидимом виджете на позиции номера —
       // ensureVisible ставит к верху сам стих, а не начало абзаца.
       final vkey = anchor
@@ -279,11 +281,11 @@ extension _ChapterRenderer on _ReadingScreenState {
           : null,
       decorationStyle: TextDecorationStyle.dotted,
       decorationColor: p.muted,
-      // Фон стиха: выделение цветом — цвет из записи; иначе фон
+      // Фон стиха: целостишовое выделение — цвет записи; иначе фон
       // читаемого вслух стиха (null!=null-защита: без TTS не красим).
       backgroundColor:
-          vCtx != null && inChapter && _highlights.containsKey(vCtx)
-          ? highlightColor(_highlights[vCtx]!.text).withValues(alpha: 0.2)
+          vCtx != null && inChapter && _wholeHl(vCtx) != null
+          ? highlightColor(_wholeHl(vCtx)!.text).withValues(alpha: 0.2)
           : (inChapter && _ttsVerse != null && vCtx == _ttsVerse
                 ? p.accent.withValues(alpha: 0.14)
                 : null),
@@ -291,6 +293,21 @@ extension _ChapterRenderer on _ReadingScreenState {
     final recognizer = _study && settings.layerStrongs && strong != null
         ? _tap(() => _showStrong(strong, t.text))
         : null;
+    // Сырой сдвиг по текстовым спанам стиха — под него размечены
+    // диапазоны частичных выделений (_hlFrags, frag-селекторы).
+    final raw0 = _hlRaw;
+    _hlRaw += t.text.length;
+    final cuts = <({int s, int e, Color c})>[
+      if (vCtx != null && inChapter)
+        for (final r in _hlFrags[vCtx] ?? const <({UserEntry rec, int s, int e})>[])
+          if ((r.e - raw0).clamp(0, t.text.length) >
+              (r.s - raw0).clamp(0, t.text.length))
+            (
+              s: (r.s - raw0).clamp(0, t.text.length),
+              e: (r.e - raw0).clamp(0, t.text.length),
+              c: highlightColor(r.rec.text).withValues(alpha: 0.45),
+            ),
+    ];
     // Пословная подсветка: смещения движка — в «плоском» тексте стиха
     // (без краевых пробелов); переводим в сырой сдвиг по спанам и
     // красим участок сильнее фона стиха.
@@ -311,20 +328,7 @@ extension _ChapterRenderer on _ReadingScreenState {
         final ws = (w.start + _ttsLead - raw).clamp(0, t.text.length);
         final we = (w.end + _ttsLead - raw).clamp(0, t.text.length);
         if (we > ws) {
-          return TextSpan(
-            style: style,
-            recognizer: recognizer,
-            children: [
-              if (ws > 0) TextSpan(text: t.text.substring(0, ws)),
-              TextSpan(
-                text: t.text.substring(ws, we),
-                style: TextStyle(
-                  backgroundColor: p.accent.withValues(alpha: 0.45),
-                ),
-              ),
-              if (we < t.text.length) TextSpan(text: t.text.substring(we)),
-            ],
-          );
+          cuts.add((s: ws, e: we, c: p.accent.withValues(alpha: 0.45)));
         }
       }
     } else if (_ttsInVerse && _ttsWordCtx) {
@@ -332,7 +336,37 @@ extension _ChapterRenderer on _ReadingScreenState {
       // иначе позиция слова собьётся у следующих спанов.
       _ttsRaw += t.text.length;
     }
-    return TextSpan(text: t.text, style: style, recognizer: recognizer);
+    if (cuts.isEmpty) {
+      return TextSpan(text: t.text, style: style, recognizer: recognizer);
+    }
+    // Границы всех диапазонов режут спан на куски; при наложении
+    // выигрывает диапазон, добавленный позже (TTS-слово — над
+    // цветным выделением).
+    final pts = <int>{0, t.text.length};
+    for (final c in cuts) {
+      pts
+        ..add(c.s)
+        ..add(c.e);
+    }
+    final ordered = pts.toList()..sort();
+    return TextSpan(
+      style: style,
+      recognizer: recognizer,
+      children: [
+        for (var i = 0; i + 1 < ordered.length; i++)
+          TextSpan(
+            text: t.text.substring(ordered[i], ordered[i + 1]),
+            style: TextStyle(
+              backgroundColor: cuts
+                  .where(
+                    (c) => c.s <= ordered[i] && c.e >= ordered[i + 1],
+                  )
+                  .lastOrNull
+                  ?.c,
+            ),
+          ),
+      ],
+    );
   }
 
   /// Переход по ссылке из сноски («Быт 1:1»): переход в стеке
@@ -448,6 +482,31 @@ extension _ChapterRenderer on _ReadingScreenState {
       return (lo: v, hi: v);
     }
     return (lo: verses.reduce(math.min), hi: verses.reduce(math.max));
+  }
+
+  /// Куски выделения по стихам: выделенный текст режется по
+  /// маркерам « N »; головной кусок (до первого маркера) — хвост
+  /// стиха lo. verse -> выделенная часть текста этого стиха.
+  Map<int, String> _selChunks() {
+    final t = _selectedText;
+    final r = _selRange();
+    if (t == null || r == null) return const {};
+    final padded = ' $t ';
+    final matches = RegExp(r' (\d{1,3}) ').allMatches(padded).toList();
+    if (matches.isEmpty) return {r.lo: t};
+    final out = <int, String>{};
+    final firstNum = int.parse(matches.first.group(1)!);
+    if (r.lo < firstNum) {
+      out[r.lo] = padded.substring(0, matches.first.start);
+    }
+    for (var i = 0; i < matches.length; i++) {
+      final num = int.parse(matches[i].group(1)!);
+      final to = i + 1 < matches.length
+          ? matches[i + 1].start
+          : padded.length;
+      out[num] = padded.substring(matches[i].end, to);
+    }
+    return out;
   }
 
   /// Дополнительные пункты контекстного меню выделения.
@@ -587,74 +646,135 @@ extension _ChapterRenderer on _ReadingScreenState {
     );
   }
 
-  /// Выбор цвета выделения — ряд цветных кругов; [removable] добавляет
-  /// пункт «Убрать». Возвращает имя цвета, 'remove' или null (отмена).
-  Future<String?> _pickHighlightColor({bool removable = false}) {
+  /// Выбор цвета выделения — «пилюля» с кружками цветов; [current]
+  /// отмечается галочкой, [removable] добавляет пункт «Убрать».
+  /// Возвращает имя цвета, 'remove' или null (отмена).
+  Future<String?> _pickHighlightColor({
+    String? current,
+    bool removable = false,
+  }) {
     final p = context.palette;
     return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          tr('Цвет выделения', 'Highlight color'),
-          style: TextStyle(color: p.ink),
-        ),
-        content: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            for (final e in kHighlightColors.entries)
-              InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => Navigator.of(ctx).pop(e.key),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: e.value,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: p.edge),
+      builder: (ctx) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final e in kHighlightColors.entries)
+                InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => Navigator.of(ctx).pop(e.key),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    margin: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: e.value,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: p.edge),
+                    ),
+                    child: e.key == current
+                        ? const Icon(Icons.check, size: 18)
+                        : null,
                   ),
                 ),
-              ),
-            if (removable)
-              InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => Navigator.of(ctx).pop('remove'),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: p.edge),
-                  ),
-                  child: Icon(
-                    Icons.format_clear,
-                    size: 18,
-                    color: p.muted,
+              if (removable) ...[
+                Container(
+                  width: 1,
+                  height: 24,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  color: p.edge,
+                ),
+                InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => Navigator.of(ctx).pop('remove'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: p.muted,
+                    ),
                   ),
                 ),
-              ),
-          ],
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// Выделить диапазон стихов выбранным цветом (уже выделенные
-  /// перекрашиваются — перезаписываются новым цветом).
+  /// Выделить диапазон стихов выбранным цветом: куски выделения
+  /// пишутся frag-селекторами (схема 4), стих целиком — как раньше.
+  /// Пересечение с существующими выделениями блокирует действие —
+  /// занятое место можно только снять. Записям пачки проставляется
+  /// общий `created`, чтобы история склеивала их в одно действие.
   Future<void> _highlightRange(int lo, int hi, [String color = 'yellow']) async {
+    final chunks = _selChunks();
+    final plan = <({int v, String frag})>[];
     for (var v = lo; v <= hi; v++) {
-      final existing = _highlights[v];
-      if (existing != null) await bridgeEntryRemove(existing.id);
-      final txt = _verseText(v);
+      final raw = _verseRaw(v);
+      final trimmed = raw.trim();
+      final lead = raw.length - raw.trimLeft().length;
+      final chunk = chunks[v]?.trim();
+      var frag = '';
+      int? s, e;
+      // Целый стих (куска нет или он равен стиху) — обычная запись;
+      // кусок ищем селектором в тексте стиха.
+      if (chunk != null && chunk.isNotEmpty && chunk != trimmed) {
+        final rs = await bridgeFragRanges(trimmed, fragJson(chunk, '', ''));
+        if (rs.isNotEmpty) {
+          final r = rs.first;
+          frag = fragJson(
+            trimmed.substring(r.s, r.e),
+            trimmed.substring((r.s - 30).clamp(0, trimmed.length), r.s),
+            trimmed.substring(r.e, (r.e + 30).clamp(0, trimmed.length)),
+          );
+          s = r.s + lead;
+          e = r.e + lead;
+        }
+      }
+      final clash = (_highlights[v] ?? const <UserEntry>[]).any(
+        (ex) =>
+            ex.frag.isEmpty ||
+            s == null ||
+            (_hlFrags[v] ?? const []).any(
+              (f) => f.rec.id == ex.id && f.s < e! && f.e > s!,
+            ),
+      );
+      if (clash) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                tr(
+                  'Часть текста уже выделена — сначала снимите выделение',
+                  'Part of the text is already highlighted',
+                ),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      plan.add((v: v, frag: frag));
+    }
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    for (final it in plan) {
+      final txt = _verseText(it.v);
       await bridgeEntryAdd(
         kind: 'hl',
         module: _moduleId,
         book: _code,
         chapter: _ch,
-        verse: v,
+        verse: it.v,
         text: color,
         context: txt.substring(0, txt.length.clamp(0, 40)),
+        frag: it.frag,
+        created: ts,
       );
     }
     await _loadVerseEntries();
@@ -1189,7 +1309,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     for (final v in order) {
       if (!peek) _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
-      final hlEntry = _highlights[v];
+      final hlEntry = _wholeHl(v);
       if (!peek) _verseItemIndex[v] = out.length;
       out.add(
         RepaintBoundary(
@@ -1655,7 +1775,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (v == 0 && hasSup) continue;
       _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
-      final hlEntry = _highlights[v];
+      final hlEntry = _wholeHl(v);
       _verseItemIndex[v] = out.length;
       out.add(
         RepaintBoundary(

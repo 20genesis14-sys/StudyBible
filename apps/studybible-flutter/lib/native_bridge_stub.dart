@@ -55,8 +55,10 @@ Future<String?> bridgeEntryAdd({
   required int verse,
   required String text,
   required String context,
+  String frag = '',
+  int? created,
 }) async {
-  final now = DateTime.now().millisecondsSinceEpoch;
+  final now = created ?? DateTime.now().millisecondsSinceEpoch;
   final id = 'stub-${_stubSeq++}';
   _stubEntries.add(
     UserEntry(
@@ -68,12 +70,18 @@ Future<String?> bridgeEntryAdd({
       verse: verse,
       text: text,
       context: context,
+      frag: frag,
       created: now,
       updated: now,
     ),
   );
   return id;
 }
+
+Future<List<({int s, int e})>> bridgeFragRanges(
+  String verseText,
+  String frag,
+) async => const [];
 
 Future<bool> bridgeEntryUpdate(String id, String text) async {
   final i = _stubEntries.indexWhere((e) => e.id == id);

@@ -21,6 +21,7 @@ import 'package:sqlite3/wasm.dart';
 import 'package:typed_data/typed_buffers.dart';
 import 'package:web/web.dart' as web;
 
+import 'frag.dart';
 import 'native_bridge.dart';
 import 'search_norm.dart' show normForIndex, normSearchQuery, normVersion;
 
@@ -502,6 +503,7 @@ UserEntry _toEntry(Map<String, dynamic> m) => UserEntry(
   verse: (m['verse'] as num).toInt(),
   text: '${m['text'] ?? ''}',
   context: '${m['context'] ?? ''}',
+  frag: '${m['frag'] ?? ''}',
   created: (m['created'] as num?)?.toInt() ?? 0,
   updated: (m['updated'] as num?)?.toInt() ?? 0,
 );
@@ -517,6 +519,7 @@ Future<List<UserEntry>> bridgeEntriesList(
 ];
 
 /// Добавить запись; id — метка времени + размер списка (достаточно для web).
+/// [created] — общая метка пачки записей одного действия.
 Future<String?> bridgeEntryAdd({
   required String kind,
   required String module,
@@ -525,9 +528,11 @@ Future<String?> bridgeEntryAdd({
   required int verse,
   required String text,
   required String context,
+  String frag = '',
+  int? created,
 }) async {
   final list = _entries();
-  final now = DateTime.now().millisecondsSinceEpoch;
+  final now = created ?? DateTime.now().millisecondsSinceEpoch;
   final id = 'w$now-${list.length}';
   list.add({
     'id': id,
@@ -538,11 +543,23 @@ Future<String?> bridgeEntryAdd({
     'verse': verse,
     'text': text,
     'context': context,
+    'frag': frag,
     'created': now,
     'updated': now,
   });
   _saveEntries(list);
   return id;
+}
+
+/// Диапазоны frag-селектора в тексте стиха — Dart-порт
+/// `find_frag` из ядра (frag.dart).
+Future<List<({int s, int e})>> bridgeFragRanges(
+  String verseText,
+  String frag,
+) async {
+  final s = fragParse(frag);
+  if (s == null) return const [];
+  return findFragRanges(verseText, s.exact, s.pre, s.post);
 }
 
 Future<bool> bridgeEntryUpdate(String id, String text) async {

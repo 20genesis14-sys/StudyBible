@@ -17,6 +17,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
 
 import 'package:path_provider/path_provider.dart';
 
+import 'frag.dart';
 import 'native_bridge.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/rust/api/module.dart' as api_module;
@@ -248,6 +249,7 @@ UserEntry _entry(api_userdata.UserEntryInfo e) => UserEntry(
   verse: e.verse.toInt(),
   text: e.text,
   context: e.context,
+  frag: e.frag,
   created: e.created.toInt(),
   updated: e.updated.toInt(),
 );
@@ -268,6 +270,9 @@ Future<List<UserEntry>> bridgeEntriesList(String kind, {String? module}) async {
 }
 
 /// Добавить запись к стиху модуля; null — ошибка моста.
+/// [frag] — селектор куска стиха `{exact,pre,post}` (JSON);
+/// [created] — общая метка времени пачки (одно действие на
+/// несколько стихов), null = сейчас.
 Future<String?> bridgeEntryAdd({
   required String kind,
   required String module,
@@ -276,6 +281,8 @@ Future<String?> bridgeEntryAdd({
   required int verse,
   required String text,
   required String context,
+  String frag = '',
+  int? created,
 }) => _guard(
   'entryAdd',
   () => api_userdata.entryAdd(
@@ -287,8 +294,27 @@ Future<String?> bridgeEntryAdd({
     verse: verse,
     text: text,
     context: context,
+    frag: frag,
+    created: created,
   ),
 );
+
+/// Диапазоны frag-селектора в тексте стиха: байтовые пары ядра →
+/// UTF-16 индексы строки. Пусто — селектор не нашёлся (не красим).
+Future<List<({int s, int e})>> bridgeFragRanges(
+  String verseText,
+  String frag,
+) async {
+  if (frag.isEmpty) return const [];
+  final pairs = await _guard(
+    'fragRanges',
+    () async => api_userdata.fragRanges(text: verseText, frag: frag),
+  );
+  if (pairs == null) return const [];
+  return byteToUtf16(verseText, [
+    for (final n in pairs) n.toInt(),
+  ]);
+}
 
 Future<bool> bridgeEntryUpdate(String id, String text) async =>
     await _guard(

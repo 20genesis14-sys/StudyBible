@@ -28,6 +28,9 @@ class UserEntry {
   final int verse;
   final String text;
   final String context;
+
+  /// Селектор куска стиха `{exact,pre,post}` (JSON); пусто — весь стих.
+  final String frag;
   final int created;
   final int updated;
 
@@ -40,6 +43,7 @@ class UserEntry {
     required this.verse,
     required this.text,
     required this.context,
+    this.frag = '',
     required this.created,
     required this.updated,
   });

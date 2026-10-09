@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import '../data.dart';
 import '../lexicon.dart';
 import '../models.dart';
+import '../frag.dart';
 import '../native_bridge.dart' show UserEntry;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
@@ -129,8 +130,19 @@ class _ReadingScreenState extends State<ReadingScreen> {
   int _itemsTotal = 0;
 
   /// Записи к стихам текущей главы: verse -> запись.
-  final Map<int, UserEntry> _highlights = {};
+  /// Выделений у стиха может быть несколько (куски разных цветов,
+  /// схема 4) — поэтому список.
+  final Map<int, List<UserEntry>> _highlights = {};
   final Map<int, UserEntry> _verseNotes = {};
+
+  /// Разрешённые диапазоны частичных выделений: verse -> срезы
+  /// (запись + UTF-16 смещения в плоском тексте стиха без тримма).
+  /// Считаются при загрузке записей через fragRanges моста.
+  final Map<int, List<({UserEntry rec, int s, int e})>> _hlFrags = {};
+
+  /// Курсор сырого сдвига по текстовым спанам стиха при построении —
+  /// для покраски кусков `_hlFrags` (как _ttsRaw для пословной).
+  int _hlRaw = 0;
 
   /// Закладки и теги стихов главы: verse -> запись.
   final Map<int, UserEntry> _verseMarks = {};
