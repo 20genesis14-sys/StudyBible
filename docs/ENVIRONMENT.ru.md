@@ -27,3 +27,5 @@
 - Сборка Flutter — с изолированными кэшами:
   `PUB_CACHE=D:\StudyBible-tools\pub-cache`,
   `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`.
+- Зависимости CI: `rustup target add wasm32-unknown-unknown`,
+  `cargo install cargo-deny --locked`.

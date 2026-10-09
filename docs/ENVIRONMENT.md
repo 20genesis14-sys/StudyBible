@@ -26,3 +26,5 @@ Toolchain paths and local quirks of the working machine.
 - Build Flutter with isolated caches:
   `PUB_CACHE=D:\StudyBible-tools\pub-cache`,
   `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`.
+- CI prerequisites: `rustup target add wasm32-unknown-unknown`,
+  `cargo install cargo-deny --locked`.

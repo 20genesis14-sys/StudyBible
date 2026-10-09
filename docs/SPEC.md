@@ -57,3 +57,4 @@ are written together with the test fixture of their stage.
 | [0018](adr/0018-module-format-v2.md) | Module format v2 — post-1.0 roadmap; extensibility beyond the Bible |
 | [0019](adr/0019-navigation-workspace.md) | Navigation: unified workspace, position stack, panes without duplicated logic |
 | [0020](adr/0020-contributions.md) | Contribution registry and extension engine (data/ui/web) |
+| [0021](adr/0021-gpui-ui-track.md) | Custom text system `studybible-text` (post-1.0 track) |
