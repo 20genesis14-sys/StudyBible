@@ -1,0 +1,4 @@
+# Кэш компиляции: повторные сборки и ворктри берут готовые объектники.
+# Требует `sccache` в PATH (winget install Mozilla.sccache).
+[build]
+rustc-wrapper = "sccache"
