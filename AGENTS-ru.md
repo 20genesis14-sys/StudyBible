@@ -19,11 +19,9 @@
   - `docs/DECISIONS.md` — источник истины по решениям.
 - Код не начинать без явной команды пользователя.
 - `unsafe` разрешён, когда оправдан; каждый блок — с комментарием `// SAFETY:` (проверяет clippy).
-- Коммит после каждого завершённого шага. Широкие изменения коммитим
-  по каталогам (отдельно `docs/`, корневые файлы, `data/`, `apps/`…) —
-  на GitHub напротив каждого пути видно сообщение последнего
-  затронувшего его коммита, и общие сообщения на пол-репозитория
-  смотрятся неаккуратно.
+- Коммит после каждого завершённого шага; широкие изменения — по
+  каталогам (отдельно `docs/`, корневые файлы, `data/`, `apps/`…), чтобы
+  на GitHub у каждого пути было читаемое сообщение.
 - Репозиторий на GitHub (`20genesis14-sys/StudyBible`), рабочая ветка
   `dev`, релизы — в `main`; CI — локальный скрипт `scripts/ci.ps1`.
 - Документы двуязычные: английский `X.md` — первичный, русский
@@ -48,23 +46,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 (мост обязан быть не выше minSdk).
 В ядре clippy запрещает `std::fs` и `std::thread::sleep` (`crates/studybible-core/clippy.toml`).
 
+Изменения во Flutter (каталог `apps/studybible-flutter`):
+`D:\StudyBible-tools\flutter\bin\flutter analyze`; тестам моста нужна
+`STUDYBIBLE_DATA=D:\StudyBible-data`.
+
 ## Данные
 
-Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (у пользователя `D:\StudyBible-data`;
-`C:\StudyBible-data` — остаточный каталог).
-Для Dart-тестов моста выставлять явно: `STUDYBIBLE_DATA=D:\StudyBible-data`.
-Каталог намеренно не внутри репозитория: тексты переводов нельзя выкладывать на GitHub вместе с кодом.
-
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # скачать и сверить SHA-256
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # перезакрепить хэши после обновления источника
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # сверка содержимого
-```
-
-`data/canon/canon-66-knig.md` — исходный список канона от пользователя.
-`data/profiles/` — профили книг и неканонического; `data/versification/` — файлы Paratext (MIT);
-`data/tests/` — испытательные наборы. Проверки — `crates/studybible-convert/tests/stage0_fixtures.rs`;
-проверки по текстам пропускаются (SKIPPED), если нет каталога данных.
+Внешние тексты (переводы, модули) — вне репозитория, в `STUDYBIBLE_DATA`
+(`D:\StudyBible-data`) — в git их коммитить нельзя. Команды
+fetch/check-data и структура `data/` — в `docs/ENVIRONMENT.ru.md`.
 
 ## Окружение
 

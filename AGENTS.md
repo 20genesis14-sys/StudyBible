@@ -16,10 +16,9 @@
   - `docs/DECISIONS.md` — the source of truth for decisions.
 - Do not start coding without an explicit user command.
 - `unsafe` is allowed when justified; every block needs a `// SAFETY:` comment (clippy checks).
-- Commit after each completed step. Broad changes are committed per
-  directory (`docs/`, root files, `data/`, `apps/`… separately) —
-  GitHub shows each path the message of the last commit that touched
-  it, and one sweeping commit looks untidy across half the repo.
+- Commit after each completed step; broad changes — per directory
+  (`docs/`, root, `data/`, `apps/`…), so GitHub shows a readable
+  message per path.
 - CI is the local script `scripts/ci.ps1`.
 - Published documents are bilingual: English `X.md` is primary,
   Russian `X.ru.md` is its mirror (except `docs/ROADMAP.md` — Russian,
@@ -45,25 +44,15 @@ After building an APK check the native libraries' target API:
 In the core, clippy forbids `std::fs` and `std::thread::sleep`
 (`crates/studybible-core/clippy.toml`).
 
+Flutter changes (app dir `apps/studybible-flutter`):
+`D:\StudyBible-tools\flutter\bin\flutter analyze`; bridge tests need
+`STUDYBIBLE_DATA=D:\StudyBible-data`.
+
 ## Data
 
-External texts live outside the repository, in `STUDYBIBLE_DATA`
-(user: `D:\StudyBible-data`; `C:\StudyBible-data` is a leftover directory).
-For Dart bridge tests set it explicitly: `STUDYBIBLE_DATA=D:\StudyBible-data`.
-The directory is deliberately outside the repository: Bible texts must not
-be published on GitHub together with the code.
-
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # download and verify SHA-256
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # re-pin hashes after a source update
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # verify contents
-```
-
-`data/canon/canon-66-knig.md` — the original canon list from the user.
-`data/profiles/` — book and deuterocanonical profiles; `data/versification/` —
-Paratext files (MIT); `data/tests/` — test fixtures. Checks —
-`crates/studybible-convert/tests/stage0_fixtures.rs`; text-based checks are
-skipped (SKIPPED) when the data directory is absent.
+External texts (translations, modules) live outside the repo in
+`STUDYBIBLE_DATA` (`D:\StudyBible-data`) — never commit them.
+Fetch/verify commands and the `data/` layout: `docs/ENVIRONMENT.md`.
 
 ## Environment
 
