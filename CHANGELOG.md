@@ -25,6 +25,14 @@ All notable changes after the 1.0 release — one per line.
   by the app with links to full texts, plus offline package-license
   texts via the built-in Flutter page. The SIL OFL text now ships
   with the bundled fonts.
+- More reading fonts to evaluate: Lora, Alegreya, Source Serif 4,
+  Roboto Serif, Charis SIL (full Cyrillic, variable weight) and
+  Paper Mono (Latin only); the font picker is now a dropdown showing
+  each name in its own typeface, variable fonts get precise `wght`.
+- Fixed: "highlight color" now tints the verse text itself, not only
+  the verse number (paragraph mode).
+- Footnote card redesigned: height wraps content (max 75 % of the
+  screen, long notes scroll), note text at a readable 15 pt base.
 
 ## 1.0.1 (2026-10-09)
 
