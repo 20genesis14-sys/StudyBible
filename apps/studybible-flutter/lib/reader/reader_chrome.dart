@@ -1376,7 +1376,7 @@ extension _ReaderChrome on _ReadingScreenState {
     );
     switch (choice) {
       case 'hl':
-        _toggleHighlight(v);
+        _chooseHighlight(v);
       case 'note':
         _editNote(v);
       case 'mark':

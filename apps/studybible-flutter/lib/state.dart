@@ -7,7 +7,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' show FontWeight;
+import 'dart:ui' show Color, FontWeight;
 
 import 'package:flutter/foundation.dart';
 
@@ -92,6 +92,21 @@ String readingFontLabel(ReadingFont f) => switch (f) {
   ReadingFont.charisSil => 'Charis SIL',
   ReadingFont.paperMono => 'Paper Mono',
 };
+
+/// Цвета выделения стихов (kind='hl' в UserData): имя хранится
+/// в поле `text` записи — 'yellow' у всех старых выделений.
+const Map<String, Color> kHighlightColors = {
+  'yellow': Color(0xFFFFC34D),
+  'green': Color(0xFF66B96B),
+  'blue': Color(0xFF5C9BD6),
+  'pink': Color(0xFFE08BB0),
+  'purple': Color(0xFF9B7FD4),
+  'orange': Color(0xFFE8963C),
+};
+
+/// Цвет выделения по имени (неизвестное → жёлтый).
+Color highlightColor(String name) =>
+    kHighlightColors[name] ?? kHighlightColors['yellow']!;
 
 class Settings extends ChangeNotifier {
   AppTheme theme = AppTheme.light;

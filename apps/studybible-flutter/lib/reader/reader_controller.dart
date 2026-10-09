@@ -77,23 +77,32 @@ extension _ReaderController on _ReadingScreenState {
     await _loadVerseEntries();
   }
 
-  /// Выделить/снять выделение стиха (kind=hl в UserData).
-  Future<void> _toggleHighlight(int v) async {
+  /// Выделить/снять выделение стиха (kind=hl в UserData);
+  /// имя цвета хранится в `text` записи ('yellow' — старые записи).
+  Future<void> _setHighlight(int v, String color) async {
     final existing = _highlights[v];
-    if (existing != null) {
-      await bridgeEntryRemove(existing.id);
-    } else {
+    if (existing != null) await bridgeEntryRemove(existing.id);
+    if (color != 'remove') {
       await bridgeEntryAdd(
         kind: 'hl',
         module: _moduleId,
         book: _code,
         chapter: _ch,
         verse: v,
-        text: 'yellow',
+        text: color,
         context: _verseText(v).substring(0, _verseText(v).length.clamp(0, 40)),
       );
     }
     await _loadVerseEntries();
+  }
+
+  /// Меню цвета выделения стиха: тап по «Выделить» открывает выбор
+  /// цвета; у уже выделенного стиха есть пункт «Убрать».
+  Future<void> _chooseHighlight(int v) async {
+    final c = await _pickHighlightColor(
+      removable: _highlights.containsKey(v),
+    );
+    if (c != null) await _setHighlight(v, c);
   }
 
   /// Диалог заметки к стиху: текст + вложения (картинки, аудио).

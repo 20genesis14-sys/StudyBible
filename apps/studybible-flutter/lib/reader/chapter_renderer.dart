@@ -170,7 +170,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       // Маркеры: выделение — янтарный фон номера, заметка — точка-маркер,
       // TTS — акцентный фон читаемого стиха.
       // В режиме «книга» маркеры показываются только для текущей главы.
-      final hl = inChapter && _highlights.containsKey(s.verse);
+      final hlEntry = inChapter ? _highlights[s.verse] : null;
       // Якорь стиха: ключ на невидимом виджете на позиции номера —
       // ensureVisible ставит к верху сам стих, а не начало абзаца.
       final vkey = anchor
@@ -207,8 +207,8 @@ extension _ChapterRenderer on _ReadingScreenState {
           fontSize: 17 * settings.fontScale * 0.86,
           color: _selectedVerse == s.verse ? p.accent : _verseColor(p),
           fontWeight: FontWeight.w800,
-          backgroundColor: hl
-              ? const Color(0x66FFC34D)
+          backgroundColor: hlEntry != null
+              ? highlightColor(hlEntry.text).withValues(alpha: 0.45)
               : (inChapter && _ttsVerse == s.verse
                     ? p.accent.withValues(alpha: 0.30)
                     : null),
@@ -279,11 +279,11 @@ extension _ChapterRenderer on _ReadingScreenState {
           : null,
       decorationStyle: TextDecorationStyle.dotted,
       decorationColor: p.muted,
-      // Фон стиха: выделение цветом — янтарь; иначе фон читаемого
-      // вслух стиха (null!=null-защита: без TTS не красим).
+      // Фон стиха: выделение цветом — цвет из записи; иначе фон
+      // читаемого вслух стиха (null!=null-защита: без TTS не красим).
       backgroundColor:
           vCtx != null && inChapter && _highlights.containsKey(vCtx)
-          ? const Color(0x33FFC34D)
+          ? highlightColor(_highlights[vCtx]!.text).withValues(alpha: 0.2)
           : (inChapter && _ttsVerse != null && vCtx == _ttsVerse
                 ? p.accent.withValues(alpha: 0.14)
                 : null),
@@ -457,7 +457,9 @@ extension _ChapterRenderer on _ReadingScreenState {
     return [
       ContextMenuButtonItem(
         label: tr('Выделить', 'Highlight'),
-        onPressed: () => _highlightRange(r.lo, r.hi),
+        onPressed: () => _pickHighlightColor().then((c) {
+          if (c != null && c != 'remove') _highlightRange(r.lo, r.hi, c);
+        }),
       ),
       ContextMenuButtonItem(
         label: tr('Заметка', 'Note'),
@@ -585,10 +587,65 @@ extension _ChapterRenderer on _ReadingScreenState {
     );
   }
 
-  /// Выделить диапазон стихов (пропускает уже выделенные).
-  Future<void> _highlightRange(int lo, int hi) async {
+  /// Выбор цвета выделения — ряд цветных кругов; [removable] добавляет
+  /// пункт «Убрать». Возвращает имя цвета, 'remove' или null (отмена).
+  Future<String?> _pickHighlightColor({bool removable = false}) {
+    final p = context.palette;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          tr('Цвет выделения', 'Highlight color'),
+          style: TextStyle(color: p.ink),
+        ),
+        content: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final e in kHighlightColors.entries)
+              InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => Navigator.of(ctx).pop(e.key),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: e.value,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: p.edge),
+                  ),
+                ),
+              ),
+            if (removable)
+              InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => Navigator.of(ctx).pop('remove'),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: p.edge),
+                  ),
+                  child: Icon(
+                    Icons.format_clear,
+                    size: 18,
+                    color: p.muted,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Выделить диапазон стихов выбранным цветом (уже выделенные
+  /// перекрашиваются — перезаписываются новым цветом).
+  Future<void> _highlightRange(int lo, int hi, [String color = 'yellow']) async {
     for (var v = lo; v <= hi; v++) {
-      if (_highlights.containsKey(v)) continue;
+      final existing = _highlights[v];
+      if (existing != null) await bridgeEntryRemove(existing.id);
       final txt = _verseText(v);
       await bridgeEntryAdd(
         kind: 'hl',
@@ -596,7 +653,7 @@ extension _ChapterRenderer on _ReadingScreenState {
         book: _code,
         chapter: _ch,
         verse: v,
-        text: 'yellow',
+        text: color,
         context: txt.substring(0, txt.length.clamp(0, 40)),
       );
     }
@@ -1132,7 +1189,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     for (final v in order) {
       if (!peek) _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
-      final hl = _highlights.containsKey(v);
+      final hlEntry = _highlights[v];
       if (!peek) _verseItemIndex[v] = out.length;
       out.add(
         RepaintBoundary(
@@ -1140,7 +1197,9 @@ extension _ChapterRenderer on _ReadingScreenState {
             key: peek ? null : _blockKeys[v],
             color: selected
                 ? p.accent.withValues(alpha: 0.08)
-                : (hl ? const Color(0x33FFC34D) : null),
+                : (hlEntry != null
+                      ? highlightColor(hlEntry.text).withValues(alpha: 0.2)
+                      : null),
             // Строки чуть реже абзацев: номер слева должен «дышать».
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
             child: Row(
@@ -1596,7 +1655,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (v == 0 && hasSup) continue;
       _blockKeys.putIfAbsent(v, () => GlobalKey());
       final selected = _selectedVerse == v;
-      final hl = _highlights.containsKey(v);
+      final hlEntry = _highlights[v];
       _verseItemIndex[v] = out.length;
       out.add(
         RepaintBoundary(
@@ -1604,7 +1663,9 @@ extension _ChapterRenderer on _ReadingScreenState {
             key: _blockKeys[v],
             color: selected
                 ? p.accent.withValues(alpha: 0.08)
-                : (hl ? const Color(0x33FFC34D) : null),
+                : (hlEntry != null
+                      ? highlightColor(hlEntry.text).withValues(alpha: 0.2)
+                      : null),
             padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

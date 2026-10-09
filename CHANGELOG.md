@@ -31,6 +31,11 @@ All notable changes after the 1.0 release — one per line.
   each name in its own typeface, variable fonts get precise `wght`.
 - Fixed: "highlight color" now tints the verse text itself, not only
   the verse number (paragraph mode).
+- Verse highlights are no longer only yellow: a six-color palette
+  (yellow, green, blue, pink, purple, orange) — pick the color when
+  highlighting from the selection menu or the verse popup; tapping a
+  highlighted verse offers a new color or removal. Old entries keep
+  working.
 - Footnote card redesigned: height wraps content (max 75 % of the
   screen, long notes scroll), note text at a readable 15 pt base.
 
