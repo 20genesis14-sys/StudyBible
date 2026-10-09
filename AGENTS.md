@@ -25,11 +25,8 @@
 
 ## Source of decisions
 
-- `docs/DECISIONS.md` — current decisions; `docs/SPEC.md` — table of contents;
-  `docs/adr/` — rationale; `docs/ROADMAP.md` (local only) — work progress;
-  `docs/OPEN-QUESTIONS.md` — open questions.
-- `C:\Users\Ольга\Documents\Принятые решения v2.txt` — the original version,
-  migrated into `docs/DECISIONS.md`, no longer updated.
+`docs/DECISIONS.md` is the source of truth; the full document map lives
+in `docs/SPEC.md` — do not duplicate it here.
 
 ## Verification
 
@@ -69,17 +66,4 @@ skipped (SKIPPED) when the data directory is absent.
 
 ## Environment
 
-- Save `.ps1` scripts with Cyrillic as UTF-8 with BOM: Windows PowerShell 5
-  otherwise reads them as ANSI.
-
-- Default shell (bash) — WSL Ubuntu; run Windows builds and checks in PowerShell.
-
-- The whole project lives on drive `D:`: repo `D:\StudyBible`, data
-  `D:\StudyBible-data`, tools `D:\StudyBible-tools`.
-- Windows; Rust 1.99.0 (cargo, rustup installed).
-- Flutter SDK 3.47.6 — `D:\StudyBible-tools\flutter` (not in PATH, call
-  `D:\StudyBible-tools\flutter\bin\flutter`); Android SDK — `D:\StudyBible-tools\android-sdk`.
-- Python — `C:\Users\Ольга\AppData\Local\Programs\Python\Python311\python.exe`
-  (the `python` command does not work — Microsoft Store alias).
-- Git 2.55.0 (`C:\Program Files\Git\cmd\git.exe`). Already-open shells may have
-  a stale PATH — re-read it from the registry or open a new shell.
+Toolchain paths and machine quirks — `docs/ENVIRONMENT.md`.
