@@ -811,6 +811,20 @@ Record export/import (zip, "newest updated wins") — buttons on the
 "Records" screen via file_picker (the entries_export/import /
 entries_export_md bridge — wrappers over the core); export — a menu:
 .zip or Markdown; on web — a stub.
+Partial-verse highlights (2026-10-14, user decision): schema 4 —
+a `frag` column holding a text selector `{exact,pre,post}` (JSON,
+empty = whole verse). The anchor is content, not a position:
+character offsets would rot on module updates and engine swaps,
+a quoted fragment survives both — `studybible_core::frag::find_frag`
+matches it over normalized text (letters/digits + collapsed spaces;
+punctuation and footnote marks don't break the lookup), web uses
+the Dart port (`lib/frag.dart`). One record = one fragment in one
+verse (a multi-verse selection is N records sharing one `created`
+timestamp — the batch key for future UI grouping). Overlaps are
+forbidden: an occupied range can only be unhighlighted. Verse-popup
+recolor replaces all verse `hl` records with one whole-verse one.
+If `frag` isn't found (the module reworded that spot) nothing is
+painted — the record stays, honest degradation like orphans.
 Alt+←/→ keys and mouse side buttons X1/X2 — steps through the
 workspace position stack (desktop, ADR 0019): the same path as PopScope
 and the back/forward buttons (`_stackBack`/`_stackForward`).

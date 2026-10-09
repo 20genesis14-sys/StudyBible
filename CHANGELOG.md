@@ -36,6 +36,11 @@ All notable changes after the 1.0 release — one per line.
   highlighting from the selection menu or the verse popup; tapping a
   highlighted verse offers a new color or removal. Old entries keep
   working.
+- Partial highlighting: any selected words, not only whole verses —
+  userdata schema 4 stores a text selector `{exact,pre,post}` per
+  record (matched by `frag::find_frag` in the core, survives module
+  updates); overlapping ranges are refused, records of one gesture
+  share a `created` batch stamp for future list grouping.
 - Footnote card redesigned: height wraps content (max 75 % of the
   screen, long notes scroll), note text at a readable 15 pt base.
 
