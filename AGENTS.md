@@ -21,7 +21,9 @@
   GitHub shows each path the message of the last commit that touched
   it, and one sweeping commit looks untidy across half the repo.
 - CI is the local script `scripts/ci.ps1`.
-- Language of published documents — English.
+- Published documents are bilingual: English `X.md` is primary,
+  Russian `X.ru.md` is its mirror (except `docs/ROADMAP.md` — Russian,
+  local-only).
 
 ## Source of decisions
 
@@ -35,12 +37,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
 Steps: fmt, clippy (`-D warnings`), test, `cargo check` of the core for
-`wasm32-unknown-unknown`, `cargo deny check`.
-Required: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
+`wasm32-unknown-unknown`, `cargo deny check` — prerequisites and build
+variables are in `docs/ENVIRONMENT.md`.
 After building an APK check the native libraries' target API:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
-(the bridge must not exceed minSdk; build with
-`PUB_CACHE=D:\StudyBible-tools\pub-cache` and `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
+(the bridge must not exceed minSdk).
 In the core, clippy forbids `std::fs` and `std::thread::sleep`
 (`crates/studybible-core/clippy.toml`).
 

@@ -24,8 +24,11 @@
   на GitHub напротив каждого пути видно сообщение последнего
   затронувшего его коммита, и общие сообщения на пол-репозитория
   смотрятся неаккуратно.
-- Репозиторий пока только локальный; CI — локальный скрипт `scripts/ci.ps1`.
-- Язык документов — русский.
+- Репозиторий на GitHub (`20genesis14-sys/StudyBible`), рабочая ветка
+  `dev`, релизы — в `main`; CI — локальный скрипт `scripts/ci.ps1`.
+- Документы двуязычные: английский `X.md` — первичный, русский
+  `X.ru.md` — зеркало (кроме `docs/ROADMAP.md` — русский, только
+  локальный).
 
 ## Источник решений
 
@@ -38,11 +41,11 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
-Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`.
-Нужны: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
+Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`
+— зависимости и переменные сборки в `docs/ENVIRONMENT.ru.md`.
 После сборки APK проверить целевой API нативных библиотек:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
-(мост обязан быть не выше minSdk; сборка — с `PUB_CACHE=D:\StudyBible-tools\pub-cache` и `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
+(мост обязан быть не выше minSdk).
 В ядре clippy запрещает `std::fs` и `std::thread::sleep` (`crates/studybible-core/clippy.toml`).
 
 ## Данные
