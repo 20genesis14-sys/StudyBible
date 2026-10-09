@@ -140,6 +140,10 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// Считаются при загрузке записей через fragRanges моста.
   final Map<int, List<({UserEntry rec, int s, int e})>> _hlFrags = {};
 
+  /// Заметки к выделенным фразам (note + frag, схема 4):
+  /// verse -> записи. Связь с выделением — по совпадению frag.
+  final Map<int, List<UserEntry>> _fragNotes = {};
+
   /// Курсор сырого сдвига по текстовым спанам стиха при построении —
   /// для покраски кусков `_hlFrags` (как _ttsRaw для пословной).
   int _hlRaw = 0;
@@ -186,7 +190,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// со стихами (копируется текстом с номерами стихов).
   String? _selectedText;
 
-  final _tapRecognizers = <TapGestureRecognizer>{};
+  final _tapRecognizers = <GestureRecognizer>{};
   Map<String, LexiconEntry>? _lex;
 
   /// Кэш виджетов вторых строк (подстрочник слово-к-слову и строки
@@ -199,7 +203,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// Распознаватели тапов прошлого кадра: спаны главы пересоздаются
   /// при каждом build, старые recognizer'ы надо dispose'ить после
   /// кадра (на длинных главах в «Изучении» иначе копятся сотни).
-  final _tapRecognizersOld = <TapGestureRecognizer>{};
+  final _tapRecognizersOld = <GestureRecognizer>{};
   bool _tapGcQueued = false;
 
   ModuleDoc? get _module => _mods[_moduleId];
@@ -493,7 +497,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
                       canStart: () =>
                           _selectedText == null || _selectedText!.isEmpty,
                       onTap: () {
-                        if (!_barVisible) setState(() => _barVisible = true);
+                        if (!_barVisible) {
+                          setState(() => _barVisible = true);
+                        }
                       },
                       onCommit: _go,
                       child: Row(

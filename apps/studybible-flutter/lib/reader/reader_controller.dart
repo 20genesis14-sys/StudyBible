@@ -122,6 +122,61 @@ extension _ReaderController on _ReadingScreenState {
     if (c != null) await _setHighlight(v, c);
   }
 
+  /// Заметка, привязанная к тому же frag-селектору, что и запись.
+  UserEntry? _fragNoteOf(UserEntry hl) {
+    for (final n in _fragNotes[hl.verse] ?? const <UserEntry>[]) {
+      if (n.frag == hl.frag) return n;
+    }
+    return null;
+  }
+
+  /// Меню частичного выделения (тап по подсвеченным словам):
+  /// цвет/заметка/снятие — только этой записи, стих не трогаем.
+  Future<void> _fragMenu(UserEntry entry) async {
+    final note = _fragNoteOf(entry);
+    final c = await _pickHighlightColor(
+      current: entry.text,
+      removable: true,
+      note: true,
+      hasNote: note != null,
+    );
+    if (c == null) return;
+    if (c == 'note') {
+      final v = entry.verse;
+      if (!mounted) return;
+      final action = await showDialog<String>(
+        context: context,
+        builder: (_) => NoteDialog(
+          ref: _refOf(v),
+          entry: note,
+          tagEntry: _tagEntries[v],
+          moduleId: _moduleId,
+          book: _code,
+          chapter: _ch,
+          verse: v,
+          contextText: _verseText(v)
+              .substring(0, _verseText(v).length.clamp(0, 40)),
+          frag: entry.frag,
+          foreignCount: () async =>
+              (await bridgeEntriesForeign(_moduleId, _code, _ch, v)).length,
+        ),
+      );
+      if (action == 'save' || action == 'delete') {
+        await _loadVerseEntries();
+      } else if (action == 'foreign') {
+        unawaited(_showForeignEntries(v));
+      }
+      return;
+    }
+    if (c == 'remove') {
+      await bridgeEntryRemove(entry.id);
+    } else {
+      // Перекраска: имя цвета живёт в `text` записи.
+      await bridgeEntryUpdate(entry.id, c);
+    }
+    await _loadVerseEntries();
+  }
+
   /// Диалог заметки к стиху: текст + вложения (картинки, аудио).
   /// Записью заведует сам диалог (вложениям нужен id записи
   /// сразу при добавлении файла, до «Сохранить»).
@@ -313,9 +368,17 @@ extension _ReaderController on _ReadingScreenState {
         ..clear()
         ..addEntries(
           nt
-              .where((e) => e.book == _code && e.chapter == _ch)
+              .where(
+                (e) => e.book == _code && e.chapter == _ch && e.frag.isEmpty,
+              )
               .map((e) => MapEntry(e.verse, e)),
         );
+      _fragNotes.clear();
+      for (final e in nt.where(
+        (e) => e.book == _code && e.chapter == _ch && e.frag.isNotEmpty,
+      )) {
+        _fragNotes.putIfAbsent(e.verse, () => []).add(e);
+      }
       _verseMarks
         ..clear()
         ..addEntries(
@@ -352,7 +415,9 @@ extension _ReaderController on _ReadingScreenState {
         if (ranges.isEmpty) continue;
         _hlFrags
             .putIfAbsent(e.key, () => [])
-            .addAll(ranges.map((r) => (rec: rec, s: r.s + lead, e: r.e + lead)));
+            .addAll(
+              ranges.map((r) => (rec: rec, s: r.s + lead, e: r.e + lead)),
+            );
       }
     }
     if (mounted) _rebuild(() {});

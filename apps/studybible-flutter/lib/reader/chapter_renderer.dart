@@ -35,15 +35,18 @@ extension _ChapterRenderer on _ReadingScreenState {
     final family = _textFont();
     // Ступень насыщенности (настройка): для вариативной Literata —
     // точный wght, для статических шрифтов — FontWeight.
-    final wght = Settings.kFontWeightSteps[settings.fontWeightStep]
-        .toDouble();
+    final wght = Settings.kFontWeightSteps[settings.fontWeightStep].toDouble();
     // Ось wght есть у всех переменных шрифтов набора; у Literata ещё и
     // оптический размер opsz, следующий за кеглем.
     final variations = <FontVariation>[
       if (family == 'Literata')
         FontVariation('opsz', _readingSize * settings.fontScale),
       if (const {
-        'Literata', 'Lora', 'Alegreya', 'SourceSerif4', 'RobotoSerif',
+        'Literata',
+        'Lora',
+        'Alegreya',
+        'SourceSerif4',
+        'RobotoSerif',
         'PaperMono',
       }.contains(family))
         FontVariation('wght', wght),
@@ -66,6 +69,14 @@ extension _ChapterRenderer on _ReadingScreenState {
     final r = TapGestureRecognizer()
       ..onTap = f
       ..onTapDown = (d) => _lastTapPos = d.globalPosition;
+    _tapRecognizers.add(r);
+    return r;
+  }
+
+  /// Долгое нажатие — карточка Стронга из выделенного слова
+  /// (тап на выделенном куске занят меню фрагмента).
+  LongPressGestureRecognizer _longPress(VoidCallback f) {
+    final r = LongPressGestureRecognizer()..onLongPress = f;
     _tapRecognizers.add(r);
     return r;
   }
@@ -283,29 +294,32 @@ extension _ChapterRenderer on _ReadingScreenState {
       decorationColor: p.muted,
       // Фон стиха: целостишовое выделение — цвет записи; иначе фон
       // читаемого вслух стиха (null!=null-защита: без TTS не красим).
-      backgroundColor:
-          vCtx != null && inChapter && _wholeHl(vCtx) != null
+      backgroundColor: vCtx != null && inChapter && _wholeHl(vCtx) != null
           ? highlightColor(_wholeHl(vCtx)!.text).withValues(alpha: 0.2)
           : (inChapter && _ttsVerse != null && vCtx == _ttsVerse
                 ? p.accent.withValues(alpha: 0.14)
                 : null),
     );
+    // Стронг — по долгому нажатию: тап у выделенных кусков занят
+    // меню фрагмента (решение пользователя, 14.10.2026).
     final recognizer = _study && settings.layerStrongs && strong != null
-        ? _tap(() => _showStrong(strong, t.text))
+        ? _longPress(() => _showStrong(strong, t.text))
         : null;
     // Сырой сдвиг по текстовым спанам стиха — под него размечены
     // диапазоны частичных выделений (_hlFrags, frag-селекторы).
     final raw0 = _hlRaw;
     _hlRaw += t.text.length;
-    final cuts = <({int s, int e, Color c})>[
+    final cuts = <({int s, int e, Color c, UserEntry? rec})>[
       if (vCtx != null && inChapter)
-        for (final r in _hlFrags[vCtx] ?? const <({UserEntry rec, int s, int e})>[])
+        for (final r
+            in _hlFrags[vCtx] ?? const <({UserEntry rec, int s, int e})>[])
           if ((r.e - raw0).clamp(0, t.text.length) >
               (r.s - raw0).clamp(0, t.text.length))
             (
               s: (r.s - raw0).clamp(0, t.text.length),
               e: (r.e - raw0).clamp(0, t.text.length),
               c: highlightColor(r.rec.text).withValues(alpha: 0.45),
+              rec: r.rec,
             ),
     ];
     // Пословная подсветка: смещения движка — в «плоском» тексте стиха
@@ -328,7 +342,12 @@ extension _ChapterRenderer on _ReadingScreenState {
         final ws = (w.start + _ttsLead - raw).clamp(0, t.text.length);
         final we = (w.end + _ttsLead - raw).clamp(0, t.text.length);
         if (we > ws) {
-          cuts.add((s: ws, e: we, c: p.accent.withValues(alpha: 0.45)));
+          cuts.add((
+            s: ws,
+            e: we,
+            c: p.accent.withValues(alpha: 0.45),
+            rec: null,
+          ));
         }
       }
     } else if (_ttsInVerse && _ttsWordCtx) {
@@ -358,12 +377,31 @@ extension _ChapterRenderer on _ReadingScreenState {
             text: t.text.substring(ordered[i], ordered[i + 1]),
             style: TextStyle(
               backgroundColor: cuts
-                  .where(
-                    (c) => c.s <= ordered[i] && c.e >= ordered[i + 1],
-                  )
+                  .where((c) => c.s <= ordered[i] && c.e >= ordered[i + 1])
                   .lastOrNull
                   ?.c,
             ),
+            // Тап по подсвеченному куску — его меню (цвет/заметка/
+            // снятие именно этой записи, схема 4).
+            recognizer:
+                cuts
+                        .where(
+                          (c) => c.s <= ordered[i] && c.e >= ordered[i + 1],
+                        )
+                        .lastOrNull
+                        ?.rec ==
+                    null
+                ? null
+                : _tap(
+                    () => _fragMenu(
+                      cuts
+                          .where(
+                            (c) => c.s <= ordered[i] && c.e >= ordered[i + 1],
+                          )
+                          .last
+                          .rec!,
+                    ),
+                  ),
           ),
       ],
     );
@@ -501,9 +539,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     }
     for (var i = 0; i < matches.length; i++) {
       final num = int.parse(matches[i].group(1)!);
-      final to = i + 1 < matches.length
-          ? matches[i + 1].start
-          : padded.length;
+      final to = i + 1 < matches.length ? matches[i + 1].start : padded.length;
       out[num] = padded.substring(matches[i].end, to);
     }
     return out;
@@ -647,11 +683,14 @@ extension _ChapterRenderer on _ReadingScreenState {
   }
 
   /// Выбор цвета выделения — «пилюля» с кружками цветов; [current]
-  /// отмечается галочкой, [removable] добавляет пункт «Убрать».
-  /// Возвращает имя цвета, 'remove' или null (отмена).
+  /// отмечается галочкой, [removable] — корзина «Убрать», [note] —
+  /// кнопка заметки к фразе ([hasNote] — уже есть, иконка полная).
+  /// Возвращает имя цвета, 'remove', 'note' или null (отмена).
   Future<String?> _pickHighlightColor({
     String? current,
     bool removable = false,
+    bool note = false,
+    bool hasNote = false,
   }) {
     final p = context.palette;
     return showDialog<String>(
@@ -680,26 +719,37 @@ extension _ChapterRenderer on _ReadingScreenState {
                         : null,
                   ),
                 ),
-              if (removable) ...[
+              if (note)
+                InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => Navigator.of(ctx).pop('note'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(
+                      hasNote
+                          ? Icons.sticky_note_2
+                          : Icons.sticky_note_2_outlined,
+                      size: 20,
+                      color: hasNote ? p.accent : p.muted,
+                    ),
+                  ),
+                ),
+              if (removable || note)
                 Container(
                   width: 1,
                   height: 24,
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   color: p.edge,
                 ),
+              if (removable)
                 InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () => Navigator.of(ctx).pop('remove'),
                   child: Padding(
                     padding: const EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.delete_outline,
-                      size: 20,
-                      color: p.muted,
-                    ),
+                    child: Icon(Icons.delete_outline, size: 20, color: p.muted),
                   ),
                 ),
-              ],
             ],
           ),
         ),
@@ -712,7 +762,11 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// Пересечение с существующими выделениями блокирует действие —
   /// занятое место можно только снять. Записям пачки проставляется
   /// общий `created`, чтобы история склеивала их в одно действие.
-  Future<void> _highlightRange(int lo, int hi, [String color = 'yellow']) async {
+  Future<void> _highlightRange(
+    int lo,
+    int hi, [
+    String color = 'yellow',
+  ]) async {
     final chunks = _selChunks();
     final plan = <({int v, String frag})>[];
     for (var v = lo; v <= hi; v++) {

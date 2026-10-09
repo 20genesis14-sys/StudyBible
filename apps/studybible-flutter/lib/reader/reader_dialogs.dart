@@ -88,11 +88,15 @@ class NoteDialog extends StatefulWidget {
     required this.chapter,
     required this.verse,
     required this.contextText,
+    this.frag = '',
     this.foreignCount,
   });
 
   final String ref;
   final UserEntry? entry;
+
+  /// Селектор куска стиха — заметка на выделенную фразу (схема 4).
+  final String frag;
 
   /// tag-запись стиха (теги редактируются вместе с заметкой).
   final UserEntry? tagEntry;
@@ -168,6 +172,7 @@ class _NoteDialogState extends State<NoteDialog> {
       verse: widget.verse,
       text: joinNote(_titleCtrl.text.trim(), _ctrl.text.trim()),
       context: widget.contextText,
+      frag: widget.frag,
     );
     _entryId = id;
     return id!;
@@ -254,6 +259,7 @@ class _NoteDialogState extends State<NoteDialog> {
         verse: widget.verse,
         text: text,
         context: widget.contextText,
+        frag: widget.frag,
       );
       _entryId = id;
     }
