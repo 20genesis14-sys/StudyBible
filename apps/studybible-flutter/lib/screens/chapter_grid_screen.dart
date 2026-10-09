@@ -28,6 +28,8 @@ class _ChapterGridScreenState extends State<ChapterGridScreen> {
     });
   }
 
+  bool get _loading => _module == null;
+
   int get _chapterCount {
     final book = _module?.bookByCode(widget.bookCode);
     return book?.chapters ?? 1;
@@ -68,7 +70,7 @@ class _ChapterGridScreenState extends State<ChapterGridScreen> {
             ListenableBuilder(
               listenable: progress,
               builder: (_, _) => Text(
-                '${progress.readCount(widget.bookCode)}/$n',
+                _loading ? '…' : '${progress.readCount(widget.bookCode)}/$n',
                 style: TextStyle(fontSize: 13, color: p.muted),
               ),
             ),
@@ -79,7 +81,9 @@ class _ChapterGridScreenState extends State<ChapterGridScreen> {
           child: ListenableBuilder(
             listenable: progress,
             builder: (_, _) => LinearProgressIndicator(
-              value: n > 0 ? progress.readCount(widget.bookCode) / n : 0,
+              value: _loading
+                  ? null
+                  : (n > 0 ? progress.readCount(widget.bookCode) / n : 0),
               minHeight: 3,
               backgroundColor: p.edge,
               valueColor: AlwaysStoppedAnimation(color),
@@ -87,7 +91,9 @@ class _ChapterGridScreenState extends State<ChapterGridScreen> {
           ),
         ),
       ),
-      body: Center(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: wide ? 1000 : double.infinity),
           child: ListenableBuilder(
