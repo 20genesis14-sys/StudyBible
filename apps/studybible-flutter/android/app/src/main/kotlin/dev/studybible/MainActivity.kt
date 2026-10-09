@@ -1,4 +1,4 @@
-package com.example.studybible
+﻿package dev.studybible
 
 import com.ryanheise.audioservice.AudioServiceActivity
 

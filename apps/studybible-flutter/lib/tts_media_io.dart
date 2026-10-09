@@ -1,4 +1,4 @@
-/// Медиа-сессия чтения вслух через audio_service (Android/iOS/macOS):
+﻿/// Медиа-сессия чтения вслух через audio_service (Android/iOS/macOS):
 /// системное уведомление с кнопками ‹/пауза/›/стоп, media button и
 /// audio focus — ОС видит, что звук играется. На Windows/Linux —
 /// no-op, как заглушка.
@@ -150,7 +150,7 @@ Future<void> initReadAloud() async {
   final handler = await AudioService.init(
     builder: () => _Handler(),
     config: AudioServiceConfig(
-      androidNotificationChannelId: 'com.example.studybible.tts',
+      androidNotificationChannelId: 'dev.studybible.tts',
       androidNotificationChannelName: tr('Чтение вслух', 'Read aloud'),
       // Ongoing нельзя вместе с stopForegroundOnPause=false
       // (assert в audio_service). Уведомление и так остаётся
