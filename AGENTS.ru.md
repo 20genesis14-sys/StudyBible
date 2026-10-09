@@ -1,76 +1,80 @@
-﻿# AGENTS.md
+﻿[English](AGENTS.md) | **Русский**
 
-[English](AGENTS.md) | **Русский**
+# AGENTS.md
 
-## ╨Я╤А╨░╨▓╨╕╨╗╨░ ╤А╨░╨▒╨╛╤В╤Л
+## Правила работы
 
-- ╨Ф╨▓╨░ ╨╗╨╛╨║╨░╨╗╤М╨╜╤Л╤Е ╤А╨╡╨┐╨╛╨╖╨╕╤В╨╛╤А╨╕╤П: `D:\StudyBible` (╤А╨░╨▒╨╛╤З╨╕╨╣, ╨║╨░╨╜╨┤╨╕╨┤╨░╤В ╨┤╨╗╤П
-  GitHub) ╨╕ `D:\StudyBible-priv` (╨┐╤А╨╕╨▓╨░╤В╨╜╨░╤П ╨║╨╛╨┐╨╕╤П).
-  **`D:\StudyBible-priv` ╨╜╨╡ ╤В╤А╨╛╨│╨░╤В╤М ╨╜╨╕╨║╨╛╨│╨┤╨░** тАФ ╨╜╨╕ ╤З╨╕╤В╨░╤В╤М, ╨╜╨╕ ╨┐╨╕╤Б╨░╤В╤М,
-  ╨╜╨╕ ╨╖╨░╨┐╤Г╤Б╨║╨░╤В╤М ╤В╨░╨╝ ╨║╨╛╨╝╨░╨╜╨┤╤Л тАФ ╨║╤А╨╛╨╝╨╡ ╤П╨▓╨╜╨╛╨╣ ╨║╨╛╨╝╨░╨╜╨┤╤Л ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П ╨╜╨░
-  ╨║╨╛╨╜╨║╤А╨╡╤В╨╜╨╛╨╡ ╨┤╨╡╨╣╤Б╤В╨▓╨╕╨╡.
+- Два локальных репозитория: `D:\StudyBible` (рабочий, кандидат для
+  GitHub) и `D:\StudyBible-priv` (приватная копия).
+  **`D:\StudyBible-priv` не трогать никогда** — ни читать, ни писать,
+  ни запускать там команды — кроме явной команды пользователя на
+  конкретное действие.
 
 
-- ╨Т╤Б╨╡ ╨┐╨╗╨░╨╜╨╕╤А╤Г╨╡╨╝╤Л╨╡ ╨╕╨╖╨╝╨╡╨╜╨╡╨╜╨╕╤П ╤Б╨╜╨░╤З╨░╨╗╨░ ╨╖╨░╨┐╨╕╤Б╤Л╨▓╨░╤О╤В╤Б╤П ╨▓ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╤Л, ╨╖╨░╤В╨╡╨╝ ╨┤╨╡╨╗╨░╤О╤В╤Б╤П ╨▓ ╨║╨╛╨┤╨╡.
-- ╨Я╤А╨╕ ╨╗╤О╨▒╨╛╨╝ ╨╕╨╖╨╝╨╡╨╜╨╡╨╜╨╕╨╕ ╤А╨╡╤И╨╡╨╜╨╕╨╣, ╨░╤А╤Е╨╕╤В╨╡╨║╤В╤Г╤А╤Л ╨╕╨╗╨╕ ╨╛╨▒╤К╤С╨╝╨░ ╤А╨░╨▒╨╛╤В ╨╛╨▒╨╜╨╛╨▓╨╗╤П╤В╤М:
-  - `docs/SPEC.md` ╨╕ ╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╤Г╤О╤Й╨╕╨╣ ╤А╨░╨╖╨┤╨╡╨╗ `docs/`;
-  - `docs/ROADMAP.md` ╨╕ `docs/OPEN-QUESTIONS.md`;
-  - ╨╜╨╛╨▓╤Л╨╣ ╨╕╨╗╨╕ ╨╕╨╖╨╝╨╡╨╜╤С╨╜╨╜╤Л╨╣ ADR ╨▓ `docs/adr/`;
-  - `docs/DECISIONS.md` тАФ ╨╕╤Б╤В╨╛╤З╨╜╨╕╨║ ╨╕╤Б╤В╨╕╨╜╤Л ╨┐╨╛ ╤А╨╡╤И╨╡╨╜╨╕╤П╨╝.
-- ╨Ъ╨╛╨┤ ╨╜╨╡ ╨╜╨░╤З╨╕╨╜╨░╤В╤М ╨▒╨╡╨╖ ╤П╨▓╨╜╨╛╨╣ ╨║╨╛╨╝╨░╨╜╨┤╤Л ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П.
-- `unsafe` ╤А╨░╨╖╤А╨╡╤И╤С╨╜, ╨║╨╛╨│╨┤╨░ ╨╛╨┐╤А╨░╨▓╨┤╨░╨╜; ╨║╨░╨╢╨┤╤Л╨╣ ╨▒╨╗╨╛╨║ тАФ ╤Б ╨║╨╛╨╝╨╝╨╡╨╜╤В╨░╤А╨╕╨╡╨╝ `// SAFETY:` (╨┐╤А╨╛╨▓╨╡╤А╤П╨╡╤В clippy).
-- ╨Ъ╨╛╨╝╨╝╨╕╤В ╨┐╨╛╤Б╨╗╨╡ ╨║╨░╨╢╨┤╨╛╨│╨╛ ╨╖╨░╨▓╨╡╤А╤И╤С╨╜╨╜╨╛╨│╨╛ ╤И╨░╨│╨░.
-- ╨а╨╡╨┐╨╛╨╖╨╕╤В╨╛╤А╨╕╨╣ ╨┐╨╛╨║╨░ ╤В╨╛╨╗╤М╨║╨╛ ╨╗╨╛╨║╨░╨╗╤М╨╜╤Л╨╣; CI тАФ ╨╗╨╛╨║╨░╨╗╤М╨╜╤Л╨╣ ╤Б╨║╤А╨╕╨┐╤В `scripts/ci.ps1`.
-- ╨п╨╖╤Л╨║ ╨┤╨╛╨║╤Г╨╝╨╡╨╜╤В╨╛╨▓ тАФ ╤А╤Г╤Б╤Б╨║╨╕╨╣.
+- Все планируемые изменения сначала записываются в документы, затем делаются в коде.
+- При любом изменении решений, архитектуры или объёма работ обновлять:
+  - `docs/SPEC.md` и соответствующий раздел `docs/`;
+  - `docs/ROADMAP.md` и `docs/OPEN-QUESTIONS.md`;
+  - новый или изменённый ADR в `docs/adr/`;
+  - `docs/DECISIONS.md` — источник истины по решениям.
+- Код не начинать без явной команды пользователя.
+- `unsafe` разрешён, когда оправдан; каждый блок — с комментарием `// SAFETY:` (проверяет clippy).
+- Коммит после каждого завершённого шага. Широкие изменения коммитим
+  по каталогам (отдельно `docs/`, корневые файлы, `data/`, `apps/`…) —
+  на GitHub напротив каждого пути видно сообщение последнего
+  затронувшего его коммита, и общие сообщения на пол-репозитория
+  смотрятся неаккуратно.
+- Репозиторий пока только локальный; CI — локальный скрипт `scripts/ci.ps1`.
+- Язык документов — русский.
 
-## ╨Ш╤Б╤В╨╛╤З╨╜╨╕╨║ ╤А╨╡╤И╨╡╨╜╨╕╨╣
+## Источник решений
 
-- `docs/DECISIONS.md` тАФ ╤В╨╡╨║╤Г╤Й╨╕╨╡ ╤А╨╡╤И╨╡╨╜╨╕╤П; `docs/SPEC.md` тАФ ╨╛╨│╨╗╨░╨▓╨╗╨╡╨╜╨╕╨╡; `docs/adr/` тАФ ╨╛╨▒╨╛╤Б╨╜╨╛╨▓╨░╨╜╨╕╤П;
-  `docs/ROADMAP.md` тАФ ╤Е╨╛╨┤ ╤А╨░╨▒╨╛╤В; `docs/OPEN-QUESTIONS.md` тАФ ╨╛╤В╨║╤А╤Л╤В╤Л╨╡ ╨▓╨╛╨┐╤А╨╛╤Б╤Л.
-- `C:\Users\╨Ю╨╗╤М╨│╨░\Documents\╨Я╤А╨╕╨╜╤П╤В╤Л╨╡ ╤А╨╡╤И╨╡╨╜╨╕╤П v2.txt` тАФ ╨╕╤Б╤Е╨╛╨┤╨╜╨░╤П ╤А╨╡╨┤╨░╨║╤Ж╨╕╤П, ╨┐╨╡╤А╨╡╨╜╨╡╤Б╨╡╨╜╨░ ╨▓ `docs/DECISIONS.md`, ╨▒╨╛╨╗╤М╤И╨╡ ╨╜╨╡ ╨╛╨▒╨╜╨╛╨▓╨╗╤П╨╡╤В╤Б╤П.
+- `docs/DECISIONS.md` — текущие решения; `docs/SPEC.md` — оглавление; `docs/adr/` — обоснования;
+  `docs/ROADMAP.md` — ход работ; `docs/OPEN-QUESTIONS.md` — открытые вопросы.
+- `C:\Users\Ольга\Documents\Принятые решения v2.txt` — исходная редакция, перенесена в `docs/DECISIONS.md`, больше не обновляется.
 
-## ╨Я╤А╨╛╨▓╨╡╤А╨║╨░
+## Проверка
 
 ```
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
-╨и╨░╨│╨╕: fmt, clippy (`-D warnings`), test, `cargo check` ╤П╨┤╤А╨░ ╨┐╨╛╨┤ `wasm32-unknown-unknown`, `cargo deny check`.
-╨Э╤Г╨╢╨╜╤Л: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
-╨Я╨╛╤Б╨╗╨╡ ╤Б╨▒╨╛╤А╨║╨╕ APK ╨┐╤А╨╛╨▓╨╡╤А╨╕╤В╤М ╤Ж╨╡╨╗╨╡╨▓╨╛╨╣ API ╨╜╨░╤В╨╕╨▓╨╜╤Л╤Е ╨▒╨╕╨▒╨╗╨╕╨╛╤В╨╡╨║:
+Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`.
+Нужны: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
+После сборки APK проверить целевой API нативных библиотек:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
-(╨╝╨╛╤Б╤В ╨╛╨▒╤П╨╖╨░╨╜ ╨▒╤Л╤В╤М ╨╜╨╡ ╨▓╤Л╤И╨╡ minSdk; ╤Б╨▒╨╛╤А╨║╨░ тАФ ╤Б `PUB_CACHE=D:\StudyBible-tools\pub-cache` ╨╕ `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
-╨Т ╤П╨┤╤А╨╡ clippy ╨╖╨░╨┐╤А╨╡╤Й╨░╨╡╤В `std::fs` ╨╕ `std::thread::sleep` (`crates/studybible-core/clippy.toml`).
+(мост обязан быть не выше minSdk; сборка — с `PUB_CACHE=D:\StudyBible-tools\pub-cache` и `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
+В ядре clippy запрещает `std::fs` и `std::thread::sleep` (`crates/studybible-core/clippy.toml`).
 
-## ╨Ф╨░╨╜╨╜╤Л╨╡
+## Данные
 
-╨Т╨╜╨╡╤И╨╜╨╕╨╡ ╤В╨╡╨║╤Б╤В╤Л тАФ ╨▓╨╜╨╡ ╤А╨╡╨┐╨╛╨╖╨╕╤В╨╛╤А╨╕╤П, ╨▓ `STUDYBIBLE_DATA` (╤Г ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П `D:\StudyBible-data`;
-`C:\StudyBible-data` тАФ ╨╛╤Б╤В╨░╤В╨╛╤З╨╜╤Л╨╣ ╨║╨░╤В╨░╨╗╨╛╨│).
-╨Ф╨╗╤П Dart-╤В╨╡╤Б╤В╨╛╨▓ ╨╝╨╛╤Б╤В╨░ ╨▓╤Л╤Б╤В╨░╨▓╨╗╤П╤В╤М ╤П╨▓╨╜╨╛: `STUDYBIBLE_DATA=D:\StudyBible-data`.
-╨Ъ╨░╤В╨░╨╗╨╛╨│ ╨╜╨░╨╝╨╡╤А╨╡╨╜╨╜╨╛ ╨╜╨╡ ╨▓╨╜╤Г╤В╤А╨╕ ╤А╨╡╨┐╨╛╨╖╨╕╤В╨╛╤А╨╕╤П: ╤В╨╡╨║╤Б╤В╤Л ╨┐╨╡╤А╨╡╨▓╨╛╨┤╨╛╨▓ ╨╜╨╡╨╗╤М╨╖╤П ╨▓╤Л╨║╨╗╨░╨┤╤Л╨▓╨░╤В╤М ╨╜╨░ GitHub ╨▓╨╝╨╡╤Б╤В╨╡ ╤Б ╨║╨╛╨┤╨╛╨╝.
+Внешние тексты — вне репозитория, в `STUDYBIBLE_DATA` (у пользователя `D:\StudyBible-data`;
+`C:\StudyBible-data` — остаточный каталог).
+Для Dart-тестов моста выставлять явно: `STUDYBIBLE_DATA=D:\StudyBible-data`.
+Каталог намеренно не внутри репозитория: тексты переводов нельзя выкладывать на GitHub вместе с кодом.
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # ╤Б╨║╨░╤З╨░╤В╤М ╨╕ ╤Б╨▓╨╡╤А╨╕╤В╤М SHA-256
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # ╨┐╨╡╤А╨╡╨╖╨░╨║╤А╨╡╨┐╨╕╤В╤М ╤Е╤Н╤И╨╕ ╨┐╨╛╤Б╨╗╨╡ ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П ╨╕╤Б╤В╨╛╤З╨╜╨╕╨║╨░
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # ╤Б╨▓╨╡╤А╨║╨░ ╤Б╨╛╨┤╨╡╤А╨╢╨╕╨╝╨╛╨│╨╛
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # скачать и сверить SHA-256
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # перезакрепить хэши после обновления источника
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # сверка содержимого
 ```
 
-`data/canon/canon-66-knig.md` тАФ ╨╕╤Б╤Е╨╛╨┤╨╜╤Л╨╣ ╤Б╨┐╨╕╤Б╨╛╨║ ╨║╨░╨╜╨╛╨╜╨░ ╨╛╤В ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П.
-`data/profiles/` тАФ ╨┐╤А╨╛╤Д╨╕╨╗╨╕ ╨║╨╜╨╕╨│ ╨╕ ╨╜╨╡╨║╨░╨╜╨╛╨╜╨╕╤З╨╡╤Б╨║╨╛╨│╨╛; `data/versification/` тАФ ╤Д╨░╨╣╨╗╤Л Paratext (MIT);
-`data/tests/` тАФ ╨╕╤Б╨┐╤Л╤В╨░╤В╨╡╨╗╤М╨╜╤Л╨╡ ╨╜╨░╨▒╨╛╤А╤Л. ╨Я╤А╨╛╨▓╨╡╤А╨║╨╕ тАФ `crates/studybible-convert/tests/stage0_fixtures.rs`;
-╨┐╤А╨╛╨▓╨╡╤А╨║╨╕ ╨┐╨╛ ╤В╨╡╨║╤Б╤В╨░╨╝ ╨┐╤А╨╛╨┐╤Г╤Б╨║╨░╤О╤В╤Б╤П (SKIPPED), ╨╡╤Б╨╗╨╕ ╨╜╨╡╤В ╨║╨░╤В╨░╨╗╨╛╨│╨░ ╨┤╨░╨╜╨╜╤Л╤Е.
+`data/canon/canon-66-knig.md` — исходный список канона от пользователя.
+`data/profiles/` — профили книг и неканонического; `data/versification/` — файлы Paratext (MIT);
+`data/tests/` — испытательные наборы. Проверки — `crates/studybible-convert/tests/stage0_fixtures.rs`;
+проверки по текстам пропускаются (SKIPPED), если нет каталога данных.
 
-## ╨Ю╨║╤А╤Г╨╢╨╡╨╜╨╕╨╡
+## Окружение
 
-- ╨б╨║╤А╨╕╨┐╤В╤Л `.ps1` ╤Б ╨║╨╕╤А╨╕╨╗╨╗╨╕╤Ж╨╡╨╣ ╤Б╨╛╤Е╤А╨░╨╜╤П╤В╤М ╨▓ UTF-8 ╤Б BOM: Windows PowerShell 5 ╨╕╨╜╨░╤З╨╡ ╤З╨╕╤В╨░╨╡╤В ╨╕╤Е ╨║╨░╨║ ANSI.
+- Скрипты `.ps1` с кириллицей сохранять в UTF-8 с BOM: Windows PowerShell 5 иначе читает их как ANSI.
 
-- ╨Ю╨▒╨╛╨╗╨╛╤З╨║╨░ ╨┐╨╛ ╤Г╨╝╨╛╨╗╤З╨░╨╜╨╕╤О (bash) тАФ WSL Ubuntu; ╤Б╨▒╨╛╤А╨║╤Г ╨╕ ╨┐╤А╨╛╨▓╨╡╤А╨║╨╕ Windows ╨╖╨░╨┐╤Г╤Б╨║╨░╤В╤М ╨▓ PowerShell.
+- Оболочка по умолчанию (bash) — WSL Ubuntu; сборку и проверки Windows запускать в PowerShell.
 
-- ╨Т╨╡╤Б╤М ╨┐╤А╨╛╨╡╨║╤В ╨╜╨░ ╨┤╨╕╤Б╨║╨╡ `D:`: ╤А╨╡╨┐╨╛╨╖╨╕╤В╨╛╤А╨╕╨╣ `D:\StudyBible`, ╨┤╨░╨╜╨╜╤Л╨╡ `D:\StudyBible-data`,
-  ╨╕╨╜╤Б╤В╤А╤Г╨╝╨╡╨╜╤В╤Л `D:\StudyBible-tools`.
-- Windows; Rust 1.99.0 (cargo, rustup ╤Г╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╤Л).
-- Flutter SDK 3.47.6 тАФ `D:\StudyBible-tools\flutter` (╨▓ PATH ╨╜╨╡╤В, ╨▓╤Л╨╖╤Л╨▓╨░╤В╤М
-  `D:\StudyBible-tools\flutter\bin\flutter`); Android SDK тАФ `D:\StudyBible-tools\android-sdk`.
-- Python тАФ `C:\Users\╨Ю╨╗╤М╨│╨░\AppData\Local\Programs\Python\Python311\python.exe`
-  (╨║╨╛╨╝╨░╨╜╨┤╨░ `python` ╨╜╨╡ ╤А╨░╨▒╨╛╤В╨░╨╡╤В тАФ ╨░╨╗╨╕╨░╤Б Microsoft Store).
-- Git 2.55.0 (`C:\Program Files\Git\cmd\git.exe`). ╨Т ╤Г╨╢╨╡ ╨╛╤В╨║╤А╤Л╤В╤Л╤Е ╨╛╨▒╨╛╨╗╨╛╤З╨║╨░╤Е PATH ╨╝╨╛╨╢╨╡╤В ╨▒╤Л╤В╤М ╤Б╤В╨░╤А╤Л╨╝ тАФ ╨┐╨╡╤А╨╡╤З╨╕╤В╨░╤В╤М ╨╡╨│╨╛ ╨╕╨╖ ╤А╨╡╨╡╤Б╤В╤А╨░ ╨╕╨╗╨╕ ╨╛╤В╨║╤А╤Л╤В╤М ╨╜╨╛╨▓╤Г╤О ╨╛╨▒╨╛╨╗╨╛╤З╨║╤Г.
+- Весь проект на диске `D:`: репозиторий `D:\StudyBible`, данные `D:\StudyBible-data`,
+  инструменты `D:\StudyBible-tools`.
+- Windows; Rust 1.99.0 (cargo, rustup установлены).
+- Flutter SDK 3.47.6 — `D:\StudyBible-tools\flutter` (в PATH нет, вызывать
+  `D:\StudyBible-tools\flutter\bin\flutter`); Android SDK — `D:\StudyBible-tools\android-sdk`.
+- Python — `C:\Users\Ольга\AppData\Local\Programs\Python\Python311\python.exe`
+  (команда `python` не работает — алиас Microsoft Store).
+- Git 2.55.0 (`C:\Program Files\Git\cmd\git.exe`). В уже открытых оболочках PATH может быть старым — перечитать его из реестра или открыть новую оболочку.
