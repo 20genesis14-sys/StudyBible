@@ -16,6 +16,15 @@
 `STUDYBIBLE_DATA` (рядом с репозиторием, по умолчанию `..\StudyBible-data`),
 чтобы публикация кода не унесла с собой сами Библии.
 
+## Системные требования
+
+| Платформа | Минимум |
+|---|---|
+| Android | Android 8.0 (API 26); APK собран под armeabi-v7a, arm64-v8a и x86_64 |
+| Windows | Windows 10 (64-разрядная) и новее |
+| Web | Современный браузер с поддержкой WebAssembly (Chrome, Firefox, Safari, Edge) |
+| Linux / macOS / iOS | Сборка из исходников (Flutter 3.47+, Rust 1.99+) |
+
 Статус: 1.0.1. Документация — [docs/SPEC.md](docs/SPEC.md),
 ход работ — [docs/ROADMAP.md](docs/ROADMAP.md), открытое — [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md),
 изменения — [CHANGELOG.md](CHANGELOG.md).
