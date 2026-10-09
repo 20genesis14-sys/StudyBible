@@ -28,3 +28,21 @@ Toolchain paths and local quirks of the working machine.
   `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`.
 - CI prerequisites: `rustup target add wasm32-unknown-unknown`,
   `cargo install cargo-deny --locked`.
+
+## External data (`STUDYBIBLE_DATA`)
+
+`D:\StudyBible-data` (`C:\StudyBible-data` is a leftover directory).
+The directory is deliberately outside the repository: Bible texts must
+not be published on GitHub together with the code.
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # download and verify SHA-256
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # re-pin hashes after a source update
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # verify contents
+```
+
+In the repo: `data/canon/canon-66-knig.md` — the original canon list
+from the user; `data/profiles/` — book and deuterocanonical profiles;
+`data/versification/` — Paratext files (MIT); `data/tests/` — test
+fixtures. Checks — `crates/studybible-convert/tests/stage0_fixtures.rs`;
+text-based checks are skipped (SKIPPED) when the data directory is absent.

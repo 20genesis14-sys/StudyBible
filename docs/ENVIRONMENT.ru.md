@@ -29,3 +29,22 @@
   `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`.
 - Зависимости CI: `rustup target add wasm32-unknown-unknown`,
   `cargo install cargo-deny --locked`.
+
+## Внешние данные (`STUDYBIBLE_DATA`)
+
+`D:\StudyBible-data` (`C:\StudyBible-data` — остаточный каталог).
+Каталог намеренно вне репозитория: тексты переводов нельзя выкладывать
+на GitHub вместе с кодом.
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # скачать и сверить SHA-256
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # перезакрепить хэши после обновления источника
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # сверка содержимого
+```
+
+В репозитории: `data/canon/canon-66-knig.md` — исходный список канона
+от пользователя; `data/profiles/` — профили книг и неканонического;
+`data/versification/` — файлы Paratext (MIT); `data/tests/` —
+испытательные наборы. Проверки —
+`crates/studybible-convert/tests/stage0_fixtures.rs`; проверки по текстам
+пропускаются (SKIPPED), если каталога данных нет.
