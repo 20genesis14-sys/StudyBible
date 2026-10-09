@@ -64,7 +64,7 @@ class _BookGridScreenState extends State<BookGridScreen> {
     // Опция «полные имена книг» (ADR 0015): имя из модуля,
     // иначе краткое из каталога.
     String nameOf(String code) => settings.bookFullNames
-        ? (_module?.bookByCode(code)?.title ?? bookShort(code))
+        ? bookFull(code, _module?.bookByCode(code)?.title)
         : (bookShort(code));
     final otVisible = ot
         .where((e) => inModule(e.$1))

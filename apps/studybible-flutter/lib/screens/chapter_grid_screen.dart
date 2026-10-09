@@ -41,9 +41,10 @@ class _ChapterGridScreenState extends State<ChapterGridScreen> {
     // Книга может быть вне каталога 66 (неканонические в модуле).
     final group = kBookGroup[widget.bookCode] ?? BookGroup.other;
     final color = groupColor(group, theme);
-    final title =
-        _module?.bookByCode(widget.bookCode)?.title ??
-        bookShort(widget.bookCode);
+    final title = bookFull(
+      widget.bookCode,
+      _module?.bookByCode(widget.bookCode)?.title,
+    );
     final n = _chapterCount;
 
     return Scaffold(

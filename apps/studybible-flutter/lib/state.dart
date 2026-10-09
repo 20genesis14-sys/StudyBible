@@ -154,6 +154,9 @@ class Settings extends ChangeNotifier {
   /// Язык интерфейса: 'ru' | 'en'.
   String lang = 'ru';
 
+  /// Раскладка названий книг: 'synodal' | 'modern'.
+  String bookNames = 'synodal';
+
   /// Движок чтения вслух: 'auto' | 'system' | 'neural' (ADR 0017).
   String voiceEngine = 'auto';
 
@@ -242,6 +245,7 @@ class Settings extends ChangeNotifier {
         compareModules = j['compareModules'] as String? ?? '';
         interleavedModules = j['interleavedModules'] as String? ?? '';
         lang = j['lang'] as String? ?? 'ru';
+        bookNames = j['bookNames'] as String? ?? 'synodal';
         voiceEngine = j['voiceEngine'] as String? ?? 'auto';
         neuralVoices = j['neuralVoices'] as String? ?? '';
         voiceRate = (j['voiceRate'] as num? ?? 1.0).toDouble();
@@ -285,6 +289,7 @@ class Settings extends ChangeNotifier {
       'compareModules': compareModules,
       'interleavedModules': interleavedModules,
       'lang': lang,
+      'bookNames': bookNames,
       'voiceEngine': voiceEngine,
       'neuralVoices': neuralVoices,
       'voiceRate': voiceRate,

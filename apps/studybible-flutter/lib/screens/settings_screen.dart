@@ -282,6 +282,30 @@ class SettingsScreen extends StatelessWidget {
                             ),
                             _row(
                               p,
+                              tr('Названия книг', 'Book naming'),
+                              SegmentedButton<String>(
+                                segments: [
+                                  ButtonSegment(
+                                    value: 'synodal',
+                                    label: Text(
+                                      tr('Синодальные', 'Synodal'),
+                                    ),
+                                  ),
+                                  ButtonSegment(
+                                    value: 'modern',
+                                    label: Text(
+                                      tr('Современные', 'Modern'),
+                                    ),
+                                  ),
+                                ],
+                                selected: {settings.bookNames},
+                                onSelectionChanged: (s) => settings.update(
+                                  () => settings.bookNames = s.first,
+                                ),
+                              ),
+                            ),
+                            _row(
+                              p,
                               tr(
                                 'Выбор стиха при выборе главы',
                                 'Verse picker after choosing chapter',

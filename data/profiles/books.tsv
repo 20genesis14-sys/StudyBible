@@ -1,79 +1,79 @@
-osis	usfm	canon	order_list	order_syn	name_syn	abbr_syn	name_en	abbr_en
-Gen	GEN	canonical	1	1	Бытие	Быт	Genesis	Gen
-Exod	EXO	canonical	2	2	Исход	Исх	Exodus	Exod
-Lev	LEV	canonical	3	3	Левит	Лев	Leviticus	Lev
-Num	NUM	canonical	4	4	Числа	Чис	Numbers	Num
-Deut	DEU	canonical	5	5	Второзаконие	Втор	Deuteronomy	Deut
-Josh	JOS	canonical	6	6	Книга Иисуса Навина	Нав	Joshua	Josh
-Judg	JDG	canonical	7	7	Книга Судей Израилевых	Суд	Judges	Judg
-Ruth	RUT	canonical	8	8	Книга Руфь	Руф	Ruth	Ruth
-1Sam	1SA	canonical	9	9	Первая книга Царств	1Цар	1 Samuel	1Sam
-2Sam	2SA	canonical	10	10	Вторая книга Царств	2Цар	2 Samuel	2Sam
-1Kgs	1KI	canonical	11	11	Третья книга Царств	3Цар	1 Kings	1Kgs
-2Kgs	2KI	canonical	12	12	Четвёртая книга Царств	4Цар	2 Kings	2Kgs
-1Chr	1CH	canonical	13	13	Первая книга Паралипоменон	1Пар	1 Chronicles	1Chr
-2Chr	2CH	canonical	14	14	Вторая книга Паралипоменон	2Пар	2 Chronicles	2Chr
-Ezra	EZR	canonical	15	15	Первая книга Ездры	Езд	Ezra	Ezra
-Neh	NEH	canonical	16	16	Книга Неемии	Неем	Nehemiah	Neh
-Esth	EST	canonical	17	20	Книга Есфирь	Есф	Esther	Esth
-Job	JOB	canonical	18	21	Книга Иова	Иов	Job	Job
-Ps	PSA	canonical	19	22	Псалтирь	Пс	Psalms	Ps
-Prov	PRO	canonical	20	23	Книга Притчей Соломоновых	Притч	Proverbs	Prov
-Eccl	ECC	canonical	21	24	Книга Екклесиаста, или Проповедника	Еккл	Ecclesiastes	Eccl
-Song	SNG	canonical	22	25	Песнь песней Соломона	Песн	Song of Solomon	Song
-Isa	ISA	canonical	23	28	Книга пророка Исаии	Ис	Isaiah	Isa
-Jer	JER	canonical	24	29	Книга пророка Иеремии	Иер	Jeremiah	Jer
-Lam	LAM	canonical	25	30	Плач Иеремии	Плач	Lamentations	Lam
-Ezek	EZK	canonical	26	33	Книга пророка Иезекииля	Иез	Ezekiel	Ezek
-Dan	DAN	canonical	27	34	Книга пророка Даниила	Дан	Daniel	Dan
-Hos	HOS	canonical	28	35	Книга пророка Осии	Ос	Hosea	Hos
-Joel	JOL	canonical	29	36	Книга пророка Иоиля	Иоил	Joel	Joel
-Amos	AMO	canonical	30	37	Книга пророка Амоса	Ам	Amos	Amos
-Obad	OBA	canonical	31	38	Книга пророка Авдия	Авд	Obadiah	Obad
-Jonah	JON	canonical	32	39	Книга пророка Ионы	Ион	Jonah	Jonah
-Mic	MIC	canonical	33	40	Книга пророка Михея	Мих	Micah	Mic
-Nah	NAM	canonical	34	41	Книга пророка Наума	Наум	Nahum	Nah
-Hab	HAB	canonical	35	42	Книга пророка Аввакума	Авв	Habakkuk	Hab
-Zeph	ZEP	canonical	36	43	Книга пророка Софонии	Соф	Zephaniah	Zeph
-Hag	HAG	canonical	37	44	Книга пророка Аггея	Агг	Haggai	Hag
-Zech	ZEC	canonical	38	45	Книга пророка Захарии	Зах	Zechariah	Zech
-Mal	MAL	canonical	39	46	Книга пророка Малахии	Мал	Malachi	Mal
-Matt	MAT	canonical	40	51	Евангелие от Матфея	Мф	Matthew	Matt
-Mark	MRK	canonical	41	52	Евангелие от Марка	Мк	Mark	Mark
-Luke	LUK	canonical	42	53	Евангелие от Луки	Лк	Luke	Luke
-John	JHN	canonical	43	54	Евангелие от Иоанна	Ин	John	John
-Acts	ACT	canonical	44	55	Деяния святых Апостолов	Деян	Acts	Acts
-Rom	ROM	canonical	45	63	Послание к Римлянам	Рим	Romans	Rom
-1Cor	1CO	canonical	46	64	Первое послание к Коринфянам	1Кор	1 Corinthians	1Cor
-2Cor	2CO	canonical	47	65	Второе послание к Коринфянам	2Кор	2 Corinthians	2Cor
-Gal	GAL	canonical	48	66	Послание к Галатам	Гал	Galatians	Gal
-Eph	EPH	canonical	49	67	Послание к Ефесянам	Еф	Ephesians	Eph
-Phil	PHP	canonical	50	68	Послание к Филиппийцам	Флп	Philippians	Phil
-Col	COL	canonical	51	69	Послание к Колоссянам	Кол	Colossians	Col
-1Thess	1TH	canonical	52	70	Первое послание к Фессалоникийцам	1Фес	1 Thessalonians	1Thess
-2Thess	2TH	canonical	53	71	Второе послание к Фессалоникийцам	2Фес	2 Thessalonians	2Thess
-1Tim	1TI	canonical	54	72	Первое послание к Тимофею	1Тим	1 Timothy	1Tim
-2Tim	2TI	canonical	55	73	Второе послание к Тимофею	2Тим	2 Timothy	2Tim
-Titus	TIT	canonical	56	74	Послание к Титу	Тит	Titus	Titus
-Phlm	PHM	canonical	57	75	Послание к Филимону	Флм	Philemon	Phlm
-Heb	HEB	canonical	58	76	Послание к Евреям	Евр	Hebrews	Heb
-Jas	JAS	canonical	59	56	Послание Иакова	Иак	James	Jas
-1Pet	1PE	canonical	60	57	Первое послание Петра	1Пет	1 Peter	1Pet
-2Pet	2PE	canonical	61	58	Второе послание Петра	2Пет	2 Peter	2Pet
-1John	1JN	canonical	62	59	Первое послание Иоанна	1Ин	1 John	1John
-2John	2JN	canonical	63	60	Второе послание Иоанна	2Ин	2 John	2John
-3John	3JN	canonical	64	61	Третье послание Иоанна	3Ин	3 John	3John
-Jude	JUD	canonical	65	62	Послание Иуды	Иуд	Jude	Jude
-Rev	REV	canonical	66	77	Откровение Иоанна Богослова	Откр	Revelation	Rev
-Tob	TOB	noncanonical		18	Книга Товита	Тов	Tobit	Tob
-Jdt	JDT	noncanonical		19	Книга Иудифи	Иудф	Judith	Jdt
-Wis	WIS	noncanonical		26	Книга Премудрости Соломона	Прем	Wisdom of Solomon	Wis
-Sir	SIR	noncanonical		27	Книга Премудрости Иисуса, сына Сирахова	Сир	Sirach	Sir
-EpJer	LJE	noncanonical		31	Послание Иеремии	ПослИер	Epistle of Jeremiah	EpJer
-Bar	BAR	noncanonical		32	Книга пророка Варуха	Вар	Baruch	Bar
-1Macc	1MA	noncanonical		47	Первая книга Маккавейская	1Мак	1 Maccabees	1Macc
-2Macc	2MA	noncanonical		48	Вторая книга Маккавейская	2Мак	2 Maccabees	2Macc
-3Macc	3MA	noncanonical		49	Третья книга Маккавейская	3Мак	3 Maccabees	3Macc
-1Esd	1ES	noncanonical		17	Вторая книга Ездры	2Езд	1 Esdras	1Esd
-2Esd	2ES	noncanonical		50	Третья книга Ездры	3Езд	2 Esdras	2Esd
-PrMan	MAN	noncanonical			Молитва Манассии	МолМан	Prayer of Manasseh	PrMan
+osis	usfm	canon	order_list	order_syn	name_syn	abbr_syn	name_mod	abbr_mod	name_en	abbr_en
+Gen	GEN	canonical	1	1	Бытие	Быт	╨Ъ╨╜╨╕╨│╨░ ╨С╤Л╤В╨╕╨╡	╨С╤Л╤В	Genesis	Gen
+Exod	EXO	canonical	2	2	Исход	Исх	╨Ъ╨╜╨╕╨│╨░ ╨Ш╤Б╤Е╨╛╨┤	╨Ш╤Б╤Е	Exodus	Exod
+Lev	LEV	canonical	3	3	Левит	Лев	╨Ъ╨╜╨╕╨│╨░ ╨Ы╨╡╨▓╨╕╤В	╨Ы╨╡╨▓	Leviticus	Lev
+Num	NUM	canonical	4	4	Числа	Чис	╨Ъ╨╜╨╕╨│╨░ ╨з╨╕╤Б╨╗╨░	╨з╨╕╤Б	Numbers	Num
+Deut	DEU	canonical	5	5	Второзаконие	Втор	╨Ъ╨╜╨╕╨│╨░ ╨Т╤В╨╛╤А╨╛╨╖╨░╨║╨╛╨╜╨╕╨╡	╨Т╤В╨╛╤А	Deuteronomy	Deut
+Josh	JOS	canonical	6	6	Книга Иисуса Навина	Нав	╨Ъ╨╜╨╕╨│╨░ ╨Ш╨╕╤Б╤Г╤Б╨░ ╨Э╨░╨▓╨╕╨╜╨░	╨Э╨░╨▓	Joshua	Josh
+Judg	JDG	canonical	7	7	Книга Судей Израилевых	Суд	╨Ъ╨╜╨╕╨│╨░ ╨б╤Г╨┤╨╡╨╣	╨б╤Г╨┤	Judges	Judg
+Ruth	RUT	canonical	8	8	Книга Руфь	Руф	╨Ъ╨╜╨╕╨│╨░ ╨а╤Г╤Д╤М	╨а╤Г╤Д	Ruth	Ruth
+1Sam	1SA	canonical	9	9	Первая книга Царств	1Цар	╨Я╨╡╤А╨▓╨░╤П ╨║╨╜╨╕╨│╨░ ╨б╨░╨╝╤Г╨╕╨╗╨░	1╨б╨░╨╝	1 Samuel	1Sam
+2Sam	2SA	canonical	10	10	Вторая книга Царств	2Цар	╨Т╤В╨╛╤А╨░╤П ╨║╨╜╨╕╨│╨░ ╨б╨░╨╝╤Г╨╕╨╗╨░	2╨б╨░╨╝	2 Samuel	2Sam
+1Kgs	1KI	canonical	11	11	Третья книга Царств	3Цар	╨Я╨╡╤А╨▓╨░╤П ╨║╨╜╨╕╨│╨░ ╨ж╨░╤А╨╡╨╣	1╨ж╨░╤А	1 Kings	1Kgs
+2Kgs	2KI	canonical	12	12	Четвёртая книга Царств	4Цар	╨Т╤В╨╛╤А╨░╤П ╨║╨╜╨╕╨│╨░ ╨ж╨░╤А╨╡╨╣	2╨ж╨░╤А	2 Kings	2Kgs
+1Chr	1CH	canonical	13	13	Первая книга Паралипоменон	1Пар	╨Я╨╡╤А╨▓╨░╤П ╨╗╨╡╤В╨╛╨┐╨╕╤Б╤М	1╨Ы╨╡╤В	1 Chronicles	1Chr
+2Chr	2CH	canonical	14	14	Вторая книга Паралипоменон	2Пар	╨Т╤В╨╛╤А╨░╤П ╨╗╨╡╤В╨╛╨┐╨╕╤Б╤М	2╨Ы╨╡╤В	2 Chronicles	2Chr
+Ezra	EZR	canonical	15	15	Первая книга Ездры	Езд	╨Ъ╨╜╨╕╨│╨░ ╨Х╨╖╨┤╤А╤Л	╨Х╨╖╨┤	Ezra	Ezra
+Neh	NEH	canonical	16	16	Книга Неемии	Неем	╨Ъ╨╜╨╕╨│╨░ ╨Э╨╡╨╡╨╝╨╕╨╕	╨Э╨╡╨╡╨╝	Nehemiah	Neh
+Esth	EST	canonical	17	20	Книга Есфирь	Есф	╨Ъ╨╜╨╕╨│╨░ ╨н╤Б╤Д╨╕╤А╤М	╨Х╤Б╤Д	Esther	Esth
+Job	JOB	canonical	18	21	Книга Иова	Иов	╨Ъ╨╜╨╕╨│╨░ ╨Ш╨╛╨▓	╨Ш╨╛╨▓	Job	Job
+Ps	PSA	canonical	19	22	Псалтирь	Пс	╨Ъ╨╜╨╕╨│╨░ ╨Я╤Б╨░╨╗╨╝╨╛╨▓	╨Я╤Б	Psalms	Ps
+Prov	PRO	canonical	20	23	Книга Притчей Соломоновых	Притч	╨Ъ╨╜╨╕╨│╨░ ╨Я╤А╨╕╤В╤З	╨Я╤А	Proverbs	Prov
+Eccl	ECC	canonical	21	24	Книга Екклесиаста, или Проповедника	Еккл	╨Ъ╨╜╨╕╨│╨░ ╨н╨║╨║╨╗╨╡╨╖╨╕╨░╤Б╤В	╨Х╨║╨║	Ecclesiastes	Eccl
+Song	SNG	canonical	22	25	Песнь песней Соломона	Песн	╨Ъ╨╜╨╕╨│╨░ ╨Я╨╡╤Б╨╜╤П ╨б╨╛╨╗╨╛╨╝╨╛╨╜╨░	╨Я╨╡╤Б╨╜	Song of Solomon	Song
+Isa	ISA	canonical	23	28	Книга пророка Исаии	Ис	╨Ъ╨╜╨╕╨│╨░ ╨Ш╤Б╨░╨╣╨╕	╨Ш╤Б	Isaiah	Isa
+Jer	JER	canonical	24	29	Книга пророка Иеремии	Иер	╨Ъ╨╜╨╕╨│╨░ ╨Ш╨╡╤А╨╡╨╝╨╕╨╕	╨Ш╨╡╤А	Jeremiah	Jer
+Lam	LAM	canonical	25	30	Плач Иеремии	Плач	╨Ъ╨╜╨╕╨│╨░ ╨Я╨╗╨░╤З ╨Ш╨╡╤А╨╡╨╝╨╕╨╕	╨Я╨╗╨░╤З	Lamentations	Lam
+Ezek	EZK	canonical	26	33	Книга пророка Иезекииля	Иез	╨Ъ╨╜╨╕╨│╨░ ╨Ш╨╡╨╖╨╡╨║╨╕╨╕╨╗╤П	╨Ш╨╡╨╖	Ezekiel	Ezek
+Dan	DAN	canonical	27	34	Книга пророка Даниила	Дан	╨Ъ╨╜╨╕╨│╨░ ╨Ф╨░╨╜╨╕╨╕╨╗╨░	╨Ф╨░╨╜	Daniel	Dan
+Hos	HOS	canonical	28	35	Книга пророка Осии	Ос	╨Ъ╨╜╨╕╨│╨░ ╨Ю╤Б╨╕╨╕	╨Ю╤Б	Hosea	Hos
+Joel	JOL	canonical	29	36	Книга пророка Иоиля	Иоил	╨Ъ╨╜╨╕╨│╨░ ╨Ш╨╛╨╕╨╗╤П	╨Ш╨╛╨╕╨╗	Joel	Joel
+Amos	AMO	canonical	30	37	Книга пророка Амоса	Ам	╨Ъ╨╜╨╕╨│╨░ ╨Р╨╝╨╛╤Б╨░	╨Р╨╝	Amos	Amos
+Obad	OBA	canonical	31	38	Книга пророка Авдия	Авд	╨Ъ╨╜╨╕╨│╨░ ╨Р╨▓╨┤╨╕╤П	╨Р╨▓╨┤	Obadiah	Obad
+Jonah	JON	canonical	32	39	Книга пророка Ионы	Ион	╨Ъ╨╜╨╕╨│╨░ ╨Ш╨╛╨╜╤Л	╨Ш╨╛╨╜	Jonah	Jonah
+Mic	MIC	canonical	33	40	Книга пророка Михея	Мих	╨Ъ╨╜╨╕╨│╨░ ╨Ь╨╕╤Е╨╡╤П	╨Ь╨╕╤Е	Micah	Mic
+Nah	NAM	canonical	34	41	Книга пророка Наума	Наум	╨Ъ╨╜╨╕╨│╨░ ╨Э╨░╤Г╨╝╨░	╨Э╨░╤Г╨╝	Nahum	Nah
+Hab	HAB	canonical	35	42	Книга пророка Аввакума	Авв	╨Ъ╨╜╨╕╨│╨░ ╨Р╨▓╨▓╨░╨║╤Г╨╝╨░	╨Р╨▓╨▓	Habakkuk	Hab
+Zeph	ZEP	canonical	36	43	Книга пророка Софонии	Соф	╨Ъ╨╜╨╕╨│╨░ ╨б╨╛╤Д╨╛╨╜╨╕╨╕	╨б╨╛╤Д	Zephaniah	Zeph
+Hag	HAG	canonical	37	44	Книга пророка Аггея	Агг	╨Ъ╨╜╨╕╨│╨░ ╨Р╨│╨│╨╡╤П	╨Р╨│╨│	Haggai	Hag
+Zech	ZEC	canonical	38	45	Книга пророка Захарии	Зах	╨Ъ╨╜╨╕╨│╨░ ╨Ч╨░╤Е╨░╤А╨╕╨╕	╨Ч╨░╤Е	Zechariah	Zech
+Mal	MAL	canonical	39	46	Книга пророка Малахии	Мал	╨Ъ╨╜╨╕╨│╨░ ╨Ь╨░╨╗╨░╤Е╨╕╨╕	╨Ь╨░╨╗	Malachi	Mal
+Matt	MAT	canonical	40	51	Евангелие от Матфея	Мф	╨а╨░╨┤╨╛╤Б╤В╨╜╨░╤П ╨▓╨╡╤Б╤В╤М ╨╛╤В ╨Ь╨░╤В╤Д╨╡╤П	╨Ь╤Д	Matthew	Matt
+Mark	MRK	canonical	41	52	Евангелие от Марка	Мк	╨а╨░╨┤╨╛╤Б╤В╨╜╨░╤П ╨▓╨╡╤Б╤В╤М ╨╛╤В ╨Ь╨░╤А╨║╨░	╨Ь╨║	Mark	Mark
+Luke	LUK	canonical	42	53	Евангелие от Луки	Лк	╨а╨░╨┤╨╛╤Б╤В╨╜╨░╤П ╨▓╨╡╤Б╤В╤М ╨╛╤В ╨Ы╤Г╨║╨╕	╨Ы╨║	Luke	Luke
+John	JHN	canonical	43	54	Евангелие от Иоанна	Ин	╨а╨░╨┤╨╛╤Б╤В╨╜╨░╤П ╨▓╨╡╤Б╤В╤М ╨╛╤В ╨Ш╨╛╨░╨╜╨╜╨░	╨Ш╨╜	John	John
+Acts	ACT	canonical	44	55	Деяния святых Апостолов	Деян	╨Ф╨╡╤П╨╜╨╕╤П ╨░╨┐╨╛╤Б╤В╨╛╨╗╨╛╨▓	╨Ф╨╡╤П╨╜	Acts	Acts
+Rom	ROM	canonical	45	63	Послание к Римлянам	Рим	╨Я╨╕╤Б╤М╨╝╨╛ ╤А╨╕╨╝╨╗╤П╨╜╨░╨╝	╨а╨╕╨╝	Romans	Rom
+1Cor	1CO	canonical	46	64	Первое послание к Коринфянам	1Кор	╨Я╨╡╤А╨▓╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨║╨╛╤А╨╕╨╜╤Д╤П╨╜╨░╨╝	1╨Ъ╨╛╤А	1 Corinthians	1Cor
+2Cor	2CO	canonical	47	65	Второе послание к Коринфянам	2Кор	╨Т╤В╨╛╤А╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨║╨╛╤А╨╕╨╜╤Д╤П╨╜╨░╨╝	2╨Ъ╨╛╤А	2 Corinthians	2Cor
+Gal	GAL	canonical	48	66	Послание к Галатам	Гал	╨Я╨╕╤Б╤М╨╝╨╛ ╨│╨░╨╗╨░╤В╨░╨╝	╨У╨░╨╗	Galatians	Gal
+Eph	EPH	canonical	49	67	Послание к Ефесянам	Еф	╨Я╨╕╤Б╤М╨╝╨╛ ╤Н╤Д╨╡╤Б╤П╨╜╨░╨╝	╨н╤Д	Ephesians	Eph
+Phil	PHP	canonical	50	68	Послание к Филиппийцам	Флп	╨Я╨╕╤Б╤М╨╝╨╛ ╤Д╨╕╨╗╨╕╨┐╨┐╨╕╨╣╤Ж╨░╨╝	╨д╨╗╨┐	Philippians	Phil
+Col	COL	canonical	51	69	Послание к Колоссянам	Кол	╨Я╨╕╤Б╤М╨╝╨╛ ╨║╨╛╨╗╨╛╤Б╤Б╤П╨╜╨░╨╝	╨Ъ╨╛╨╗	Colossians	Col
+1Thess	1TH	canonical	52	70	Первое послание к Фессалоникийцам	1Фес	╨Я╨╡╤А╨▓╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╤Д╨╡╤Б╤Б╨░╨╗╨╛╨╜╨╕╨║╨╕╨╣╤Ж╨░╨╝	1╨д╨╡╤Б	1 Thessalonians	1Thess
+2Thess	2TH	canonical	53	71	Второе послание к Фессалоникийцам	2Фес	╨Т╤В╨╛╤А╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╤Д╨╡╤Б╤Б╨░╨╗╨╛╨╜╨╕╨║╨╕╨╣╤Ж╨░╨╝	2╨д╨╡╤Б	2 Thessalonians	2Thess
+1Tim	1TI	canonical	54	72	Первое послание к Тимофею	1Тим	╨Я╨╡╤А╨▓╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨в╨╕╨╝╨╛╤Д╨╡╤О	1╨в╨╕╨╝	1 Timothy	1Tim
+2Tim	2TI	canonical	55	73	Второе послание к Тимофею	2Тим	╨Т╤В╨╛╤А╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨в╨╕╨╝╨╛╤Д╨╡╤О	2╨в╨╕╨╝	2 Timothy	2Tim
+Titus	TIT	canonical	56	74	Послание к Титу	Тит	╨Я╨╕╤Б╤М╨╝╨╛ ╨в╨╕╤В╤Г	╨в╨╕╤В	Titus	Titus
+Phlm	PHM	canonical	57	75	Послание к Филимону	Флм	╨Я╨╕╤Б╤М╨╝╨╛ ╨д╨╕╨╗╨╕╨╝╨╛╨╜╤Г	╨д╨╗╨╝	Philemon	Phlm
+Heb	HEB	canonical	58	76	Послание к Евреям	Евр	╨Я╨╕╤Б╤М╨╝╨╛ ╨╡╨▓╤А╨╡╤П╨╝	╨Х╨▓╤А	Hebrews	Heb
+Jas	JAS	canonical	59	56	Послание Иакова	Иак	╨Я╨╕╤Б╤М╨╝╨╛ ╨Ш╨░╨║╨╛╨▓╨░	╨Ш╨░╨║	James	Jas
+1Pet	1PE	canonical	60	57	Первое послание Петра	1Пет	╨Я╨╡╤А╨▓╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨Я╨╡╤В╤А╨░	1╨Я╨╡╤В	1 Peter	1Pet
+2Pet	2PE	canonical	61	58	Второе послание Петра	2Пет	╨Т╤В╨╛╤А╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨Я╨╡╤В╤А╨░	2╨Я╨╡╤В	2 Peter	2Pet
+1John	1JN	canonical	62	59	Первое послание Иоанна	1Ин	╨Я╨╡╤А╨▓╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨Ш╨╛╨░╨╜╨╜╨░	1╨Ш╨╜	1 John	1John
+2John	2JN	canonical	63	60	Второе послание Иоанна	2Ин	╨Т╤В╨╛╤А╨╛╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨Ш╨╛╨░╨╜╨╜╨░	2╨Ш╨╜	2 John	2John
+3John	3JN	canonical	64	61	Третье послание Иоанна	3Ин	╨в╤А╨╡╤В╤М╨╡ ╨┐╨╕╤Б╤М╨╝╨╛ ╨Ш╨╛╨░╨╜╨╜╨░	3╨Ш╨╜	3 John	3John
+Jude	JUD	canonical	65	62	Послание Иуды	Иуд	╨Я╨╕╤Б╤М╨╝╨╛ ╨Ш╤Г╨┤╤Л	╨Ш╤Г╨┤	Jude	Jude
+Rev	REV	canonical	66	77	Откровение Иоанна Богослова	Откр	╨Ъ╨╜╨╕╨│╨░ ╨Ю╤В╨║╤А╨╛╨▓╨╡╨╜╨╕╨╡	╨Ю╤В╨║	Revelation	Rev
+Tob	TOB	noncanonical		18	Книга Товита	Тов			Tobit	Tob
+Jdt	JDT	noncanonical		19	Книга Иудифи	Иудф			Judith	Jdt
+Wis	WIS	noncanonical		26	Книга Премудрости Соломона	Прем			Wisdom of Solomon	Wis
+Sir	SIR	noncanonical		27	Книга Премудрости Иисуса, сына Сирахова	Сир			Sirach	Sir
+EpJer	LJE	noncanonical		31	Послание Иеремии	ПослИер			Epistle of Jeremiah	EpJer
+Bar	BAR	noncanonical		32	Книга пророка Варуха	Вар			Baruch	Bar
+1Macc	1MA	noncanonical		47	Первая книга Маккавейская	1Мак			1 Maccabees	1Macc
+2Macc	2MA	noncanonical		48	Вторая книга Маккавейская	2Мак			2 Maccabees	2Macc
+3Macc	3MA	noncanonical		49	Третья книга Маккавейская	3Мак			3 Maccabees	3Macc
+1Esd	1ES	noncanonical		17	Вторая книга Ездры	2Езд			1 Esdras	1Esd
+2Esd	2ES	noncanonical		50	Третья книга Ездры	3Езд			2 Esdras	2Esd
+PrMan	MAN	noncanonical			Молитва Манассии	МолМан			Prayer of Manasseh	PrMan
