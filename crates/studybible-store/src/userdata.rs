@@ -20,7 +20,9 @@ use studybible_core::versification::{VerseKey, Versification};
 /// Схема 3 (там же, этап А): + `canon_book`, `canon_c1`, `canon_v1`,
 /// `canon_c2`, `canon_v2` — канонический диапазон стиха в сетке org
 /// для кросс-переводных записей.
-const SCHEMA_VERSION: &str = "3";
+/// Схема 4: + `frag` — текстовый селектор куска стиха
+/// `{exact,pre,post}` (JSON); пусто = запись на весь стих.
+const SCHEMA_VERSION: &str = "4";
 
 #[derive(Debug)]
 pub enum UserError {
@@ -143,6 +145,11 @@ pub struct Entry {
     pub module_ver: String,
     /// Канонический диапазон стиха в сетке org (этап А, схема 3):
     /// `canon_book`+`canon_c1`:`canon_v1` — `canon_c2`:`canon_v2`.
+    /// Текстовый селектор куска стиха `{exact,pre,post}` в JSON
+    /// (схема 4): частичное выделение/привязка к фразе.
+    /// Пусто — запись относится ко всему стиху.
+    #[serde(default)]
+    pub frag: String,
     /// Пустой `canon_book` — координата не записана (старые записи).
     #[serde(default)]
     pub canon_book: String,
@@ -246,7 +253,8 @@ impl UserData {
                  canon_c1 INTEGER NOT NULL DEFAULT 0,
                  canon_v1 INTEGER NOT NULL DEFAULT 0,
                  canon_c2 INTEGER NOT NULL DEFAULT 0,
-                 canon_v2 INTEGER NOT NULL DEFAULT 0);
+                 canon_v2 INTEGER NOT NULL DEFAULT 0,
+                 frag TEXT NOT NULL DEFAULT '');
              CREATE INDEX IF NOT EXISTS entries_anchor ON entries(module, book, chapter, verse);",
         )?;
         let v: Option<String> = conn
@@ -297,6 +305,18 @@ impl UserData {
                 return Err(UserError::BadFormat(format!("схема {other}")));
             }
         };
+        // Миграция 3→4: текстовый селектор куска стиха.
+        let v2: Option<String> = conn
+            .query_row("SELECT value FROM meta WHERE key='schema'", [], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        if v2.as_deref() == Some("3") {
+            conn.execute_batch(
+                "ALTER TABLE entries ADD COLUMN frag TEXT NOT NULL DEFAULT '';
+                 UPDATE meta SET value='4' WHERE key='schema';",
+            )?;
+        }
         let device: Option<String> = conn
             .query_row("SELECT value FROM meta WHERE key='device'", [], |r| {
                 r.get(0)
@@ -332,8 +352,26 @@ impl UserData {
         context: &str,
         bind: &Bind,
     ) -> Result<String> {
+        self.add_frag(kind, anchor, text, context, "", bind, None)
+    }
+
+    /// `add_ex` + селектор куска стиха и метка пачки:
+    /// `frag` — `{exact,pre,post}` (JSON, пусто — весь стих);
+    /// `created` — общее время группы записей одного действия
+    /// (многостишное выделение), None = сейчас.
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_frag(
+        &self,
+        kind: Kind,
+        anchor: Anchor<'_>,
+        text: &str,
+        context: &str,
+        frag: &str,
+        bind: &Bind,
+        created: Option<i64>,
+    ) -> Result<String> {
         let id = new_id();
-        let t = now();
+        let t = created.unwrap_or_else(now);
         let (cb, c1, v1, c2, v2) = match (bind.canon_from, bind.canon_to) {
             (Some(f), Some(to)) => (
                 f.book.as_str().to_string(),
@@ -345,7 +383,7 @@ impl UserData {
             _ => (String::new(), 0, 0, 0, 0),
         };
         self.conn.execute(
-            "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0,?11,1,?12,?13,?14,?15,?16,?17,?18)",
+            "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,0,?11,1,?12,?13,?14,?15,?16,?17,?18,?19)",
             params![
                 id,
                 anchor.module,
@@ -365,6 +403,7 @@ impl UserData {
                 v1,
                 c2,
                 v2,
+                frag,
             ],
         )?;
         Ok(id)
@@ -374,7 +413,7 @@ impl UserData {
     pub fn entries(&self, kind: Kind, module: Option<&str>) -> Result<Vec<Entry>> {
         let sql = "SELECT id, module, kind, book, chapter, verse, text, context,
                    created, updated, deleted, device, rev, vrs, module_ver,
-                   canon_book, canon_c1, canon_v1, canon_c2, canon_v2
+                   canon_book, canon_c1, canon_v1, canon_c2, canon_v2, frag
                    FROM entries
                    WHERE kind=?1 AND deleted=0";
         let rows: Vec<Entry> = match module {
@@ -418,7 +457,7 @@ impl UserData {
             .prepare(
                 "SELECT id, module, kind, book, chapter, verse, text, context,
                  created, updated, deleted, device, rev, vrs, module_ver,
-                 canon_book, canon_c1, canon_v1, canon_c2, canon_v2
+                 canon_book, canon_c1, canon_v1, canon_c2, canon_v2, frag
                  FROM entries",
             )?
             .query_map([], row_to_entry)?
@@ -513,9 +552,9 @@ impl UserData {
         if doc.get("format").and_then(|v| v.as_str()) != Some("studybible-userdata") {
             return Err(UserError::BadFormat("format".into()));
         }
-        // Принимаем выгрузки схемы 1 и 2: новые поля имеют serde-default.
+        // Принимаем выгрузки схем 1–3: новые поля имеют serde-default.
         match doc.get("version").and_then(|v| v.as_str()) {
-            Some("1") | Some("2") | Some(SCHEMA_VERSION) => {}
+            Some("1") | Some("2") | Some("3") | Some(SCHEMA_VERSION) => {}
             _ => return Err(UserError::BadFormat("version".into())),
         }
         let mut stats = ImportStats::default();
@@ -549,7 +588,7 @@ impl UserData {
         match existing {
             None => {
                 self.conn.execute(
-                    "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)",
+                    "INSERT INTO entries VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21)",
                     params![
                         e.id,
                         e.module,
@@ -571,6 +610,7 @@ impl UserData {
                         e.canon_v1,
                         e.canon_ch2,
                         e.canon_v2,
+                        e.frag,
                     ],
                 )?;
                 Ok(Merge::Added)
@@ -581,7 +621,7 @@ impl UserData {
                      text=?7,context=?8,created=?9,updated=?10,deleted=?11,
                      device=?12,rev=?13,vrs=?14,module_ver=?15,
                      canon_book=?16,canon_c1=?17,canon_v1=?18,
-                     canon_c2=?19,canon_v2=?20 WHERE id=?1",
+                     canon_c2=?19,canon_v2=?20,frag=?21 WHERE id=?1",
                     params![
                         e.id,
                         e.module,
@@ -603,6 +643,7 @@ impl UserData {
                         e.canon_v1,
                         e.canon_ch2,
                         e.canon_v2,
+                        e.frag,
                     ],
                 )?;
                 Ok(Merge::Updated)
@@ -873,6 +914,7 @@ fn row_to_entry(r: &rusqlite::Row) -> rusqlite::Result<Entry> {
         canon_v1: r.get(17)?,
         canon_ch2: r.get(18)?,
         canon_v2: r.get(19)?,
+        frag: r.get(20)?,
     })
 }
 
