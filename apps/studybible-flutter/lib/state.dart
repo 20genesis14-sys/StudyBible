@@ -7,6 +7,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show FontWeight;
 
 import 'package:flutter/foundation.dart';
 
@@ -106,6 +107,16 @@ class Settings extends ChangeNotifier {
 
   /// Масштаб шрифта: 0.8 – 1.6, шаг настройки.
   double fontScale = 1.0;
+
+  /// Ступени насыщенности текста главы (wght): 0–3 → 400/500/600/700.
+  static const kFontWeightSteps = [400, 500, 600, 700];
+
+  /// Ступень насыщенности текста (0 — обычный).
+  int fontWeightStep = 0;
+
+  /// FontWeight текущей ступени насыщенности.
+  FontWeight get readingWeight =>
+      FontWeight.values[kFontWeightSteps[fontWeightStep] ~/ 100 - 1];
 
   /// Отдельный масштаб текста сносок (карточка «Сноска»).
   double footScale = 1.0;
@@ -228,6 +239,9 @@ class Settings extends ChangeNotifier {
         nightEnd = j['nightEnd'] as int? ?? 7 * 60;
         nightTheme = AppTheme.values[j['nightTheme'] as int? ?? 1];
         fontScale = (j['fontScale'] as num? ?? 1.0).toDouble();
+        fontWeightStep = (j['fontWeightStep'] as num? ?? 0)
+            .toInt()
+            .clamp(0, kFontWeightSteps.length - 1);
         footScale = (j['footScale'] as num? ?? 1.0).toDouble();
         xrefScale = (j['xrefScale'] as num? ?? 1.0).toDouble();
         layoutMode = LayoutMode.values[j['layoutMode'] as int? ?? 0];
@@ -272,6 +286,7 @@ class Settings extends ChangeNotifier {
       'nightEnd': nightEnd,
       'nightTheme': nightTheme.index,
       'fontScale': fontScale,
+      'fontWeightStep': fontWeightStep,
       'footScale': footScale,
       'xrefScale': xrefScale,
       'layoutMode': layoutMode.index,

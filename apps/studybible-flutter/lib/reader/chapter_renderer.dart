@@ -33,13 +33,21 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   TextStyle _baseStyle(Palette p) {
     final family = _textFont();
+    // Ступень насыщенности (настройка): для вариативной Literata —
+    // точный wght, для статических шрифтов — FontWeight.
+    final wght = Settings.kFontWeightSteps[settings.fontWeightStep]
+        .toDouble();
     return TextStyle(
       fontFamily: family,
       fontSize: _readingSize * settings.fontScale,
+      fontWeight: settings.readingWeight,
       color: p.ink,
       height: 1.62,
       fontVariations: family == 'Literata'
-          ? [FontVariation('opsz', _readingSize * settings.fontScale)]
+          ? [
+              FontVariation('opsz', _readingSize * settings.fontScale),
+              FontVariation('wght', wght),
+            ]
           : null,
     );
   }
@@ -599,6 +607,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       _code,
       _ch,
       settings.fontScale,
+      settings.fontWeightStep,
       _study,
       settings.layoutMode.index,
       settings.layerStrongs,
@@ -952,6 +961,16 @@ extension _ChapterRenderer on _ReadingScreenState {
     if (!peek) {
       verseBlock.forEach((v, i) => _verseItemIndex[v] = i);
     }
+    // Первый текстовый блок несёт буквицу — крупную цифру главы
+    // (прототип дизайна, приём печатных изданий).
+    var capAt = -1;
+    for (var i = 0; i < ch.blocks.length; i++) {
+      final k = ch.blocks[i].kind;
+      if (k == BlockKind.paragraph || k == BlockKind.poetry) {
+        capAt = i;
+        break;
+      }
+    }
     final out = <Widget>[];
     for (var i = 0; i < ch.blocks.length; i++) {
       final b = ch.blocks[i];
@@ -1005,7 +1024,10 @@ extension _ChapterRenderer on _ReadingScreenState {
               child: Text.rich(
                 TextSpan(
                   style: _baseStyle(p),
-                  children: _spansOf(b, p, null, anchorVerses),
+                  children: [
+                    if (i == capAt) _chapterCap(p),
+                    ..._spansOf(b, p, null, anchorVerses),
+                  ],
                 ),
               ),
             ),
@@ -1017,9 +1039,13 @@ extension _ChapterRenderer on _ReadingScreenState {
               child: Text.rich(
                 TextSpan(
                   style: _baseStyle(p),
-                  // Красная строка — как в печатных изданиях.
+                  // Красная строка — как в печатных изданиях;
+                  // буквица главы заменяет её в первом абзаце.
                   children: [
-                    const TextSpan(text: '\u2003'),
+                    if (i == capAt)
+                      _chapterCap(p)
+                    else
+                      const TextSpan(text: '\u2003'),
                     ..._spansOf(b, p, null, anchorVerses),
                   ],
                 ),
@@ -1030,6 +1056,27 @@ extension _ChapterRenderer on _ReadingScreenState {
     }
     return out;
   }
+
+  /// Буквица главы: крупная цифра в потоке первого блока — базовая
+  /// линия на базовой линии первой строки, цвет чернил текста.
+  InlineSpan _chapterCap(Palette p) => WidgetSpan(
+    alignment: PlaceholderAlignment.baseline,
+    baseline: TextBaseline.alphabetic,
+    child: Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Text(
+        '$_ch',
+        semanticsLabel: tr('Глава $_ch', 'Chapter $_ch'),
+        style: TextStyle(
+          fontFamily: _textFont(),
+          fontSize: _readingSize * settings.fontScale * 3,
+          fontWeight: FontWeight.w700,
+          color: p.ink,
+          height: 1.0,
+        ),
+      ),
+    ),
+  );
 
   /// versePerLine: каждый стих — отдельная строка.
   List<Widget> _buildVerseLines(ChapterDoc ch, Palette p, [bool peek = false]) {

@@ -156,6 +156,50 @@ class SettingsScreen extends StatelessWidget {
                               ),
                               _labeled(
                                 p,
+                                tr('Насыщенность', 'Font weight'),
+                                SegmentedButton<int>(
+                                  showSelectedIcon: false,
+                                  style: SegmentedButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  segments: [
+                                    ButtonSegment(
+                                      value: 0,
+                                      label: Text(
+                                        tr('Обычный', 'Regular'),
+                                      ),
+                                    ),
+                                    ButtonSegment(
+                                      value: 1,
+                                      label: Text(tr('Средний', 'Medium')),
+                                    ),
+                                    ButtonSegment(
+                                      value: 2,
+                                      label: Text(
+                                        tr('Полужирный', 'Semibold'),
+                                      ),
+                                    ),
+                                    ButtonSegment(
+                                      value: 3,
+                                      label: Text(tr('Жирный', 'Bold')),
+                                    ),
+                                  ],
+                                  selected: {settings.fontWeightStep},
+                                  onSelectionChanged: (s) =>
+                                      settings.update(
+                                        () =>
+                                            settings.fontWeightStep = s.first,
+                                      ),
+                                ),
+                              ),
+                              _labeled(
+                                p,
                                 tr('Размер сносок', 'Footnote size'),
                                 Text(
                                   'x${settings.footScale.toStringAsFixed(2)}',
@@ -207,6 +251,7 @@ class SettingsScreen extends StatelessWidget {
                                     settings.readingFont,
                                   ),
                                   fontSize: 17 * settings.fontScale,
+                                  fontWeight: settings.readingWeight,
                                   color: p.ink,
                                   height: 1.55,
                                 ),

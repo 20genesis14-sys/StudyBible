@@ -1071,6 +1071,45 @@ extension _ReaderChrome on _ReadingScreenState {
                   onChanged: (v) =>
                       settings.update(() => settings.fontScale = v),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  tr('Насыщенность', 'Weight'),
+                  style: TextStyle(fontSize: 12, color: p.muted),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<int>(
+                    showSelectedIcon: false,
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    segments: [
+                      ButtonSegment(
+                        value: 0,
+                        label: Text(tr('Обычн.', 'Regular')),
+                      ),
+                      ButtonSegment(
+                        value: 1,
+                        label: Text(tr('Средн.', 'Medium')),
+                      ),
+                      ButtonSegment(
+                        value: 2,
+                        label: Text(tr('Полужирн.', 'Semibold')),
+                      ),
+                      ButtonSegment(
+                        value: 3,
+                        label: Text(tr('Жирный', 'Bold')),
+                      ),
+                    ],
+                    selected: {settings.fontWeightStep},
+                    onSelectionChanged: (s) => settings.update(
+                      () => settings.fontWeightStep = s.first,
+                    ),
+                  ),
+                ),
                 _miniSlider(
                   tr('Сноски', 'Footnotes'),
                   settings.footScale,
@@ -1089,6 +1128,7 @@ extension _ReaderChrome on _ReadingScreenState {
                   style: TextStyle(
                     fontFamily: readingFontFamily(settings.readingFont),
                     fontSize: 16 * settings.fontScale,
+                    fontWeight: settings.readingWeight,
                     color: p.ink,
                     height: 1.5,
                   ),

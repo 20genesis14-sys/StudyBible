@@ -365,20 +365,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       );
     } else {
       final items = <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 12),
-          child: Text(
-            '${_titleOf(code)} · '
-            '${tr('Глава $chapter', 'Chapter $chapter')}',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: readingFontFamily(settings.readingFont),
-              fontSize: 19 * settings.fontScale,
-              fontWeight: FontWeight.w800,
-              color: _verseColor(p),
-            ),
-          ),
-        ),
+        _chapterHeader(code, chapter, p),
         ...(settings.layoutMode == LayoutMode.book
             ? _bookBlocks(doc, p, chapter, true)
             : _buildChapter(doc, p, true)),
