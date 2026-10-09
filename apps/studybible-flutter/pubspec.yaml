@@ -123,6 +123,41 @@ flutter:
     - family: NotoSerifHebrew
       fonts:
         - asset: assets/fonts/NotoSerifHebrew.ttf
+    # Кандидаты шрифтов чтения (переменные wght, кириллица).
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/Lora-VF.ttf
+        - asset: assets/fonts/Lora-Italic-VF.ttf
+          style: italic
+    - family: Alegreya
+      fonts:
+        - asset: assets/fonts/Alegreya-VF.ttf
+        - asset: assets/fonts/Alegreya-Italic-VF.ttf
+          style: italic
+    - family: SourceSerif4
+      fonts:
+        - asset: assets/fonts/SourceSerif4-VF.ttf
+        - asset: assets/fonts/SourceSerif4-Italic-VF.ttf
+          style: italic
+    - family: RobotoSerif
+      fonts:
+        - asset: assets/fonts/RobotoSerif-VF.ttf
+        - asset: assets/fonts/RobotoSerif-Italic-VF.ttf
+          style: italic
+    - family: CharisSIL
+      fonts:
+        - asset: assets/fonts/CharisSIL-Regular.ttf
+        - asset: assets/fonts/CharisSIL-Italic.ttf
+          style: italic
+        - asset: assets/fonts/CharisSIL-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/CharisSIL-BoldItalic.ttf
+          weight: 700
+          style: italic
+    # Только латиница — для тестов (цифры, UI).
+    - family: PaperMono
+      fonts:
+        - asset: assets/fonts/PaperMono-VF.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

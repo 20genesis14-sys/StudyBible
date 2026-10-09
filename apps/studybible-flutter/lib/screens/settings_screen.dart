@@ -105,29 +105,31 @@ class SettingsScreen extends StatelessWidget {
                               _labeled(
                                 p,
                                 tr('Шрифт текста', 'Reading font'),
-                                SegmentedButton<ReadingFont>(
-                                  segments: [
-                                    ButtonSegment(
-                                      value: ReadingFont.literata,
-                                      label: Text('Literata'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ReadingFont.gentium,
-                                      label: Text('Gentium'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ReadingFont.ptSerif,
-                                      label: Text('PT Serif'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ReadingFont.system,
-                                      label: Text(tr('Системный', 'System')),
-                                    ),
+                                DropdownMenu<ReadingFont>(
+                                  initialSelection: settings.readingFont,
+                                  expandedInsets: EdgeInsets.zero,
+                                  onSelected: (f) {
+                                    if (f != null) {
+                                      settings.update(
+                                        () => settings.readingFont = f,
+                                      );
+                                    }
+                                  },
+                                  dropdownMenuEntries: [
+                                    for (final f in ReadingFont.values)
+                                      DropdownMenuEntry(
+                                        value: f,
+                                        label: f == ReadingFont.system
+                                            ? tr('Системный', 'System')
+                                            : readingFontLabel(f),
+                                        style: TextButton.styleFrom(
+                                          textStyle: TextStyle(
+                                            fontFamily: readingFontFamily(f),
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
                                   ],
-                                  selected: {settings.readingFont},
-                                  onSelectionChanged: (s) => settings.update(
-                                    () => settings.readingFont = s.first,
-                                  ),
                                 ),
                               ),
                               const SizedBox(height: 12),

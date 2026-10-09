@@ -37,18 +37,24 @@ extension _ChapterRenderer on _ReadingScreenState {
     // точный wght, для статических шрифтов — FontWeight.
     final wght = Settings.kFontWeightSteps[settings.fontWeightStep]
         .toDouble();
+    // Ось wght есть у всех переменных шрифтов набора; у Literata ещё и
+    // оптический размер opsz, следующий за кеглем.
+    final variations = <FontVariation>[
+      if (family == 'Literata')
+        FontVariation('opsz', _readingSize * settings.fontScale),
+      if (const {
+        'Literata', 'Lora', 'Alegreya', 'SourceSerif4', 'RobotoSerif',
+        'PaperMono',
+      }.contains(family))
+        FontVariation('wght', wght),
+    ];
     return TextStyle(
       fontFamily: family,
       fontSize: _readingSize * settings.fontScale,
       fontWeight: settings.readingWeight,
       color: p.ink,
       height: 1.62,
-      fontVariations: family == 'Literata'
-          ? [
-              FontVariation('opsz', _readingSize * settings.fontScale),
-              FontVariation('wght', wght),
-            ]
-          : null,
+      fontVariations: variations.isEmpty ? null : variations,
     );
   }
 
@@ -273,10 +279,14 @@ extension _ChapterRenderer on _ReadingScreenState {
           : null,
       decorationStyle: TextDecorationStyle.dotted,
       decorationColor: p.muted,
-      // Фон читаемого вслух стиха (null!=null-защита: без TTS не красим).
-      backgroundColor: inChapter && _ttsVerse != null && vCtx == _ttsVerse
-          ? p.accent.withValues(alpha: 0.14)
-          : null,
+      // Фон стиха: выделение цветом — янтарь; иначе фон читаемого
+      // вслух стиха (null!=null-защита: без TTS не красим).
+      backgroundColor:
+          vCtx != null && inChapter && _highlights.containsKey(vCtx)
+          ? const Color(0x33FFC34D)
+          : (inChapter && _ttsVerse != null && vCtx == _ttsVerse
+                ? p.accent.withValues(alpha: 0.14)
+                : null),
     );
     final recognizer = _study && settings.layerStrongs && strong != null
         ? _tap(() => _showStrong(strong, t.text))

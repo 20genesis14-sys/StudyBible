@@ -364,11 +364,16 @@ class _NoteCardState extends State<_NoteCard> {
     final p = context.palette;
     final note = widget.note;
     return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.75,
+      // Высота по содержимому, потолок — 75 % экрана: короткая
+      // сноска не показывает пустую форму, длинная — прокручивается.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -433,93 +438,96 @@ class _NoteCardState extends State<_NoteCard> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Сам текст сноски — со ссылками-гиперссылками; размер —
-              // отдельный масштаб (footScale/xrefScale) из настроек.
-              Text.rich(
-                TextSpan(
-                  children: _noteSpans(
-                    note.text,
-                    p,
-                    widget.onRef,
-                    scale: note.kind == 'x'
-                        ? settings.xrefScale
-                        : settings.footScale,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Тексты параллельных мест.
-              Expanded(
-                child: FutureBuilder(
-                  future: _texts,
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: p.muted,
-                            ),
+              // Прокручиваемая часть: сам текст сноски (со ссылками-
+              // гиперссылками, масштаб footScale/xrefScale) и под ним —
+              // тексты параллельных мест. Список небольшой — ссылки
+              // дедуплицированы, поэтому обычная колонка внутри общего
+              // скролла, а не вложенный ListView.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text.rich(
+                        TextSpan(
+                          children: _noteSpans(
+                            note.text,
+                            p,
+                            widget.onRef,
+                            scale: note.kind == 'x'
+                                ? settings.xrefScale
+                                : settings.footScale,
                           ),
                         ),
-                      );
-                    }
-                    final items = snap.data!;
-                    if (items.isEmpty) return const SizedBox.shrink();
-                    return ListView.separated(
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 14,
-                        color: p.edge,
                       ),
-                      itemBuilder: (context, i) {
-                        final it = items[i];
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                final open = widget.onOpenModule;
-                                if (open != null) {
-                                  open(it.nav, _mid);
-                                } else {
-                                  widget.onRef(it.ref);
-                                }
-                              },
-                              child: Text(
-                                it.label,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: p.accent,
-                                ),
-                              ),
-                            ),
-                            if (it.text != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 3),
-                                child: Text(
-                                  it.text!,
-                                  style: TextStyle(
-                                    fontSize:
-                                        14 *
-                                        (note.kind == 'x'
-                                            ? settings.xrefScale
-                                            : settings.footScale),
-                                    color: p.ink,
-                                    height: 1.35,
+                      FutureBuilder(
+                        future: _texts,
+                        builder: (context, snap) {
+                          if (!snap.hasData) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: p.muted,
                                   ),
                                 ),
                               ),
-                          ],
-                        );
-                      },
-                    );
-                  },
+                            );
+                          }
+                          final items = snap.data!;
+                          if (items.isEmpty) return const SizedBox.shrink();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final it in items) ...[
+                                Divider(height: 14, color: p.edge),
+                                GestureDetector(
+                                  onTap: () {
+                                    final open = widget.onOpenModule;
+                                    if (open != null) {
+                                      open(it.nav, _mid);
+                                    } else {
+                                      widget.onRef(it.ref);
+                                    }
+                                  },
+                                  child: Text(
+                                    it.label,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: p.accent,
+                                    ),
+                                  ),
+                                ),
+                                if (it.text != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 3),
+                                    child: Text(
+                                      it.text!,
+                                      style: TextStyle(
+                                        fontSize:
+                                            14 *
+                                            (note.kind == 'x'
+                                                ? settings.xrefScale
+                                                : settings.footScale),
+                                        color: p.ink,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (widget.onShowAll != null)
@@ -589,4 +597,4 @@ List<InlineSpan> _noteSpans(
 }
 
 TextStyle _noteStyle(Palette p, [double scale = 1]) =>
-    TextStyle(fontSize: 14 * scale, color: p.ink, height: 1.4);
+    TextStyle(fontSize: 15 * scale, color: p.ink, height: 1.45);

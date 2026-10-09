@@ -43,6 +43,26 @@ enum ReadingFont {
 
   /// PT Serif — книжная антиква (ADR 0015).
   ptSerif,
+
+  // Кандидаты на расширение набора (прогон по читаемости). Новые
+  // значения добавлять строго в конец — в настройках хранится индекс.
+  /// Lora — книжная антиква, переменная насыщенность.
+  lora,
+
+  /// Alegreya — спроектирована для длительного чтения.
+  alegreya,
+
+  /// Source Serif 4 — переменная, Adobe.
+  sourceSerif,
+
+  /// Roboto Serif — переменная, кириллица полная.
+  robotoSerif,
+
+  /// Charis SIL — максимальная читабельность, статические начертания.
+  charisSil,
+
+  /// Paper Mono — моноширинный, только латиница (кириллица — fallback).
+  paperMono,
 }
 
 /// Имя семейства из pubspec (null — системный).
@@ -51,6 +71,26 @@ String? readingFontFamily(ReadingFont f) => switch (f) {
   ReadingFont.gentium => 'GentiumBookPlus',
   ReadingFont.system => null,
   ReadingFont.ptSerif => 'PTSerif',
+  ReadingFont.lora => 'Lora',
+  ReadingFont.alegreya => 'Alegreya',
+  ReadingFont.sourceSerif => 'SourceSerif4',
+  ReadingFont.robotoSerif => 'RobotoSerif',
+  ReadingFont.charisSil => 'CharisSIL',
+  ReadingFont.paperMono => 'PaperMono',
+};
+
+/// Отображаемое имя в выборе шрифта.
+String readingFontLabel(ReadingFont f) => switch (f) {
+  ReadingFont.literata => 'Literata',
+  ReadingFont.gentium => 'Gentium',
+  ReadingFont.system => '', // локализуется в месте использования
+  ReadingFont.ptSerif => 'PT Serif',
+  ReadingFont.lora => 'Lora',
+  ReadingFont.alegreya => 'Alegreya',
+  ReadingFont.sourceSerif => 'Source Serif 4',
+  ReadingFont.robotoSerif => 'Roboto Serif',
+  ReadingFont.charisSil => 'Charis SIL',
+  ReadingFont.paperMono => 'Paper Mono',
 };
 
 class Settings extends ChangeNotifier {

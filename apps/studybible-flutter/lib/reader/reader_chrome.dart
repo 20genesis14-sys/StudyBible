@@ -1019,34 +1019,30 @@ extension _ReaderChrome on _ReadingScreenState {
                 const SizedBox(height: 6),
                 SizedBox(
                   width: double.infinity,
-                  child: SegmentedButton<ReadingFont>(
-                    showSelectedIcon: false,
-                    style: SegmentedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    segments: [
-                      const ButtonSegment(
-                        value: ReadingFont.literata,
-                        label: Text('Literata'),
-                      ),
-                      const ButtonSegment(
-                        value: ReadingFont.gentium,
-                        label: Text('Gentium'),
-                      ),
-                      const ButtonSegment(
-                        value: ReadingFont.ptSerif,
-                        label: Text('PT Serif'),
-                      ),
-                      ButtonSegment(
-                        value: ReadingFont.system,
-                        label: Text(tr('Сист.', 'System')),
-                      ),
+                  child: DropdownMenu<ReadingFont>(
+                    initialSelection: settings.readingFont,
+                    expandedInsets: EdgeInsets.zero,
+                    textStyle: const TextStyle(fontSize: 13),
+                    onSelected: (f) {
+                      if (f != null) {
+                        settings.update(() => settings.readingFont = f);
+                      }
+                    },
+                    dropdownMenuEntries: [
+                      for (final f in ReadingFont.values)
+                        DropdownMenuEntry(
+                          value: f,
+                          label: f == ReadingFont.system
+                              ? tr('Системный', 'System')
+                              : readingFontLabel(f),
+                          style: TextButton.styleFrom(
+                            textStyle: TextStyle(
+                              fontFamily: readingFontFamily(f),
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
                     ],
-                    selected: {settings.readingFont},
-                    onSelectionChanged: (s) =>
-                        settings.update(() => settings.readingFont = s.first),
                   ),
                 ),
                 const SizedBox(height: 10),
