@@ -18,16 +18,16 @@ are written together with the test fixture of their stage.
 
 | № | Section | Current location | Status |
 |---|---|---|---|
-| 01 | Vision | DECISIONS: "Goals", "Principles" | — |
-| 02 | Requirements | DECISIONS: "Measurable requirements" | — |
-| 03 | Architecture | DECISIONS: "Platforms and technologies"; ADR 0001, 0011 | — |
-| 04 | Data model and coordinates | DECISIONS: "Data and modules"; ADR 0004, 0005, 0006 | — |
+| 01 | Vision | DECISIONS: "Goals", "Principles" | approved |
+| 02 | Requirements | DECISIONS: "Measurable requirements" | approved |
+| 03 | Architecture | DECISIONS: "Platforms and technologies"; ADR 0001, 0011 | implemented |
+| 04 | Data model and coordinates | DECISIONS: "Data and modules"; ADR 0004, 0005, 0006 | implemented |
 | 05 | Module format | [spec/05-module-format-v1.md](spec/05-module-format-v1.md) ([English](spec/en/05-module-format-v1.md)); DECISIONS: "Module format v1"; ADR 0003, 0007, 0016 | v1 schema implemented; compact revision (`book_id`, single verse text, span slices); semantics C-1…C-20 fixed 2026-10-12 |
 | 06 | User data | [spec/06-user-data.md](spec/06-user-data.md); DECISIONS: "Synchronization"; ADR 0008 | v1 implemented |
 | 07 | Search | DECISIONS: "Search"; ADR 0003, 0006 | exact form in FTS5 cache; stemming and phrases — later |
-| 08 | Originals and interlinear | DECISIONS: "Data for reading and study" | — |
+| 08 | Originals and interlinear | DECISIONS: "Data for reading and study" | decisions recorded |
 | 09 | Extensions | DECISIONS: "Extensions"; ADR 0009 | normative form by 1.0 |
-| 10 | Network, repositories, AI | DECISIONS: "Network, repositories, AI" | — |
+| 10 | Network, repositories, AI | DECISIONS: "Network, repositories, AI" | post-1.0 |
 | 11 | Converter | DECISIONS: "Converter"; ADR 0016 | inputs USFM, OSIS, Zefania, MyBible, BibleQuote, TSV |
 | 12 | Interface | DECISIONS: "Interface"; ADR 0012–0015 | Flutter chosen; design system approved by prototype |
 | 13 | Sources and licenses | DECISIONS: "Licenses", "Data for reading and study"; ADR 0002 | texts and modules outside git, `STUDYBIBLE_DATA` directory |
