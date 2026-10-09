@@ -1014,3 +1014,19 @@ overridden.
   GitHub Actions — Android (3 ABI), Windows x64, Web; artifacts attach
   to the Release. Requires signing-key secrets.
   Not yet applied — only a local file.
+
+## Bridge performance: module connection cache (2026-10-09)
+
+- A module's SQLite connection is opened once per session:
+  `api/module.rs` keeps `path → Arc<Mutex<Module>>` in a static map;
+  `chapter_doc`, `module_doc`, dictionary and search calls reuse it.
+  Before, every call re-read the whole `.sb` file just to sniff the
+  `.sbz` magic and reopened the database — a footnote card with a
+  dozen cross-references meant a dozen full file reads.
+- `open_any` sniffs `.sbz` by the first 4 bytes of the header; the
+  full read remains only for actual `.sbz` inputs.
+- Dart side: `ModuleDoc.verseTextCache` memoizes single-target verse
+  texts — neighbouring notes referencing the same verse do not
+  re-slice its chapter. Footnote/cross-ref card results are cached
+  per (module, versification, note text) and prefetched in the
+  background when a chapter opens (commits 603c111, b4f3263).
