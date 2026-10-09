@@ -1,50 +1,52 @@
 # StudyBible
 
-Кроссплатформенное приложение для чтения и изучения Библии.
+**English** | [Русский](README.ru.md)
 
-Две равноценные цели:
+A cross-platform app for reading and studying the Bible.
 
-1. **Чтение** — простое, удобное, быстрое приложение.
-2. **Изучение** — параллельные места, лексикон Стронга, сравнение переводов,
-   подстрочники, оригиналы, комментарии.
+Two equally important goals:
 
-Ядро написано на Rust по схеме «порты и адаптеры», интерфейс — Flutter
-(Android, Windows, macOS, Linux, web). Данные пользователя хранятся только
-на его устройстве.
+1. **Reading** — a simple, convenient, fast app.
+2. **Study** — cross-references, Strong's lexicon, translation comparison,
+   interlinear, original languages, commentaries.
 
-Тексты переводов в этот репозиторий не входят. Они лежат в отдельном каталоге
-`STUDYBIBLE_DATA` (рядом с репозиторием, по умолчанию `..\StudyBible-data`),
-чтобы публикация кода не унесла с собой сами Библии.
+The core is written in Rust using a ports-and-adapters design; the UI is
+Flutter (Android, Windows, macOS, Linux, web). User data stays on the user's
+device only.
 
-## Системные требования
+Bible texts are not part of this repository. They live in a separate
+`STUDYBIBLE_DATA` directory (next to the repo, `..\StudyBible-data` by default)
+so that publishing the code does not publish the Bibles along with it.
 
-| Платформа | Минимум |
+## System requirements
+
+| Platform | Minimum |
 |---|---|
-| Android | Android 8.0 (API 26); APK собран под armeabi-v7a, arm64-v8a и x86_64 |
-| Windows | Windows 10 (64-разрядная) и новее |
-| Web | Современный браузер с поддержкой WebAssembly (Chrome, Firefox, Safari, Edge) |
-| Linux / macOS / iOS | Сборка из исходников (Flutter 3.47+, Rust 1.99+) |
+| Android | Android 8.0 (API 26); APKs built for armeabi-v7a, arm64-v8a and x86_64 |
+| Windows | Windows 10 (64-bit) or newer |
+| Web | A modern browser with WebAssembly (Chrome, Firefox, Safari, Edge) |
+| Linux / macOS / iOS | Build from source (Flutter 3.47+, Rust 1.99+) |
 
-Статус: 1.0.1. Документация — [docs/SPEC.md](docs/SPEC.md),
-ход работ — [docs/ROADMAP.md](docs/ROADMAP.md), открытое — [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md),
-изменения — [CHANGELOG.md](CHANGELOG.md).
+Status: 1.0.1. Documentation — [docs/SPEC.md](docs/SPEC.md),
+open questions — [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md),
+changes — [CHANGELOG.md](CHANGELOG.md).
 
-## Структура
+## Structure
 
-| Путь | Назначение |
+| Path | Purpose |
 |---|---|
-| `crates/studybible-core` | Ядро: домен и порты |
-| `crates/studybible-convert` | Конвертер форматов модулей (библиотека) |
-| `crates/studybible-store` | Модуль SQLite, поиск, данные пользователя |
-| `crates/studybible-accent` | Лексикон и расстановка ударений для TTS |
-| `apps/studybible-cli` | Консольная оболочка (`studybible`) |
-| `apps/studybible-flutter` | Приложение (Flutter + Rust-мост) |
-| `data/` | Канон, профили книг, версификации, испытательные наборы |
-| `docs/` | Спецификация, решения (DECISIONS), ADR, планы |
+| `crates/studybible-core` | Core: domain and ports |
+| `crates/studybible-convert` | Module format converters (library) |
+| `crates/studybible-store` | SQLite module, search, user data |
+| `crates/studybible-accent` | Lexicon and stress marks for TTS |
+| `apps/studybible-cli` | Console frontend (`studybible`) |
+| `apps/studybible-flutter` | The app (Flutter + Rust bridge) |
+| `data/` | Canon, book profiles, versifications, test fixtures |
+| `docs/` | Specification, decisions (DECISIONS), ADRs, plans |
 
-## Сборка
+## Building
 
-Консоль и ядро:
+Console and core:
 
 ```
 cargo build
@@ -52,15 +54,15 @@ cargo test
 cargo run -p studybible-cli
 ```
 
-Приложение: `apps/studybible-flutter`, обычный `flutter build`
-(инструкции по платформам — в `docs/`).
+The app: `apps/studybible-flutter`, a regular `flutter build`
+(per-platform instructions are in `docs/`).
 
-## Лицензия
+## License
 
-Код распространяется на условиях на ваш выбор:
+The code is distributed under your choice of:
 
 - MIT ([LICENSE-MIT](LICENSE-MIT))
 - Apache License 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
 
-Тексты Библии и другие данные распространяются отдельно,
-у каждого модуля своя лицензия и атрибуция.
+Bible texts and other data are distributed separately; each module carries
+its own license and attribution.
