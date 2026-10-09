@@ -16,7 +16,10 @@
   - `docs/DECISIONS.md` — the source of truth for decisions.
 - Do not start coding without an explicit user command.
 - `unsafe` is allowed when justified; every block needs a `// SAFETY:` comment (clippy checks).
-- Commit after each completed step.
+- Commit after each completed step. Broad changes are committed per
+  directory (`docs/`, root files, `data/`, `apps/`… separately) —
+  GitHub shows each path the message of the last commit that touched
+  it, and one sweeping commit looks untidy across half the repo.
 - CI is the local script `scripts/ci.ps1`.
 - Language of published documents — English.
 
