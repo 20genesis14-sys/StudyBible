@@ -21,6 +21,10 @@ All notable changes after the 1.0 release — one per line.
   "Chapter N" beneath.
 - New setting: text weight with four steps (Regular/Medium/Semibold/
   Bold) — in "Font and theme" and in Settings, with live preview.
+- New "Licenses" page in Settings: deduplicated list of licenses used
+  by the app with links to full texts, plus offline package-license
+  texts via the built-in Flutter page. The SIL OFL text now ships
+  with the bundled fonts.
 
 ## 1.0.1 (2026-10-09)
 

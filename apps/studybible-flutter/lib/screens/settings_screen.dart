@@ -6,8 +6,10 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 import '../data.dart';
 import '../l10n.dart';
+import '../routes.dart';
 import '../state.dart';
 import '../theme.dart';
+import 'licenses_screen.dart';
 
 /// Настройки прототипа: темы, шрифт, вёрстка, колонка, выбор стиха.
 class SettingsScreen extends StatelessWidget {
@@ -652,6 +654,21 @@ class SettingsScreen extends StatelessWidget {
                                   : progress.reset,
                               child: Text(tr('Сбросить', 'Reset')),
                             ),
+                          ),
+                        ),
+                      ),
+                      _section(p, tr('О приложении', 'About')),
+                      _card(
+                        p,
+                        ListTile(
+                          title: Text(tr('Лицензии', 'Licenses')),
+                          trailing: Icon(
+                            Icons.chevron_right,
+                            color: p.muted,
+                          ),
+                          onTap: () => pushFast(
+                            context,
+                            const LicensesScreen(),
                           ),
                         ),
                       ),
