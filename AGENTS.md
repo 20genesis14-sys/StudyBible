@@ -20,6 +20,13 @@
   (`docs/`, root, `data/`, `apps/`…), so GitHub shows a readable
   message per path.
 - CI is the local script `scripts/ci.ps1`.
+- Navigation in `ReadingScreen`: bare `Navigator.pop`/`maybePop`/
+  `pushReplacement` is forbidden — `PopScope(canPop: false)` swallows
+  them silently. All intentional route exits go through `_popRoute()`.
+  Two back semantics are named and kept separate: `_stackBack()`
+  (position history — system gesture, Alt+←/→, mouse X1/X2) and
+  `_hierarchyBack()` (strictly up: chapter → chapter grid → book grid —
+  the AppBar arrow only).
 - Published documents are bilingual: English `X.md` is primary,
   Russian `X.ru.md` is its mirror (except `docs/ROADMAP.md` — Russian,
   local-only).
