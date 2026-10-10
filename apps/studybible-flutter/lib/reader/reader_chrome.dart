@@ -196,21 +196,11 @@ extension _ReaderChrome on _ReadingScreenState {
                   IconButton(
                     tooltip: tr('Назад', 'Back'),
                     icon: Icon(Icons.arrow_back, color: p.muted),
-                    // «Назад» в шапке — строго вверх по иерархии:
-                    // глава → сетка глав текущей книги (ROADMAP 1.0.2).
-                    // Из сетки — pop обратно на неё; из чужого места —
-                    // замена на свежую сетку (иначе под нами оказался бы
-                    // дубль ChapterGridScreen). Историю позиций
-                    // обслуживают системный жест и стек workspace.
-                    onPressed:
-                        () =>
-                            widget.openedFromGrid && _code == widget.bookCode
-                                ? Navigator.of(context).maybePop()
-                                : Navigator.of(context).pushReplacement(
-                                    fastRoute(
-                                      ChapterGridScreen(bookCode: _code),
-                                    ),
-                                  ),
+                    // «Назад» в шапке — всегда строго вверх по
+                    // иерархии: глава → сетка глав текущей книги
+                    // (ROADMAP 1.0.2). Историю позиций обслуживают
+                    // только системный жест и стек workspace.
+                    onPressed: _hierarchyBack,
                   ),
                   Container(
                     width: 10,

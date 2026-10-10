@@ -461,7 +461,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
         // стек пуст — обычный pop (на «Домой»/к открывшему экрану).
         // Открытые листы/меню закрывает само дерево виджетов раньше.
         child: PopScope(
-          canPop: false,
+          canPop: _allowRoutePop,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
             // Порядок закрытия (ADR 0019): шторки/меню закрывает
@@ -474,7 +474,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
             if (loc != null) {
               _applyLocation(loc);
             } else {
-              Navigator.of(context).pop();
+              _popRoute(() => Navigator.of(context).maybePop());
             }
           },
           // Боковые кнопки мыши X1/X2 — шаги по стеку (десктоп).
@@ -696,7 +696,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
     if (loc != null) {
       _applyLocation(loc);
     } else {
-      Navigator.of(context).pop();
+      _popRoute(() => Navigator.of(context).maybePop());
     }
   }
 
@@ -705,6 +705,36 @@ class _ReadingScreenState extends State<ReadingScreen> {
     final loc = workspace.forward();
     if (loc != null) _applyLocation(loc);
   }
+
+  /// Отпущен ли pop маршрута (PopScope перехватывает «назад» ради
+  /// стека workspace; кнопка шапки «уровень вверх» отпускает его
+  /// на один кадр через [_popRoute]).
+  bool _allowRoutePop = false;
+
+  /// Выполнить pop маршрута, минуя перехват PopScope: поднимаем
+  /// [_allowRoutePop] и ждём пересборки кадра.
+  void _popRoute(void Function() action) {
+    setState(() => _allowRoutePop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      action();
+      if (mounted) setState(() => _allowRoutePop = false);
+    });
+  }
+
+  /// Кнопка «назад» в шапке — всегда вверх по иерархии: глава →
+  /// сетка глав текущей книги (ROADMAP 1.0.2). Не шаг по стеку
+  /// позиций: из сетки — pop на ту же сетку; из чужого места или
+  /// после свайпа в другую книгу — замена на сетку текущей книги.
+  void _hierarchyBack() => _popRoute(() {
+    if (widget.openedFromGrid && _code == widget.bookCode) {
+      Navigator.of(context).maybePop();
+    } else {
+      Navigator.of(context).pushReplacement(
+        fastRoute(ChapterGridScreen(bookCode: _code)),
+      );
+    }
+  });
 
   String _mobilePane = 'main';
 }
