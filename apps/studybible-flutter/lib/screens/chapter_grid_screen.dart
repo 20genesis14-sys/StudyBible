@@ -141,7 +141,12 @@ class _ChapterGridScreenState extends State<ChapterGridScreen> {
 
   void _go(int chapter, int? verse) => Navigator.of(context).push(
     fastRoute(
-      ReadingScreen(bookCode: widget.bookCode, chapter: chapter, verse: verse),
+      ReadingScreen(
+        bookCode: widget.bookCode,
+        chapter: chapter,
+        verse: verse,
+        openedFromGrid: true,
+      ),
     ),
   );
 }

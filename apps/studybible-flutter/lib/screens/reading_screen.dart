@@ -49,10 +49,15 @@ class ReadingScreen extends StatefulWidget {
     required this.chapter,
     this.verse,
     this.moduleId,
+    this.openedFromGrid = false,
   });
   final String bookCode;
   final int chapter;
   final int? verse;
+
+  /// Открыта из сетки глав: «назад» шапки может просто pop'нуться на
+  /// неё (иначе — pushReplacement на ChapterGridScreen, см. шапку).
+  final bool openedFromGrid;
 
   /// Стартовый перевод (наследуется у ссылающегося экрана, иначе russyn).
   final String? moduleId;
