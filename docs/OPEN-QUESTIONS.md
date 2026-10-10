@@ -20,7 +20,7 @@
 | 15 | ~~Module rights flags~~ — closed: optional `meta.rights` = `no-distribute`, `no-net`, `no-ai`, `no-plugins` (ADR 0016) | closed |
 | 16 | ~~ADR 0012 checklist~~ — closed: synchronized scrolling, book feed, plan screen done; OS font scale — the Flutter system default | closed |
 | 17 | ~~Ancient-language fonts~~ — closed: NotoSerifHebrew (he/hbo/arc), GentiumBookPlus (grc/el) bundled | closed |
-| 18 | ~~Web path~~ — closed: sqlite3.wasm reads .sb in the browser, `--wasm` build (skwasm), COOP/COEP + gzip in serve_web.py | closed |
+| 18 | ~~Web path~~ — closed: sqlite3.wasm reads .sbz (wasm-zstd) in the browser, `--wasm` build (skwasm), COOP/COEP + gzip in serve_web.py | closed |
 | 19 | ~~Read-aloud with highlighting~~ — closed: TTS reads a chapter verse by verse with highlighting, mini-player, Android media session | closed |
 | 20 | ~~Reading history~~ — done: `Kind::Mark` entries with text="hist", no limit, "History" screen | closed |
 | 21 | ~~Pinch-zoom on text; timed auto-night mode; 3+ translation comparison; navigation back-stack~~ — closed: all four implemented (pinch-zoom — `2de3816`; contribution registry — `d7b0702`; `ReaderWorkspace` with a 250-entry stack + `PopScope` — `144396b`; inline comparison with module list and timed auto-night — `6fbcce1`; ADR 0019/0020) | closed |
