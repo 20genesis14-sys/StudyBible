@@ -82,6 +82,8 @@ All notable changes after the 1.0 release — one per line.
   as "Reference — text (translation)".
 - Reader AppBar "back" goes strictly up the hierarchy: chapter → the
   book's chapter grid. Reading-history back is the system gesture.
+- Search shows a result count: "Found: N" under the query field;
+  "Found: 100+" when truncated by the limit.
 - Fixed (one of the sources): cross-references were bound to markers by
   order and a wrong anchor verse number — in verses with two or more
   markers, all after the first showed an empty card or foreign links.
