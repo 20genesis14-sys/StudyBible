@@ -4,8 +4,8 @@ All notable changes after the 1.0 release — one per line.
 
 ## 1.0.2 (unreleased)
 
-- [ ] TODO before release: replace the app icon with the final one
-      (asset to be picked by the user).
+- New app icon — an open book with light on a dark-red background;
+  an Android adaptive icon added (foreground + dark-red backdrop).
 
 - Fixed: the chapter grid briefly showed a fake "1" chapter while the
   module was still loading — now a spinner, an ellipsis in the counter
