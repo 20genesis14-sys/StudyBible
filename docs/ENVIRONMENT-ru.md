@@ -27,6 +27,14 @@
 - Сборка Flutter — с изолированными кэшами:
   `PUB_CACHE=D:\StudyBible-tools\pub-cache`,
   `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`.
+  Это не косметика: в пути профиля `C:\Users\Ольга` есть кириллица,
+  и запущенный Gradle'ом `ninja -C` не может в него `chdir` —
+  CMake-шаги плагинов (например, `jni`) падают с
+  `ninja: fatal: chdir ... No such file or directory`. Без
+  `PUB_CACHE` сборка молча уходит в
+  `C:\Users\Ольга\AppData\Local\Pub\Cache` и упирается ровно в это.
+  Аварийный обход, если переменная не задана: junction
+  `mklink /J C:\pcache <дефолтный pub cache>` и `PUB_CACHE=C:\pcache`.
 - Зависимости CI: `rustup target add wasm32-unknown-unknown`,
   `cargo install cargo-deny --locked`.
 

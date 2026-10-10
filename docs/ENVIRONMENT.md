@@ -26,6 +26,14 @@ Toolchain paths and local quirks of the working machine.
 - Build Flutter with isolated caches:
   `PUB_CACHE=D:\StudyBible-tools\pub-cache`,
   `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`.
+  This is not cosmetic: the user profile path `C:\Users\Ольга` contains
+  Cyrillic, and Gradle-invoked `ninja -C` fails to `chdir` into it —
+  plugin CMake steps (e.g. `jni`) die with
+  `ninja: fatal: chdir ... No such file or directory`. Without
+  `PUB_CACHE` the build silently falls back to
+  `C:\Users\Ольга\AppData\Local\Pub\Cache` and hits exactly that.
+  Emergency workaround if the env var is missing: junction
+  `mklink /J C:\pcache <default pub cache>` and `PUB_CACHE=C:\pcache`.
 - CI prerequisites: `rustup target add wasm32-unknown-unknown`,
   `cargo install cargo-deny --locked`.
 
