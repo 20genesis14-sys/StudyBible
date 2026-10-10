@@ -6,6 +6,9 @@ All notable changes after the 1.0 release — one per line.
 
 - New app icon — an open book with light on a dark-red background;
   an Android adaptive icon added (foreground + dark-red backdrop).
+- Second bundled translation: King James Version (1769, eBible.org)
+  with Strong's, cross-references and footnotes — seeded on first
+  launch like the Synodal.
 
 - Fixed: the chapter grid briefly showed a fake "1" chapter while the
   module was still loading — now a spinner, an ellipsis in the counter

@@ -27,13 +27,14 @@ import 'search_norm.dart' show normForIndex, normSearchQuery, normVersion;
 
 /// Открытые (свободные по лицензии) модули, которые скрипт кладёт
 /// в web/modules/. Личные модули пользователя сюда не попадают.
-/// 08.10.2026: в бандле только базовый russyn (как на остальных
-/// платформах); прочие модули — ручной подкладкой на хостинге
+/// 08.10.2026: в бандле только базовый russyn; 10.10.2026 — +
+/// eng-kjv2006 (KJV со Стронгом, public domain), как на остальных
+/// платформах; прочие модули — ручной подкладкой на хостинге
 /// (файл в web/modules/ + запись в index.json; импорта из UI
 /// на web нет — import_module_stub). Формат на web — .sb
 /// (sqlite3.wasm читает сырой sqlite; .sbz требует zstd-пути,
 /// которого в веб-мосту нет — отклонение зафиксировано в DECISIONS).
-const kBundledModules = ['russyn'];
+const kBundledModules = ['russyn', 'eng-kjv2006'];
 
 /// Каталог данных — в браузере файловой системы нет.
 String dataDir() => '';

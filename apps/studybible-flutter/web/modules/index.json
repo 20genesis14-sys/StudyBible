@@ -1,3 +1,4 @@
 [
-  { "id": "russyn", "title": "Синодальный перевод (1876)", "language": "ru" }
+  { "id": "russyn", "title": "Синодальный перевод (1876)", "language": "ru" },
+  { "id": "eng-kjv2006", "title": "King James Version (1769)", "language": "en" }
 ]

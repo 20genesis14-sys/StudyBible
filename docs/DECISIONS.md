@@ -43,18 +43,21 @@ GTK+Impeller, all limits met), no release build until there is
 demand** — the recipe is `docs/BUILD-LINUX.md`, report
 `docs/perf/linux-2026-10-08/`; macOS/iOS — after 1.0 (no Mac/Apple
 account).
-Module delivery (2026-10-08): exactly one base module is bundled —
-`russyn.sbz` (3.3 MB, `assets/modules/`), seeded into the data
-directory on first launch on all platforms; all other modules — user
-import only. Translation pickers (Bible, settings, comparisons) show
+Module delivery (2026-10-08, amended 2026-10-10): two base modules
+are bundled — `russyn.sbz` (3.3 MB) and `eng-kjv2006.sbz` (21.5 MB,
+KJV 1769 by eBible.org, public domain: Strong's, `x` parallels,
+`f` notes, FTS) — both in `assets/modules/`, seeded into the data
+directory on first launch on all platforms; all other modules —
+user import only. Translation pickers (Bible, settings, comparisons) show
 **strictly installed** modules (`installedModules` — the scan result;
 `kModules` remains a name reference). Windows data directory: was the
 absolute `C:\StudyBible-data` → now `%USERPROFILE%\Documents\
 StudyBible-data` (a visible place for import/backup); the
 `STUDYBIBLE_DATA` override remains.
-Web module bundle (2026-10-08): as on other platforms — only the base
-`russyn` (`web/modules/russyn.sb` + index.json; `kBundledModules` =
-['russyn']). Other modules on web are placed manually on the hosting
+Web module bundle (2026-10-08, amended 2026-10-10): as on other
+platforms — the base `russyn` + `eng-kjv2006`
+(`web/modules/*.sb` + index.json; `kBundledModules` =
+['russyn', 'eng-kjv2006']). Other modules on web are placed manually on the hosting
 (file + an index.json entry) — there is no UI import on web (the
 `import_module_stub` stub). Deviation from the "`.sbz` everywhere" rule:
 on web the module is `.sb`: the web bridge reads sqlite via sqlite3.wasm
