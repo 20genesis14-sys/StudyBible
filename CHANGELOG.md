@@ -34,23 +34,13 @@ All notable changes after the 1.0 release — one per line.
   each name in its own typeface, variable fonts get precise `wght`.
 - Fixed: "highlight color" now tints the verse text itself, not only
   the verse number (paragraph mode).
-- Verse highlights are no longer only yellow: a six-color palette
-  (yellow, green, blue, pink, purple, orange) — pick the color when
-  highlighting from the selection menu or the verse popup; tapping a
-  highlighted verse offers a new color or removal. Old entries keep
-  working.
-- Partial highlighting: any selected words, not only whole verses —
-  userdata schema 4 stores a text selector `{exact,pre,post}` per
-  record (matched by `frag::find_frag` in the core, survives module
-  updates); overlapping ranges are refused, records of one gesture
-  share a `created` batch stamp for future list grouping.
-- Highlight polish: a tap on a highlighted fragment opens a
-  no-dim pill (recolor/remove just that piece, a note on the phrase
-  — it lives independently of the highlight); Strong's on long
-  press; a "Highlights" section in Records folds one gesture into
-  a line ("2 Цар. 2:2–4") and removes the whole batch at once.
-  Known edge: interlinear word-pair columns don't paint partial
-  highlights yet.
+- Highlights now come in six colors: yellow, green, blue, pink,
+  purple, orange.
+- Any selected words can be highlighted, not only whole verses.
+- Tap a highlight for its menu: another color, a note on the
+  phrase, removal. Strong's opens on long press. Records has a
+  "Highlights" section: one gesture — one line, removed at once.
+  Interlinear columns don't paint partial highlights yet.
 - Footnote card redesigned: height wraps content (max 75 % of the
   screen, long notes scroll), note text at a readable 15 pt base.
 
