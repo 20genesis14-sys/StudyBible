@@ -213,7 +213,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       return TextSpan(
         text:
             '${inChapter && _verseNotes.containsKey(s.verse) ? '\u00B7' : ''}'
-            '${suppressVerse ? '' : ' ${s.verse} '}',
+            '${suppressVerse ? '' : ' ${s.verse} '}',
         // Маркеры закладки и тегов — маленькие значки после номера.
         children: [
           if (vkey != null)
@@ -236,7 +236,7 @@ extension _ChapterRenderer on _ReadingScreenState {
         style: TextStyle(
           // Крупнее основного ритма: номер стиха должен читаться
           // как якорь в сплошном абзаце (жалоба: цифры терялись).
-          fontSize: 17 * settings.fontScale * 0.86,
+          fontSize: 19 * settings.fontScale,
           color: _selectedVerse == s.verse ? p.accent : _verseColor(p),
           fontWeight: FontWeight.w800,
           backgroundColor: hlEntry != null
@@ -1514,7 +1514,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                           Text(
                             '$v',
                             style: TextStyle(
-                              fontSize: 17 * settings.fontScale * 0.95,
+                              fontSize: 19 * settings.fontScale,
                               color: selected ? p.accent : _verseColor(p),
                               fontWeight: FontWeight.w800,
                               height: 1.4,
