@@ -39,9 +39,10 @@ All notable changes after the 1.0 release — one per line.
   comparison on desktop and Android.
 - Speed: texts of already-fetched verses are memoized per module —
   neighbouring notes referencing the same verse don't re-read it.
-- Reading design: chapters open with a large inline chapter numeral
-  (print-style drop cap); the heading splits into book name above and
-  "Chapter N" beneath.
+- Clearer chapter and verse numbering: chapters open with a large
+  inline numeral (print-style drop cap) and a two-line heading —
+  book name above, "Chapter N" beneath; verse numbers are accented
+  (vermilion, w800) so anchors don't get lost in paragraph text.
 - New setting: text weight with four steps (Regular/Medium/Semibold/
   Bold) — in "Font and theme" and in Settings, with live preview.
 - New "Licenses" page in Settings: deduplicated list of licenses used
