@@ -66,8 +66,8 @@ pub(crate) fn open_any(path: &Path) -> Result<Module> {
     // читался весь файл целиком.
     let mut head = [0u8; 4];
     let is_sbz = {
-        let mut f = std::fs::File::open(path)
-            .with_context(|| format!("не читается {}", path.display()))?;
+        let mut f =
+            std::fs::File::open(path).with_context(|| format!("не читается {}", path.display()))?;
         f.read_exact(&mut head).is_ok() && studybible_store::sbz::is_sbz(&head)
     };
     if !is_sbz {
