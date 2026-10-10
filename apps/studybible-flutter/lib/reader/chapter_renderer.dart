@@ -65,6 +65,25 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// цвет группы книги остаётся только на плитках сетки.
   Color _verseColor(Palette p) => p.accent;
 
+  /// Оси вариативных шрифтов для номера стиха: вес — потолок
+  /// оси (900), у Literata оптический размер мелкого набора
+  /// (opsz 14): штрих цифры устойчивее дисплейного начертания.
+  List<FontVariation> get _verseNumVariations {
+    final family = _textFont();
+    return [
+      if (family == 'Literata') const FontVariation('opsz', 14),
+      if (const {
+        'Literata',
+        'Lora',
+        'Alegreya',
+        'SourceSerif4',
+        'RobotoSerif',
+        'PaperMono',
+      }.contains(family))
+        const FontVariation('wght', 900),
+    ];
+  }
+
   TapGestureRecognizer _tap(VoidCallback f) {
     final r = TapGestureRecognizer()
       ..onTap = f
@@ -213,7 +232,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       return TextSpan(
         text:
             '${inChapter && _verseNotes.containsKey(s.verse) ? '\u00B7' : ''}'
-            '${suppressVerse ? '' : ' ${s.verse} '}',
+            '${suppressVerse ? '' : ' ${s.verse} '}',
         // Маркеры закладки и тегов — маленькие значки после номера.
         children: [
           if (vkey != null)
@@ -234,11 +253,13 @@ extension _ChapterRenderer on _ReadingScreenState {
         ],
         semanticsLabel: tr('Стих ${s.verse}', 'Verse ${s.verse}'),
         style: TextStyle(
-          // Крупнее основного ритма: номер стиха должен читаться
-          // как якорь в сплошном абзаце (жалоба: цифры терялись).
-          fontSize: 19 * settings.fontScale,
+          // Номер стиха — явный якорь: кегль равен кеглю текста,
+          // вес на потолке оси (вариативные шрифты — через wght,
+          // Literata + opsz 14: устойчивый штрих мелкого набора).
+          fontSize: _readingSize * settings.fontScale,
           color: _selectedVerse == s.verse ? p.accent : _verseColor(p),
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
+          fontVariations: _verseNumVariations,
           backgroundColor: hlEntry != null
               ? highlightColor(hlEntry.text).withValues(alpha: 0.45)
               : (inChapter && _ttsVerse == s.verse
@@ -1514,9 +1535,10 @@ extension _ChapterRenderer on _ReadingScreenState {
                           Text(
                             '$v',
                             style: TextStyle(
-                              fontSize: 19 * settings.fontScale,
+                              fontSize: _readingSize * settings.fontScale,
                               color: selected ? p.accent : _verseColor(p),
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
+                              fontVariations: _verseNumVariations,
                               height: 1.4,
                             ),
                           ),
