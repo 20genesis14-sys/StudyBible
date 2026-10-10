@@ -243,9 +243,12 @@ existing fields must not change even if the column type stays the same.
   (soft).
 - **C-9.** `meta.features` — an **open** list. Known values
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,
-  `fts`, `marks`) enable UI layers. `x-`-prefixed values are
+  `fts`, `marks`, `xrefs`) enable UI layers. `x-`-prefixed values are
   experimental and ignored; other unknowns — likewise. A flag without
-  data — the layer is not shown (soft).
+  data — the layer is not shown (soft). `xrefs` marks a `kind="layer"`
+  module whose `x` spans are the shared cross-reference set read by
+  other modules (ADR 0023): `block=0` rows keyed by
+  `(book_id, chapter, verse)`, `text` in OSIS abbreviations.
 - **C-10.** `meta.required` — an unsupported value = `UnsupportedFeature`, the
   reader must refuse. No supported values in v1.
 - **C-11.** `meta.rights` — a behavioral commitment of the app:

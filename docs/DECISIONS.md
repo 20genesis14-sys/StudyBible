@@ -617,6 +617,16 @@ explicitly. All other tables (`f`/`x`/`v` spans, `verses`, `entries`,
 source); saving for eng-kjv2006 is ~35–40 MB raw. `content_hash` is
 computed from the logical reading stream and is unaffected by packing.
 
+Shared cross-reference layer (2026-10-10, ADR 0023): instead of
+injecting the same ~29.4 K OpenBible links into every module, they
+live in a separate kind="layer" module openbible-xrefs
+(features="xrefs", OSIS references in text, block=0 span rows).
+At chapter_doc time the layer x spans are merged into the reading
+stream ONLY for modules that carry no x spans of their own; a module
+with native links is untouched. Enabled by the setting xrefLayer
+(default on); the layer is bundled and seeded like a Bible but hidden
+from pickers. inject_xrefs stays for modules embedding native links.
+
 ## Converter
 A library (crate) plus a shell; used as a library on mobile. No GPL in
 our code.

@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes after the 1.0 release — one per line.
 
@@ -9,6 +9,12 @@ All notable changes after the 1.0 release — one per line.
 - Second bundled translation: King James Version (1769, eBible.org)
   with Strong's, cross-references and footnotes — seeded on first
   launch like the Synodal.
+- Shared cross-reference layer `openbible-xrefs` (ADR 0023):
+  translations without their own x spans get the OpenBible link set
+  merged at read time; toggle in Settings; modules no longer embed a
+  duplicate copy (russyn.sbz 2.78 -> 1.74 MB, kjv 8.2 -> 7.1 MB).
+- Fixed web build: packed modules need the span_pack decoder that was
+  missing on the web bridge (chapters showed no verse text).
 - Module format: blob-packed `t` spans, tokens and alignment
   (ADR 0022, `meta.required="pack"`) — markup-heavy `.sb` modules get
   much smaller; old modules keep working, packed ones need the new app.
