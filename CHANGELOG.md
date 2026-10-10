@@ -18,6 +18,10 @@ All notable changes after the 1.0 release — one per line.
 - Module format: blob-packed `t` spans, tokens and alignment
   (ADR 0022, `meta.required="pack"`) — markup-heavy `.sb` modules get
   much smaller; old modules keep working, packed ones need the new app.
+- Footnote/cross-reference cards now resolve verse texts in the
+  translation being read by default (was: the main translation — a KJV
+  reader saw Synodal texts); the xref translation setting stays, with
+  a fallback to the main module when the chosen one lacks the book.
 - Web reads `.sbz` directly: a vendored wasm zstd decoder
   (`web/zstd/`, @bokuweb/zstd-wasm, MIT) unpacks the same container as
   native platforms — one artifact per module, no `.sb`/`.sb.gz` pair;

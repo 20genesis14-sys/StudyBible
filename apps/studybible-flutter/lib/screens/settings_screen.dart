@@ -460,8 +460,8 @@ class SettingsScreen extends StatelessWidget {
                                 ),
                                 title: Text(
                                   tr(
-                                    'Как основной перевод',
-                                    'Same as default translation',
+                                    'Как открытый перевод',
+                                    'Same as open translation',
                                   ),
                                 ),
                                 trailing: settings.xrefModule.isEmpty

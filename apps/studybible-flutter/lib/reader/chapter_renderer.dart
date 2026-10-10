@@ -257,6 +257,7 @@ extension _ChapterRenderer on _ReadingScreenState {
             context,
             note: s,
             verse: vCtx ?? 0,
+            openModule: _moduleId,
             onRef: _goToRef,
             fromVrs: _module?.versification ?? '',
             onOpenModule: _goToRefModule,

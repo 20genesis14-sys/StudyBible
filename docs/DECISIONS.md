@@ -187,6 +187,14 @@ files.
   sheet, the choice immediately changes the book grid's loaded module).
   All jumps without an explicit moduleId (chapter grid, search,
   reading) use mainModuleId().
+- Translation for note/cross-reference texts (2026-10-10): the
+  `settings.xrefModule` selector offers '' = "same as the open
+  translation" (the module whose chapter is on screen — the default)
+  plus every installed module. Resolution order: the chosen module,
+  then mainModuleId() as fallback when the target book/chapter is
+  absent there (deuterocanon, truncated canons). An empty xrefModule
+  previously meant "same as main translation" — that mixed languages:
+  a KJV reader got Synodal verse texts, which read as a bug.
 - History is unified across modules: kind=mark records with the 'hist'
   text prefix — 'hist' (chapter: module+book+chapter+verse),
   'hist:dict' (dictionary entry: context 'H3117|word'), 'hist:search'

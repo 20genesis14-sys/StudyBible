@@ -482,7 +482,13 @@ extension _ReaderController on _ReadingScreenState {
   void _prefetchNotes(ModuleDoc m) {
     if (m.id != _moduleId) return;
     final ch = m.chapter(_code, _ch);
-    if (ch != null) prefetchChapterNotes(ch, fromVrs: m.versification);
+    if (ch != null) {
+      prefetchChapterNotes(
+        ch,
+        fromVrs: m.versification,
+        openModule: m.id,
+      );
+    }
   }
 
   // ---------- чтение вслух (TTS) ----------

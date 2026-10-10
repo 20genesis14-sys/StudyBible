@@ -183,13 +183,15 @@ class NotesSheet extends StatelessWidget {
 /// [fromVrs] — версификация модуля-источника ссылки (в ней
 /// записаны координаты в тексте сноски); тексты параллельных
 /// мест берутся из settings.xrefModule по конвертированным
-/// координатам, а [onOpenModule] (если задан) навигирует к
-/// конвертированному месту в этом же переводе.
+/// координатам ('' — из [openModule], модуля открытой главы),
+/// а [onOpenModule] (если задан) навигирует к конвертированному
+/// месту в переводе, из которого показан текст.
 void showNoteCard(
   BuildContext context, {
   required NoteSpanDoc note,
   required int verse,
   required void Function(Ref) onRef,
+  required String openModule,
   String fromVrs = '',
   void Function(Ref, String moduleId)? onOpenModule,
   VoidCallback? onShowAll,
@@ -200,6 +202,7 @@ void showNoteCard(
     builder: (ctx) => _NoteCard(
       note: note,
       verse: verse,
+      openModule: openModule,
       fromVrs: fromVrs,
       onOpenModule: (r, mid) {
         Navigator.of(ctx).pop();
@@ -221,11 +224,13 @@ void showNoteCard(
 
 /// Содержимое карточки: текст сноски с активными ссылками, а под
 /// ним — тексты каждого параллельного места из выбранного перевода
-/// (settings.xrefModule; '' — основной). Высота ~75 % экрана.
+/// (settings.xrefModule; '' — открытый [openModule]). Высота ~75 %
+/// экрана.
 class _NoteCard extends StatefulWidget {
   final NoteSpanDoc note;
   final int verse;
   final void Function(Ref) onRef;
+  final String openModule;
   final String fromVrs;
   final void Function(Ref, String moduleId)? onOpenModule;
   final VoidCallback? onShowAll;
@@ -233,6 +238,7 @@ class _NoteCard extends StatefulWidget {
     required this.note,
     required this.verse,
     required this.onRef,
+    required this.openModule,
     this.fromVrs = '',
     this.onOpenModule,
     this.onShowAll,
@@ -242,42 +248,51 @@ class _NoteCard extends StatefulWidget {
   State<_NoteCard> createState() => _NoteCardState();
 }
 
-/// Одна строка списка параллельных мест карточки.
+/// Одна строка списка параллельных мест карточки: [mid] — модуль,
+/// из которого реально показан текст (основной путь или фоллбэк).
 typedef NoteTextItems =
-    List<({Ref ref, Ref nav, String label, String? text})>;
+    List<({Ref ref, Ref nav, String label, String? text, String mid})>;
 
 /// Кэш готовых/идущих загрузок текстов сносок: ключ — перевод,
 /// версификация источника и сам текст сноски. Карточка и фоновый
 /// прогрев делят один Future — повторный тап мгновенный.
 final Map<String, Future<NoteTextItems>> _noteTextsCache = {};
 
-/// Тексты ссылок сноски [note] из перевода xrefModule (или основного).
+/// Тексты ссылок сноски [note]: по умолчанию — из открытого перевода
+/// [openModule], при выбранном settings.xrefModule — из него; без
+/// целевой книги/главы — фоллбэк на основной перевод (mainModuleId).
 Future<NoteTextItems> _noteTexts(
   NoteSpanDoc note, {
   required String fromVrs,
+  required String openModule,
 }) {
-  final mid = settings.xrefModule.isEmpty
-      ? mainModuleId()
-      : settings.xrefModule;
+  final mid = settings.xrefModule.isEmpty ? openModule : settings.xrefModule;
+  final fb = mainModuleId();
   return _noteTextsCache.putIfAbsent(
-    '$mid\x00$fromVrs\x00${note.text}',
-    () => _loadNoteTexts(note, fromVrs, mid),
+    '$mid\x00$fb\x00$fromVrs\x00${note.text}',
+    () => _loadNoteTexts(note, fromVrs, mid, fb),
   );
 }
 
 /// Фоновый прогрев главы (открытие главы → до тапа по маркеру):
 /// ссылки всех сносок конвертируются и главы-мишени подгружаются
 /// лениво, так что карточка потом открывается без лага.
-void prefetchChapterNotes(ChapterDoc ch, {required String fromVrs}) {
+void prefetchChapterNotes(
+  ChapterDoc ch, {
+  required String fromVrs,
+  required String openModule,
+}) {
   if (ch.notesPrefetchDone) return;
   ch.notesPrefetchDone = true;
   for (final b in ch.blocks) {
     for (final s in b.spans) {
       if (s is NoteSpanDoc) {
         unawaited(
-          _noteTexts(s, fromVrs: fromVrs).catchError(
-            (_) => <({Ref ref, Ref nav, String label, String? text})>[],
-          ),
+          _noteTexts(s, fromVrs: fromVrs, openModule: openModule)
+              .catchError(
+                (_) =>
+                    <({Ref ref, Ref nav, String label, String? text, String mid})>[],
+              ),
         );
       }
     }
@@ -311,16 +326,22 @@ Future<List<CvPoint>> _noteTargets(
 /// Загрузка текстов всех ссылок сноски: ссылки дедуплицируются
 /// и обрабатываются параллельно — последовательная цепочка await
 /// на десяток ссылок давала ощутимый лаг карточки.
+/// [mid] — основной перевод текстов, [fbMid] — фоллбэк, когда в [mid]
+/// нет целевой книги/главы (текст не найден): тогда и навигация
+/// `open(it.nav, it.mid)` идёт в модуль фоллбэка.
 Future<NoteTextItems> _loadNoteTexts(
   NoteSpanDoc note,
   String fromVrs,
   String mid,
+  String fbMid,
 ) async {
   final refs = findRefs(note.text);
   if (refs.isEmpty) return const [];
   final m = await loadModule(mid);
+  ModuleDoc? fb;
   final seen = <String>{};
-  final jobs = <Future<({Ref ref, Ref nav, String label, String? text})>>[];
+  final jobs =
+      <Future<({Ref ref, Ref nav, String label, String? text, String mid})>>[];
   for (final rm in refs) {
     final r = rm.ref;
     if (!seen.add('${r.book}:${r.chapter}:${r.verse}-${r.verseEnd}')) {
@@ -329,17 +350,31 @@ Future<NoteTextItems> _loadNoteTexts(
     final label = note.text.substring(rm.start, rm.end);
     jobs.add(
       _noteTargets(m, r, fromVrs).then((targets) async {
-        final t = targets.isEmpty
+        var t = targets.isEmpty
             ? null
             : await convertedVerseText(m, targets);
-        final nav = targets.isEmpty
+        var midUsed = mid;
+        var navTargets = targets;
+        if (t == null && fbMid != mid) {
+          fb ??= await loadModule(fbMid);
+          final fbTargets = await _noteTargets(fb!, r, fromVrs);
+          if (fbTargets.isNotEmpty) {
+            final fbText = await convertedVerseText(fb!, fbTargets);
+            if (fbText != null) {
+              t = fbText;
+              midUsed = fbMid;
+              navTargets = fbTargets;
+            }
+          }
+        }
+        final nav = navTargets.isEmpty
             ? r
             : Ref(
-                targets.first.book,
-                targets.first.chapter,
-                targets.first.verse,
+                navTargets.first.book,
+                navTargets.first.chapter,
+                navTargets.first.verse,
               );
-        return (ref: r, nav: nav, label: label, text: t);
+        return (ref: r, nav: nav, label: label, text: t, mid: midUsed);
       }),
     );
   }
@@ -352,12 +387,11 @@ class _NoteCardState extends State<_NoteCard> {
   late final Future<NoteTextItems> _texts = _noteTexts(
     widget.note,
     fromVrs: widget.fromVrs,
+    openModule: widget.openModule,
   );
 
-  /// Перевод текстов параллельных мест (xrefModule или основной).
-  String get _mid => settings.xrefModule.isEmpty
-      ? mainModuleId()
-      : settings.xrefModule;
+  /// Перевод текстов параллельных мест берётся построчно из
+  /// `it.mid` (основной путь или фоллбэк) — общего _mid больше нет.
 
   @override
   Widget build(BuildContext context) {
@@ -491,7 +525,7 @@ class _NoteCardState extends State<_NoteCard> {
                                   onTap: () {
                                     final open = widget.onOpenModule;
                                     if (open != null) {
-                                      open(it.nav, _mid);
+                                      open(it.nav, it.mid);
                                     } else {
                                       widget.onRef(it.ref);
                                     }
