@@ -2,7 +2,7 @@
 
 All notable changes after the 1.0 release — one per line.
 
-## 1.0.2 (unreleased)
+## 1.1.0 (unreleased)
 
 - New app icon — an open book with light on a dark-red background;
   an Android adaptive icon added (foreground + dark-red backdrop).
