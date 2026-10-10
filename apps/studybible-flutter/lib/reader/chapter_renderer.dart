@@ -85,11 +85,17 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// текстовый спан (для подсветки читаемого вслух стиха).
   /// [anchorVerses] — стихи, чей номер в этом блоке несёт якорь-ключ
   /// (только первый маркер каждого стиха, иначе дубль GlobalKey).
+  /// [hideVerse] — номер стиха, чей маркер не рисуется (буквица
+  /// главы совмещает роль якоря стиха 1: дубли «1 1Текст» в печатных
+  /// изданиях не ставят). Спан всё равно обрабатывается — якорный
+  /// ключ, иконки закладки/тегов, точка заметки и курсоры TTS/
+  /// выделений сохраняются, пропадает только сама цифра.
   List<InlineSpan> _spansOf(
     BlockDoc b,
     Palette p, [
     int? chCtx,
     Set<int>? anchorVerses,
+    int? hideVerse,
   ]) {
     int? cur;
     var noteIdx = 0;
@@ -113,7 +119,17 @@ extension _ChapterRenderer on _ReadingScreenState {
         out.add(_spanOf(s, p, chCtx, cur, anchor, noteIdx++));
         continue;
       }
-      out.add(_spanOf(s, p, chCtx, cur, anchor));
+      out.add(
+        _spanOf(
+          s,
+          p,
+          chCtx,
+          cur,
+          anchor,
+          0,
+          s is VerseSpanDoc && s.verse == hideVerse,
+        ),
+      );
     }
     return out;
   }
@@ -159,6 +175,8 @@ extension _ChapterRenderer on _ReadingScreenState {
     ];
   }
 
+  /// [suppressVerse] — маркер стиха без цифры: якорь и иконки меток
+  /// остаются, номер скрыт за буквицей главы.
   InlineSpan _spanOf(
     SpanDoc s,
     Palette p, [
@@ -166,6 +184,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     int? vCtx,
     bool anchor = false,
     int noteIdx = 0,
+    bool suppressVerse = false,
   ]) {
     final inChapter = chCtx == null || chCtx == _ch;
     if (s is VerseSpanDoc) {
@@ -194,7 +213,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       return TextSpan(
         text:
             '${inChapter && _verseNotes.containsKey(s.verse) ? '\u00B7' : ''}'
-            ' ${s.verse} ',
+            '${suppressVerse ? '' : ' ${s.verse} '}',
         // Маркеры закладки и тегов — маленькие значки после номера.
         children: [
           if (vkey != null)
@@ -1354,7 +1373,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                   style: _baseStyle(p),
                   children: [
                     if (i == capAt) _chapterCap(p),
-                    ..._spansOf(b, p, null, anchorVerses),
+                    ..._spansOf(b, p, null, anchorVerses, i == capAt ? 1 : null),
                   ],
                 ),
               ),
@@ -1374,7 +1393,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                       _chapterCap(p)
                     else
                       const TextSpan(text: '\u2003'),
-                    ..._spansOf(b, p, null, anchorVerses),
+                    ..._spansOf(b, p, null, anchorVerses, i == capAt ? 1 : null),
                   ],
                 ),
               ),
@@ -1387,20 +1406,30 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   /// Буквица главы: крупная цифра в потоке первого блока — базовая
   /// линия на базовой линии первой строки, цвет чернил текста.
+  /// Совмещает роль маркера стиха 1 (его номер в блоке скрыт за
+  /// буквицей — дубль «1 1» недопустим): тап выбирает стих 1,
+  /// акцент — когда стих выделен/выбран.
   InlineSpan _chapterCap(Palette p) => WidgetSpan(
     alignment: PlaceholderAlignment.baseline,
     baseline: TextBaseline.alphabetic,
-    child: Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Text(
-        '$_ch',
-        semanticsLabel: tr('Глава $_ch', 'Chapter $_ch'),
-        style: TextStyle(
-          fontFamily: _textFont(),
-          fontSize: _readingSize * settings.fontScale * 3,
-          fontWeight: FontWeight.w700,
-          color: p.ink,
-          height: 1.0,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (d) => _lastTapPos = d.globalPosition,
+      onTap: () => _selectVerse(1),
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Semantics(
+          label: tr('Глава $_ch, стих 1', 'Chapter $_ch, verse 1'),
+          child: Text(
+            '$_ch',
+            style: TextStyle(
+              fontFamily: _textFont(),
+              fontSize: _readingSize * settings.fontScale * 3,
+              fontWeight: FontWeight.w700,
+              color: _selectedVerse == 1 ? p.accent : p.ink,
+              height: 1.0,
+            ),
+          ),
         ),
       ),
     ),

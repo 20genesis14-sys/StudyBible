@@ -42,7 +42,9 @@ All notable changes after the 1.0 release — one per line.
 - Clearer chapter and verse numbering: chapters open with a large
   inline numeral (print-style drop cap) and a two-line heading —
   book name above, "Chapter N" beneath; verse numbers are accented
-  (vermilion, w800) so anchors don't get lost in paragraph text.
+  (vermilion, w800) so anchors don't get lost in paragraph text; the
+  drop cap doubles as the verse-1 anchor (tap selects the verse), so
+  the duplicated "1" marker is gone.
 - New setting: text weight with four steps (Regular/Medium/Semibold/
   Bold) — in "Font and theme" and in Settings, with live preview.
 - New "Licenses" page in Settings: deduplicated list of licenses used
