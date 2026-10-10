@@ -169,7 +169,20 @@ extension _ReaderController on _ReadingScreenState {
       return;
     }
     if (c == 'remove') {
-      await bridgeEntryRemove(entry.id);
+      // Пачка одного жеста (общий created + цвет) снимается целиком:
+      // выделил 4–8 — убрал 4–8, а не по стиху.
+      final batch = <UserEntry>[
+        for (final l in _highlights.values)
+          ...l.where(
+            (e) =>
+                e.created == entry.created &&
+                e.text == entry.text &&
+                e.module == entry.module,
+          ),
+      ];
+      for (final e in batch.isEmpty ? [entry] : batch) {
+        await bridgeEntryRemove(e.id);
+      }
     } else {
       // Перекраска: имя цвета живёт в `text` записи.
       await bridgeEntryUpdate(entry.id, c);
