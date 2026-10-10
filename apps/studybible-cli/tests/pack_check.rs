@@ -59,8 +59,10 @@ fn pack_zstd_and_brotli_roundtrip() {
         assert_eq!(Codec::from_id(packed[4]).name(), codec);
         assert!(packed.len() < raw.len() + sbz::HEADER_LEN);
 
-        // Распаковка возвращает ровно исходный .sb.
-        assert_eq!(sbz::unpack(&packed).unwrap(), raw);
+        // pack оптимизирует .sb на месте (page_size+VACUUM): распаковка
+        // возвращает оптимизированный файл, а не исходный.
+        let optimized = std::fs::read(&sb).unwrap();
+        assert_eq!(sbz::unpack(&packed).unwrap(), optimized);
     }
 }
 

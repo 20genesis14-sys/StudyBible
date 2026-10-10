@@ -683,15 +683,41 @@ fn lint(m: &Module) -> Vec<String> {
         )
         .unwrap_or(0)
     };
+    // ADR 0022: в упакованном модуле разметка — в блобах; ищем ключ
+    // подстрокой в первых блобах (attrs лежат в пуле строк).
+    let pack_attr = |key: &str| -> i64 {
+        let needle = format!("{key}=\"");
+        let mut st = match conn.prepare("SELECT blob FROM span_pack LIMIT 500") {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
+        let blobs = match st.query_map([], |r| r.get::<_, Vec<u8>>(0)) {
+            Ok(b) => b,
+            Err(_) => return 0,
+        };
+        let mut n = 0i64;
+        for b in blobs.flatten() {
+            if b.windows(needle.len()).any(|w| w == needle.as_bytes()) {
+                n += 1;
+            }
+        }
+        n
+    };
     // features: заявленное, но без данных — слой не покажется (С-9).
     // strongs/morph живут в spans.attrs или в tokens — старые модули
     // без таблицы tokens держат их в атрибутах спанов.
     let data = |f: &str| -> i64 {
         match f {
-            "strongs" => count("tokens").max(attr_count("strong")),
-            "morph" => count("tokens").max(attr_count("morph")),
-            "tokens" => count("tokens"),
-            "alignment" => count("alignment"),
+            "strongs" => count("tokens")
+                .max(count("token_pack"))
+                .max(attr_count("strong"))
+                .max(pack_attr("strong")),
+            "morph" => count("tokens")
+                .max(count("token_pack"))
+                .max(attr_count("morph"))
+                .max(pack_attr("morph")),
+            "tokens" => count("tokens").max(count("token_pack")),
+            "alignment" => count("alignment").max(count("align_pack")),
             "variants" => count("variants"),
             "entries" => count("entries"),
             "marks" => count("marks"),
@@ -762,6 +788,19 @@ fn lint(m: &Module) -> Vec<String> {
     out
 }
 
+/// Подготовить `.sb` к раздаче: убрать stat-таблицы и перестроить
+/// файл с page_size 8192 (меньше страниц — меньше накладных).
+fn optimize_sb(path: &Path) -> Result<(), String> {
+    let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
+    conn.execute_batch(
+        "DROP TABLE IF EXISTS sqlite_stat1;
+         DROP TABLE IF EXISTS sqlite_stat4;
+         PRAGMA page_size=8192;
+         VACUUM;",
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Упаковать `.sb` → `.sbz`. Возвращает путь к готовому файлу.
 fn pack_file(src: &Path, codec: &str, out: Option<PathBuf>) -> Result<PathBuf, String> {
     let (id, name): (u8, &str) = match codec {
@@ -770,9 +809,10 @@ fn pack_file(src: &Path, codec: &str, out: Option<PathBuf>) -> Result<PathBuf, S
         other => return Err(format!("неизвестный кодек «{other}» (zstd|brotli)")),
     };
     let out = out.unwrap_or_else(|| src.with_extension("sbz"));
-    let raw = std::fs::read(src).map_err(|e| format!("{}: {e}", src.display()))?;
     // Пакуем только валидный модуль — иначе ошибка всплывёт у получателя.
     Module::open(src).map_err(|e| format!("{}: {e}", src.display()))?;
+    optimize_sb(src)?;
+    let raw = std::fs::read(src).map_err(|e| format!("{}: {e}", src.display()))?;
     let mut file = Vec::with_capacity(5);
     file.extend_from_slice(studybible_store::sbz::MAGIC);
     file.push(id);
