@@ -209,6 +209,10 @@ class Settings extends ChangeNotifier {
   /// Перевод для текстов параллельных мест/сносок ('' — основной).
   String xrefModule = '';
 
+  /// Общий слой параллельных мест openbible-xrefs (ADR 0023):
+  /// подмешивается модулям без собственных `x`-спанов.
+  bool externalXrefs = true;
+
   /// Переводы на экране «стих во всех переводах»
   /// (через запятую; '' — все установленные).
   String compareModules = '';
@@ -311,6 +315,7 @@ class Settings extends ChangeNotifier {
         activePlan = j['activePlan'] as String? ?? '';
         planStart = j['planStart'] as String? ?? '';
         xrefModule = j['xrefModule'] as String? ?? '';
+        externalXrefs = j['externalXrefs'] as bool? ?? true;
         compareModules = j['compareModules'] as String? ?? '';
         interleavedModules = j['interleavedModules'] as String? ?? '';
         lang = j['lang'] as String? ?? 'ru';
@@ -356,6 +361,7 @@ class Settings extends ChangeNotifier {
       'activePlan': activePlan,
       'planStart': planStart,
       'xrefModule': xrefModule,
+      'externalXrefs': externalXrefs,
       'compareModules': compareModules,
       'interleavedModules': interleavedModules,
       'lang': lang,

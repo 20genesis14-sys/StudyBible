@@ -71,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1880195488;
+  int get rustContentHash => -394851930;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -216,6 +216,8 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 chapter,
     required PlatformInt64 verse,
   });
+
+  Future<void> crateApiModuleXrefLayerSet({required String path});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -1126,6 +1128,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "progress_set_verse",
         argNames: ["path", "book", "chapter", "verse"],
       );
+
+  @override
+  Future<void> crateApiModuleXrefLayerSet({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiModuleXrefLayerSetConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiModuleXrefLayerSetConstMeta =>
+      const TaskConstMeta(debugName: "xref_layer_set", argNames: ["path"]);
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {

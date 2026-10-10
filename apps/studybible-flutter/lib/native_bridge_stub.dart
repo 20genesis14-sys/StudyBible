@@ -19,6 +19,9 @@ Future<String?> bridgeModuleDoc(String path) => Future.value(null);
 Future<String?> bridgeChapterDoc(String path, String book, int chapter) =>
     Future.value(null);
 
+/// Общий слой параллельных (ADR 0023) — в стабе нет.
+Future<void> bridgeSetXrefLayer(bool enabled) async {}
+
 /// Прогресс — на web только в памяти.
 Future<String?> bridgeProgressLoad() => Future.value(null);
 Future<void> bridgeProgressMarkRead(String book, int chapter) async {}

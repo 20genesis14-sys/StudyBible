@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
@@ -6,6 +8,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 import '../data.dart';
 import '../l10n.dart';
+import '../native_bridge_stub.dart'
+    if (dart.library.html) '../native_bridge_web.dart'
+    if (dart.library.io) '../native_bridge_io.dart';
 import '../routes.dart';
 import '../state.dart';
 import '../theme.dart';
@@ -401,6 +406,34 @@ class SettingsScreen extends StatelessWidget {
                                   ),
                                 ),
                             ],
+                          ),
+                        ),
+                      ),
+                      // ADR 0023: общий слой параллельных подмешивается
+                      // модулям без собственных ссылок; отключаемо.
+                      _card(
+                        p,
+                        ListenableBuilder(
+                          listenable: settings,
+                          builder: (context, _) => SwitchListTile(
+                            dense: true,
+                            title: Text(
+                              tr(
+                                'Общие параллельные места',
+                                'Shared cross-references',
+                              ),
+                            ),
+                            subtitle: Text(
+                              tr(
+                                'Для переводов без своих ссылок',
+                                'For translations without their own',
+                              ),
+                            ),
+                            value: settings.externalXrefs,
+                            onChanged: (v) => settings.update(() {
+                              settings.externalXrefs = v;
+                              unawaited(bridgeSetXrefLayer(v));
+                            }),
                           ),
                         ),
                       ),

@@ -9,6 +9,7 @@
 /// пропускаются — фоллбэк на JSON-ассеты проверяет widget_test.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -63,6 +64,46 @@ void main() {
     expect(await doc.ensureChapter('GEN', 1), same(ch));
     // Несуществующая глава — null, без падения.
     expect(await doc.ensureChapter('GEN', 51), isNull);
+  }, skip: hasSb ? false : 'нет .sb');
+
+  test('общий слой параллельных подмешивается модулю без x-спанов', () async {
+    // ADR 0023: russyn без собственных ссылок получает openbible-xrefs.
+    final dir = Platform.environment['STUDYBIBLE_DATA']!;
+    final hasLayer =
+        File('$dir${Platform.pathSeparator}modules${Platform.pathSeparator}openbible-xrefs.sb')
+            .existsSync() ||
+        File('$dir${Platform.pathSeparator}modules${Platform.pathSeparator}openbible-xrefs.sbz')
+            .existsSync();
+    if (!hasLayer) return; // слоя нет — тест неприменим
+
+    await bridgeSetXrefLayer(true);
+    final doc = await loadModule('russyn');
+    final ch = await doc.ensureChapter('GEN', 1);
+    final xnotes = [
+      for (final b in ch!.blocks)
+        for (final s in b.spans)
+          if (s is NoteSpanDoc && s.kind == 'x') s,
+    ];
+    expect(xnotes, isNotEmpty, reason: 'слой должен дать x-спаны в Быт 1');
+    // Текст ссылок слоя — OSIS-аббревиатуры.
+    expect(xnotes.first.text, contains('John 1:1'));
+
+    // Отключено — та же глава без параллельных.
+    await bridgeSetXrefLayer(false);
+    final raw2 =
+        await bridgeChapterDoc(modulePathOf('russyn')!, 'GEN', 1);
+    expect(raw2, isNotNull);
+    final parsed = ChapterDoc.fromJson(
+      jsonDecode(raw2!) as Map<String, dynamic>,
+    );
+    expect(
+      parsed.blocks
+          .expand((b) => b.spans)
+          .whereType<NoteSpanDoc>()
+          .where((n) => n.kind == 'x'),
+      isEmpty,
+    );
+    await bridgeSetXrefLayer(true);
   }, skip: hasSb ? false : 'нет .sb');
 
   test('прогресс сохраняется и читается через UserData', () async {

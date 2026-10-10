@@ -55,7 +55,10 @@ Future<void> _initImpl() async {
 /// базовый: eng-kjv2006, KJV 1769 со Стронгом и параллельными,
 /// public domain). .sbz читается store напрямую
 /// (распаковка в ОЗУ при открытии), распаковывать не нужно.
-const _bundledModules = ['russyn', 'eng-kjv2006'];
+/// 10.10.2026 — + `openbible-xrefs`: общий слой параллельных мест
+/// (ADR 0023), сидируется так же, но это `kind="layer"`, в списках
+/// переводов не показывается.
+const _bundledModules = ['russyn', 'eng-kjv2006', 'openbible-xrefs'];
 
 /// Скопировать встроенные .sbz в каталог данных при первом запуске:
 /// пропускаем модуль, если уже есть .sb или .sbz — импортированные
@@ -186,6 +189,28 @@ Future<T?> _guard<T>(String what, Future<T?> Function() f) async {
     return null;
   }
 }
+
+/// Общий слой параллельных мест (ADR 0023): файл `openbible-xrefs`
+/// в каталоге модулей. Мост подмешивает его ссылки модулям без
+/// собственных `x`-спанов; настройка — `settings.externalXrefs`.
+Future<void> bridgeSetXrefLayer(bool enabled) =>
+    _guard('xrefLayer', () async {
+          var path = '';
+          if (enabled) {
+            final dir = _modulesDir();
+            for (final ext in ['sbz', 'sb']) {
+              final f = File(
+                '$dir${Platform.pathSeparator}openbible-xrefs.$ext',
+              );
+              if (f.existsSync()) {
+                path = f.path;
+                break;
+              }
+            }
+          }
+          await api_module.xrefLayerSet(path: path);
+        })
+        .then((_) {});
 
 /// JSON-документ модуля формата export.rs (без глав).
 Future<String?> bridgeModuleDoc(String path) =>

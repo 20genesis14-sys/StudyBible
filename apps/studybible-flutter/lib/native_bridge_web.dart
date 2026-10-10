@@ -317,6 +317,170 @@ Map<String, dynamic> _spanJson(Map<String, Object?> r) {
 String _byteSlice(String s, int start, int len) =>
     utf8.decode(utf8.encode(s).sublist(start, start + len));
 
+// ---------- блоб-упаковка (ADR 0022) ----------
+// Зеркало crates/studybible-store/src/pack.rs: LEB128-varint'ы,
+// пул строк, записи. На web читаем только span_pack (t-спаны блока).
+
+class _PackReader {
+  _PackReader(this.buf);
+  final Uint8List buf;
+  int pos = 0;
+
+  int varint() {
+    var v = 0;
+    var shift = 0;
+    for (;;) {
+      final b = buf[pos++];
+      v |= (b & 0x7f) << shift;
+      if (b & 0x80 == 0) return v;
+      shift += 7;
+    }
+  }
+
+  List<String> pool() {
+    final n = varint();
+    final out = <String>[];
+    for (var i = 0; i < n; i++) {
+      final len = varint();
+      out.add(utf8.decode(buf.sublist(pos, pos + len)));
+      pos += len;
+    }
+    return out;
+  }
+}
+
+/// Одна t-запись span_pack: seq, verse?, (start,len)?, style, attrs, text.
+class _PackedSpan {
+  int seq = 0;
+  int? verse;
+  int? start;
+  int? len;
+  String style = '';
+  String attrs = '';
+  String text = '';
+}
+
+List<_PackedSpan> _decodeSpans(Uint8List blob) {
+  final r = _PackReader(blob);
+  final pool = r.pool();
+  final n = r.varint();
+  final out = <_PackedSpan>[];
+  for (var i = 0; i < n; i++) {
+    final flags = r.buf[r.pos++];
+    final e = _PackedSpan()..seq = r.varint();
+    if (flags & 1 != 0) e.verse = r.varint();
+    if (flags & 2 != 0) {
+      e.start = r.varint();
+      e.len = r.varint();
+    }
+    e.style = pool[r.varint()];
+    e.attrs = pool[r.varint()];
+    if (flags & 4 != 0) e.text = pool[r.varint()];
+    out.add(e);
+  }
+  return out;
+}
+
+// ---------- общий слой параллельных (ADR 0023) ----------
+
+/// Настройка `settings.externalXrefs`: модули без своих `x`-спанов
+/// получают ссылки `modules/openbible-xrefs.sb`.
+bool _xrefLayerOn = true;
+
+/// Включить/выключить общий слой параллельных мест.
+Future<void> bridgeSetXrefLayer(bool enabled) async {
+  _xrefLayerOn = enabled;
+}
+
+/// Координаты слоя — eng; на web конверсии версификаций нет (в io —
+/// через Versification::convert), поэтому номера стихов применяются
+/// как есть: главы стабильны, расхождения — только редкие псалмы.
+void _injectLayerXrefs(
+  List<Map<String, dynamic>> out,
+  CommonDatabase db,
+  String book,
+  int chapter,
+) {
+  try {
+    final layer = _dbs['modules/openbible-xrefs.sb'];
+    if (layer == null) return;
+    final br = layer.select('SELECT book_id FROM books WHERE code=?', [
+      book,
+    ]);
+    if (br.isEmpty) return;
+    final lbid = br.first['book_id'];
+    final rows = layer.select(
+      "SELECT verse, text FROM spans WHERE book_id=? AND chapter=? "
+      "AND kind='x' AND verse IS NOT NULL ORDER BY seq",
+      [lbid, chapter],
+    );
+    for (final r in rows) {
+      _injectLayerNote(
+        out,
+        (r['verse'] as num).toInt(),
+        r['text'] as String,
+      );
+    }
+  } catch (_) {
+    // Слоя нет или он битый — чтение идёт без параллельных.
+  }
+}
+
+/// Слой подмешиваем только в модули без собственных `x`-спанов.
+bool _moduleHasXrefs(CommonDatabase db) {
+  try {
+    final r = db.select(
+      "SELECT EXISTS(SELECT 1 FROM spans WHERE kind='x') AS n",
+    );
+    return (r.first['n'] as num) == 1;
+  } catch (_) {
+    return true; // сомневаемся — не дублируем
+  }
+}
+
+/// x-спан слоя в конец стиха `v` потока чтения (перед маркером
+/// следующего стиха или в конец блока) — как inject_verse_note
+/// в api/module.rs.
+void _injectLayerNote(
+  List<Map<String, dynamic>> blocks,
+  int v,
+  String text,
+) {
+  for (final b in blocks) {
+    final spans = b['s'] as List;
+    var seen = false;
+    int? at;
+    for (var i = 0; i < spans.length; i++) {
+      final s = spans[i];
+      if (s is Map && s['v'] is num) {
+        if (seen && s['v'] != v) {
+          at = i;
+          break;
+        }
+        if (s['v'] == v) seen = true;
+      }
+    }
+    if (seen) {
+      spans.insert(at ?? spans.length, {
+        'n': 'x',
+        'c': '+',
+        't': text,
+        'a': 'src="layer"',
+      });
+      return;
+    }
+  }
+}
+
+/// Открыть слой параллельных, если файл есть в бандле (не обязателен).
+Future<void> _openXrefLayer() async {
+  try {
+    await _openDb('modules/openbible-xrefs.sb');
+  } catch (_) {
+    // Без слоя читаем как раньше.
+  }
+}
+
 /// Глава в формате export.rs `{"n":..,"blocks":[..]}`; null, если её нет —
 /// зеркало api/module.rs::chapter_doc и store::Module::chapter.
 ///
@@ -345,15 +509,59 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
     if (blocks.isEmpty) return null;
 
     final st = db.prepare(
-      'SELECT kind, num, verse, start, len, style, attrs, caller, text '
+      'SELECT seq, kind, num, verse, start, len, style, attrs, caller, text '
       'FROM spans WHERE book_id=? AND chapter=? AND block=? ORDER BY seq',
     );
+    // ADR 0022: у упакованных модулей t-спаны лежат в span_pack —
+    // сливаем строки и блоб по seq.
+    var hasPack = false;
+    try {
+      hasPack =
+          (db.select(
+                    "SELECT count(*) AS n FROM sqlite_master "
+                    "WHERE name='span_pack' AND type='table'",
+                  ).first['n']
+                  as num) >
+              0 &&
+          (db.select('SELECT count(*) AS n FROM span_pack').first['n']
+                  as num) >
+              0;
+    } catch (_) {}
     final out = <Map<String, dynamic>>[];
     int? cur;
     for (final b in blocks) {
       final marker = b['marker'] as String;
       final spans = <Map<String, dynamic>>[];
-      for (final r in st.select([bid, chapter, b['seq']])) {
+      // Элементы потока блока: построчные спаны + t из блоба.
+      final items = <Map<String, Object?>>[
+        for (final r in st.select([bid, chapter, b['seq']])) r,
+      ];
+      if (hasPack) {
+        final pr = db.select(
+          'SELECT blob FROM span_pack WHERE book_id=? AND chapter=? AND block=?',
+          [bid, chapter, b['seq']],
+        );
+        if (pr.isNotEmpty && pr.first['blob'] != null) {
+          for (final e in _decodeSpans(pr.first['blob'] as Uint8List)) {
+            items.add({
+              'seq': e.seq,
+              'kind': 't',
+              'num': null,
+              'verse': e.verse,
+              'start': e.start,
+              'len': e.len,
+              'style': e.style,
+              'attrs': e.attrs,
+              'caller': '',
+              'text': e.text,
+            });
+          }
+          items.sort(
+            (a, b) => (a['seq'] as num).compareTo(b['seq'] as num),
+          );
+        }
+      }
+      for (final r in items) {
         final v = (r['verse'] as num?)?.toInt();
         // Маркер границы: спан принадлежит новому ненулевому стиху.
         if (v != null && v != 0 && cur != v) {
@@ -374,6 +582,8 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
             's': r['style'],
             'a': r['attrs'],
           });
+        } else if (r['kind'] == 't' && '${r['text']}'.isNotEmpty) {
+          spans.add({'t': r['text'], 's': r['style'], 'a': r['attrs']});
         } else {
           spans.add(_spanJson(r));
         }
@@ -381,6 +591,12 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
       out.add({'k': _blockKind(marker), 'm': marker, 's': spans});
     }
     st.close();
+
+    // ADR 0023: модуль без своих x-спанов получает ссылки общего слоя.
+    if (_xrefLayerOn && !_moduleHasXrefs(db)) {
+      await _openXrefLayer();
+      _injectLayerXrefs(out, db, book, chapter);
+    }
 
     // ADR 0016: аппарат главы, если таблица есть (у старых .sb — нет).
     var variants = <Map<String, dynamic>>[];
