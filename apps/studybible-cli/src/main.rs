@@ -721,6 +721,12 @@ fn lint(m: &Module) -> Vec<String> {
             "variants" => count("variants"),
             "entries" => count("entries"),
             "marks" => count("marks"),
+            // ADR 0023: слой перекрёстных ссылок — `x`-спаны.
+            "xrefs" => conn
+                .query_row("SELECT count(*) FROM spans WHERE kind='x'", [], |r| {
+                    r.get(0)
+                })
+                .unwrap_or(0),
             "fts" => {
                 if m.has_search_index() {
                     1
