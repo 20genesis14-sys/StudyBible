@@ -1118,19 +1118,19 @@ extension _ChapterRenderer on _ReadingScreenState {
           child: SelectionArea(
             onSelectionChanged: (c) => _selectedText = c?.plainText,
             contextMenuBuilder: _selectionMenu,
-            child: _pinchZoom(
-              ListView.builder(
-                controller: _scroll,
-                padding: EdgeInsets.fromLTRB(
-                  wide ? 48 : 20,
-                  _topClear(),
-                  wide ? 48 : 20,
-                  wide ? 16 : _bottomClear(),
-                ),
-                itemCount: total,
-                itemBuilder: (_, i) => _bookChapter(i + 1, p),
+          child: _pinchZoom(
+            ListView.builder(
+              controller: _scroll,
+              padding: EdgeInsets.fromLTRB(
+                wide ? 48 : 20,
+                _topClear(),
+                wide ? 48 : 20,
+                wide ? 16 : _bottomClear(),
               ),
+              itemCount: total,
+              itemBuilder: (_, i) => _bookChapter(i + 1, p),
             ),
+          ),
           ),
         ),
       ),

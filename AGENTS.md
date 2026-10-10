@@ -38,6 +38,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 Steps: fmt, clippy (`-D warnings`), test, `cargo check` of the core for
 `wasm32-unknown-unknown`, `cargo deny check` — prerequisites and build
 variables are in `docs/ENVIRONMENT.md`.
+APK builds — only arm64-v8a (the user tests on his device):
+`flutter build apk --release --target-platform android-arm64`.
 After building an APK check the native libraries' target API:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
 (the bridge must not exceed minSdk).

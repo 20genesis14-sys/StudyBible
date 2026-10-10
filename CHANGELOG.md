@@ -4,6 +4,9 @@ All notable changes after the 1.0 release — one per line.
 
 ## 1.0.2 (unreleased)
 
+- [ ] TODO before release: replace the app icon with the final one
+      (asset to be picked by the user).
+
 - Fixed: the chapter grid briefly showed a fake "1" chapter while the
   module was still loading — now a spinner, an ellipsis in the counter
   and an indeterminate progress bar until the module doc arrives.
@@ -41,17 +44,13 @@ All notable changes after the 1.0 release — one per line.
   record (matched by `frag::find_frag` in the core, survives module
   updates); overlapping ranges are refused, records of one gesture
   share a `created` batch stamp for future list grouping.
-- Point tap on a highlighted fragment: recolor or remove just that
-  piece (check on its color, trash icon); Strong's cards now open
-  on long press — the gesture is uniform everywhere.
-- Notes on highlighted phrases: a "Note" item in the fragment menu;
-  the record keeps the same frag selector and lives independently
-  of the highlight (recoloring/removal doesn't touch it).
-- Records screen: a "Highlights" section — records of one gesture
-  (shared created/color/chapter) merge into a single line like
-  "2 Цар. 2:2–4" with a color dot and the quoted phrases; deleting
-  the row removes the whole batch. Known edge: interlinear
-  word-pair columns don't paint partial highlights yet.
+- Highlight polish: a tap on a highlighted fragment opens a
+  no-dim pill (recolor/remove just that piece, a note on the phrase
+  — it lives independently of the highlight); Strong's on long
+  press; a "Highlights" section in Records folds one gesture into
+  a line ("2 Цар. 2:2–4") and removes the whole batch at once.
+  Known edge: interlinear word-pair columns don't paint partial
+  highlights yet.
 - Footnote card redesigned: height wraps content (max 75 % of the
   screen, long notes scroll), note text at a readable 15 pt base.
 
