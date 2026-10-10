@@ -46,7 +46,7 @@ impl From<std::io::Error> for ModuleError {
     }
 }
 
-type Result<T> = std::result::Result<T, ModuleError>;
+pub(crate) type Result<T> = std::result::Result<T, ModuleError>;
 
 /// Метаданные модуля (таблица `meta`). Дополнительные ключи — в `extra`.
 #[derive(Clone, Debug, Default)]
@@ -255,6 +255,18 @@ CREATE TABLE marks(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse INT
                    seq INTEGER NOT NULL, offset_ms INTEGER NOT NULL,
                    dur_ms INTEGER, text TEXT NOT NULL DEFAULT '',
                    PRIMARY KEY(book_id, chapter, verse, seq));
+-- ADR 0022 (необязательные): блоб-упаковка. `t`-спаны блока,
+-- токены и alignment стиха — varint-массивы в одном BLOB.
+-- Построчные spans/tokens/alignment при этом остаются пустыми.
+CREATE TABLE span_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
+                       block INTEGER NOT NULL, blob BLOB NOT NULL,
+                       PRIMARY KEY(book_id, chapter, block));
+CREATE TABLE token_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
+                        verse INTEGER NOT NULL, blob BLOB NOT NULL,
+                        PRIMARY KEY(book_id, chapter, verse));
+CREATE TABLE align_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
+                        verse INTEGER NOT NULL, blob BLOB NOT NULL,
+                        PRIMARY KEY(book_id, chapter, verse));
 ";
 
 /// Слово уровня токена (таблица `tokens`, ADR 0016).
@@ -330,6 +342,8 @@ pub struct ModuleWriter {
     tokens: usize,
     /// Код книги → book_id (заполняется в `add_book`).
     book_ids: std::collections::HashMap<BookCode, i64>,
+    /// Уже выставлен `meta.required="pack"` (ADR 0022).
+    pack_marked: std::cell::Cell<bool>,
 }
 
 impl ModuleWriter {
@@ -341,6 +355,7 @@ impl ModuleWriter {
             hash: crate::hash::new(),
             tokens: 0,
             book_ids: std::collections::HashMap::new(),
+            pack_marked: std::cell::Cell::new(false),
         };
         w.conn.execute_batch("BEGIN")?;
         {
@@ -589,28 +604,95 @@ impl ModuleWriter {
             let mut ss = self.conn.prepare_cached(
                 "INSERT INTO spans VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             )?;
-            let mut ts = self
+            let mut sp = self
                 .conn
-                .prepare_cached("INSERT INTO tokens VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)")?;
-            let mut al = self
+                .prepare_cached("INSERT INTO span_pack VALUES(?1, ?2, ?3, ?4)")?;
+            let mut tp = self
                 .conn
-                .prepare_cached("INSERT INTO alignment VALUES(?1, ?2, ?3, ?4, ?5, ?6)")?;
+                .prepare_cached("INSERT INTO token_pack VALUES(?1, ?2, ?3, ?4)")?;
+            let mut ap = self
+                .conn
+                .prepare_cached("INSERT INTO align_pack VALUES(?1, ?2, ?3, ?4)")?;
             for (seq, b) in ch.blocks.iter().enumerate() {
                 bs.execute(params![book_id, ch.number, seq, b.marker])?;
             }
+            // ADR 0022: `t`-спаны уходят в блоб блока, прочие — построчно.
+            let mut packs: BTreeMap<usize, Vec<crate::pack::PackedSpan>> = BTreeMap::new();
             for r in &rows {
-                ss.execute(Self::span_row(
-                    book_id, ch.number, r.block, r.i, &r.kind, r.num, r.verse, r.start, r.len,
-                    &r.style, &r.attrs, &r.caller, &r.text,
-                ))?;
+                if r.kind == "t" {
+                    packs
+                        .entry(r.block)
+                        .or_default()
+                        .push(crate::pack::PackedSpan {
+                            seq: r.i as u16,
+                            verse: r.verse,
+                            start: r.start.map(|v| v as u32),
+                            len: r.len.map(|v| v as u32),
+                            style: r.style.clone(),
+                            attrs: r.attrs.clone(),
+                            text: r.text.clone(),
+                        });
+                } else {
+                    ss.execute(Self::span_row(
+                        book_id, ch.number, r.block, r.i, &r.kind, r.num, r.verse, r.start, r.len,
+                        &r.style, &r.attrs, &r.caller, &r.text,
+                    ))?;
+                }
             }
-            for (t, block, i) in &toks {
-                ts.execute(params![
-                    book_id, ch.number, t.verse, t.seq, t.surface, t.lemma, t.strong, t.morph,
-                    t.gloss
+            let mut wrote_pack = false;
+            for (block, entries) in packs {
+                sp.execute(params![
+                    book_id,
+                    ch.number,
+                    block,
+                    crate::pack::encode_spans(&entries)
                 ])?;
-                al.execute(params![book_id, ch.number, t.verse, t.seq, block, i])?;
+                wrote_pack = true;
+            }
+            // Токены и alignment — блобами по стиху.
+            let mut tok_by_v: BTreeMap<u16, Vec<crate::pack::PackedToken>> = BTreeMap::new();
+            let mut al_by_v: BTreeMap<u16, Vec<crate::pack::PackedAlign>> = BTreeMap::new();
+            for (t, block, i) in &toks {
+                tok_by_v
+                    .entry(t.verse)
+                    .or_default()
+                    .push(crate::pack::PackedToken {
+                        seq: t.seq,
+                        surface: t.surface.clone(),
+                        lemma: t.lemma.clone(),
+                        strong: t.strong.clone(),
+                        morph: t.morph.clone(),
+                        gloss: t.gloss.clone(),
+                    });
+                al_by_v
+                    .entry(t.verse)
+                    .or_default()
+                    .push(crate::pack::PackedAlign {
+                        token_seq: t.seq,
+                        block: *block as u16,
+                        span: *i as u16,
+                    });
                 self.tokens += 1;
+            }
+            wrote_pack |= !tok_by_v.is_empty() || !al_by_v.is_empty();
+            for (verse, entries) in tok_by_v {
+                tp.execute(params![
+                    book_id,
+                    ch.number,
+                    verse,
+                    crate::pack::encode_tokens(&entries)
+                ])?;
+            }
+            for (verse, entries) in al_by_v {
+                ap.execute(params![
+                    book_id,
+                    ch.number,
+                    verse,
+                    crate::pack::encode_align(&entries)
+                ])?;
+            }
+            if wrote_pack {
+                self.mark_packed()?;
             }
         }
         let mut vs = self
@@ -758,6 +840,33 @@ impl ModuleWriter {
         self.tokens
     }
 
+    /// Пометить модуль упакованным (ADR 0022): `meta.required` получает
+    /// `pack`, старые читатели отказывают явно.
+    fn mark_packed(&self) -> Result<()> {
+        if self.pack_marked.get() {
+            return Ok(());
+        }
+        let cur: String = self
+            .conn
+            .query_row("SELECT value FROM meta WHERE key='required'", [], |r| {
+                r.get(0)
+            })
+            .unwrap_or_default();
+        if cur.split(',').any(|s| s == "pack") {
+            self.pack_marked.set(true);
+            return Ok(());
+        }
+        let v = if cur.is_empty() {
+            "pack".to_string()
+        } else {
+            format!("{cur},pack")
+        };
+        self.conn
+            .execute("UPDATE meta SET value=?1 WHERE key='required'", params![v])?;
+        self.pack_marked.set(true);
+        Ok(())
+    }
+
     /// Дописать или заменить ключ `meta` после `create`
     /// (автоматически определённые возможности — ADR 0016).
     pub fn set_meta(&self, key: &str, value: &str) -> Result<()> {
@@ -787,6 +896,10 @@ pub struct Module {
     /// Необязательные таблицы ADR 0016, которые есть в файле.
     has_tokens: bool,
     has_alignment: bool,
+    /// ADR 0022: блоб-упаковка (при наличии строк — источник данных).
+    has_span_pack: bool,
+    has_token_pack: bool,
+    has_align_pack: bool,
     has_variants: bool,
     has_entries: bool,
     has_marks: bool,
@@ -917,7 +1030,9 @@ impl Module {
                 .collect::<rusqlite::Result<_>>()?
         };
         let meta = Meta::from_map(map)?;
-        if let Some(req) = meta.required.first() {
+        // ADR 0022: `pack` поддерживается этим читателем; прочие
+        // обязательные возможности — отказ.
+        if let Some(req) = meta.required.iter().find(|r| r.as_str() != "pack") {
             return Err(ModuleError::UnsupportedFeature(req.clone()));
         }
         // Необязательные таблицы могут отсутствовать у старых модулей.
@@ -936,6 +1051,21 @@ impl Module {
             [],
             |r| r.get::<_, i64>(0),
         )? > 0;
+        // ADR 0022: pack-таблицы могут существовать пустыми (схема их
+        // создаёт всегда) — смотрим на наличие строк.
+        let has_pack = |name: &str| -> Result<bool> {
+            if !has(name)? {
+                return Ok(false);
+            }
+            Ok(conn.query_row(
+                &format!("SELECT count(*) FROM (SELECT 1 FROM {name} LIMIT 1)"),
+                [],
+                |r| r.get::<_, i64>(0),
+            )? > 0)
+        };
+        let has_span_pack = has_pack("span_pack")?;
+        let has_token_pack = has_pack("token_pack")?;
+        let has_align_pack = has_pack("align_pack")?;
         let book_ids = {
             let mut st = conn.prepare("SELECT code, book_id FROM books")?;
             st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
@@ -946,8 +1076,11 @@ impl Module {
         };
         Ok(Self {
             path,
-            has_tokens: has("tokens")?,
-            has_alignment: has("alignment")?,
+            has_tokens: has("tokens")? || has_token_pack,
+            has_alignment: has("alignment")? || has_align_pack,
+            has_span_pack,
+            has_token_pack,
+            has_align_pack,
             has_variants: has("variants")?,
             has_entries: has("entries")?,
             has_marks: has("marks")?,
@@ -1091,9 +1224,16 @@ impl Module {
             "SELECT seq, marker FROM blocks WHERE book_id=?1 AND chapter=?2 ORDER BY seq",
         )?;
         let mut ss = self.conn.prepare(
-            "SELECT kind, num, verse, start, len, style, attrs, caller, text FROM spans
+            "SELECT seq, kind, num, verse, start, len, style, attrs, caller, text FROM spans
              WHERE book_id=?1 AND chapter=?2 AND block=?3 ORDER BY seq",
         )?;
+        let mut ps = if self.has_span_pack {
+            Some(self.conn.prepare(
+                "SELECT blob FROM span_pack WHERE book_id=?1 AND chapter=?2 AND block=?3",
+            )?)
+        } else {
+            None
+        };
         let mut ch = Chapter {
             number: chapter,
             blocks: vec![],
@@ -1110,21 +1250,61 @@ impl Module {
                 marker,
                 spans: vec![],
             };
+            // Сливаем построчные спаны (f/x/v) и распакованные `t`
+            // по позиции seq внутри блока (ADR 0022).
+            type SpanRow = (
+                u16,
+                String,
+                Option<u16>,
+                Option<u16>,
+                Option<i64>,
+                Option<i64>,
+                String,
+                String,
+                String,
+                String,
+            );
+            let mut merged: Vec<SpanRow> = Vec::new();
             let spans = ss.query_map(params![bid, chapter, seq], |r| {
                 Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, Option<u16>>(1)?,
+                    r.get::<_, u16>(0)?,
+                    r.get::<_, String>(1)?,
                     r.get::<_, Option<u16>>(2)?,
-                    r.get::<_, Option<i64>>(3)?,
+                    r.get::<_, Option<u16>>(3)?,
                     r.get::<_, Option<i64>>(4)?,
-                    r.get::<_, String>(5)?,
+                    r.get::<_, Option<i64>>(5)?,
                     r.get::<_, String>(6)?,
                     r.get::<_, String>(7)?,
                     r.get::<_, String>(8)?,
+                    r.get::<_, String>(9)?,
                 ))
             })?;
             for s in spans {
-                let (kind, num, verse, start, len, style, attrs, caller, text) = s?;
+                merged.push(s?);
+            }
+            if let Some(ps) = &mut ps {
+                let blob: Option<Vec<u8>> =
+                    ps.query_row(params![bid, chapter, seq], |r| r.get(0)).ok();
+                if let Some(blob) = blob {
+                    for e in crate::pack::decode_spans(&blob)? {
+                        merged.push((
+                            e.seq,
+                            "t".to_string(),
+                            None,
+                            e.verse,
+                            e.start.map(|v| v as i64),
+                            e.len.map(|v| v as i64),
+                            e.style,
+                            e.attrs,
+                            String::new(),
+                            e.text,
+                        ));
+                    }
+                    merged.sort_by_key(|s| s.0);
+                }
+            }
+            for s in merged {
+                let (_seq, kind, num, verse, start, len, style, attrs, caller, text) = s;
                 // Маркер границы: спан принадлежит новому ненулевому стиху.
                 if let Some(v) = verse
                     && v != 0
@@ -1173,6 +1353,31 @@ impl Module {
         let Some(bid) = self.bid(book) else {
             return Ok(vec![]);
         };
+        if self.has_token_pack {
+            let mut st = self.conn.prepare(
+                "SELECT verse, blob FROM token_pack
+                 WHERE book_id=?1 AND chapter=?2 ORDER BY verse",
+            )?;
+            let rows = st.query_map(params![bid, chapter], |r| {
+                Ok((r.get::<_, u16>(0)?, r.get::<_, Vec<u8>>(1)?))
+            })?;
+            let mut out = Vec::new();
+            for r in rows {
+                let (verse, blob) = r?;
+                for e in crate::pack::decode_tokens(&blob)? {
+                    out.push(Token {
+                        verse,
+                        seq: e.seq,
+                        surface: e.surface,
+                        lemma: e.lemma,
+                        strong: e.strong,
+                        morph: e.morph,
+                        gloss: e.gloss,
+                    });
+                }
+            }
+            return Ok(out);
+        }
         let mut st = self.conn.prepare(
             "SELECT verse, seq, surface, lemma, strong, morph, gloss
              FROM tokens WHERE book_id=?1 AND chapter=?2 ORDER BY verse, seq",
@@ -1204,6 +1409,28 @@ impl Module {
         let Some(bid) = self.bid(book) else {
             return Ok(vec![]);
         };
+        if self.has_align_pack {
+            let mut st = self.conn.prepare(
+                "SELECT verse, blob FROM align_pack
+                 WHERE book_id=?1 AND chapter=?2 ORDER BY verse",
+            )?;
+            let rows = st.query_map(params![bid, chapter], |r| {
+                Ok((r.get::<_, u16>(0)?, r.get::<_, Vec<u8>>(1)?))
+            })?;
+            let mut out = Vec::new();
+            for r in rows {
+                let (verse, blob) = r?;
+                for e in crate::pack::decode_align(&blob)? {
+                    out.push(Alignment {
+                        verse,
+                        token_seq: e.token_seq,
+                        block: e.block,
+                        span: e.span,
+                    });
+                }
+            }
+            return Ok(out);
+        }
         let mut st = self.conn.prepare(
             "SELECT verse, token_seq, block, span FROM alignment
              WHERE book_id=?1 AND chapter=?2 ORDER BY verse, token_seq",

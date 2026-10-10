@@ -85,10 +85,26 @@ fn userdata_frag() {
     };
     let frag = r#"{"exact":"жив Господь","pre":"сказал: ","post":" и жива"}"#;
     let ts = 1_700_000_000_000i64;
-    db.add_frag(Kind::Highlight, at(2), "yellow", "", frag, &Default::default(), Some(ts))
-        .unwrap();
-    db.add_frag(Kind::Highlight, at(3), "yellow", "", "", &Default::default(), Some(ts))
-        .unwrap();
+    db.add_frag(
+        Kind::Highlight,
+        at(2),
+        "yellow",
+        "",
+        frag,
+        &Default::default(),
+        Some(ts),
+    )
+    .unwrap();
+    db.add_frag(
+        Kind::Highlight,
+        at(3),
+        "yellow",
+        "",
+        "",
+        &Default::default(),
+        Some(ts),
+    )
+    .unwrap();
 
     let hl = db.entries(Kind::Highlight, None).unwrap();
     assert_eq!(hl[0].frag, frag);
