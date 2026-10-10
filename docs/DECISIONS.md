@@ -276,7 +276,10 @@ files.
   `pane`, currently keys `interleaved`, `cmp`, `cmps`; `PopScope`
   intercepts system "back" (the search field closes first, then a stack
   step, then pop); compact ‹ › — a row in the "More" sheet with the
-  stack depth.
+  stack depth. The reader AppBar back arrow goes strictly up the
+  hierarchy: chapter → the current book's chapter grid
+  (`pushReplacement` to `ChapterGridScreen(_code)`); position history
+  is served only by the system gesture and the workspace stack.
 - Contribution registry and extension engine (2026-10-12, ADR 0020):
   `ContributionRegistry` — a single point for layers/panes/actions/
   presets; our features are registered with the same descriptors future

@@ -80,6 +80,8 @@ All notable changes after the 1.0 release — one per line.
   from the foreign-records list is a stack step too, not a new screen.
 - "Records" screen: a note's "share" button copies it to the clipboard
   as "Reference — text (translation)".
+- Reader AppBar "back" goes strictly up the hierarchy: chapter → the
+  book's chapter grid. Reading-history back is the system gesture.
 - Fixed (one of the sources): cross-references were bound to markers by
   order and a wrong anchor verse number — in verses with two or more
   markers, all after the first showed an empty card or foreign links.

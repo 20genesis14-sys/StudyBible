@@ -29,7 +29,9 @@ import '../voice/voice_backend.dart' show WordMark;
 import '../workspace/contributions.dart';
 import '../workspace/reader_workspace.dart';
 import '../workspace/workspace_model.dart';
+import 'chapter_grid_screen.dart';
 import 'history_screen.dart';
+import '../routes.dart';
 import 'search_screen.dart';
 import 'verse_compare_screen.dart';
 

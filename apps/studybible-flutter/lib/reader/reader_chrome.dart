@@ -196,7 +196,13 @@ extension _ReaderChrome on _ReadingScreenState {
                   IconButton(
                     tooltip: tr('Назад', 'Back'),
                     icon: Icon(Icons.arrow_back, color: p.muted),
-                    onPressed: () => Navigator.of(context).maybePop(),
+                    // «Назад» в шапке — строго вверх по иерархии:
+                    // глава → сетка глав текущей книги (ROADMAP 1.0.2).
+                    // Историю позиций обслуживают системный жест и
+                    // стек workspace.
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      fastRoute(ChapterGridScreen(bookCode: _code)),
+                    ),
                   ),
                   Container(
                     width: 10,
