@@ -23,6 +23,10 @@ serde_json = "1.0.151"
 # Словари акцентора в ассетах сжаты gzip.
 flate2 = "1.1"
 
+[dev-dependencies]
+tempfile = "3"
+studybible-convert.workspace = true
+
 # Повторяем clippy-правило workspace (наследование нельзя сочетать
 # с локальным rust-разделом — Cargo запрещает смешивать формы).
 [lints.clippy]

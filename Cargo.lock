@@ -2015,8 +2015,10 @@ dependencies = [
  "serde",
  "serde_json",
  "studybible-accent",
+ "studybible-convert",
  "studybible-core",
  "studybible-store",
+ "tempfile",
 ]
 
 [[package]]

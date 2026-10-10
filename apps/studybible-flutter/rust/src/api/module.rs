@@ -36,6 +36,22 @@ pub struct ModuleInfo {
 static MODULES: LazyLock<Mutex<HashMap<PathBuf, Arc<Mutex<Module>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Путь к модулю-слою перекрёстных ссылок (ADR 0023); None — слой
+/// отключён настройкой или файла нет. Задаётся при старте приложения
+/// и при смене настройки `xrefLayer`.
+static XREF_LAYER: LazyLock<Mutex<Option<PathBuf>>> = LazyLock::new(|| Mutex::new(None));
+
+/// Включить/выключить общий слой параллельных мест (ADR 0023):
+/// `path` — `.sb`/`.sbz` слоя; пустая строка — слой отключён.
+pub fn xref_layer_set(path: String) {
+    let mut g = XREF_LAYER.lock().unwrap_or_else(|e| e.into_inner());
+    *g = (!path.is_empty()).then_some(PathBuf::from(path));
+}
+
+fn xref_layer_path() -> Option<PathBuf> {
+    XREF_LAYER.lock().ok()?.clone()
+}
+
 /// Модуль из кэша соединений; при первом обращении — обычное открытие.
 /// Блокировка модуля сериализует запросы к нему (запросы короткие).
 fn open_cached(path: &Path) -> Result<Arc<Mutex<Module>>> {
@@ -108,6 +124,11 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
         }
         if let Ok(m) = open_any(&path) {
             let meta = m.meta();
+            // ADR 0023: модули-слои (параллельные и т. п.) — не переводы,
+            // в списках выбора не показываются.
+            if meta.kind == "layer" {
+                continue;
+            }
             out.push(ModuleInfo {
                 id: meta.id.clone(),
                 title: meta.title.clone(),
@@ -191,9 +212,19 @@ pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Opt
     let m = lock_module(&m)?;
     let code = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
     let number = u16::try_from(chapter).map_err(|_| anyhow!("глава {chapter}"))?;
-    let Some(ch) = m.chapter(code, number)? else {
+    let Some(mut ch) = m.chapter(code, number)? else {
         return Ok(None);
     };
+    // ADR 0023: у модуля без своих `x`-спанов подмешиваем ссылки общего
+    // слоя — как виртуальные Note{x} в конце стихов. Ошибки слоя
+    // (нет файла, битый) не должны ломать чтение.
+    if !m.has_xrefs()
+        && let Some(lp) = xref_layer_path()
+        && let Ok(layer) = open_cached(&lp)
+    {
+        let layer = lock_module(&layer)?;
+        let _ = inject_layer_xrefs(&mut ch, &layer, code, number, &m.meta().versification);
+    }
     let blocks: Vec<Value> = ch.blocks.iter().map(block_json).collect();
     // ADR 0016: критический аппарат главы, если таблица есть.
     let variants: Vec<Value> = m
@@ -215,6 +246,74 @@ pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Opt
     Ok(Some(
         json!({"n": ch.number, "blocks": blocks, "variants": variants}).to_string(),
     ))
+}
+
+/// Подмешать `x`-ссылки слоя в главу модуля без своих параллельных
+/// (ADR 0023): координаты слоя — `eng`, конвертируем в версификацию
+/// модуля; вставка — спан `Note{x, caller='+'}` в конец стиха.
+fn inject_layer_xrefs(
+    ch: &mut studybible_core::text::Chapter,
+    layer: &Module,
+    book: BookCode,
+    chapter: u16,
+    to_vrs: &str,
+) -> Result<()> {
+    let rows = layer.xrefs(book, chapter)?;
+    if rows.is_empty() {
+        return Ok(());
+    }
+    let Some(eng) = Versification::builtin("eng") else {
+        return Ok(());
+    };
+    let Some(dst) = Versification::builtin(to_vrs) else {
+        return Ok(());
+    };
+    // Ссылки по стиху версификации модуля.
+    let mut by_verse: BTreeMap<u16, Vec<String>> = BTreeMap::new();
+    for (v, text) in rows {
+        for mk in eng.convert(dst, VerseKey::new(book, chapter, v)) {
+            if mk.book == book && mk.chapter == chapter {
+                by_verse.entry(mk.verse).or_default().push(text.clone());
+            }
+        }
+    }
+    for (v, texts) in by_verse {
+        inject_verse_note(ch, v, &texts.join("; "));
+    }
+    Ok(())
+}
+
+/// Вставить `x`-спан в конец стиха `v`: перед первым маркером
+/// следующего стиха внутри блока либо в конец этого блока.
+fn inject_verse_note(ch: &mut studybible_core::text::Chapter, v: u16, text: &str) {
+    for b in &mut ch.blocks {
+        let mut seen = false;
+        let mut at = None;
+        for (i, s) in b.spans.iter().enumerate() {
+            if let Span::Verse(n) = s {
+                if seen && *n != v {
+                    at = Some(i);
+                    break;
+                }
+                if *n == v {
+                    seen = true;
+                }
+            }
+        }
+        if seen {
+            let i = at.unwrap_or(b.spans.len());
+            b.spans.insert(
+                i,
+                Span::Note {
+                    kind: 'x',
+                    caller: "+".into(),
+                    text: text.into(),
+                    attrs: "src=\"layer\"".into(),
+                },
+            );
+            return;
+        }
+    }
 }
 
 // --- сериализация потока чтения (зеркало export.rs) ---
@@ -385,4 +484,90 @@ pub async fn module_search(
             snippet: h.snippet.clone(),
         })
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use studybible_core::book::{BookCatalog, BookOrder, NameProfile};
+    use studybible_store::{Meta, ModuleWriter};
+
+    /// Слой ADR 0023: GEN 1:1, 1:2 (координаты eng).
+    fn layer(dir: &Path) -> PathBuf {
+        let p = dir.join("layer.sb");
+        let mut w = ModuleWriter::create(
+            &p,
+            &Meta {
+                id: "openbible-xrefs".into(),
+                versification: "eng".into(),
+                kind: "layer".into(),
+                ..Meta::default()
+            },
+        )
+        .unwrap();
+        for b in BookCatalog::builtin().ordered(BookOrder::List) {
+            w.add_book(
+                b.code,
+                b.order(BookOrder::List).unwrap(),
+                b.name(NameProfile::English),
+                &Default::default(),
+            )
+            .unwrap();
+        }
+        let gen_ = BookCode::new("GEN").unwrap();
+        w.add_xref(gen_, 1, 1, 0, "Ps 33:6; John 1:1").unwrap();
+        w.add_xref(gen_, 1, 2, 1, "2Cor 4:6").unwrap();
+        w.finish().unwrap();
+        p
+    }
+
+    fn chapter(src: &str) -> studybible_core::text::Chapter {
+        studybible_convert::usfm::parse(src).unwrap().chapters[0].clone()
+    }
+
+    #[test]
+    fn layer_notes_land_at_verse_ends() {
+        let dir = tempfile::tempdir().unwrap();
+        let layer = Module::open(&layer(dir.path())).unwrap();
+        let mut ch = chapter("\\id GEN\n\\c 1\n\\p\n\\v 1 Первый.\n\\v 2 Второй.\n\\v 3 Третий.\n");
+        inject_layer_xrefs(&mut ch, &layer, BookCode::new("GEN").unwrap(), 1, "rsc").unwrap();
+        let spans = &ch.blocks[0].spans;
+        // x-спан стиха 1 — перед маркером стиха 2, стиха 2 — перед 3.
+        let v2 = spans
+            .iter()
+            .position(|s| matches!(s, Span::Verse(2)))
+            .unwrap();
+        assert!(matches!(spans[v2 - 1], Span::Note { kind: 'x', .. }));
+        if let Span::Note { text, attrs, .. } = &spans[v2 - 1] {
+            assert_eq!(text, "Ps 33:6; John 1:1");
+            assert_eq!(attrs, "src=\"layer\"");
+        }
+        let v3 = spans
+            .iter()
+            .position(|s| matches!(s, Span::Verse(3)))
+            .unwrap();
+        assert!(matches!(spans[v3 - 1], Span::Note { kind: 'x', .. }));
+        // Стих 3 без ссылки — ничего не добавлено.
+        assert!(!matches!(spans.last(), Some(Span::Note { .. })));
+    }
+
+    #[test]
+    fn layer_miss_leaves_chapter_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let layer = Module::open(&layer(dir.path())).unwrap();
+        // Глава без ссылок в слое.
+        let mut ch = chapter("\\id GEN\n\\c 2\n\\p\n\\v 1 Раз.\n");
+        inject_layer_xrefs(&mut ch, &layer, BookCode::new("GEN").unwrap(), 2, "rsc").unwrap();
+        assert_eq!(ch.blocks[0].spans.len(), 2); // Verse + Text
+    }
+
+    #[test]
+    fn layer_skips_verses_absent_in_module() {
+        let dir = tempfile::tempdir().unwrap();
+        let layer = Module::open(&layer(dir.path())).unwrap();
+        // Ссылки на стихи, которых в этой главе нет, не вставляются.
+        let mut ch = chapter("\\id GEN\n\\c 1\n\\p\n\\v 3 Только третий.\n");
+        inject_layer_xrefs(&mut ch, &layer, BookCode::new("GEN").unwrap(), 1, "rsc").unwrap();
+        assert_eq!(ch.blocks[0].spans.len(), 2);
+    }
 }
