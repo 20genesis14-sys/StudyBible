@@ -59,10 +59,10 @@ platforms — the base `russyn` + `eng-kjv2006`
 (`web/modules/*.sb` + index.json; `kBundledModules` =
 ['russyn', 'eng-kjv2006']). Other modules on web are placed manually on the hosting
 (file + an index.json entry) — there is no UI import on web (the
-`import_module_stub` stub). Deviation from the "`.sbz` everywhere" rule:
-on web the module is `.sb`: the web bridge reads sqlite via sqlite3.wasm
-without the zstd path; compression for the network — `.sb.gz`
-(DecompressionStream, optional).
+`import_module_stub` stub). Deviation from the "`.sbz` everywhere" rule
+removed (2026-10-10): the web bridge reads `.sbz` via the vendored
+wasm zstd decoder (`web/zstd/`, @bokuweb/zstd-wasm 0.0.27); `.sb.gz`/`.sb`
+remain as fallbacks for hosts that still serve uncompressed modules.
 Reader performance (2026-10-08): a chapter renders as a lazy list
 (`ListView.builder` over lines/blocks) — before that the whole chapter
 lived in one `Column` (~20k render objects on Ps 119 in study mode,
@@ -211,12 +211,14 @@ files.
   pronunciation — from the Russian entry; derivation, points and KJV —
   from the English one); without the file the English one works. The
   local web build reads the same file from dicts/strongs_ru.json.
-- Web module serving: we deploy `modules/*.sb.gz` (gzip -9, ~60 %
-  lighter — 313→123 MB) plus an index.json with the list;
-  `native_bridge_web` on module open first downloads `<path>.gz` and
-  decompresses with the browser's DecompressionStream, on 404 — the raw
-  .sb (local development does not break). Reason: transferring a large
-  catalog to the hosting flakes out.
+- Web module serving: we deploy `modules/*.sbz` (zstd — the same
+  container as native platforms, one artifact for all) plus an
+  index.json with the list; `native_bridge_web` on module open first
+  downloads `<path>z` and decompresses with the wasm zstd decoder
+  (vendored `web/zstd/`), on miss — `<path>.gz` via DecompressionStream,
+  then the raw .sb (local development does not break). Reason:
+  transferring a large catalog to the hosting flakes out, and a single
+  `.sbz` per module replaces the `.sb`+`.sb.gz` pair.
 - Non-canonical module books: the book grid shows module books outside
   the 66-book catalog in a separate "NON-CANONICAL BOOKS" section (the
   BookGroup.other group, gray); book-to-book navigation on the reading
@@ -561,6 +563,14 @@ Reading `.sbz` (2026-10-11): the app and CLI open a compressed module
 via `sqlite3_deserialize` — the whole database in memory, read-only,
 no unpacked copy on disk (old `*.unpacked.sb` caches are cleaned).
 `.sb` is read as a file as before.
+Reading `.sbz` on web (2026-10-10): the web bridge unpacks `.sbz` in
+the browser via `@bokuweb/zstd-wasm` vendored in `web/zstd/`
+(emscripten build, `zstd.wasm` ≈ 246 KB + ESM glue ≈ 15 KB; license
+MIT — the vendored copy is shipped as is). `index.html` loads the shim
+`zstd/sbz.js` which exposes `window.sbZstdDecompress`; the Dart side
+calls it through dart:js_interop. If the decoder is absent or fails,
+the bridge falls back to `.sb.gz`/`.sb` — deployment is not blocked by
+the wasm asset.
 Compact module schema (2026-10-12, ADR 0016 item 15 — the last change
 of existing fields before the v1 freeze): books are addressed by
 `book_id INTEGER`, not a text code; verse text is stored once — the

@@ -31,9 +31,10 @@ import 'search_norm.dart' show normForIndex, normSearchQuery, normVersion;
 /// eng-kjv2006 (KJV со Стронгом, public domain), как на остальных
 /// платформах; прочие модули — ручной подкладкой на хостинге
 /// (файл в web/modules/ + запись в index.json; импорта из UI
-/// на web нет — import_module_stub). Формат на web — .sb
-/// (sqlite3.wasm читает сырой sqlite; .sbz требует zstd-пути,
-/// которого в веб-мосту нет — отклонение зафиксировано в DECISIONS).
+/// на web нет — import_module_stub). Формат на web — `.sbz`, как на
+/// нативных платформах: zstd-кадр распаковывает вендорный
+/// wasm-декодер (`web/zstd/`, шим `window.sbZstdDecompress`); при его
+/// отсутствии/ошибке — фоллбэк на `.sb.gz`/`.sb` (DECISIONS).
 const kBundledModules = ['russyn', 'eng-kjv2006'];
 
 /// Каталог данных — в браузере файловой системы нет.
@@ -48,6 +49,11 @@ final Map<String, CommonDatabase> _dbs = {};
 /// регистрируется не в том (sqlite: «no such vfs»).
 Future<void>? _wasmInit;
 
+/// Глобал из `web/zstd/sbz.js`: zstd-кадр → распакованные байты.
+/// Отсутствует, если wasm-декодер не загрузился — тогда фоллбэк.
+@JS('sbZstdDecompress')
+external JSAny? get _sbZstdDecompress;
+
 Future<void> _ensureWasm() => _wasmInit ??= () async {
   _sqlite = await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.wasm'));
   final fs = InMemoryFileSystem();
@@ -61,12 +67,41 @@ Future<CommonDatabase> _openDb(String path) async {
 
   await _ensureWasm();
 
-  // На хостинге модули лежат сжатыми (modules/*.sb.gz): передача всего
-  // сайта иначе упирается в лимит деплоя. Сначала пробуем .gz и
-  // распаковываем браузерным DecompressionStream; без него — сырой .sb.
+  // На хостинге модули лежат как `modules/*.sbz` — тот же контейнер,
+  // что на нативных платформах; zstd-кадр распаковывает wasm-декодер
+  // из web/zstd/ (шим в index.html). Дальше — старые фоллбэки:
+  // `<path>.gz` через браузерный DecompressionStream и сырой .sb.
   // SPA-сервер отдаёт index.html с кодом 200 на любой путь, поэтому
   // решаем по магическим байтам, а не по статусу.
   Uint8List? bytes;
+  try {
+    final respZ = await web.window.fetch('${path}z'.toJS).toDart;
+    if (respZ.status == 200) {
+      final sbz = (await respZ.arrayBuffer().toDart).toDart.asUint8List();
+      // Заголовок SBZ1 + байт кодека (0 = zstd), дальше — кадр zstd.
+      if (sbz.length > 5 &&
+          sbz[0] == 0x53 &&
+          sbz[1] == 0x42 &&
+          sbz[2] == 0x5a &&
+          sbz[3] == 0x31 &&
+          sbz[4] == 0) {
+        final fn = _sbZstdDecompress;
+        if (fn != null && fn.isA<JSFunction>()) {
+          final out = (fn as JSFunction).callAsFunction(
+            null,
+            Uint8List.fromList(sbz.sublist(5)).toJS,
+          );
+          if (out.isA<JSPromise>()) {
+            bytes = ((await (out as JSPromise).toDart) as JSUint8Array)
+                .toDart;
+          }
+        }
+      }
+    }
+  } catch (_) {
+    // Декодер не загрузился или кадр битый — уходим на .gz/.sb.
+    bytes = null;
+  }
   final respGz = await web.window.fetch('$path.gz'.toJS).toDart;
   if (respGz.status == 200 && respGz.body != null) {
     final gz = (await respGz.arrayBuffer().toDart).toDart.asUint8List();

@@ -18,6 +18,10 @@ All notable changes after the 1.0 release — one per line.
 - Module format: blob-packed `t` spans, tokens and alignment
   (ADR 0022, `meta.required="pack"`) — markup-heavy `.sb` modules get
   much smaller; old modules keep working, packed ones need the new app.
+- Web reads `.sbz` directly: a vendored wasm zstd decoder
+  (`web/zstd/`, @bokuweb/zstd-wasm, MIT) unpacks the same container as
+  native platforms — one artifact per module, no `.sb`/`.sb.gz` pair;
+  gzip/raw fallbacks kept for older deployments.
 
 - Fixed: the chapter grid briefly showed a fake "1" chapter while the
   module was still loading — now a spinner, an ellipsis in the counter

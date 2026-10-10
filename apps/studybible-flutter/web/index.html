@@ -41,6 +41,9 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <!-- zstd-декодер для .sbz-модулей: шим выставляет window.sbZstdDecompress;
+       при отсутствии каталога zstd/ мост фоллбечит на .sb.gz/.sb -->
+  <script type="module" src="zstd/sbz.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
