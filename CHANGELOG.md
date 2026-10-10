@@ -9,6 +9,9 @@ All notable changes after the 1.0 release — one per line.
 - Second bundled translation: King James Version (1769, eBible.org)
   with Strong's, cross-references and footnotes — seeded on first
   launch like the Synodal.
+- Module format: blob-packed `t` spans, tokens and alignment
+  (ADR 0022, `meta.required="pack"`) — markup-heavy `.sb` modules get
+  much smaller; old modules keep working, packed ones need the new app.
 
 - Fixed: the chapter grid briefly showed a fake "1" chapter while the
   module was still loading — now a spinner, an ellipsis in the counter

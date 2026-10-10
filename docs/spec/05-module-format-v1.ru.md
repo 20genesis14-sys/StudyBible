@@ -77,7 +77,8 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   схемы; `DQS` выключен.
 - Проверки: `application_id`, наличие всех таблиц, ожидаемые столбцы (подготовка
   `SELECT … LIMIT 0`), `format_version`, непустой `id`. Любая обязательная возможность
-  из `required` — отказ (`UnsupportedFeature`), т. к. поддерживаемых пока нет.
+  из `required` — отказ (`UnsupportedFeature`); наш читатель
+  поддерживает `pack` (ADR 0022).
 
 ## Запись (`ModuleWriter`)
 
@@ -223,7 +224,7 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   `fts`, `marks`) включают слои UI. Значения с префиксом `x-` —
   экспериментальные и игнорируются; прочие неизвестные — тоже.
   Флаг без данных — слой не показывается (мягко).
-- **С-10.** `meta.required` — любое значение = `UnsupportedFeature`,
+- **С-10.** `meta.required` — неподдерживаемое значение = `UnsupportedFeature`,
   читатель обязан отказать. Поддерживаемых значений в v1 нет.
 - **С-11.** `meta.rights` — поведенческое обязательство приложения:
   `no-distribute` — не экспортировать/раздавать; `no-net` — не
@@ -269,3 +270,25 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   законны при любом `kind`: `kind` описывает основной контракт, но не
   запрещает расширений. Библия со встроенным лексиконом —
   `kind=bible` + `features=entries`.
+
+## Упакованное хранение (ADR 0022)
+
+Модуль может хранить `t`-спаны, `tokens` и `alignment` varint-упакованными
+блобами вместо строк; такой модуль обязан объявить `required="pack"`.
+
+- `span_pack(book_id, chapter, block, blob, PRIMARY KEY(book_id,chapter,block))`
+  — `t`-спаны блока в порядке `seq`. Запись: байт флагов
+  (бит0 `verse`, бит1 `start`+`len`, бит2 `text`), затем varint'ы:
+  `seq`, при наличии `verse`, `start`,`len`, индексы `style`,
+  `attrs`, при наличии `text` — в пул строк блоба.
+- `token_pack(book_id, chapter, verse, blob, PRIMARY KEY(book_id,chapter,verse))`
+  — запись: varint `seq` + индексы `surface`, `lemma`, `strong`,
+  `morph`, `gloss` в пуле.
+- `align_pack(book_id, chapter, verse, blob, PRIMARY KEY(book_id,chapter,verse))`
+  — запись: varint'ы `token_seq`, `block`, `span`.
+
+Устройство блоба: varint-число строк пула, затем каждая строка с
+длиной в UTF-8; varint-число записей; затем записи. Читатель сливает
+записи `span_pack` со строками `spans` (`f`/`x`/`v`) по `seq` внутри
+блока. Построчные таблицы сохраняют схему (создаются пустыми);
+`verses`, `entries`, `variants`, `marks` не упаковываются никогда.

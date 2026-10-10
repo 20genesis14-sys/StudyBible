@@ -86,8 +86,9 @@ and do not break reading.
   protection from a malicious schema; `DQS` off.
 - Checks: `application_id`, presence of all tables, expected columns
   (`SELECT … LIMIT 0` preparation), `format_version`, non-empty `id`.
-  Any mandatory capability in `required` — refusal
-  (`UnsupportedFeature`), since none are supported yet.
+  Any mandatory capability in `required` that the reader does not
+  implement — refusal (`UnsupportedFeature`); this implementation
+  supports `pack` (ADR 0022).
 
 ## Writing (`ModuleWriter`)
 
@@ -245,7 +246,7 @@ existing fields must not change even if the column type stays the same.
   `fts`, `marks`) enable UI layers. `x-`-prefixed values are
   experimental and ignored; other unknowns — likewise. A flag without
   data — the layer is not shown (soft).
-- **C-10.** `meta.required` — any value = `UnsupportedFeature`, the
+- **C-10.** `meta.required` — an unsupported value = `UnsupportedFeature`, the
   reader must refuse. No supported values in v1.
 - **C-11.** `meta.rights` — a behavioral commitment of the app:
   `no-distribute` — do not export/redistribute; `no-net` — do not serve
@@ -292,3 +293,25 @@ existing fields must not change even if the column type stays the same.
   legal with any `kind`: `kind` describes the main contract but does
   not forbid extensions. A Bible with a built-in lexicon is
   `kind=bible` + `features=entries`.
+
+## Packed storage (ADR 0022)
+
+A module may store `t` spans, `tokens` and `alignment` as varint-packed
+blobs instead of rows; such a module MUST declare `required="pack"`.
+
+- `span_pack(book_id, chapter, block, blob, PRIMARY KEY(book_id,chapter,block))`
+  — the block's `t` spans in `seq` order. Entry: flag byte
+  (bit0 `verse`, bit1 `start`+`len`, bit2 `text`), then varints:
+  `seq`, optional `verse`, optional `start`,`len`, `style` index,
+  `attrs` index, optional `text` index — into the blob's string pool.
+- `token_pack(book_id, chapter, verse, blob, PRIMARY KEY(book_id,chapter,verse))`
+  — per entry: `seq` varint + pool indices `surface`, `lemma`,
+  `strong`, `morph`, `gloss`.
+- `align_pack(book_id, chapter, verse, blob, PRIMARY KEY(book_id,chapter,verse))`
+  — per entry: varints `token_seq`, `block`, `span`.
+
+Blob layout: LEB128 varint string count, then each string as
+length-prefixed UTF-8; varint entry count; then entries. A reader
+merges `span_pack` entries with `spans` rows (`f`/`x`/`v`) by `seq`
+inside each block. The row tables keep their schema (created empty);
+`verses`, `entries`, `variants`, `marks` are never packed.

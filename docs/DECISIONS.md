@@ -605,6 +605,17 @@ different `format_version`, its own storage); the v1 freeze does not
 bind it. v1 support in app ≥1.5/2.0 — a separate decision (keep or
 drop); a v1→v2 migrator is trivial since the v1 semantics are
 documented (C-1…C-20).
+Packed storage inside v1 (2026-10-10, ADR 0022): `t` spans, `tokens`
+and `alignment` may be stored as varint-packed blobs in `span_pack`
+(per block), `token_pack` and `align_pack` (per verse) instead of
+rows. The file stays SQLite with `format_version="1"`, but because the
+data physically leaves `spans`/`tokens`, packing is declared as the
+mandatory capability `meta.required="pack"` — old readers refuse
+explicitly. All other tables (`f`/`x`/`v` spans, `verses`, `entries`,
+`variants`, `marks`) stay row-based. Motivation: per-row overhead on
+~1.4 M tiny rows costs tens of MB (KJV `.sb` is 88 MB from a 13 MB
+source); saving for eng-kjv2006 is ~35–40 MB raw. `content_hash` is
+computed from the logical reading stream and is unaffected by packing.
 
 ## Converter
 A library (crate) plus a shell; used as a library on mobile. No GPL in
