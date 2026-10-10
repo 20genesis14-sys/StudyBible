@@ -792,6 +792,26 @@ impl ModuleWriter {
         Ok(())
     }
 
+    /// Перекрёстная ссылка слоя (ADR 0023): строка `spans` kind='x'
+    /// вне блоков (`block=0`), `verse` — стих привязки. У слоя нет
+    /// глав и текста — ссылки адресуются напрямую.
+    pub fn add_xref(
+        &self,
+        book: BookCode,
+        chapter: u16,
+        verse: u16,
+        seq: u16,
+        text: &str,
+    ) -> Result<()> {
+        let book_id = self.book_id(book)?;
+        self.conn.execute(
+            "INSERT INTO spans (book_id,chapter,block,seq,kind,num,verse,start,len,style,attrs,caller,text) \
+             VALUES(?1,?2,0,?3,'x',NULL,?4,NULL,NULL,'','','+',?5)",
+            params![book_id, chapter, seq, verse, text],
+        )?;
+        Ok(())
+    }
+
     /// Встроить поисковый индекс FTS5 в модуль (таблица `fts`,
     /// ADR 0016 п. 11). Та же схема и нормализация, что у кэш-индекса
     /// `SearchIndex`; читатель без `fts` строит кэш как раньше.
@@ -900,6 +920,8 @@ pub struct Module {
     has_span_pack: bool,
     has_token_pack: bool,
     has_align_pack: bool,
+    /// Есть ли у модуля собственные `x`-спаны (ADR 0023).
+    has_xrefs: bool,
     has_variants: bool,
     has_entries: bool,
     has_marks: bool,
@@ -1066,6 +1088,13 @@ impl Module {
         let has_span_pack = has_pack("span_pack")?;
         let has_token_pack = has_pack("token_pack")?;
         let has_align_pack = has_pack("align_pack")?;
+        // ADR 0023: собственные перекрёстные ссылки — в любом виде
+        // (x-спаны всегда построчные, pack их не трогает).
+        let has_xrefs = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM spans WHERE kind='x')",
+            [],
+            |r| r.get(0),
+        )?;
         let book_ids = {
             let mut st = conn.prepare("SELECT code, book_id FROM books")?;
             st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
@@ -1081,6 +1110,7 @@ impl Module {
             has_span_pack,
             has_token_pack,
             has_align_pack,
+            has_xrefs,
             has_variants: has("variants")?,
             has_entries: has("entries")?,
             has_marks: has("marks")?,
@@ -1146,6 +1176,30 @@ impl Module {
     }
 
     /// Книги в порядке модуля: код и заголовок.
+    /// Есть ли в модуле собственные `x`-спаны. Если нет — мост может
+    /// подмешать ссылки общего слоя (ADR 0023).
+    pub fn has_xrefs(&self) -> bool {
+        self.has_xrefs
+    }
+
+    /// Перекрёстные ссылки главы как (стих, текст): строки `spans`
+    /// kind='x' с заданным `verse`. Используется и модулем-слоем
+    /// (`block=0`), и для чтения чужих x-строк вне потока.
+    pub fn xrefs(&self, book: BookCode, chapter: u16) -> Result<Vec<(u16, String)>> {
+        let Some(bid) = self.bid(book) else {
+            return Ok(vec![]);
+        };
+        let mut st = self.conn.prepare(
+            "SELECT verse, text FROM spans
+             WHERE book_id=?1 AND chapter=?2 AND kind='x' AND verse IS NOT NULL
+             ORDER BY block, seq",
+        )?;
+        let rows = st.query_map(params![bid, chapter], |r| {
+            Ok((r.get::<_, u16>(0)?, r.get::<_, String>(1)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn books(&self) -> Result<Vec<(BookCode, String)>> {
         let mut st = self
             .conn
