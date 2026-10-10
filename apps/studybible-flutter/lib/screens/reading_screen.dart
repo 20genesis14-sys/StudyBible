@@ -148,6 +148,11 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// для покраски кусков `_hlFrags` (как _ttsRaw для пословной).
   int _hlRaw = 0;
 
+  /// Стих под pointer-down в начале выделения — основная привязка
+  /// для внутристишовых кусков без маркеров « N » (Listener на
+  /// SelectionArea, `_verseAtPoint` по ключам _blockKeys).
+  int? _selAnchorVerse;
+
   /// Закладки и теги стихов главы: verse -> запись.
   final Map<int, UserEntry> _verseMarks = {};
   final Map<int, UserEntry> _tagEntries = {};

@@ -504,9 +504,32 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   // ---------- выделение текста с привязкой к стихам ----------
 
+  /// Стих, чей маркер ближе всего к точке pointer-down — в порядке
+  /// чтения (выше строки или в той же строке левее). Маркер стиха —
+  /// невидимый виджет на позиции номера (ключи _blockKeys).
+  int? _verseAtPoint(Offset p) {
+    int? best;
+    Offset? bestPos;
+    for (final e in _blockKeys.entries) {
+      final ro = e.value.currentContext?.findRenderObject();
+      if (ro is! RenderBox || !ro.attached) continue;
+      final o = ro.localToGlobal(Offset.zero);
+      final before =
+          o.dy < p.dy - 6 || ((o.dy - p.dy).abs() <= 6 && o.dx <= p.dx + 2);
+      if (!before) continue;
+      if (best == null ||
+          o.dy > bestPos!.dy + 6 ||
+          ((o.dy - bestPos.dy).abs() <= 6 && o.dx > bestPos.dx)) {
+        best = e.key;
+        bestPos = o;
+      }
+    }
+    return best;
+  }
+
   /// Стих, содержащий выделенный текст: запасная привязка, когда
-  /// в выделении нет маркеров номеров (кусок внутри одного стиха).
-  /// Приоритет — стиху под последним тапом.
+  /// в выделении нет маркеров номеров и нет позиции указателя.
+  /// Неоднозначно для повторяющихся слов — поэтому только fallback.
   int? _verseContaining(String t) {
     final q = t.trim();
     if (q.isEmpty) return null;
@@ -525,8 +548,7 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// (идут в тексте как « N »); если номеров нет — стих находим
   /// по содержимому ([_verseContaining]), иначе под тапом.
   /// `null` — выделения нет или привязать не удалось.
-  ({int lo, int hi})? _selRange() {
-    final t = _selectedText;
+  ({int lo, int hi})? _selRange(String? t) {
     if (t == null || t.isEmpty) return null;
     final maxV = _module?.verseCount(_code, _ch) ?? 0;
     final padded = ' $t ';
@@ -541,6 +563,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     }..removeWhere((v) => v < 1 || v > maxV);
     if (verses.isEmpty) {
       final v =
+          _selAnchorVerse ??
           _verseContaining(t) ??
           (_selectedVerse ?? 1).clamp(1, maxV == 0 ? 1 : maxV);
       return (lo: v, hi: v);
@@ -551,14 +574,13 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// Куски выделения по стихам: выделенный текст режется по
   /// маркерам « N »; головной кусок (до первого маркера) — хвост
   /// стиха lo. verse -> выделенная часть текста этого стиха.
-  Map<int, String> _selChunks() {
-    final t = _selectedText;
-    final r = _selRange();
+  Map<int, String> _selChunks(String? t) {
+    final r = _selRange(t);
     if (t == null || r == null) return const {};
     final padded = ' $t ';
     final matches = RegExp(r' (\d{1,3}) ').allMatches(padded).toList();
     if (matches.isEmpty) {
-      final v = _verseContaining(t) ?? r.lo;
+      final v = _selAnchorVerse ?? _verseContaining(t) ?? r.lo;
       return {v: t};
     }
     final out = <int, String>{};
@@ -579,13 +601,16 @@ extension _ChapterRenderer on _ReadingScreenState {
 
   /// Дополнительные пункты контекстного меню выделения.
   List<ContextMenuButtonItem> _selectionMenuItems() {
-    final r = _selRange();
+    // Текст выделения фиксируем при показе меню: после hideToolbar/
+    // диалога палитры selection снимается и _selectedText = null.
+    final t = _selectedText;
+    final r = _selRange(t);
     if (r == null) return const [];
     return [
       ContextMenuButtonItem(
         label: tr('Выделить', 'Highlight'),
         onPressed: () => _pickHighlightColor().then((c) {
-          if (c != null && c != 'remove') _highlightRange(r.lo, r.hi, c);
+          if (c != null && c != 'remove') _highlightRange(t, c);
         }),
       ),
       ContextMenuButtonItem(
@@ -669,7 +694,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     }
 
     final ours = _selectionMenuItems();
-    final range = _selRange();
+    final range = _selRange(_selectedText);
     final stock = state.contextMenuButtonItems;
     final copy = stock.where((i) => i.type == ContextMenuButtonType.copy);
     final rest = stock.where((i) => i.type != ContextMenuButtonType.copy);
@@ -797,12 +822,11 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// Пересечение с существующими выделениями блокирует действие —
   /// занятое место можно только снять. Записям пачки проставляется
   /// общий `created`, чтобы история склеивала их в одно действие.
-  Future<void> _highlightRange(
-    int lo,
-    int hi, [
-    String color = 'yellow',
-  ]) async {
-    final chunks = _selChunks();
+  Future<void> _highlightRange(String? selText, String color) async {
+    final r = _selRange(selText);
+    if (r == null) return;
+    final lo = r.lo, hi = r.hi;
+    final chunks = _selChunks(selText);
     final plan = <({int v, String frag})>[];
     var missed = false;
     for (var v = lo; v <= hi; v++) {
@@ -1085,20 +1109,27 @@ extension _ChapterRenderer on _ReadingScreenState {
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxW),
-        child: SelectionArea(
-          onSelectionChanged: (c) => _selectedText = c?.plainText,
-          contextMenuBuilder: _selectionMenu,
-          child: _pinchZoom(
-            ListView.builder(
-              controller: _scroll,
-              padding: EdgeInsets.fromLTRB(
-                wide ? 48 : 20,
-                _topClear(),
-                wide ? 48 : 20,
-                wide ? 16 : _bottomClear(),
+        child: Listener(
+          // Стих под pointer-down в начале выделения — привязка
+          // внутристишовых кусков (выделение без маркеров « N »).
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (e) =>
+              _selAnchorVerse = _verseAtPoint(e.position) ?? _selAnchorVerse,
+          child: SelectionArea(
+            onSelectionChanged: (c) => _selectedText = c?.plainText,
+            contextMenuBuilder: _selectionMenu,
+            child: _pinchZoom(
+              ListView.builder(
+                controller: _scroll,
+                padding: EdgeInsets.fromLTRB(
+                  wide ? 48 : 20,
+                  _topClear(),
+                  wide ? 48 : 20,
+                  wide ? 16 : _bottomClear(),
+                ),
+                itemCount: total,
+                itemBuilder: (_, i) => _bookChapter(i + 1, p),
               ),
-              itemCount: total,
-              itemBuilder: (_, i) => _bookChapter(i + 1, p),
             ),
           ),
         ),
