@@ -93,6 +93,10 @@ class ModuleDoc {
 
   ChapterDoc? chapter(String code, int n) => chapters['$code:$n'];
 
+  /// Тексты уже вычитанных стихов («код:глава:стих» → текст) —
+  /// соседние сноски со ссылкой на один стих не режут главу заново.
+  final Map<String, String> verseTextCache = {};
+
   /// Подгрузить главу из источника, если её ещё нет в [chapters].
   /// Для JSON-документов завершается сразу. Повторные вызовы
   /// переиспользуют один и тот же Future.
@@ -152,6 +156,10 @@ class ChapterDoc {
   Map<int, String>? plainCache;
   Map<int, List<TextSpanDoc>>? wordCache;
   List<({int verse, NoteSpanDoc note})>? notesCache;
+
+  /// Фоновый прогрев текстов сносок уже запущен (флаг ставит
+  /// prefetchChapterNotes — работа идёт один раз на главу).
+  bool notesPrefetchDone = false;
   ({List<int> order, Map<int, List<SpanDoc>> groups})? verseGroupsCache;
   bool? pairsCache;
 

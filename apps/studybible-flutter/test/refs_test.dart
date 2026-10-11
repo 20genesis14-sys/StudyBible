@@ -69,6 +69,47 @@ void main() {
     });
   });
 
+  group('findRefs: OSIS-аббревиатуры (слой параллельных, ADR 0023)', () {
+    test('короткие OSIS-имена разбираются', () {
+      final samples = {
+        'Gen 1:1': 'GEN',
+        'Ps 104:30': 'PSA',
+        'Isa 40:28': 'ISA',
+        'Matt 5:3': 'MAT',
+        'John 3:16': 'JHN',
+        'Rev 22:21': 'REV',
+        '1Sam 22:1': '1SA',
+        '1Kgs 17:1': '1KI',
+        'Song 1:1': 'SNG',
+        'Phlm 1:5': 'PHM',
+        'Jude 1:6': 'JUD',
+      };
+      for (final e in samples.entries) {
+        expect(findRefs(e.key).single.ref.book, e.value, reason: e.key);
+      }
+    });
+
+    test('диапазон и список как в тексте слоя', () {
+      const t = 'Ps 104:30; Ps 139:13-16; Isa 40:28 – Jer 1:5';
+      final m = findRefs(t);
+      expect(m, hasLength(4));
+      expect(m.map((e) => e.ref.book).toList(), [
+        'PSA',
+        'PSA',
+        'ISA',
+        'JER',
+      ]);
+      expect(m[1].ref.verseEnd, 16);
+    });
+
+    test('полные английские имена не перекрываются OSIS', () {
+      // Частые слова совпадают с OSIS-кодами — полное имя сильнее.
+      expect(findRefs('Acts 2:38').single.ref.book, 'ACT');
+      expect(findRefs('Job 1:1').single.ref.book, 'JOB');
+      expect(findRefs('Jude 1:1').single.ref.book, 'JUD');
+    });
+  });
+
   group('findRefs: отказ в непонятном', () {
     test('не книга — не ссылка', () {
       expect(findRefs('см. раздел 3:5 далее'), isEmpty);

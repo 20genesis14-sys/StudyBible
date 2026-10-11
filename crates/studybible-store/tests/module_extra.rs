@@ -502,13 +502,31 @@ fn sbz_unpack_limit() {
 
 #[test]
 fn bad_span_slice_is_error() {
+    // ADR 0022: t-спаны упакованного модуля лежат в span_pack —
+    // портим start внутри блоба, эффект тот же.
     let dir = tempfile::tempdir().unwrap();
     let p = dir.path().join("a.sb");
     build(&p);
     let conn = Connection::open(&p).unwrap();
+    let mut blob: Vec<u8> = conn
+        .query_row(
+            "SELECT blob FROM span_pack
+             WHERE book_id=1 AND chapter=1 AND block=0",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let mut entries = studybible_store::pack::decode_spans(&blob).unwrap();
+    entries
+        .iter_mut()
+        .find(|e| e.verse == Some(1) && e.start.is_some())
+        .unwrap()
+        .start = Some(100000);
+    blob = studybible_store::pack::encode_spans(&entries);
     conn.execute(
-        "UPDATE spans SET start = 100000 WHERE kind = 't' AND verse = 1 AND chapter = 1",
-        [],
+        "UPDATE span_pack SET blob=?1
+         WHERE book_id=1 AND chapter=1 AND block=0",
+        [&blob],
     )
     .unwrap();
     drop(conn);

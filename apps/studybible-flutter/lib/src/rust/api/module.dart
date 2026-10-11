@@ -7,7 +7,12 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `block_json`, `open_any`, `span_json`
+// These functions are ignored because they are not marked as `pub`: `block_json`, `inject_layer_xrefs`, `inject_verse_note`, `lock_module`, `open_any`, `open_cached`, `span_json`, `xref_layer_path`
+
+/// Включить/выключить общий слой параллельных мест (ADR 0023):
+/// `path` — `.sb`/`.sbz` слоя; пустая строка — слой отключён.
+Future<void> xrefLayerSet({required String path}) =>
+    RustLib.instance.api.crateApiModuleXrefLayerSet(path: path);
 
 /// Сканировать каталог и вернуть модули .sb/.sbz, которые открываются.
 /// Битые и посторонние файлы пропускаются — они не должны ронять UI.

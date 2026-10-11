@@ -194,6 +194,8 @@ pub struct UserEntryInfo {
     pub text: String,
     /// Контрольный фрагмент стиха для перепривязки при обновлении модуля.
     pub context: String,
+    /// Селектор куска стиха `{exact,pre,post}` (JSON); пусто — весь стих.
+    pub frag: String,
     /// Unix-миллисекунды.
     pub created: i64,
     pub updated: i64,
@@ -213,6 +215,7 @@ fn entry_info(e: &Entry) -> UserEntryInfo {
         verse: e.verse.into(),
         text: e.text.clone(),
         context: e.context.clone(),
+        frag: e.frag.clone(),
         created: e.created,
         updated: e.updated,
     }
@@ -243,6 +246,8 @@ pub async fn entry_add(
     verse: i64,
     text: String,
     context: String,
+    frag: String,
+    created: Option<i64>,
 ) -> Result<String> {
     let anchor = anchor_at(&module, &book, chapter, verse)?;
     let ud = open(&path)?;
@@ -279,7 +284,7 @@ pub async fn entry_add(
             (b, c)
         })
         .unwrap_or_else(|| (Bind::default(), context));
-    Ok(ud.add_ex(kind_of(&kind)?, anchor, &text, &ctx, &bind)?)
+    Ok(ud.add_frag(kind_of(&kind)?, anchor, &text, &ctx, &frag, &bind, created)?)
 }
 
 /// Чужие записи к стиху (в.12, этап А): записи других модулей, чья
@@ -313,6 +318,27 @@ pub async fn entries_foreign_list(
         .iter()
         .map(entry_info)
         .collect())
+}
+
+/// Диапазоны фрагмента-селектора в тексте стиха (userdata схема 4):
+/// `frag` — JSON `{exact,pre,post}`, возвращаем плоский список
+/// байтовых смещений `[s0,e0, s1,e1, …]`. Пустой/битый селектор или
+/// отсутствие вхождений — пустой список; UI тогда ничего не красит.
+#[flutter_rust_bridge::frb(sync)]
+pub fn frag_ranges(text: String, frag: String) -> Vec<i64> {
+    #[derive(serde::Deserialize, Default)]
+    struct Sel {
+        exact: String,
+        #[serde(default)]
+        pre: String,
+        #[serde(default)]
+        post: String,
+    }
+    let s: Sel = serde_json::from_str(&frag).unwrap_or_default();
+    studybible_core::frag::find_frag(&text, &s.exact, &s.pre, &s.post)
+        .into_iter()
+        .flat_map(|(a, b)| [a as i64, b as i64])
+        .collect()
 }
 
 /// Прогнать перепривязку записей к установленным модулям

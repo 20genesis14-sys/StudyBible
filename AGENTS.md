@@ -16,20 +16,25 @@
   - `docs/DECISIONS.md` — the source of truth for decisions.
 - Do not start coding without an explicit user command.
 - `unsafe` is allowed when justified; every block needs a `// SAFETY:` comment (clippy checks).
-- Commit after each completed step. Broad changes are committed per
-  directory (`docs/`, root files, `data/`, `apps/`… separately) —
-  GitHub shows each path the message of the last commit that touched
-  it, and one sweeping commit looks untidy across half the repo.
+- Commit after each completed step; broad changes — per directory
+  (`docs/`, root, `data/`, `apps/`…), so GitHub shows a readable
+  message per path.
 - CI is the local script `scripts/ci.ps1`.
-- Language of published documents — English.
+- Navigation in `ReadingScreen`: bare `Navigator.pop`/`maybePop`/
+  `pushReplacement` is forbidden — `PopScope(canPop: false)` swallows
+  them silently. All intentional route exits go through `_popRoute()`.
+  Two back semantics are named and kept separate: `_stackBack()`
+  (position history — system gesture, Alt+←/→, mouse X1/X2) and
+  `_hierarchyBack()` (strictly up: chapter → chapter grid → book grid —
+  the AppBar arrow only).
+- Published documents are bilingual: English `X.md` is primary,
+  Russian `X.ru.md` is its mirror (except `docs/ROADMAP.md` — Russian,
+  local-only).
 
 ## Source of decisions
 
-- `docs/DECISIONS.md` — current decisions; `docs/SPEC.md` — table of contents;
-  `docs/adr/` — rationale; `docs/ROADMAP.md` (local only) — work progress;
-  `docs/OPEN-QUESTIONS.md` — open questions.
-- `C:\Users\Ольга\Documents\Принятые решения v2.txt` — the original version,
-  migrated into `docs/DECISIONS.md`, no longer updated.
+`docs/DECISIONS.md` is the source of truth; the full document map lives
+in `docs/SPEC.md` — do not duplicate it here.
 
 ## Verification
 
@@ -38,48 +43,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
 Steps: fmt, clippy (`-D warnings`), test, `cargo check` of the core for
-`wasm32-unknown-unknown`, `cargo deny check`.
-Required: `rustup target add wasm32-unknown-unknown`, `cargo install cargo-deny --locked`.
+`wasm32-unknown-unknown`, `cargo deny check` — prerequisites and build
+variables are in `docs/ENVIRONMENT.md`.
+APK builds — only arm64-v8a (the user tests on his device):
+`flutter build apk --release --target-platform android-arm64`.
 After building an APK check the native libraries' target API:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`
-(the bridge must not exceed minSdk; build with
-`PUB_CACHE=D:\StudyBible-tools\pub-cache` and `GRADLE_USER_HOME=D:\StudyBible-tools\gradle-home`).
+(the bridge must not exceed minSdk).
 In the core, clippy forbids `std::fs` and `std::thread::sleep`
 (`crates/studybible-core/clippy.toml`).
 
+Flutter changes (app dir `apps/studybible-flutter`):
+`D:\StudyBible-tools\flutter\bin\flutter analyze`; bridge tests need
+`STUDYBIBLE_DATA=D:\StudyBible-data`.
+
 ## Data
 
-External texts live outside the repository, in `STUDYBIBLE_DATA`
-(user: `D:\StudyBible-data`; `C:\StudyBible-data` is a leftover directory).
-For Dart bridge tests set it explicitly: `STUDYBIBLE_DATA=D:\StudyBible-data`.
-The directory is deliberately outside the repository: Bible texts must not
-be published on GitHub together with the code.
-
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1        # download and verify SHA-256
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-data.ps1 -Pin   # re-pin hashes after a source update
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-data.ps1        # verify contents
-```
-
-`data/canon/canon-66-knig.md` — the original canon list from the user.
-`data/profiles/` — book and deuterocanonical profiles; `data/versification/` —
-Paratext files (MIT); `data/tests/` — test fixtures. Checks —
-`crates/studybible-convert/tests/stage0_fixtures.rs`; text-based checks are
-skipped (SKIPPED) when the data directory is absent.
+External texts (translations, modules) live outside the repo in
+`STUDYBIBLE_DATA` (`D:\StudyBible-data`) — never commit them.
+Fetch/verify commands and the `data/` layout: `docs/ENVIRONMENT.md`.
 
 ## Environment
 
-- Save `.ps1` scripts with Cyrillic as UTF-8 with BOM: Windows PowerShell 5
-  otherwise reads them as ANSI.
-
-- Default shell (bash) — WSL Ubuntu; run Windows builds and checks in PowerShell.
-
-- The whole project lives on drive `D:`: repo `D:\StudyBible`, data
-  `D:\StudyBible-data`, tools `D:\StudyBible-tools`.
-- Windows; Rust 1.99.0 (cargo, rustup installed).
-- Flutter SDK 3.47.6 — `D:\StudyBible-tools\flutter` (not in PATH, call
-  `D:\StudyBible-tools\flutter\bin\flutter`); Android SDK — `D:\StudyBible-tools\android-sdk`.
-- Python — `C:\Users\Ольга\AppData\Local\Programs\Python\Python311\python.exe`
-  (the `python` command does not work — Microsoft Store alias).
-- Git 2.55.0 (`C:\Program Files\Git\cmd\git.exe`). Already-open shells may have
-  a stale PATH — re-read it from the registry or open a new shell.
+Toolchain paths and machine quirks — `docs/ENVIRONMENT.md`.

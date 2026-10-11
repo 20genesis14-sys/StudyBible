@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
@@ -6,8 +8,13 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 import '../data.dart';
 import '../l10n.dart';
+import '../native_bridge_stub.dart'
+    if (dart.library.html) '../native_bridge_web.dart'
+    if (dart.library.io) '../native_bridge_io.dart';
+import '../routes.dart';
 import '../state.dart';
 import '../theme.dart';
+import 'licenses_screen.dart';
 
 /// Настройки прототипа: темы, шрифт, вёрстка, колонка, выбор стиха.
 class SettingsScreen extends StatelessWidget {
@@ -103,29 +110,31 @@ class SettingsScreen extends StatelessWidget {
                               _labeled(
                                 p,
                                 tr('Шрифт текста', 'Reading font'),
-                                SegmentedButton<ReadingFont>(
-                                  segments: [
-                                    ButtonSegment(
-                                      value: ReadingFont.literata,
-                                      label: Text('Literata'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ReadingFont.gentium,
-                                      label: Text('Gentium'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ReadingFont.ptSerif,
-                                      label: Text('PT Serif'),
-                                    ),
-                                    ButtonSegment(
-                                      value: ReadingFont.system,
-                                      label: Text(tr('Системный', 'System')),
-                                    ),
+                                DropdownMenu<ReadingFont>(
+                                  initialSelection: settings.readingFont,
+                                  expandedInsets: EdgeInsets.zero,
+                                  onSelected: (f) {
+                                    if (f != null) {
+                                      settings.update(
+                                        () => settings.readingFont = f,
+                                      );
+                                    }
+                                  },
+                                  dropdownMenuEntries: [
+                                    for (final f in ReadingFont.values)
+                                      DropdownMenuEntry(
+                                        value: f,
+                                        label: f == ReadingFont.system
+                                            ? tr('Системный', 'System')
+                                            : readingFontLabel(f),
+                                        style: TextButton.styleFrom(
+                                          textStyle: TextStyle(
+                                            fontFamily: readingFontFamily(f),
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ),
                                   ],
-                                  selected: {settings.readingFont},
-                                  onSelectionChanged: (s) => settings.update(
-                                    () => settings.readingFont = s.first,
-                                  ),
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -152,6 +161,50 @@ class SettingsScreen extends StatelessWidget {
                                 divisions: 8,
                                 onChanged: (v) => settings.update(
                                   () => settings.fontScale = v,
+                                ),
+                              ),
+                              _labeled(
+                                p,
+                                tr('Насыщенность', 'Font weight'),
+                                SegmentedButton<int>(
+                                  showSelectedIcon: false,
+                                  style: SegmentedButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  segments: [
+                                    ButtonSegment(
+                                      value: 0,
+                                      label: Text(
+                                        tr('Обычный', 'Regular'),
+                                      ),
+                                    ),
+                                    ButtonSegment(
+                                      value: 1,
+                                      label: Text(tr('Средний', 'Medium')),
+                                    ),
+                                    ButtonSegment(
+                                      value: 2,
+                                      label: Text(
+                                        tr('Полужирный', 'Semibold'),
+                                      ),
+                                    ),
+                                    ButtonSegment(
+                                      value: 3,
+                                      label: Text(tr('Жирный', 'Bold')),
+                                    ),
+                                  ],
+                                  selected: {settings.fontWeightStep},
+                                  onSelectionChanged: (s) =>
+                                      settings.update(
+                                        () =>
+                                            settings.fontWeightStep = s.first,
+                                      ),
                                 ),
                               ),
                               _labeled(
@@ -207,6 +260,7 @@ class SettingsScreen extends StatelessWidget {
                                     settings.readingFont,
                                   ),
                                   fontSize: 17 * settings.fontScale,
+                                  fontWeight: settings.readingWeight,
                                   color: p.ink,
                                   height: 1.55,
                                 ),
@@ -355,6 +409,34 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                      // ADR 0023: общий слой параллельных подмешивается
+                      // модулям без собственных ссылок; отключаемо.
+                      _card(
+                        p,
+                        ListenableBuilder(
+                          listenable: settings,
+                          builder: (context, _) => SwitchListTile(
+                            dense: true,
+                            title: Text(
+                              tr(
+                                'Общие параллельные места',
+                                'Shared cross-references',
+                              ),
+                            ),
+                            subtitle: Text(
+                              tr(
+                                'Для переводов без своих ссылок',
+                                'For translations without their own',
+                              ),
+                            ),
+                            value: settings.externalXrefs,
+                            onChanged: (v) => settings.update(() {
+                              settings.externalXrefs = v;
+                              unawaited(bridgeSetXrefLayer(v));
+                            }),
+                          ),
+                        ),
+                      ),
                       _section(
                         p,
                         tr(
@@ -378,8 +460,8 @@ class SettingsScreen extends StatelessWidget {
                                 ),
                                 title: Text(
                                   tr(
-                                    'Как основной перевод',
-                                    'Same as default translation',
+                                    'Как открытый перевод',
+                                    'Same as open translation',
                                   ),
                                 ),
                                 trailing: settings.xrefModule.isEmpty
@@ -607,6 +689,21 @@ class SettingsScreen extends StatelessWidget {
                                   : progress.reset,
                               child: Text(tr('Сбросить', 'Reset')),
                             ),
+                          ),
+                        ),
+                      ),
+                      _section(p, tr('О приложении', 'About')),
+                      _card(
+                        p,
+                        ListTile(
+                          title: Text(tr('Лицензии', 'Licenses')),
+                          trailing: Icon(
+                            Icons.chevron_right,
+                            color: p.muted,
+                          ),
+                          onTap: () => pushFast(
+                            context,
+                            const LicensesScreen(),
                           ),
                         ),
                       ),

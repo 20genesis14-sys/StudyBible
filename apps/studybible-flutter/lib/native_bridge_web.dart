@@ -21,18 +21,21 @@ import 'package:sqlite3/wasm.dart';
 import 'package:typed_data/typed_buffers.dart';
 import 'package:web/web.dart' as web;
 
+import 'frag.dart';
 import 'native_bridge.dart';
 import 'search_norm.dart' show normForIndex, normSearchQuery, normVersion;
 
 /// Открытые (свободные по лицензии) модули, которые скрипт кладёт
 /// в web/modules/. Личные модули пользователя сюда не попадают.
-/// 08.10.2026: в бандле только базовый russyn (как на остальных
-/// платформах); прочие модули — ручной подкладкой на хостинге
+/// 08.10.2026: в бандле только базовый russyn; 10.10.2026 — +
+/// eng-kjv2006 (KJV со Стронгом, public domain), как на остальных
+/// платформах; прочие модули — ручной подкладкой на хостинге
 /// (файл в web/modules/ + запись в index.json; импорта из UI
-/// на web нет — import_module_stub). Формат на web — .sb
-/// (sqlite3.wasm читает сырой sqlite; .sbz требует zstd-пути,
-/// которого в веб-мосту нет — отклонение зафиксировано в DECISIONS).
-const kBundledModules = ['russyn'];
+/// на web нет — import_module_stub). Формат на web — `.sbz`, как на
+/// нативных платформах: zstd-кадр распаковывает вендорный
+/// wasm-декодер (`web/zstd/`, шим `window.sbZstdDecompress`); при его
+/// отсутствии/ошибке — фоллбэк на `.sb.gz`/`.sb` (DECISIONS).
+const kBundledModules = ['russyn', 'eng-kjv2006'];
 
 /// Каталог данных — в браузере файловой системы нет.
 String dataDir() => '';
@@ -45,6 +48,11 @@ final Map<String, CommonDatabase> _dbs = {};
 /// параллельные запросы создают два экземпляра sqlite и VFS
 /// регистрируется не в том (sqlite: «no such vfs»).
 Future<void>? _wasmInit;
+
+/// Глобал из `web/zstd/sbz.js`: zstd-кадр → распакованные байты.
+/// Отсутствует, если wasm-декодер не загрузился — тогда фоллбэк.
+@JS('sbZstdDecompress')
+external JSAny? get _sbZstdDecompress;
 
 Future<void> _ensureWasm() => _wasmInit ??= () async {
   _sqlite = await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.wasm'));
@@ -59,12 +67,41 @@ Future<CommonDatabase> _openDb(String path) async {
 
   await _ensureWasm();
 
-  // На хостинге модули лежат сжатыми (modules/*.sb.gz): передача всего
-  // сайта иначе упирается в лимит деплоя. Сначала пробуем .gz и
-  // распаковываем браузерным DecompressionStream; без него — сырой .sb.
+  // На хостинге модули лежат как `modules/*.sbz` — тот же контейнер,
+  // что на нативных платформах; zstd-кадр распаковывает wasm-декодер
+  // из web/zstd/ (шим в index.html). Дальше — старые фоллбэки:
+  // `<path>.gz` через браузерный DecompressionStream и сырой .sb.
   // SPA-сервер отдаёт index.html с кодом 200 на любой путь, поэтому
   // решаем по магическим байтам, а не по статусу.
   Uint8List? bytes;
+  try {
+    final respZ = await web.window.fetch('${path}z'.toJS).toDart;
+    if (respZ.status == 200) {
+      final sbz = (await respZ.arrayBuffer().toDart).toDart.asUint8List();
+      // Заголовок SBZ1 + байт кодека (0 = zstd), дальше — кадр zstd.
+      if (sbz.length > 5 &&
+          sbz[0] == 0x53 &&
+          sbz[1] == 0x42 &&
+          sbz[2] == 0x5a &&
+          sbz[3] == 0x31 &&
+          sbz[4] == 0) {
+        final fn = _sbZstdDecompress;
+        if (fn != null && fn.isA<JSFunction>()) {
+          final out = (fn as JSFunction).callAsFunction(
+            null,
+            Uint8List.fromList(sbz.sublist(5)).toJS,
+          );
+          if (out.isA<JSPromise>()) {
+            bytes = ((await (out as JSPromise).toDart) as JSUint8Array)
+                .toDart;
+          }
+        }
+      }
+    }
+  } catch (_) {
+    // Декодер не загрузился или кадр битый — уходим на .gz/.sb.
+    bytes = null;
+  }
   final respGz = await web.window.fetch('$path.gz'.toJS).toDart;
   if (respGz.status == 200 && respGz.body != null) {
     final gz = (await respGz.arrayBuffer().toDart).toDart.asUint8List();
@@ -315,6 +352,170 @@ Map<String, dynamic> _spanJson(Map<String, Object?> r) {
 String _byteSlice(String s, int start, int len) =>
     utf8.decode(utf8.encode(s).sublist(start, start + len));
 
+// ---------- блоб-упаковка (ADR 0022) ----------
+// Зеркало crates/studybible-store/src/pack.rs: LEB128-varint'ы,
+// пул строк, записи. На web читаем только span_pack (t-спаны блока).
+
+class _PackReader {
+  _PackReader(this.buf);
+  final Uint8List buf;
+  int pos = 0;
+
+  int varint() {
+    var v = 0;
+    var shift = 0;
+    for (;;) {
+      final b = buf[pos++];
+      v |= (b & 0x7f) << shift;
+      if (b & 0x80 == 0) return v;
+      shift += 7;
+    }
+  }
+
+  List<String> pool() {
+    final n = varint();
+    final out = <String>[];
+    for (var i = 0; i < n; i++) {
+      final len = varint();
+      out.add(utf8.decode(buf.sublist(pos, pos + len)));
+      pos += len;
+    }
+    return out;
+  }
+}
+
+/// Одна t-запись span_pack: seq, verse?, (start,len)?, style, attrs, text.
+class _PackedSpan {
+  int seq = 0;
+  int? verse;
+  int? start;
+  int? len;
+  String style = '';
+  String attrs = '';
+  String text = '';
+}
+
+List<_PackedSpan> _decodeSpans(Uint8List blob) {
+  final r = _PackReader(blob);
+  final pool = r.pool();
+  final n = r.varint();
+  final out = <_PackedSpan>[];
+  for (var i = 0; i < n; i++) {
+    final flags = r.buf[r.pos++];
+    final e = _PackedSpan()..seq = r.varint();
+    if (flags & 1 != 0) e.verse = r.varint();
+    if (flags & 2 != 0) {
+      e.start = r.varint();
+      e.len = r.varint();
+    }
+    e.style = pool[r.varint()];
+    e.attrs = pool[r.varint()];
+    if (flags & 4 != 0) e.text = pool[r.varint()];
+    out.add(e);
+  }
+  return out;
+}
+
+// ---------- общий слой параллельных (ADR 0023) ----------
+
+/// Настройка `settings.externalXrefs`: модули без своих `x`-спанов
+/// получают ссылки `modules/openbible-xrefs.sb`.
+bool _xrefLayerOn = true;
+
+/// Включить/выключить общий слой параллельных мест.
+Future<void> bridgeSetXrefLayer(bool enabled) async {
+  _xrefLayerOn = enabled;
+}
+
+/// Координаты слоя — eng; на web конверсии версификаций нет (в io —
+/// через Versification::convert), поэтому номера стихов применяются
+/// как есть: главы стабильны, расхождения — только редкие псалмы.
+void _injectLayerXrefs(
+  List<Map<String, dynamic>> out,
+  CommonDatabase db,
+  String book,
+  int chapter,
+) {
+  try {
+    final layer = _dbs['modules/openbible-xrefs.sb'];
+    if (layer == null) return;
+    final br = layer.select('SELECT book_id FROM books WHERE code=?', [
+      book,
+    ]);
+    if (br.isEmpty) return;
+    final lbid = br.first['book_id'];
+    final rows = layer.select(
+      "SELECT verse, text FROM spans WHERE book_id=? AND chapter=? "
+      "AND kind='x' AND verse IS NOT NULL ORDER BY seq",
+      [lbid, chapter],
+    );
+    for (final r in rows) {
+      _injectLayerNote(
+        out,
+        (r['verse'] as num).toInt(),
+        r['text'] as String,
+      );
+    }
+  } catch (_) {
+    // Слоя нет или он битый — чтение идёт без параллельных.
+  }
+}
+
+/// Слой подмешиваем только в модули без собственных `x`-спанов.
+bool _moduleHasXrefs(CommonDatabase db) {
+  try {
+    final r = db.select(
+      "SELECT EXISTS(SELECT 1 FROM spans WHERE kind='x') AS n",
+    );
+    return (r.first['n'] as num) == 1;
+  } catch (_) {
+    return true; // сомневаемся — не дублируем
+  }
+}
+
+/// x-спан слоя в конец стиха `v` потока чтения (перед маркером
+/// следующего стиха или в конец блока) — как inject_verse_note
+/// в api/module.rs.
+void _injectLayerNote(
+  List<Map<String, dynamic>> blocks,
+  int v,
+  String text,
+) {
+  for (final b in blocks) {
+    final spans = b['s'] as List;
+    var seen = false;
+    int? at;
+    for (var i = 0; i < spans.length; i++) {
+      final s = spans[i];
+      if (s is Map && s['v'] is num) {
+        if (seen && s['v'] != v) {
+          at = i;
+          break;
+        }
+        if (s['v'] == v) seen = true;
+      }
+    }
+    if (seen) {
+      spans.insert(at ?? spans.length, {
+        'n': 'x',
+        'c': '+',
+        't': text,
+        'a': 'src="layer"',
+      });
+      return;
+    }
+  }
+}
+
+/// Открыть слой параллельных, если файл есть в бандле (не обязателен).
+Future<void> _openXrefLayer() async {
+  try {
+    await _openDb('modules/openbible-xrefs.sb');
+  } catch (_) {
+    // Без слоя читаем как раньше.
+  }
+}
+
 /// Глава в формате export.rs `{"n":..,"blocks":[..]}`; null, если её нет —
 /// зеркало api/module.rs::chapter_doc и store::Module::chapter.
 ///
@@ -343,15 +544,59 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
     if (blocks.isEmpty) return null;
 
     final st = db.prepare(
-      'SELECT kind, num, verse, start, len, style, attrs, caller, text '
+      'SELECT seq, kind, num, verse, start, len, style, attrs, caller, text '
       'FROM spans WHERE book_id=? AND chapter=? AND block=? ORDER BY seq',
     );
+    // ADR 0022: у упакованных модулей t-спаны лежат в span_pack —
+    // сливаем строки и блоб по seq.
+    var hasPack = false;
+    try {
+      hasPack =
+          (db.select(
+                    "SELECT count(*) AS n FROM sqlite_master "
+                    "WHERE name='span_pack' AND type='table'",
+                  ).first['n']
+                  as num) >
+              0 &&
+          (db.select('SELECT count(*) AS n FROM span_pack').first['n']
+                  as num) >
+              0;
+    } catch (_) {}
     final out = <Map<String, dynamic>>[];
     int? cur;
     for (final b in blocks) {
       final marker = b['marker'] as String;
       final spans = <Map<String, dynamic>>[];
-      for (final r in st.select([bid, chapter, b['seq']])) {
+      // Элементы потока блока: построчные спаны + t из блоба.
+      final items = <Map<String, Object?>>[
+        for (final r in st.select([bid, chapter, b['seq']])) r,
+      ];
+      if (hasPack) {
+        final pr = db.select(
+          'SELECT blob FROM span_pack WHERE book_id=? AND chapter=? AND block=?',
+          [bid, chapter, b['seq']],
+        );
+        if (pr.isNotEmpty && pr.first['blob'] != null) {
+          for (final e in _decodeSpans(pr.first['blob'] as Uint8List)) {
+            items.add({
+              'seq': e.seq,
+              'kind': 't',
+              'num': null,
+              'verse': e.verse,
+              'start': e.start,
+              'len': e.len,
+              'style': e.style,
+              'attrs': e.attrs,
+              'caller': '',
+              'text': e.text,
+            });
+          }
+          items.sort(
+            (a, b) => (a['seq'] as num).compareTo(b['seq'] as num),
+          );
+        }
+      }
+      for (final r in items) {
         final v = (r['verse'] as num?)?.toInt();
         // Маркер границы: спан принадлежит новому ненулевому стиху.
         if (v != null && v != 0 && cur != v) {
@@ -372,6 +617,8 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
             's': r['style'],
             'a': r['attrs'],
           });
+        } else if (r['kind'] == 't' && '${r['text']}'.isNotEmpty) {
+          spans.add({'t': r['text'], 's': r['style'], 'a': r['attrs']});
         } else {
           spans.add(_spanJson(r));
         }
@@ -379,6 +626,12 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
       out.add({'k': _blockKind(marker), 'm': marker, 's': spans});
     }
     st.close();
+
+    // ADR 0023: модуль без своих x-спанов получает ссылки общего слоя.
+    if (_xrefLayerOn && !_moduleHasXrefs(db)) {
+      await _openXrefLayer();
+      _injectLayerXrefs(out, db, book, chapter);
+    }
 
     // ADR 0016: аппарат главы, если таблица есть (у старых .sb — нет).
     var variants = <Map<String, dynamic>>[];
@@ -502,6 +755,7 @@ UserEntry _toEntry(Map<String, dynamic> m) => UserEntry(
   verse: (m['verse'] as num).toInt(),
   text: '${m['text'] ?? ''}',
   context: '${m['context'] ?? ''}',
+  frag: '${m['frag'] ?? ''}',
   created: (m['created'] as num?)?.toInt() ?? 0,
   updated: (m['updated'] as num?)?.toInt() ?? 0,
 );
@@ -517,6 +771,7 @@ Future<List<UserEntry>> bridgeEntriesList(
 ];
 
 /// Добавить запись; id — метка времени + размер списка (достаточно для web).
+/// [created] — общая метка пачки записей одного действия.
 Future<String?> bridgeEntryAdd({
   required String kind,
   required String module,
@@ -525,9 +780,11 @@ Future<String?> bridgeEntryAdd({
   required int verse,
   required String text,
   required String context,
+  String frag = '',
+  int? created,
 }) async {
   final list = _entries();
-  final now = DateTime.now().millisecondsSinceEpoch;
+  final now = created ?? DateTime.now().millisecondsSinceEpoch;
   final id = 'w$now-${list.length}';
   list.add({
     'id': id,
@@ -538,11 +795,23 @@ Future<String?> bridgeEntryAdd({
     'verse': verse,
     'text': text,
     'context': context,
+    'frag': frag,
     'created': now,
     'updated': now,
   });
   _saveEntries(list);
   return id;
+}
+
+/// Диапазоны frag-селектора в тексте стиха — Dart-порт
+/// `find_frag` из ядра (frag.dart).
+Future<List<({int s, int e})>> bridgeFragRanges(
+  String verseText,
+  String frag,
+) async {
+  final s = fragParse(frag);
+  if (s == null) return const [];
+  return findFragRanges(verseText, s.exact, s.pre, s.post);
 }
 
 Future<bool> bridgeEntryUpdate(String id, String text) async {

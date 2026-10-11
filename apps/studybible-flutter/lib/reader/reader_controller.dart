@@ -2,7 +2,11 @@ part of '../screens/reading_screen.dart';
 
 /// Действия экрана чтения с записями пользователя.
 extension _ReaderController on _ReadingScreenState {
-  String _verseText(int v) {
+  String _verseText(int v) => _verseRaw(v).trim();
+
+  /// Плоский текст стиха без тримма — к нему привязаны смещения
+  /// частичных выделений (frag-селекторы, схема 4).
+  String _verseRaw(int v) {
     final ch = _module?.chapter(_code, _ch);
     if (ch == null) return '';
     final buf = StringBuffer();
@@ -16,7 +20,15 @@ extension _ReaderController on _ReadingScreenState {
         }
       }
     }
-    return buf.toString().trim();
+    return buf.toString();
+  }
+
+  /// Запись целостишового выделения стиха (frag пуст), если есть.
+  UserEntry? _wholeHl(int v) {
+    for (final e in _highlights[v] ?? const <UserEntry>[]) {
+      if (e.frag.isEmpty) return e;
+    }
+    return null;
   }
 
   String _refOf(int v) => '${_titleOf(_code)} $_ch:$v';
@@ -77,21 +89,103 @@ extension _ReaderController on _ReadingScreenState {
     await _loadVerseEntries();
   }
 
-  /// Выделить/снять выделение стиха (kind=hl в UserData).
-  Future<void> _toggleHighlight(int v) async {
-    final existing = _highlights[v];
-    if (existing != null) {
+  /// Выделить/снять выделение стиха (kind=hl в UserData);
+  /// имя цвета хранится в `text` записи ('yellow' — старые записи).
+  /// Выбор цвета на стихе — целостишовое выделение: все его
+  /// записи hl (в т.ч. куски) заменяются одной целой.
+  Future<void> _setHighlight(int v, String color) async {
+    for (final existing in _highlights[v] ?? const <UserEntry>[]) {
       await bridgeEntryRemove(existing.id);
-    } else {
+    }
+    if (color != 'remove') {
       await bridgeEntryAdd(
         kind: 'hl',
         module: _moduleId,
         book: _code,
         chapter: _ch,
         verse: v,
-        text: 'yellow',
+        text: color,
         context: _verseText(v).substring(0, _verseText(v).length.clamp(0, 40)),
       );
+    }
+    await _loadVerseEntries();
+  }
+
+  /// Меню цвета выделения стиха: тап по «Выделить» открывает выбор
+  /// цвета; у уже выделенного стиха — галочка на текущем цвете и
+  /// пункт «Убрать».
+  Future<void> _chooseHighlight(int v) async {
+    final c = await _pickHighlightColor(
+      current: _wholeHl(v)?.text ?? _highlights[v]?.firstOrNull?.text,
+      removable: _highlights.containsKey(v),
+    );
+    if (c != null) await _setHighlight(v, c);
+  }
+
+  /// Заметка, привязанная к тому же frag-селектору, что и запись.
+  UserEntry? _fragNoteOf(UserEntry hl) {
+    for (final n in _fragNotes[hl.verse] ?? const <UserEntry>[]) {
+      if (n.frag == hl.frag) return n;
+    }
+    return null;
+  }
+
+  /// Меню частичного выделения (тап по подсвеченным словам):
+  /// цвет/заметка/снятие — только этой записи, стих не трогаем.
+  Future<void> _fragMenu(UserEntry entry) async {
+    final note = _fragNoteOf(entry);
+    final c = await _pickHighlightColor(
+      current: entry.text,
+      removable: true,
+      note: true,
+      hasNote: note != null,
+    );
+    if (c == null) return;
+    if (c == 'note') {
+      final v = entry.verse;
+      if (!mounted) return;
+      final action = await showDialog<String>(
+        context: context,
+        builder: (_) => NoteDialog(
+          ref: _refOf(v),
+          entry: note,
+          tagEntry: _tagEntries[v],
+          moduleId: _moduleId,
+          book: _code,
+          chapter: _ch,
+          verse: v,
+          contextText: _verseText(v)
+              .substring(0, _verseText(v).length.clamp(0, 40)),
+          frag: entry.frag,
+          foreignCount: () async =>
+              (await bridgeEntriesForeign(_moduleId, _code, _ch, v)).length,
+        ),
+      );
+      if (action == 'save' || action == 'delete') {
+        await _loadVerseEntries();
+      } else if (action == 'foreign') {
+        unawaited(_showForeignEntries(v));
+      }
+      return;
+    }
+    if (c == 'remove') {
+      // Пачка одного жеста (общий created + цвет) снимается целиком:
+      // выделил 4–8 — убрал 4–8, а не по стиху.
+      final batch = <UserEntry>[
+        for (final l in _highlights.values)
+          ...l.where(
+            (e) =>
+                e.created == entry.created &&
+                e.text == entry.text &&
+                e.module == entry.module,
+          ),
+      ];
+      for (final e in batch.isEmpty ? [entry] : batch) {
+        await bridgeEntryRemove(e.id);
+      }
+    } else {
+      // Перекраска: имя цвета живёт в `text` записи.
+      await bridgeEntryUpdate(entry.id, c);
     }
     await _loadVerseEntries();
   }
@@ -279,20 +373,25 @@ extension _ReaderController on _ReadingScreenState {
     final tg = await bridgeEntriesList('tag', module: _moduleId);
     if (!mounted) return;
     _rebuild(() {
-      _highlights
-        ..clear()
-        ..addEntries(
-          hl
-              .where((e) => e.book == _code && e.chapter == _ch)
-              .map((e) => MapEntry(e.verse, e)),
-        );
+      _highlights.clear();
+      for (final e in hl.where((e) => e.book == _code && e.chapter == _ch)) {
+        _highlights.putIfAbsent(e.verse, () => []).add(e);
+      }
       _verseNotes
         ..clear()
         ..addEntries(
           nt
-              .where((e) => e.book == _code && e.chapter == _ch)
+              .where(
+                (e) => e.book == _code && e.chapter == _ch && e.frag.isEmpty,
+              )
               .map((e) => MapEntry(e.verse, e)),
         );
+      _fragNotes.clear();
+      for (final e in nt.where(
+        (e) => e.book == _code && e.chapter == _ch && e.frag.isNotEmpty,
+      )) {
+        _fragNotes.putIfAbsent(e.verse, () => []).add(e);
+      }
       _verseMarks
         ..clear()
         ..addEntries(
@@ -315,6 +414,26 @@ extension _ReaderController on _ReadingScreenState {
               .map((e) => MapEntry(e.verse, e)),
         );
     });
+    // Частичные выделения: разрешаем frag-селекторы в смещения
+    // плоского текста стиха (ядро, find_frag); смещения — в
+    // не-trimmed тексте, frag строился по trimmed — поэтому
+    // прибавляем ведущие пробелы.
+    _hlFrags.clear();
+    for (final e in _highlights.entries) {
+      for (final rec in e.value) {
+        if (rec.frag.isEmpty) continue;
+        final raw = _verseRaw(e.key);
+        final lead = raw.length - raw.trimLeft().length;
+        final ranges = await bridgeFragRanges(raw.trim(), rec.frag);
+        if (ranges.isEmpty) continue;
+        _hlFrags
+            .putIfAbsent(e.key, () => [])
+            .addAll(
+              ranges.map((r) => (rec: rec, s: r.s + lead, e: r.e + lead)),
+            );
+      }
+    }
+    if (mounted) _rebuild(() {});
   }
 
   /// Теги стиха (список по запятой из одной tag-записи).
@@ -341,6 +460,7 @@ extension _ReaderController on _ReadingScreenState {
     // Для .sb-модулей глава подгружается лениво через мост.
     await m.ensureChapter(_code, _ch);
     if (mounted) _rebuild(() => _mods[id] = m);
+    _prefetchNotes(m);
     // Глава подгрузилась — второй шанс прокрутить к целевому стиху
     // (при push по ссылке ключи появляются только после загрузки).
     if (id == _moduleId && mounted) {
@@ -352,7 +472,23 @@ extension _ReaderController on _ReadingScreenState {
   void _ensureChapter(ModuleDoc m, String code, int ch) {
     m.ensureChapter(code, ch).then((_) {
       if (mounted) _rebuild(() {});
+      if (code == _code && ch == _ch) _prefetchNotes(m);
     });
+  }
+
+  /// Фоновый прогрев сносок открытой главы (только основного
+  /// модуля): пока пользователь читает, тексты параллельных мест
+  /// уже лежат в кэше — карточка открывается без лага.
+  void _prefetchNotes(ModuleDoc m) {
+    if (m.id != _moduleId) return;
+    final ch = m.chapter(_code, _ch);
+    if (ch != null) {
+      prefetchChapterNotes(
+        ch,
+        fromVrs: m.versification,
+        openModule: m.id,
+      );
+    }
   }
 
   // ---------- чтение вслух (TTS) ----------

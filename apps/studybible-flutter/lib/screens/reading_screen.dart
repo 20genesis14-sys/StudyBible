@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import '../data.dart';
 import '../lexicon.dart';
 import '../models.dart';
+import '../frag.dart';
 import '../native_bridge.dart' show UserEntry;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
@@ -28,7 +29,9 @@ import '../voice/voice_backend.dart' show WordMark;
 import '../workspace/contributions.dart';
 import '../workspace/reader_workspace.dart';
 import '../workspace/workspace_model.dart';
+import 'chapter_grid_screen.dart';
 import 'history_screen.dart';
+import '../routes.dart';
 import 'search_screen.dart';
 import 'verse_compare_screen.dart';
 
@@ -46,10 +49,15 @@ class ReadingScreen extends StatefulWidget {
     required this.chapter,
     this.verse,
     this.moduleId,
+    this.openedFromGrid = false,
   });
   final String bookCode;
   final int chapter;
   final int? verse;
+
+  /// Открыта из сетки глав: «назад» шапки может просто pop'нуться на
+  /// неё (иначе — pushReplacement на ChapterGridScreen, см. шапку).
+  final bool openedFromGrid;
 
   /// Стартовый перевод (наследуется у ссылающегося экрана, иначе russyn).
   final String? moduleId;
@@ -129,8 +137,28 @@ class _ReadingScreenState extends State<ReadingScreen> {
   int _itemsTotal = 0;
 
   /// Записи к стихам текущей главы: verse -> запись.
-  final Map<int, UserEntry> _highlights = {};
+  /// Выделений у стиха может быть несколько (куски разных цветов,
+  /// схема 4) — поэтому список.
+  final Map<int, List<UserEntry>> _highlights = {};
   final Map<int, UserEntry> _verseNotes = {};
+
+  /// Разрешённые диапазоны частичных выделений: verse -> срезы
+  /// (запись + UTF-16 смещения в плоском тексте стиха без тримма).
+  /// Считаются при загрузке записей через fragRanges моста.
+  final Map<int, List<({UserEntry rec, int s, int e})>> _hlFrags = {};
+
+  /// Заметки к выделенным фразам (note + frag, схема 4):
+  /// verse -> записи. Связь с выделением — по совпадению frag.
+  final Map<int, List<UserEntry>> _fragNotes = {};
+
+  /// Курсор сырого сдвига по текстовым спанам стиха при построении —
+  /// для покраски кусков `_hlFrags` (как _ttsRaw для пословной).
+  int _hlRaw = 0;
+
+  /// Стих под pointer-down в начале выделения — основная привязка
+  /// для внутристишовых кусков без маркеров « N » (Listener на
+  /// SelectionArea, `_verseAtPoint` по ключам _blockKeys).
+  int? _selAnchorVerse;
 
   /// Закладки и теги стихов главы: verse -> запись.
   final Map<int, UserEntry> _verseMarks = {};
@@ -174,7 +202,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// со стихами (копируется текстом с номерами стихов).
   String? _selectedText;
 
-  final _tapRecognizers = <TapGestureRecognizer>{};
+  final _tapRecognizers = <GestureRecognizer>{};
   Map<String, LexiconEntry>? _lex;
 
   /// Кэш виджетов вторых строк (подстрочник слово-к-слову и строки
@@ -187,7 +215,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// Распознаватели тапов прошлого кадра: спаны главы пересоздаются
   /// при каждом build, старые recognizer'ы надо dispose'ить после
   /// кадра (на длинных главах в «Изучении» иначе копятся сотни).
-  final _tapRecognizersOld = <TapGestureRecognizer>{};
+  final _tapRecognizersOld = <GestureRecognizer>{};
   bool _tapGcQueued = false;
 
   ModuleDoc? get _module => _mods[_moduleId];
@@ -365,20 +393,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       );
     } else {
       final items = <Widget>[
-        Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 12),
-          child: Text(
-            '${_titleOf(code)} · '
-            '${tr('Глава $chapter', 'Chapter $chapter')}',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: readingFontFamily(settings.readingFont),
-              fontSize: 19 * settings.fontScale,
-              fontWeight: FontWeight.w800,
-              color: _verseColor(p),
-            ),
-          ),
-        ),
+        _chapterHeader(code, chapter, p),
         ...(settings.layoutMode == LayoutMode.book
             ? _bookBlocks(doc, p, chapter, true)
             : _buildChapter(doc, p, true)),
@@ -446,7 +461,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
         // стек пуст — обычный pop (на «Домой»/к открывшему экрану).
         // Открытые листы/меню закрывает само дерево виджетов раньше.
         child: PopScope(
-          canPop: false,
+          canPop: _allowRoutePop,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
             // Порядок закрытия (ADR 0019): шторки/меню закрывает
@@ -459,7 +474,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
             if (loc != null) {
               _applyLocation(loc);
             } else {
-              Navigator.of(context).pop();
+              _popRoute(() => Navigator.of(context).maybePop());
             }
           },
           // Боковые кнопки мыши X1/X2 — шаги по стеку (десктоп).
@@ -494,7 +509,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
                       canStart: () =>
                           _selectedText == null || _selectedText!.isEmpty,
                       onTap: () {
-                        if (!_barVisible) setState(() => _barVisible = true);
+                        if (!_barVisible) {
+                          setState(() => _barVisible = true);
+                        }
                       },
                       onCommit: _go,
                       child: Row(
@@ -679,7 +696,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
     if (loc != null) {
       _applyLocation(loc);
     } else {
-      Navigator.of(context).pop();
+      _popRoute(() => Navigator.of(context).maybePop());
     }
   }
 
@@ -688,6 +705,36 @@ class _ReadingScreenState extends State<ReadingScreen> {
     final loc = workspace.forward();
     if (loc != null) _applyLocation(loc);
   }
+
+  /// Отпущен ли pop маршрута (PopScope перехватывает «назад» ради
+  /// стека workspace; кнопка шапки «уровень вверх» отпускает его
+  /// на один кадр через [_popRoute]).
+  bool _allowRoutePop = false;
+
+  /// Выполнить pop маршрута, минуя перехват PopScope: поднимаем
+  /// [_allowRoutePop] и ждём пересборки кадра.
+  void _popRoute(void Function() action) {
+    setState(() => _allowRoutePop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      action();
+      if (mounted) setState(() => _allowRoutePop = false);
+    });
+  }
+
+  /// Кнопка «назад» в шапке — всегда вверх по иерархии: глава →
+  /// сетка глав текущей книги (ROADMAP 1.0.2). Не шаг по стеку
+  /// позиций: из сетки — pop на ту же сетку; из чужого места или
+  /// после свайпа в другую книгу — замена на сетку текущей книги.
+  void _hierarchyBack() => _popRoute(() {
+    if (widget.openedFromGrid && _code == widget.bookCode) {
+      Navigator.of(context).maybePop();
+    } else {
+      Navigator.of(context).pushReplacement(
+        fastRoute(ChapterGridScreen(bookCode: _code)),
+      );
+    }
+  });
 
   String _mobilePane = 'main';
 }

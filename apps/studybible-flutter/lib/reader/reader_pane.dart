@@ -2,6 +2,37 @@ part of '../screens/reading_screen.dart';
 
 /// Одна панель чтения и сравнение переводов.
 extension _ReaderPane on _ReadingScreenState {
+  /// Заголовок в начале главы: «Книга» крупной строкой, под ней —
+  /// «Глава N» мелкой (прототип дизайна: название главы под книгой).
+  Widget _chapterHeader(String code, int chapter, Palette p) => Padding(
+    padding: const EdgeInsets.only(top: 4, bottom: 12),
+    child: Column(
+      children: [
+        Text(
+          _titleOf(code),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: readingFontFamily(settings.readingFont),
+            fontSize: 19 * settings.fontScale,
+            fontWeight: FontWeight.w800,
+            color: _verseColor(p),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          tr('Глава $chapter', 'Chapter $chapter'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: readingFontFamily(settings.readingFont),
+            fontSize: 13 * settings.fontScale,
+            fontWeight: FontWeight.w600,
+            color: p.muted,
+          ),
+        ),
+      ],
+    ),
+  );
+
   Widget _readingBody(ChapterDoc? ch, Palette p, bool wide) {
     final maxW = settings.columnWidth == ColumnWidth.reading && wide
         ? 720.0
@@ -34,22 +65,9 @@ extension _ReaderPane on _ReadingScreenState {
       // (объекты дешёвые), ленивыми остаются Element/RenderObject.
       _verseItemIndex.clear();
       final items = <Widget>[
-        // Заголовок «Книга · Глава N» в начале главы —
+        // Заголовок «Книга» над «Глава N» в начале главы —
         // тот же, что на peek-странице листания.
-        Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 12),
-          child: Text(
-            '${_titleOf(_code)} · '
-            '${tr('Глава $_ch', 'Chapter $_ch')}',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: readingFontFamily(settings.readingFont),
-              fontSize: 19 * settings.fontScale,
-              fontWeight: FontWeight.w800,
-              color: _verseColor(p),
-            ),
-          ),
-        ),
+        _chapterHeader(_code, _ch, p),
         ..._interleaved ? _buildInterleaved(ch, p) : _buildChapter(ch, p),
       ];
       _itemsTotal = items.length;

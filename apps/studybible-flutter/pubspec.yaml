@@ -1,4 +1,4 @@
-﻿name: studybible
+name: studybible
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.2+2
+version: 1.1.0+3
 
 environment:
   sdk: ^3.13.5
@@ -50,6 +50,7 @@ dependencies:
   # платформах; на web код не вызывается (stub-бэкенд).
   # Распаковка голосовых пакетов .tar.bz2/.zip при импорте.
   archive: ^4.3.0
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -88,6 +89,8 @@ flutter:
     # Фронтенд языка нейрочтения (ADR 0017): модель автоударений
     # RUAccent (MIT), посимвольный словарь и словарь ё-слов.
     - assets/voice/ru/
+    # Текст SIL OFL 1.1 — лицензия обязана идти вместе со шрифтами.
+    - assets/fonts/OFL.txt
 
   fonts:
     # Вариативная Literata (opsz + wght, ADR 0015): оптический размер
@@ -120,6 +123,41 @@ flutter:
     - family: NotoSerifHebrew
       fonts:
         - asset: assets/fonts/NotoSerifHebrew.ttf
+    # Кандидаты шрифтов чтения (переменные wght, кириллица).
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/Lora-VF.ttf
+        - asset: assets/fonts/Lora-Italic-VF.ttf
+          style: italic
+    - family: Alegreya
+      fonts:
+        - asset: assets/fonts/Alegreya-VF.ttf
+        - asset: assets/fonts/Alegreya-Italic-VF.ttf
+          style: italic
+    - family: SourceSerif4
+      fonts:
+        - asset: assets/fonts/SourceSerif4-VF.ttf
+        - asset: assets/fonts/SourceSerif4-Italic-VF.ttf
+          style: italic
+    - family: RobotoSerif
+      fonts:
+        - asset: assets/fonts/RobotoSerif-VF.ttf
+        - asset: assets/fonts/RobotoSerif-Italic-VF.ttf
+          style: italic
+    - family: CharisSIL
+      fonts:
+        - asset: assets/fonts/CharisSIL-Regular.ttf
+        - asset: assets/fonts/CharisSIL-Italic.ttf
+          style: italic
+        - asset: assets/fonts/CharisSIL-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/CharisSIL-BoldItalic.ttf
+          weight: 700
+          style: italic
+    # Только латиница — для тестов (цифры, UI).
+    - family: PaperMono
+      fonts:
+        - asset: assets/fonts/PaperMono-VF.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

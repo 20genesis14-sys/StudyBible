@@ -1,4 +1,6 @@
-# Кэш компиляции: повторные сборки и ворктри берут готовые объектники.
-# Требует `sccache` в PATH (winget install Mozilla.sccache).
-[build]
-rustc-wrapper = "sccache"
+# Конфиг уровня репозитория.
+# Намеренно пустой: rustc-wrapper (sccache) живёт в пользовательском
+# config.toml — сборка должна воспроизводиться и на машинах без sccache
+# (F-Droid buildserver). Пути toolchain:
+#   Windows CARGO_HOME=D:\StudyBible-tools\cargo
+#   Linux/WSL CARGO_HOME=~/.cargo

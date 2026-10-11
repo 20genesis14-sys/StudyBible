@@ -7,20 +7,18 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `gunzip`
-
-/// Инициализировать акцентор байтами модели и словарей
-/// (`accent.onnx`, `vocab.txt`, `yo_words.tsv.gz`, `lexicon.tsv.gz`).
+/// Инициализировать акцентор байтами модели и содержимым словарей
+/// (`accent.onnx`, `vocab.txt`, `yo_words.tsv`, `lexicon.tsv`).
 Future<void> accentInit({
   required List<int> model,
   required String vocab,
-  required List<int> yoGz,
-  required List<int> lexiconGz,
+  required String yo,
+  required String lexicon,
 }) => RustLib.instance.api.crateApiVoiceAccentInit(
   model: model,
   vocab: vocab,
-  yoGz: yoGz,
-  lexiconGz: lexiconGz,
+  yo: yo,
+  lexicon: lexicon,
 );
 
 /// Текст с ударениями U+0301 и ё по словарю. Без инициализации

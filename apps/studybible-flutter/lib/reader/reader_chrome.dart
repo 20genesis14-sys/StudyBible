@@ -196,7 +196,11 @@ extension _ReaderChrome on _ReadingScreenState {
                   IconButton(
                     tooltip: tr('Назад', 'Back'),
                     icon: Icon(Icons.arrow_back, color: p.muted),
-                    onPressed: () => Navigator.of(context).maybePop(),
+                    // «Назад» в шапке — всегда строго вверх по
+                    // иерархии: глава → сетка глав текущей книги
+                    // (ROADMAP 1.0.2). Историю позиций обслуживают
+                    // только системный жест и стек workspace.
+                    onPressed: _hierarchyBack,
                   ),
                   Container(
                     width: 10,
@@ -1019,34 +1023,30 @@ extension _ReaderChrome on _ReadingScreenState {
                 const SizedBox(height: 6),
                 SizedBox(
                   width: double.infinity,
-                  child: SegmentedButton<ReadingFont>(
-                    showSelectedIcon: false,
-                    style: SegmentedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    segments: [
-                      const ButtonSegment(
-                        value: ReadingFont.literata,
-                        label: Text('Literata'),
-                      ),
-                      const ButtonSegment(
-                        value: ReadingFont.gentium,
-                        label: Text('Gentium'),
-                      ),
-                      const ButtonSegment(
-                        value: ReadingFont.ptSerif,
-                        label: Text('PT Serif'),
-                      ),
-                      ButtonSegment(
-                        value: ReadingFont.system,
-                        label: Text(tr('Сист.', 'System')),
-                      ),
+                  child: DropdownMenu<ReadingFont>(
+                    initialSelection: settings.readingFont,
+                    expandedInsets: EdgeInsets.zero,
+                    textStyle: const TextStyle(fontSize: 13),
+                    onSelected: (f) {
+                      if (f != null) {
+                        settings.update(() => settings.readingFont = f);
+                      }
+                    },
+                    dropdownMenuEntries: [
+                      for (final f in ReadingFont.values)
+                        DropdownMenuEntry(
+                          value: f,
+                          label: f == ReadingFont.system
+                              ? tr('Системный', 'System')
+                              : readingFontLabel(f),
+                          style: TextButton.styleFrom(
+                            textStyle: TextStyle(
+                              fontFamily: readingFontFamily(f),
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
                     ],
-                    selected: {settings.readingFont},
-                    onSelectionChanged: (s) =>
-                        settings.update(() => settings.readingFont = s.first),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1071,6 +1071,45 @@ extension _ReaderChrome on _ReadingScreenState {
                   onChanged: (v) =>
                       settings.update(() => settings.fontScale = v),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  tr('Насыщенность', 'Weight'),
+                  style: TextStyle(fontSize: 12, color: p.muted),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<int>(
+                    showSelectedIcon: false,
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    segments: [
+                      ButtonSegment(
+                        value: 0,
+                        label: Text(tr('Обычн.', 'Regular')),
+                      ),
+                      ButtonSegment(
+                        value: 1,
+                        label: Text(tr('Средн.', 'Medium')),
+                      ),
+                      ButtonSegment(
+                        value: 2,
+                        label: Text(tr('Полужирн.', 'Semibold')),
+                      ),
+                      ButtonSegment(
+                        value: 3,
+                        label: Text(tr('Жирный', 'Bold')),
+                      ),
+                    ],
+                    selected: {settings.fontWeightStep},
+                    onSelectionChanged: (s) => settings.update(
+                      () => settings.fontWeightStep = s.first,
+                    ),
+                  ),
+                ),
                 _miniSlider(
                   tr('Сноски', 'Footnotes'),
                   settings.footScale,
@@ -1089,6 +1128,7 @@ extension _ReaderChrome on _ReadingScreenState {
                   style: TextStyle(
                     fontFamily: readingFontFamily(settings.readingFont),
                     fontSize: 16 * settings.fontScale,
+                    fontWeight: settings.readingWeight,
                     color: p.ink,
                     height: 1.5,
                   ),
@@ -1340,7 +1380,7 @@ extension _ReaderChrome on _ReadingScreenState {
     );
     switch (choice) {
       case 'hl':
-        _toggleHighlight(v);
+        _chooseHighlight(v);
       case 'note':
         _editNote(v);
       case 'mark':

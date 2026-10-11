@@ -17,6 +17,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
 
 import 'package:path_provider/path_provider.dart';
 
+import 'frag.dart';
 import 'native_bridge.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/rust/api/module.dart' as api_module;
@@ -50,10 +51,14 @@ Future<void> _initImpl() async {
 }
 
 /// Модуль, упакованный в сборку как ассет `.sbz` (решение
-/// 08.10.2026: поставляем ровно один базовый перевод, остальные —
-/// импортом пользователя). .sbz читается store напрямую
+/// 08.10.2026: один базовый перевод; дополнено 10.10.2026 — второй
+/// базовый: eng-kjv2006, KJV 1769 со Стронгом и параллельными,
+/// public domain). .sbz читается store напрямую
 /// (распаковка в ОЗУ при открытии), распаковывать не нужно.
-const _bundledModules = ['russyn'];
+/// 10.10.2026 — + `openbible-xrefs`: общий слой параллельных мест
+/// (ADR 0023), сидируется так же, но это `kind="layer"`, в списках
+/// переводов не показывается.
+const _bundledModules = ['russyn', 'eng-kjv2006', 'openbible-xrefs'];
 
 /// Скопировать встроенные .sbz в каталог данных при первом запуске:
 /// пропускаем модуль, если уже есть .sb или .sbz — импортированные
@@ -185,6 +190,28 @@ Future<T?> _guard<T>(String what, Future<T?> Function() f) async {
   }
 }
 
+/// Общий слой параллельных мест (ADR 0023): файл `openbible-xrefs`
+/// в каталоге модулей. Мост подмешивает его ссылки модулям без
+/// собственных `x`-спанов; настройка — `settings.externalXrefs`.
+Future<void> bridgeSetXrefLayer(bool enabled) =>
+    _guard('xrefLayer', () async {
+          var path = '';
+          if (enabled) {
+            final dir = _modulesDir();
+            for (final ext in ['sbz', 'sb']) {
+              final f = File(
+                '$dir${Platform.pathSeparator}openbible-xrefs.$ext',
+              );
+              if (f.existsSync()) {
+                path = f.path;
+                break;
+              }
+            }
+          }
+          await api_module.xrefLayerSet(path: path);
+        })
+        .then((_) {});
+
 /// JSON-документ модуля формата export.rs (без глав).
 Future<String?> bridgeModuleDoc(String path) =>
     _guard('moduleDoc', () => api_module.moduleDoc(path: path));
@@ -248,6 +275,7 @@ UserEntry _entry(api_userdata.UserEntryInfo e) => UserEntry(
   verse: e.verse.toInt(),
   text: e.text,
   context: e.context,
+  frag: e.frag,
   created: e.created.toInt(),
   updated: e.updated.toInt(),
 );
@@ -268,6 +296,9 @@ Future<List<UserEntry>> bridgeEntriesList(String kind, {String? module}) async {
 }
 
 /// Добавить запись к стиху модуля; null — ошибка моста.
+/// [frag] — селектор куска стиха `{exact,pre,post}` (JSON);
+/// [created] — общая метка времени пачки (одно действие на
+/// несколько стихов), null = сейчас.
 Future<String?> bridgeEntryAdd({
   required String kind,
   required String module,
@@ -276,6 +307,8 @@ Future<String?> bridgeEntryAdd({
   required int verse,
   required String text,
   required String context,
+  String frag = '',
+  int? created,
 }) => _guard(
   'entryAdd',
   () => api_userdata.entryAdd(
@@ -287,8 +320,27 @@ Future<String?> bridgeEntryAdd({
     verse: verse,
     text: text,
     context: context,
+    frag: frag,
+    created: created,
   ),
 );
+
+/// Диапазоны frag-селектора в тексте стиха: байтовые пары ядра →
+/// UTF-16 индексы строки. Пусто — селектор не нашёлся (не красим).
+Future<List<({int s, int e})>> bridgeFragRanges(
+  String verseText,
+  String frag,
+) async {
+  if (frag.isEmpty) return const [];
+  final pairs = await _guard(
+    'fragRanges',
+    () async => api_userdata.fragRanges(text: verseText, frag: frag),
+  );
+  if (pairs == null) return const [];
+  return byteToUtf16(verseText, [
+    for (final n in pairs) n.toInt(),
+  ]);
+}
 
 Future<bool> bridgeEntryUpdate(String id, String text) async =>
     await _guard(
@@ -481,15 +533,15 @@ Future<List<SearchHit>> bridgeModuleSearch(
 Future<void> bridgeAccentInit(
   Uint8List model,
   String vocab,
-  Uint8List yoGz,
-  Uint8List lexiconGz,
+  String yo,
+  String lexicon,
 ) => _guard(
   'accentInit',
   () => api_voice.accentInit(
     model: model,
     vocab: vocab,
-    yoGz: yoGz,
-    lexiconGz: lexiconGz,
+    yo: yo,
+    lexicon: lexicon,
   ),
 );
 

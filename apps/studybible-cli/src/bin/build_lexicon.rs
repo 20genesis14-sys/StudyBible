@@ -1,21 +1,19 @@
-//! Сборка лексикона ударений `lexicon.tsv.gz` (ADR 0017 «Фронтенд
+//! Сборка лексикона ударений `lexicon.tsv` (ADR 0017 «Фронтенд
 //! языка»): пересечение словаря RUAccent `accents.json.gz` со
 //! словоформами русских модулей .sb; омографы исключаются — их
 //! разрешает нейросеть.
 //!
-//!   build_lexicon <accents.json.gz> <omographs.json.gz> <out.tsv.gz> <модуль.sb>...
+//!   build_lexicon <accents.json.gz> <omographs.json.gz> <out.tsv> <модуль.sb>...
 //!
 //! Из модулей берутся только русские (`meta.language` = ru) и только
 //! Библии (`meta.kind` пуст/bible). Выход: `слово<TAB>с_ударением`
-//! (U+0301 после ударной гласной), gzip, UTF-8, сортировка.
+//! (U+0301 после ударной гласной), UTF-8, сортировка.
 
 use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 
-use flate2::Compression;
 use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
 use serde_json::Value;
 use studybible_store::Module;
 
@@ -82,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (accents, omographs, out) = (
         args.next().expect("accents.json.gz"),
         args.next().expect("omographs.json.gz"),
-        args.next().expect("out.tsv.gz"),
+        args.next().expect("out.tsv"),
     );
     let modules: Vec<String> = args.collect();
     assert!(!modules.is_empty(), "нужен хотя бы один модуль .sb");
@@ -144,10 +142,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         words.len(),
     );
 
-    let mut w = GzEncoder::new(BufWriter::new(File::create(&out)?), Compression::default());
+    let mut w = BufWriter::new(File::create(&out)?);
     for (k, v) in &lexicon {
         writeln!(w, "{k}\t{v}")?;
     }
-    w.finish()?;
     Ok(())
 }

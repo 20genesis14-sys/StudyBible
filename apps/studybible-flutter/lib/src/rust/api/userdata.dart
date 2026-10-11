@@ -77,6 +77,8 @@ Future<String> entryAdd({
   required PlatformInt64 verse,
   required String text,
   required String context,
+  required String frag,
+  PlatformInt64? created,
 }) => RustLib.instance.api.crateApiUserdataEntryAdd(
   path: path,
   kind: kind,
@@ -86,6 +88,8 @@ Future<String> entryAdd({
   verse: verse,
   text: text,
   context: context,
+  frag: frag,
+  created: created,
 );
 
 /// Чужие записи к стиху (в.12, этап А): записи других модулей, чья
@@ -105,6 +109,13 @@ Future<List<UserEntryInfo>> entriesForeignList({
   chapter: chapter,
   verse: verse,
 );
+
+/// Диапазоны фрагмента-селектора в тексте стиха (userdata схема 4):
+/// `frag` — JSON `{exact,pre,post}`, возвращаем плоский список
+/// байтовых смещений `[s0,e0, s1,e1, …]`. Пустой/битый селектор или
+/// отсутствие вхождений — пустой список; UI тогда ничего не красит.
+Int64List fragRanges({required String text, required String frag}) =>
+    RustLib.instance.api.crateApiUserdataFragRanges(text: text, frag: frag);
 
 /// Прогнать перепривязку записей к установленным модулям
 /// (`UserData::relink`, в.12); возвращает строку-итог для лога/UI.
@@ -171,6 +182,9 @@ class UserEntryInfo {
   /// Контрольный фрагмент стиха для перепривязки при обновлении модуля.
   final String context;
 
+  /// Селектор куска стиха `{exact,pre,post}` (JSON); пусто — весь стих.
+  final String frag;
+
   /// Unix-миллисекунды.
   final PlatformInt64 created;
   final PlatformInt64 updated;
@@ -184,6 +198,7 @@ class UserEntryInfo {
     required this.verse,
     required this.text,
     required this.context,
+    required this.frag,
     required this.created,
     required this.updated,
   });
@@ -198,6 +213,7 @@ class UserEntryInfo {
       verse.hashCode ^
       text.hashCode ^
       context.hashCode ^
+      frag.hashCode ^
       created.hashCode ^
       updated.hashCode;
 
@@ -214,6 +230,7 @@ class UserEntryInfo {
           verse == other.verse &&
           text == other.text &&
           context == other.context &&
+          frag == other.frag &&
           created == other.created &&
           updated == other.updated;
 }

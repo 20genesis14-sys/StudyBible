@@ -19,6 +19,9 @@ Future<String?> bridgeModuleDoc(String path) => Future.value(null);
 Future<String?> bridgeChapterDoc(String path, String book, int chapter) =>
     Future.value(null);
 
+/// Общий слой параллельных (ADR 0023) — в стабе нет.
+Future<void> bridgeSetXrefLayer(bool enabled) async {}
+
 /// Прогресс — на web только в памяти.
 Future<String?> bridgeProgressLoad() => Future.value(null);
 Future<void> bridgeProgressMarkRead(String book, int chapter) async {}
@@ -55,8 +58,10 @@ Future<String?> bridgeEntryAdd({
   required int verse,
   required String text,
   required String context,
+  String frag = '',
+  int? created,
 }) async {
-  final now = DateTime.now().millisecondsSinceEpoch;
+  final now = created ?? DateTime.now().millisecondsSinceEpoch;
   final id = 'stub-${_stubSeq++}';
   _stubEntries.add(
     UserEntry(
@@ -68,12 +73,18 @@ Future<String?> bridgeEntryAdd({
       verse: verse,
       text: text,
       context: context,
+      frag: frag,
       created: now,
       updated: now,
     ),
   );
   return id;
 }
+
+Future<List<({int s, int e})>> bridgeFragRanges(
+  String verseText,
+  String frag,
+) async => const [];
 
 Future<bool> bridgeEntryUpdate(String id, String text) async {
   final i = _stubEntries.indexWhere((e) => e.id == id);

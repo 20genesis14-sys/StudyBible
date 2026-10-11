@@ -4,13 +4,13 @@ import 'package:flutter/services.dart';
 import '../data.dart';
 import '../l10n.dart';
 import '../state.dart';
+import '../frag.dart';
 import '../native_bridge.dart' show UserEntry;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
     if (dart.library.html) '../native_bridge_web.dart';
 import '../theme.dart';
-import '../userdata_stub.dart'
-    if (dart.library.io) '../userdata_io.dart';
+import '../userdata_stub.dart' if (dart.library.io) '../userdata_io.dart';
 import 'reading_screen.dart';
 import '../routes.dart';
 
@@ -25,6 +25,10 @@ class BookmarksScreen extends StatefulWidget {
 
 class _BookmarksScreenState extends State<BookmarksScreen> {
   List<UserEntry> _marks = [];
+
+  /// Выделения (kind='hl'): список сырьём, склейка пачек — в
+  /// [_hlGroups] по общему `created` одного жеста (схема 4).
+  List<UserEntry> _highlights = [];
 
   /// Тег -> записи, помеченные им (tag/notes к стихам).
   final Map<String, List<UserEntry>> _byTag = {};
@@ -63,10 +67,17 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         if (name.isNotEmpty) tags.putIfAbsent(name, () => []).add(e);
       }
     }
+    final hls = (await bridgeEntriesList('hl')).where(real).toList()
+      ..sort(
+        (a, b) => a.module == b.module
+            ? b.created.compareTo(a.created)
+            : a.module.compareTo(b.module),
+      );
     final orphans = (await bridgeOrphanIds()).toSet();
     if (!mounted) return;
     setState(() {
       _marks = marks;
+      _highlights = hls;
       _orphans = orphans;
       _byTag
         ..clear()
@@ -134,6 +145,62 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     );
   }
 
+  /// Выделения, слепленные в действия пользователя: общий `created` +
+  /// модуль/книга/глава/цвет = одна строка «2 Цар. 2:2–4».
+  List<Widget> _hlTiles(Palette p) {
+    final groups = <String, List<UserEntry>>{};
+    for (final e in _highlights.where((e) => !_orphans.contains(e.id))) {
+      groups
+          .putIfAbsent(
+            '${e.module}|${e.book}|${e.chapter}|${e.created}|${e.text}',
+            () => [],
+          )
+          .add(e);
+    }
+    final out = <Widget>[];
+    for (final g in groups.values) {
+      final verses = [for (final e in g) e.verse]..sort();
+      final lo = verses.first;
+      final hi = verses.last;
+      final span = verses.length == hi - lo + 1 ? '$lo–$hi' : verses.join(',');
+      final e0 = g.first;
+      // Подпись — выделенные фразы (exact из frag), иначе
+      // контекст первой записи.
+      final frags = [
+        for (final e in g)
+          if (fragParse(e.frag) case final s?) s.exact,
+      ];
+      out.add(
+        ListTile(
+          dense: true,
+          leading: Icon(Icons.circle, size: 16, color: highlightColor(e0.text)),
+          title: Text(
+            '${bookShort(e0.book)} ${e0.chapter}:$span — ${moduleName(e0.module)}',
+            style: TextStyle(color: p.ink, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            frags.isNotEmpty ? frags.join(' · ') : e0.context,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: p.muted, fontSize: 12),
+          ),
+          trailing: IconButton(
+            icon: Icon(Icons.close, size: 16, color: p.muted),
+            tooltip: tr('Удалить', 'Delete'),
+            onPressed: () async {
+              for (final e in g) {
+                await bridgeEntryRemove(e.id);
+              }
+              await _load();
+            },
+          ),
+          onTap: () => _open(e0),
+        ),
+      );
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -152,9 +219,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             onPressed: () async {
               final msg = await importEntriesZip();
               if (msg == null || !context.mounted) return;
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(msg)));
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(msg)));
               await _load();
               await notes.load();
             },
@@ -169,9 +235,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               ),
               PopupMenuItem(
                 value: 'md',
-                child: Text(
-                  tr('Экспорт в Markdown', 'Export to Markdown'),
-                ),
+                child: Text(tr('Экспорт в Markdown', 'Export to Markdown')),
               ),
             ],
             onSelected: (v) async {
@@ -179,9 +243,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                   ? await exportEntriesMd()
                   : await exportEntriesZip();
               if (msg == null || !context.mounted) return;
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(msg)));
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(msg)));
             },
           ),
         ],
@@ -222,6 +285,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 ],
               ),
             ),
+            _header(tr('Выделения', 'Highlights'), p),
+            if (_highlights.isEmpty)
+              _empty(tr('Выделений пока нет', 'No highlights yet'), p),
+            ..._hlTiles(p),
             _header(tr('Закладки', 'Bookmarks'), p),
             if (_marks.isEmpty)
               _empty(tr('Закладок пока нет', 'No bookmarks yet'), p),

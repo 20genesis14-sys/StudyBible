@@ -1,6 +1,82 @@
-﻿# Changelog
+# Changelog
 
 All notable changes after the 1.0 release — one per line.
+
+## 1.1.0 (2026-10-11)
+
+- New app icon — an open book with light on a dark-red background;
+  an Android adaptive icon added (foreground + dark-red backdrop).
+- Second bundled translation: King James Version (1769, eBible.org)
+  with Strong's, cross-references and footnotes — seeded on first
+  launch like the Synodal.
+- Shared cross-reference layer `openbible-xrefs` (ADR 0023):
+  translations without their own x spans get the OpenBible link set
+  merged at read time; toggle in Settings; modules no longer embed a
+  duplicate copy (russyn.sbz 2.78 -> 1.74 MB, kjv 8.2 -> 7.1 MB).
+- Fixed web build: packed modules need the span_pack decoder that was
+  missing on the web bridge (chapters showed no verse text).
+- Module format: blob-packed `t` spans, tokens and alignment
+  (ADR 0022, `meta.required="pack"`) — markup-heavy `.sb` modules get
+  much smaller; old modules keep working, packed ones need the new app.
+- Footnote/cross-reference cards now resolve verse texts in the
+  translation being read by default (was: the main translation — a KJV
+  reader saw Synodal texts); the xref translation setting stays, with
+  a fallback to the main module when the chosen one lacks the book.
+- Web reads `.sbz` directly: a vendored wasm zstd decoder
+  (`web/zstd/`, @bokuweb/zstd-wasm, MIT) unpacks the same container as
+  native platforms — one artifact per module, no `.sb`/`.sb.gz` pair;
+  gzip/raw fallbacks kept for older deployments.
+
+- Fixed: the chapter grid briefly showed a fake "1" chapter while the
+  module was still loading — now a spinner, an ellipsis in the counter
+  and an indeterminate progress bar until the module doc arrives.
+- Faster footnote/cross-reference cards: note texts are prefetched in
+  the background when a chapter opens, references load in parallel,
+  and card results are cached — cards open instantly on repeat taps.
+- Speed: a module's SQLite connection is now opened once per session
+  instead of re-reading the whole .sb file on every chapter request —
+  noticeably faster footnotes, parallel passages, page turns and
+  comparison on desktop and Android.
+- Speed: texts of already-fetched verses are memoized per module —
+  neighbouring notes referencing the same verse don't re-read it.
+- Clearer chapter and verse numbering: chapters open with a large
+  inline numeral (print-style drop cap) and a two-line heading —
+  book name above, "Chapter N" beneath; verse numbers are accented
+  (vermilion, w800) so anchors don't get lost in paragraph text; the
+  drop cap doubles as the verse-1 anchor (tap selects the verse), so
+  the duplicated "1" marker is gone.
+- New setting: text weight with four steps (Regular/Medium/Semibold/
+  Bold) — in "Font and theme" and in Settings, with live preview.
+- New "Licenses" page in Settings: deduplicated list of licenses used
+  by the app with links to full texts, plus offline package-license
+  texts via the built-in Flutter page. The SIL OFL text now ships
+  with the bundled fonts.
+- More reading fonts to evaluate: Lora, Alegreya, Source Serif 4,
+  Roboto Serif, Charis SIL (full Cyrillic, variable weight) and
+  Paper Mono (Latin only); the font picker is now a dropdown showing
+  each name in its own typeface, variable fonts get precise `wght`.
+- Fixed: "highlight color" now tints the verse text itself, not only
+  the verse number (paragraph mode).
+- Highlights now come in six colors: yellow, green, blue, pink,
+  purple, orange.
+- Any selected words can be highlighted, not only whole verses.
+- Tap a highlight for its menu: another color, a note on the
+  phrase, removal. Strong's opens on long press. Records has a
+  "Highlights" section: one gesture — one line, removed at once.
+  Interlinear columns don't paint partial highlights yet.
+- Footnote card redesigned: height wraps content (max 75 % of the
+  screen, long notes scroll), note text at a readable 15 pt base.
+- Reproducible release builds: Rust paths remapped to stable anchors
+  (`/cargo`, `/src`), `.note.gnu.build-id` stripped from native
+  libraries — two independent builds differ only in the embedded
+  build path; the canonical F-Droid path makes APKs bit-identical.
+- Voice accent dictionaries now ship as plain `.tsv` (was `.tsv.gz`) —
+  transparent source data for repository scanners; `accent_init`
+  takes TSV strings directly.
+- `docs/MODULE-LICENSES.md`: per-module license and attribution
+  statuses for all bundled `.sbz` modules.
+- F-Droid store metadata: `fastlane/` directory with en-US and ru-RU
+  descriptions, icon, feature graphic, screenshots and changelog.
 
 ## 1.0.1 (2026-10-09)
 
@@ -38,6 +114,10 @@ All notable changes after the 1.0 release — one per line.
   from the foreign-records list is a stack step too, not a new screen.
 - "Records" screen: a note's "share" button copies it to the clipboard
   as "Reference — text (translation)".
+- Reader AppBar "back" goes strictly up the hierarchy: chapter → the
+  book's chapter grid. Reading-history back is the system gesture.
+- Search shows a result count: "Found: N" under the query field;
+  "Found: 100+" when truncated by the limit.
 - Fixed (one of the sources): cross-references were bound to markers by
   order and a wrong anchor verse number — in verses with two or more
   markers, all after the first showed an empty card or foreign links.

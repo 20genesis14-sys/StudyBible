@@ -8,10 +8,10 @@ Decisions — ADR 0008 (data on device only), DECISIONS: "Synchronization".
 ## Database
 
 A separate SQLite (`userdata.db` in the data root, `--db` overrides),
-`journal_mode=WAL`, schema version in `meta` (`schema = 3`) — migrations
+`journal_mode=WAL`, schema version in `meta` (`schema = 4`) — migrations
 are added, not rewritten (1→3: `vrs`, `module_ver`, `canon_*`; 2→3: only
-`canon_*`). `meta` also has `device` — a unique database id, generated
-at creation.
+`canon_*`; 3→4: `frag`). `meta` also has `device` — a unique database
+id, generated at creation.
 
 ## Table `entries`
 
@@ -31,7 +31,31 @@ module_ver TEXT                   — module content_hash (else version), schema
 canon_book, canon_c1, canon_v1,
 canon_c2, canon_v2                — the verse's canonical range in the org grid
                                   (schema 3, stage A); canon_book='' — not written
+frag    TEXT                      — sub-verse selector {exact,pre,post}, JSON
+                                  (schema 4); '' — whole-verse record
 ```
+
+## Partial highlights and phrase notes (schema 4)
+
+`frag` is a content anchor for a verse fragment (not an offset — it
+survives renderer swaps and module updates): `exact` — the selected
+text, `pre`/`post` — ~30 chars of neighbour context to tell repeats
+apart (equal ones — first occurrence wins). Matching is
+`studybible_core::frag::find_frag` over normalized text (letters/digits
++ collapsed spaces; punctuation and footnote marks don't break it),
+returning grapheme-safe offsets; web uses the Dart port `lib/frag.dart`,
+bridge `frag_ranges`.
+
+`kind='hl'` semantics: the color lives in `text` (6 palette values);
+several records may share a verse; overlapping ranges are refused (an
+occupied stretch can only be removed); one user gesture = N records
+(one per verse) sharing a `created` stamp — the batch key for list
+grouping and one-tap removal. If `frag` isn't found nothing is painted
+— the record stays, honest degradation like orphans.
+
+`kind='note'` with `frag`: a phrase note — a plain note carrying the
+same selector, with no link to the highlight record: it survives
+recoloring and highlight removal and re-anchors on its own.
 
 ## Re-anchoring (schema 2, question № 12, stage B)
 
@@ -82,5 +106,7 @@ walk the import list: added / updated / skipped.
 resolved as "newest wins" — the second version is not kept (the "keep
 both versions" decision is postponed until real folder sync).
 
-What the schema lacks: an intra-verse offset (a record is bound to a
-whole verse) and a canonical range part for sub-verses — not needed.
+What the schema lacks: an explicit batch `group` id (a shared `created`
+serves instead; limitation — import/sync with doctored timestamps could
+glue foreign records together) and a canonical range part for
+sub-verses.

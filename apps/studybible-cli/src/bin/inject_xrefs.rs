@@ -153,11 +153,26 @@ fn main() -> Result<(), String> {
             .collect::<rusqlite::Result<_>>()
             .map_err(|e| e.to_string())?
     };
+    // ADR 0022: в упакованном модуле `t`-спаны лежат в `span_pack` —
+    // позиции ищем по расшифрованным элементам блока, а вставку делаем
+    // перенумерацией блока.
+    let has_pack: bool = tx
+        .query_row(
+            "SELECT count(*) FROM (SELECT 1 FROM span_pack LIMIT 1)",
+            [],
+            |r| r.get::<_, i64>(0),
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false);
     let mut n_ins = 0u64;
     for ((book, ch, v), txt) in &xref {
         let Some(&bid) = book_ids.get(book.as_str()) else {
             continue;
         };
+        if has_pack {
+            n_ins += inject_packed(&tx, bid, *ch, *v, txt)? as u64;
+            continue;
+        }
         // Первый спан стиха: у непустых стихов спаны несут verse=?, у
         // пустых — единственная строка kind='v' с num=? (verse NULL).
         let (block, vseq): (i64, i64) = match tx.query_row(
@@ -226,4 +241,155 @@ fn main() -> Result<(), String> {
         m.meta().id
     );
     Ok(())
+}
+
+/// Элемент потока блока упакованного модуля (ADR 0022): строка `spans`
+/// либо `t`-спан из блоба `span_pack`.
+enum PackedItem {
+    /// Построчный спан (f/x/v/…) — обновляем seq по старому ключу.
+    Row { seq: i64 },
+    /// `t`-спан — уходит обратно в переписанный блоб.
+    T(studybible_store::pack::PackedSpan),
+}
+
+impl PackedItem {
+    /// Привязка к стиху: `verse` у t/f/x, `num` у маркера `v`.
+    fn verse_key(&self, row_verse: Option<i64>, row_num: Option<i64>) -> Option<i64> {
+        match self {
+            PackedItem::T(t) => t.verse.map(i64::from),
+            _ => row_verse.or(row_num),
+        }
+    }
+}
+
+/// Вставка `x` в упакованный модуль: элементы блока сливаются по `seq`,
+/// `x` встаёт перед первым элементом следующего стиха, затем весь блок
+/// перенумеровывается и `span_pack` переписывается. Возвращает 1/0.
+fn inject_packed(
+    tx: &rusqlite::Transaction,
+    bid: i64,
+    ch: u16,
+    v: u16,
+    txt: &str,
+) -> Result<u32, String> {
+    let blocks: Vec<i64> = {
+        let mut st = tx
+            .prepare("SELECT seq FROM blocks WHERE book_id=?1 AND chapter=?2 ORDER BY seq")
+            .map_err(|e| e.to_string())?;
+        st.query_map(rusqlite::params![bid, ch], |r| r.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(|e| e.to_string())?
+    };
+    for block in blocks {
+        // Собираем элементы блока: построчные спаны + t из блоба.
+        let mut items: Vec<(PackedItem, Option<i64>, Option<i64>)> = Vec::new();
+        {
+            let mut st = tx
+                .prepare(
+                    "SELECT seq, kind, num, verse FROM spans
+                     WHERE book_id=?1 AND chapter=?2 AND block=?3",
+                )
+                .map_err(|e| e.to_string())?;
+            let rows = st
+                .query_map(rusqlite::params![bid, ch, block], |r| {
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, Option<i64>>(2)?,
+                        r.get::<_, Option<i64>>(3)?,
+                    ))
+                })
+                .map_err(|e| e.to_string())?;
+            for r in rows {
+                let (seq, _kind, num, verse) = r.map_err(|e| e.to_string())?;
+                items.push((PackedItem::Row { seq }, verse, num));
+            }
+        }
+        let blob: Option<Vec<u8>> = tx
+            .query_row(
+                "SELECT blob FROM span_pack WHERE book_id=?1 AND chapter=?2 AND block=?3",
+                rusqlite::params![bid, ch, block],
+                |r| r.get(0),
+            )
+            .ok();
+        if let Some(blob) = blob {
+            for e in studybible_store::pack::decode_spans(&blob).map_err(|e| e.to_string())? {
+                items.push((PackedItem::T(e), None, None));
+            }
+        }
+        items.sort_by_key(|(it, _, _)| match it {
+            PackedItem::Row { seq } => *seq,
+            PackedItem::T(t) => i64::from(t.seq),
+        });
+        // Блок содержит стих?
+        if !items
+            .iter()
+            .any(|(it, rv, rn)| it.verse_key(*rv, *rn) == Some(i64::from(v)))
+        {
+            continue;
+        }
+        // Позиция — перед первым элементом следующего стиха.
+        let at = items
+            .iter()
+            .position(|(it, rv, rn)| it.verse_key(*rv, *rn).is_some_and(|k| k > i64::from(v)))
+            .unwrap_or(items.len());
+        items.insert(
+            at,
+            (
+                PackedItem::Row { seq: -1 }, // новая строка x
+                None,
+                None,
+            ),
+        );
+        // Перенумеровываем и переписываем: строки — UPDATE по старому
+        // seq (с фазой-сдвигом от PK-конфликтов), t — новый блоб.
+        tx.execute(
+            "UPDATE spans SET seq=seq+1000000
+             WHERE book_id=?1 AND chapter=?2 AND block=?3",
+            rusqlite::params![bid, ch, block],
+        )
+        .map_err(|e| e.to_string())?;
+        let mut pack: Vec<studybible_store::pack::PackedSpan> = Vec::new();
+        for (new_seq, (it, _rv, _rn)) in items.iter().enumerate() {
+            match it {
+                PackedItem::Row { seq: -1 } => {
+                    tx.execute(
+                        "INSERT INTO spans (book_id,chapter,block,seq,kind,num,verse,start,len,style,attrs,caller,text) \
+                         VALUES (?1,?2,?3,?4,'x',NULL,NULL,NULL,NULL,'','','+',?5)",
+                        rusqlite::params![bid, ch, block, new_seq as i64, txt],
+                    )
+                    .map_err(|e| e.to_string())?;
+                }
+                PackedItem::Row { seq: old } => {
+                    tx.execute(
+                        "UPDATE spans SET seq=?5
+                         WHERE book_id=?1 AND chapter=?2 AND block=?3 AND seq=?4+1000000",
+                        rusqlite::params![bid, ch, block, old, new_seq as i64],
+                    )
+                    .map_err(|e| e.to_string())?;
+                }
+                PackedItem::T(t) => {
+                    let mut t = t.clone();
+                    t.seq = new_seq as u16;
+                    pack.push(t);
+                }
+            }
+        }
+        if pack.is_empty() {
+            tx.execute(
+                "DELETE FROM span_pack WHERE book_id=?1 AND chapter=?2 AND block=?3",
+                rusqlite::params![bid, ch, block],
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute(
+                "INSERT OR REPLACE INTO span_pack VALUES(?1,?2,?3,?4)",
+                rusqlite::params![bid, ch, block, studybible_store::pack::encode_spans(&pack)],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        return Ok(1);
+    }
+    Ok(0)
 }

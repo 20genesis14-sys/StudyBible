@@ -70,3 +70,53 @@ fn userdata_roundtrip() {
     // Повторный remove по несуществующему id — false, не паника.
     assert!(!db.remove("нет-такого").unwrap());
 }
+
+/// Схема 4: поле `frag` пишется, читается и едет через zip-круговой
+/// экспорт/импорт; `created` пачки — общая метка группы записей.
+#[test]
+fn userdata_frag() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = UserData::open(&dir.path().join("u.db")).unwrap();
+    let at = |v: u16| Anchor {
+        module: "russyn",
+        book: BookCode::new("GEN").unwrap(),
+        chapter: 2,
+        verse: v,
+    };
+    let frag = r#"{"exact":"жив Господь","pre":"сказал: ","post":" и жива"}"#;
+    let ts = 1_700_000_000_000i64;
+    db.add_frag(
+        Kind::Highlight,
+        at(2),
+        "yellow",
+        "",
+        frag,
+        &Default::default(),
+        Some(ts),
+    )
+    .unwrap();
+    db.add_frag(
+        Kind::Highlight,
+        at(3),
+        "yellow",
+        "",
+        "",
+        &Default::default(),
+        Some(ts),
+    )
+    .unwrap();
+
+    let hl = db.entries(Kind::Highlight, None).unwrap();
+    assert_eq!(hl[0].frag, frag);
+    assert!(hl[1].frag.is_empty());
+    assert!(hl.iter().all(|e| e.created == ts), "общий created пачки");
+
+    // Zip-круговая проверка: frag доезжает до импортированной базы.
+    let zip = dir.path().join("e.zip");
+    db.export_zip(&zip).unwrap();
+    let db2 = UserData::open(&dir.path().join("u2.db")).unwrap();
+    db2.import_zip(&zip).unwrap();
+    let hl2 = db2.entries(Kind::Highlight, None).unwrap();
+    assert_eq!(hl2[0].frag, frag);
+    assert_eq!(hl2[0].created, ts);
+}

@@ -43,23 +43,26 @@ GTK+Impeller, all limits met), no release build until there is
 demand** — the recipe is `docs/BUILD-LINUX.md`, report
 `docs/perf/linux-2026-10-08/`; macOS/iOS — after 1.0 (no Mac/Apple
 account).
-Module delivery (2026-10-08): exactly one base module is bundled —
-`russyn.sbz` (3.3 MB, `assets/modules/`), seeded into the data
-directory on first launch on all platforms; all other modules — user
-import only. Translation pickers (Bible, settings, comparisons) show
+Module delivery (2026-10-08, amended 2026-10-10): two base modules
+are bundled — `russyn.sbz` (3.3 MB) and `eng-kjv2006.sbz` (21.5 MB,
+KJV 1769 by eBible.org, public domain: Strong's, `x` parallels,
+`f` notes, FTS) — both in `assets/modules/`, seeded into the data
+directory on first launch on all platforms; all other modules —
+user import only. Translation pickers (Bible, settings, comparisons) show
 **strictly installed** modules (`installedModules` — the scan result;
 `kModules` remains a name reference). Windows data directory: was the
 absolute `C:\StudyBible-data` → now `%USERPROFILE%\Documents\
 StudyBible-data` (a visible place for import/backup); the
 `STUDYBIBLE_DATA` override remains.
-Web module bundle (2026-10-08): as on other platforms — only the base
-`russyn` (`web/modules/russyn.sb` + index.json; `kBundledModules` =
-['russyn']). Other modules on web are placed manually on the hosting
+Web module bundle (2026-10-08, amended 2026-10-10): as on other
+platforms — the base `russyn` + `eng-kjv2006`
+(`web/modules/*.sb` + index.json; `kBundledModules` =
+['russyn', 'eng-kjv2006']). Other modules on web are placed manually on the hosting
 (file + an index.json entry) — there is no UI import on web (the
-`import_module_stub` stub). Deviation from the "`.sbz` everywhere" rule:
-on web the module is `.sb`: the web bridge reads sqlite via sqlite3.wasm
-without the zstd path; compression for the network — `.sb.gz`
-(DecompressionStream, optional).
+`import_module_stub` stub). Deviation from the "`.sbz` everywhere" rule
+removed (2026-10-10): the web bridge reads `.sbz` via the vendored
+wasm zstd decoder (`web/zstd/`, @bokuweb/zstd-wasm 0.0.27); `.sb.gz`/`.sb`
+remain as fallbacks for hosts that still serve uncompressed modules.
 Reader performance (2026-10-08): a chapter renders as a lazy list
 (`ListView.builder` over lines/blocks) — before that the whole chapter
 lived in one `Column` (~20k render objects on Ps 119 in study mode,
@@ -184,6 +187,14 @@ files.
   sheet, the choice immediately changes the book grid's loaded module).
   All jumps without an explicit moduleId (chapter grid, search,
   reading) use mainModuleId().
+- Translation for note/cross-reference texts (2026-10-10): the
+  `settings.xrefModule` selector offers '' = "same as the open
+  translation" (the module whose chapter is on screen — the default)
+  plus every installed module. Resolution order: the chosen module,
+  then mainModuleId() as fallback when the target book/chapter is
+  absent there (deuterocanon, truncated canons). An empty xrefModule
+  previously meant "same as main translation" — that mixed languages:
+  a KJV reader got Synodal verse texts, which read as a bug.
 - History is unified across modules: kind=mark records with the 'hist'
   text prefix — 'hist' (chapter: module+book+chapter+verse),
   'hist:dict' (dictionary entry: context 'H3117|word'), 'hist:search'
@@ -208,12 +219,14 @@ files.
   pronunciation — from the Russian entry; derivation, points and KJV —
   from the English one); without the file the English one works. The
   local web build reads the same file from dicts/strongs_ru.json.
-- Web module serving: we deploy `modules/*.sb.gz` (gzip -9, ~60 %
-  lighter — 313→123 MB) plus an index.json with the list;
-  `native_bridge_web` on module open first downloads `<path>.gz` and
-  decompresses with the browser's DecompressionStream, on 404 — the raw
-  .sb (local development does not break). Reason: transferring a large
-  catalog to the hosting flakes out.
+- Web module serving: we deploy `modules/*.sbz` (zstd — the same
+  container as native platforms, one artifact for all) plus an
+  index.json with the list; `native_bridge_web` on module open first
+  downloads `<path>z` and decompresses with the wasm zstd decoder
+  (vendored `web/zstd/`), on miss — `<path>.gz` via DecompressionStream,
+  then the raw .sb (local development does not break). Reason:
+  transferring a large catalog to the hosting flakes out, and a single
+  `.sbz` per module replaces the `.sb`+`.sb.gz` pair.
 - Non-canonical module books: the book grid shows module books outside
   the 66-book catalog in a separate "NON-CANONICAL BOOKS" section (the
   BookGroup.other group, gray); book-to-book navigation on the reading
@@ -276,7 +289,10 @@ files.
   `pane`, currently keys `interleaved`, `cmp`, `cmps`; `PopScope`
   intercepts system "back" (the search field closes first, then a stack
   step, then pop); compact ‹ › — a row in the "More" sheet with the
-  stack depth.
+  stack depth. The reader AppBar back arrow goes strictly up the
+  hierarchy: chapter → the current book's chapter grid
+  (`pushReplacement` to `ChapterGridScreen(_code)`); position history
+  is served only by the system gesture and the workspace stack.
 - Contribution registry and extension engine (2026-10-12, ADR 0020):
   `ContributionRegistry` — a single point for layers/panes/actions/
   presets; our features are registered with the same descriptors future
@@ -404,6 +420,10 @@ cargo-deny in CI checks dependency licenses.
 Texts are separate from the engine. A module's metadata carries a
 license and attribution, the app shows them. We do not perform a
 detailed legal review.
+Bundled module statuses and per-module requirements are documented
+in `docs/MODULE-LICENSES.md` (2026-10-11): `russyn` — public domain,
+`eng-kjv2006` — public domain outside the UK, `openbible-xrefs` —
+CC-BY; all other modules — user import only.
 
 ## Data and modules
 A module is our own SQLite format: text, markup, tokens, metadata.
@@ -555,6 +575,14 @@ Reading `.sbz` (2026-10-11): the app and CLI open a compressed module
 via `sqlite3_deserialize` — the whole database in memory, read-only,
 no unpacked copy on disk (old `*.unpacked.sb` caches are cleaned).
 `.sb` is read as a file as before.
+Reading `.sbz` on web (2026-10-10): the web bridge unpacks `.sbz` in
+the browser via `@bokuweb/zstd-wasm` vendored in `web/zstd/`
+(emscripten build, `zstd.wasm` ≈ 246 KB + ESM glue ≈ 15 KB; license
+MIT — the vendored copy is shipped as is). `index.html` loads the shim
+`zstd/sbz.js` which exposes `window.sbZstdDecompress`; the Dart side
+calls it through dart:js_interop. If the decoder is absent or fails,
+the bridge falls back to `.sb.gz`/`.sb` — deployment is not blocked by
+the wasm asset.
 Compact module schema (2026-10-12, ADR 0016 item 15 — the last change
 of existing fields before the v1 freeze): books are addressed by
 `book_id INTEGER`, not a text code; verse text is stored once — the
@@ -599,6 +627,27 @@ different `format_version`, its own storage); the v1 freeze does not
 bind it. v1 support in app ≥1.5/2.0 — a separate decision (keep or
 drop); a v1→v2 migrator is trivial since the v1 semantics are
 documented (C-1…C-20).
+Packed storage inside v1 (2026-10-10, ADR 0022): `t` spans, `tokens`
+and `alignment` may be stored as varint-packed blobs in `span_pack`
+(per block), `token_pack` and `align_pack` (per verse) instead of
+rows. The file stays SQLite with `format_version="1"`, but because the
+data physically leaves `spans`/`tokens`, packing is declared as the
+mandatory capability `meta.required="pack"` — old readers refuse
+explicitly. All other tables (`f`/`x`/`v` spans, `verses`, `entries`,
+`variants`, `marks`) stay row-based. Motivation: per-row overhead on
+~1.4 M tiny rows costs tens of MB (KJV `.sb` is 88 MB from a 13 MB
+source); saving for eng-kjv2006 is ~35–40 MB raw. `content_hash` is
+computed from the logical reading stream and is unaffected by packing.
+
+Shared cross-reference layer (2026-10-10, ADR 0023): instead of
+injecting the same ~29.4 K OpenBible links into every module, they
+live in a separate kind="layer" module openbible-xrefs
+(features="xrefs", OSIS references in text, block=0 span rows).
+At chapter_doc time the layer x spans are merged into the reading
+stream ONLY for modules that carry no x spans of their own; a module
+with native links is untouched. Enabled by the setting xrefLayer
+(default on); the layer is bundled and seeded like a Bible but hidden
+from pickers. inject_xrefs stays for modules embedding native links.
 
 ## Converter
 A library (crate) plus a shell; used as a library on mobile. No GPL in
@@ -811,6 +860,35 @@ Record export/import (zip, "newest updated wins") — buttons on the
 "Records" screen via file_picker (the entries_export/import /
 entries_export_md bridge — wrappers over the core); export — a menu:
 .zip or Markdown; on web — a stub.
+Partial-verse highlights (2026-10-14, user decision): schema 4 —
+a `frag` column holding a text selector `{exact,pre,post}` (JSON,
+empty = whole verse). The anchor is content, not a position:
+character offsets would rot on module updates and engine swaps,
+a quoted fragment survives both — `studybible_core::frag::find_frag`
+matches it over normalized text (letters/digits + collapsed spaces;
+punctuation and footnote marks don't break the lookup), web uses
+the Dart port (`lib/frag.dart`). One record = one fragment in one
+verse (a multi-verse selection is N records sharing one `created`
+timestamp — the batch key for future UI grouping). Overlaps are
+forbidden: an occupied range can only be unhighlighted. Verse-popup
+recolor replaces all verse `hl` records with one whole-verse one.
+If `frag` isn't found (the module reworded that spot) nothing is
+painted — the record stays, honest degradation like orphans.
+Point editing (2026-10-14, user decision): a tap on a highlighted
+fragment opens its own pill — recolor/remove only that record;
+an unhighlighted stretch of the verse keeps the verse menu.
+Inside a fragment the ordinary tap is taken, so Strong's entries
+open on long press (and everywhere else too — the gesture is
+uniform). Fragment notes are plain `kind='note'` records carrying
+the same `frag` selector — no id link to the highlight: the note
+survives recoloring and highlight removal, and both records are
+re-anchored independently on module updates. The "Records" screen
+has a "Highlights" section where records sharing
+module|book|chapter|created|color collapse into one line
+("2 Цар. 2:2–4") — six separate same-color selections keep
+six rows, since `created` differs per user action.
+Interlinear (word-pair columns) shows no partial highlights yet —
+that renderer needs range→word-cell mapping, a separate step.
 Alt+←/→ keys and mouse side buttons X1/X2 — steps through the
 workspace position stack (desktop, ADR 0019): the same path as PopScope
 and the back/forward buttons (`_stackBack`/`_stackForward`).
@@ -1014,3 +1092,19 @@ overridden.
   GitHub Actions — Android (3 ABI), Windows x64, Web; artifacts attach
   to the Release. Requires signing-key secrets.
   Not yet applied — only a local file.
+
+## Bridge performance: module connection cache (2026-10-09)
+
+- A module's SQLite connection is opened once per session:
+  `api/module.rs` keeps `path → Arc<Mutex<Module>>` in a static map;
+  `chapter_doc`, `module_doc`, dictionary and search calls reuse it.
+  Before, every call re-read the whole `.sb` file just to sniff the
+  `.sbz` magic and reopened the database — a footnote card with a
+  dozen cross-references meant a dozen full file reads.
+- `open_any` sniffs `.sbz` by the first 4 bytes of the header; the
+  full read remains only for actual `.sbz` inputs.
+- Dart side: `ModuleDoc.verseTextCache` memoizes single-target verse
+  texts — neighbouring notes referencing the same verse do not
+  re-slice its chapter. Footnote/cross-ref card results are cached
+  per (module, versification, note text) and prefetched in the
+  background when a chapter opens (commits 603c111, b4f3263).

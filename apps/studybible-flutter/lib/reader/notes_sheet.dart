@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data.dart';
@@ -181,13 +183,15 @@ class NotesSheet extends StatelessWidget {
 /// [fromVrs] — версификация модуля-источника ссылки (в ней
 /// записаны координаты в тексте сноски); тексты параллельных
 /// мест берутся из settings.xrefModule по конвертированным
-/// координатам, а [onOpenModule] (если задан) навигирует к
-/// конвертированному месту в этом же переводе.
+/// координатам ('' — из [openModule], модуля открытой главы),
+/// а [onOpenModule] (если задан) навигирует к конвертированному
+/// месту в переводе, из которого показан текст.
 void showNoteCard(
   BuildContext context, {
   required NoteSpanDoc note,
   required int verse,
   required void Function(Ref) onRef,
+  required String openModule,
   String fromVrs = '',
   void Function(Ref, String moduleId)? onOpenModule,
   VoidCallback? onShowAll,
@@ -198,6 +202,7 @@ void showNoteCard(
     builder: (ctx) => _NoteCard(
       note: note,
       verse: verse,
+      openModule: openModule,
       fromVrs: fromVrs,
       onOpenModule: (r, mid) {
         Navigator.of(ctx).pop();
@@ -219,11 +224,13 @@ void showNoteCard(
 
 /// Содержимое карточки: текст сноски с активными ссылками, а под
 /// ним — тексты каждого параллельного места из выбранного перевода
-/// (settings.xrefModule; '' — основной). Высота ~75 % экрана.
+/// (settings.xrefModule; '' — открытый [openModule]). Высота ~75 %
+/// экрана.
 class _NoteCard extends StatefulWidget {
   final NoteSpanDoc note;
   final int verse;
   final void Function(Ref) onRef;
+  final String openModule;
   final String fromVrs;
   final void Function(Ref, String moduleId)? onOpenModule;
   final VoidCallback? onShowAll;
@@ -231,6 +238,7 @@ class _NoteCard extends StatefulWidget {
     required this.note,
     required this.verse,
     required this.onRef,
+    required this.openModule,
     this.fromVrs = '',
     this.onOpenModule,
     this.onShowAll,
@@ -240,79 +248,166 @@ class _NoteCard extends StatefulWidget {
   State<_NoteCard> createState() => _NoteCardState();
 }
 
-class _NoteCardState extends State<_NoteCard> {
-  /// Перевод текстов параллельных мест (xrefModule или основной).
-  String _mid = '';
-  /// ref → текст стиха(ов) + навигационная цель; null-элементы —
-  /// не найдено в переводе.
-  late final Future<List<({Ref ref, Ref nav, String label, String? text})>>
-  _texts = _load();
+/// Одна строка списка параллельных мест карточки: [mid] — модуль,
+/// из которого реально показан текст (основной путь или фоллбэк).
+typedef NoteTextItems =
+    List<({Ref ref, Ref nav, String label, String? text, String mid})>;
 
-  /// Координаты ссылки [r] (в версификации модуля-источника,
-  /// fromVrs) в версификации перевода [m]: каждый стих диапазона
-  /// конвертируется, совпадения дедуплицируются.
-  Future<List<CvPoint>> _targets(ModuleDoc m, Ref r) async {
-    final end = r.verseEnd;
-    final out = <CvPoint>[];
-    final seen = <String>{};
-    for (var v = r.verse; v <= end; v++) {
-      final pts =
-          widget.fromVrs.isEmpty || m.versification.isEmpty
-          ? [(book: r.book, chapter: r.chapter, verse: v)]
-          : await convertVerse(
-              r.book,
-              r.chapter,
-              v,
-              widget.fromVrs,
-              m.versification,
-            );
-      for (final p in pts) {
-        if (seen.add('${p.book}:${p.chapter}:${p.verse}')) out.add(p);
+/// Кэш готовых/идущих загрузок текстов сносок: ключ — перевод,
+/// версификация источника и сам текст сноски. Карточка и фоновый
+/// прогрев делят один Future — повторный тап мгновенный.
+final Map<String, Future<NoteTextItems>> _noteTextsCache = {};
+
+/// Тексты ссылок сноски [note]: по умолчанию — из открытого перевода
+/// [openModule], при выбранном settings.xrefModule — из него; без
+/// целевой книги/главы — фоллбэк на основной перевод (mainModuleId).
+Future<NoteTextItems> _noteTexts(
+  NoteSpanDoc note, {
+  required String fromVrs,
+  required String openModule,
+}) {
+  final mid = settings.xrefModule.isEmpty ? openModule : settings.xrefModule;
+  final fb = mainModuleId();
+  return _noteTextsCache.putIfAbsent(
+    '$mid\x00$fb\x00$fromVrs\x00${note.text}',
+    () => _loadNoteTexts(note, fromVrs, mid, fb),
+  );
+}
+
+/// Фоновый прогрев главы (открытие главы → до тапа по маркеру):
+/// ссылки всех сносок конвертируются и главы-мишени подгружаются
+/// лениво, так что карточка потом открывается без лага.
+void prefetchChapterNotes(
+  ChapterDoc ch, {
+  required String fromVrs,
+  required String openModule,
+}) {
+  if (ch.notesPrefetchDone) return;
+  ch.notesPrefetchDone = true;
+  for (final b in ch.blocks) {
+    for (final s in b.spans) {
+      if (s is NoteSpanDoc) {
+        unawaited(
+          _noteTexts(s, fromVrs: fromVrs, openModule: openModule)
+              .catchError(
+                (_) =>
+                    <({Ref ref, Ref nav, String label, String? text, String mid})>[],
+              ),
+        );
       }
     }
-    return out;
   }
+}
 
-  Future<List<({Ref ref, Ref nav, String label, String? text})>>
-  _load() async {
-    final refs = findRefs(widget.note.text);
-    if (refs.isEmpty) return const [];
-    final mid = settings.xrefModule.isEmpty
-        ? mainModuleId()
-        : settings.xrefModule;
-    final m = await loadModule(mid);
-    _mid = mid;
-    final out = <({Ref ref, Ref nav, String label, String? text})>[];
-    final seen = <String>{};
-    for (final rm in refs) {
-      final r = rm.ref;
-      final key = '${r.book}:${r.chapter}:${r.verse}-${r.verseEnd}';
-      if (!seen.add(key)) continue;
-      final label = widget.note.text.substring(rm.start, rm.end);
-      final targets = await _targets(m, r);
-      final t = targets.isEmpty ? null : await convertedVerseText(m, targets);
-      final nav = targets.isEmpty
-          ? r
-          : Ref(
-              targets.first.book,
-              targets.first.chapter,
-              targets.first.verse,
-            );
-      out.add((ref: r, nav: nav, label: label, text: t));
+/// Координаты ссылки [r] (в версификации модуля-источника [fromVrs])
+/// в версификации перевода [m]: каждый стих диапазона конвертируется,
+/// совпадения дедуплицируются. Стихи диапазона — параллельно.
+Future<List<CvPoint>> _noteTargets(
+  ModuleDoc m,
+  Ref r,
+  String fromVrs,
+) async {
+  final perVerse = <Future<List<CvPoint>>>[
+    for (var v = r.verse; v <= r.verseEnd; v++)
+      fromVrs.isEmpty || m.versification.isEmpty
+          ? Future.value([(book: r.book, chapter: r.chapter, verse: v)])
+          : convertVerse(r.book, r.chapter, v, fromVrs, m.versification),
+  ];
+  final out = <CvPoint>[];
+  final seen = <String>{};
+  for (final pts in await Future.wait(perVerse)) {
+    for (final p in pts) {
+      if (seen.add('${p.book}:${p.chapter}:${p.verse}')) out.add(p);
     }
-    return out;
   }
+  return out;
+}
+
+/// Загрузка текстов всех ссылок сноски: ссылки дедуплицируются
+/// и обрабатываются параллельно — последовательная цепочка await
+/// на десяток ссылок давала ощутимый лаг карточки.
+/// [mid] — основной перевод текстов, [fbMid] — фоллбэк, когда в [mid]
+/// нет целевой книги/главы (текст не найден): тогда и навигация
+/// `open(it.nav, it.mid)` идёт в модуль фоллбэка.
+Future<NoteTextItems> _loadNoteTexts(
+  NoteSpanDoc note,
+  String fromVrs,
+  String mid,
+  String fbMid,
+) async {
+  final refs = findRefs(note.text);
+  if (refs.isEmpty) return const [];
+  final m = await loadModule(mid);
+  ModuleDoc? fb;
+  final seen = <String>{};
+  final jobs =
+      <Future<({Ref ref, Ref nav, String label, String? text, String mid})>>[];
+  for (final rm in refs) {
+    final r = rm.ref;
+    if (!seen.add('${r.book}:${r.chapter}:${r.verse}-${r.verseEnd}')) {
+      continue;
+    }
+    final label = note.text.substring(rm.start, rm.end);
+    jobs.add(
+      _noteTargets(m, r, fromVrs).then((targets) async {
+        var t = targets.isEmpty
+            ? null
+            : await convertedVerseText(m, targets);
+        var midUsed = mid;
+        var navTargets = targets;
+        if (t == null && fbMid != mid) {
+          fb ??= await loadModule(fbMid);
+          final fbTargets = await _noteTargets(fb!, r, fromVrs);
+          if (fbTargets.isNotEmpty) {
+            final fbText = await convertedVerseText(fb!, fbTargets);
+            if (fbText != null) {
+              t = fbText;
+              midUsed = fbMid;
+              navTargets = fbTargets;
+            }
+          }
+        }
+        final nav = navTargets.isEmpty
+            ? r
+            : Ref(
+                navTargets.first.book,
+                navTargets.first.chapter,
+                navTargets.first.verse,
+              );
+        return (ref: r, nav: nav, label: label, text: t, mid: midUsed);
+      }),
+    );
+  }
+  return Future.wait(jobs);
+}
+
+class _NoteCardState extends State<_NoteCard> {
+  /// ref → текст стиха(ов) + навигационная цель; общий кэш с
+  /// фоновым прогревом главы — обычно уже готово к моменту тапа.
+  late final Future<NoteTextItems> _texts = _noteTexts(
+    widget.note,
+    fromVrs: widget.fromVrs,
+    openModule: widget.openModule,
+  );
+
+  /// Перевод текстов параллельных мест берётся построчно из
+  /// `it.mid` (основной путь или фоллбэк) — общего _mid больше нет.
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final note = widget.note;
     return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.75,
+      // Высота по содержимому, потолок — 75 % экрана: короткая
+      // сноска не показывает пустую форму, длинная — прокручивается.
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -377,93 +472,96 @@ class _NoteCardState extends State<_NoteCard> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Сам текст сноски — со ссылками-гиперссылками; размер —
-              // отдельный масштаб (footScale/xrefScale) из настроек.
-              Text.rich(
-                TextSpan(
-                  children: _noteSpans(
-                    note.text,
-                    p,
-                    widget.onRef,
-                    scale: note.kind == 'x'
-                        ? settings.xrefScale
-                        : settings.footScale,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Тексты параллельных мест.
-              Expanded(
-                child: FutureBuilder(
-                  future: _texts,
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: p.muted,
-                            ),
+              // Прокручиваемая часть: сам текст сноски (со ссылками-
+              // гиперссылками, масштаб footScale/xrefScale) и под ним —
+              // тексты параллельных мест. Список небольшой — ссылки
+              // дедуплицированы, поэтому обычная колонка внутри общего
+              // скролла, а не вложенный ListView.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text.rich(
+                        TextSpan(
+                          children: _noteSpans(
+                            note.text,
+                            p,
+                            widget.onRef,
+                            scale: note.kind == 'x'
+                                ? settings.xrefScale
+                                : settings.footScale,
                           ),
                         ),
-                      );
-                    }
-                    final items = snap.data!;
-                    if (items.isEmpty) return const SizedBox.shrink();
-                    return ListView.separated(
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 14,
-                        color: p.edge,
                       ),
-                      itemBuilder: (context, i) {
-                        final it = items[i];
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                final open = widget.onOpenModule;
-                                if (open != null) {
-                                  open(it.nav, _mid);
-                                } else {
-                                  widget.onRef(it.ref);
-                                }
-                              },
-                              child: Text(
-                                it.label,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: p.accent,
-                                ),
-                              ),
-                            ),
-                            if (it.text != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 3),
-                                child: Text(
-                                  it.text!,
-                                  style: TextStyle(
-                                    fontSize:
-                                        14 *
-                                        (note.kind == 'x'
-                                            ? settings.xrefScale
-                                            : settings.footScale),
-                                    color: p.ink,
-                                    height: 1.35,
+                      FutureBuilder(
+                        future: _texts,
+                        builder: (context, snap) {
+                          if (!snap.hasData) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: p.muted,
                                   ),
                                 ),
                               ),
-                          ],
-                        );
-                      },
-                    );
-                  },
+                            );
+                          }
+                          final items = snap.data!;
+                          if (items.isEmpty) return const SizedBox.shrink();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final it in items) ...[
+                                Divider(height: 14, color: p.edge),
+                                GestureDetector(
+                                  onTap: () {
+                                    final open = widget.onOpenModule;
+                                    if (open != null) {
+                                      open(it.nav, it.mid);
+                                    } else {
+                                      widget.onRef(it.ref);
+                                    }
+                                  },
+                                  child: Text(
+                                    it.label,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: p.accent,
+                                    ),
+                                  ),
+                                ),
+                                if (it.text != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 3),
+                                    child: Text(
+                                      it.text!,
+                                      style: TextStyle(
+                                        fontSize:
+                                            14 *
+                                            (note.kind == 'x'
+                                                ? settings.xrefScale
+                                                : settings.footScale),
+                                        color: p.ink,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (widget.onShowAll != null)
@@ -533,4 +631,4 @@ List<InlineSpan> _noteSpans(
 }
 
 TextStyle _noteStyle(Palette p, [double scale = 1]) =>
-    TextStyle(fontSize: 14 * scale, color: p.ink, height: 1.4);
+    TextStyle(fontSize: 15 * scale, color: p.ink, height: 1.45);

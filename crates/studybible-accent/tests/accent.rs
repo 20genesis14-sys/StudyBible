@@ -1,7 +1,6 @@
 //! Тесты акцентора на реальной модели RUAccent — она же ассет
-//! приложения `assets/voice/ru/` (fs и gzip только в тестах).
+//! приложения `assets/voice/ru/` (fs только в тестах).
 
-use std::io::Read;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -12,23 +11,14 @@ fn assets() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/studybible-flutter/assets/voice/ru")
 }
 
-fn read_gz(name: &str) -> String {
-    let f = std::fs::File::open(assets().join(name)).unwrap();
-    let mut s = String::new();
-    flate2::read::GzDecoder::new(f)
-        .read_to_string(&mut s)
-        .unwrap();
-    s
-}
-
 fn accentor() -> &'static Accentor {
     static A: OnceLock<Accentor> = OnceLock::new();
     A.get_or_init(|| {
         let dir = assets();
         let model = std::fs::read(dir.join("accent.onnx")).unwrap();
         let vocab = std::fs::read_to_string(dir.join("vocab.txt")).unwrap();
-        let yo = read_gz("yo_words.tsv.gz");
-        let lexicon = read_gz("lexicon.tsv.gz");
+        let yo = std::fs::read_to_string(dir.join("yo_words.tsv")).unwrap();
+        let lexicon = std::fs::read_to_string(dir.join("lexicon.tsv")).unwrap();
         Accentor::new(&model, &vocab, Some(&yo), Some(&lexicon)).unwrap()
     })
 }

@@ -1,10 +1,7 @@
 allprojects {
     repositories {
-        // Зеркала: repo.maven.apache.org отвечает 429.
-        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
         google()
-        // mavenCentral убран: repo.maven.apache.org → 429.
+        mavenCentral()
     }
 }
 

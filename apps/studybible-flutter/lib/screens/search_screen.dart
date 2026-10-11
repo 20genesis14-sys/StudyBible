@@ -42,6 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
   // Поиск — по переводу, из которого открыли экран (или основному);
   // выбор перевода внутри поиска убран по решению UX.
   late final String _moduleId = widget.moduleId ?? mainModuleId();
+  static const _searchLimit = 100;
   List<SearchHit> _hits = const [];
   bool _busy = false;
   String? _notice;
@@ -76,7 +77,7 @@ class _SearchScreenState extends State<SearchScreen> {
       });
       return;
     }
-    final hits = await bridgeModuleSearch(path, q, limit: 100);
+    final hits = await bridgeModuleSearch(path, q, limit: _searchLimit);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -138,6 +139,24 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           if (_busy) const LinearProgressIndicator(minHeight: 2),
+          // Счётчик результатов: «Найдено: N», а при усечении лимитом —
+          // «100+» (запрос отдаёт не больше _searchLimit).
+          if (!_busy && _hits.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  _hits.length >= _searchLimit
+                      ? tr(
+                          'Найдено: $_searchLimit+ (показаны первые)',
+                          'Found: $_searchLimit+ (first shown)',
+                        )
+                      : tr('Найдено: ${_hits.length}', 'Found: ${_hits.length}'),
+                  style: TextStyle(fontSize: 13, color: p.muted),
+                ),
+              ),
+            ),
           if (_notice != null)
             Padding(
               padding: const EdgeInsets.all(12),

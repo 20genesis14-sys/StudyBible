@@ -7,6 +7,7 @@
 
 mod hash;
 pub mod module;
+pub mod pack;
 pub mod sbz;
 pub mod search;
 pub mod userdata;

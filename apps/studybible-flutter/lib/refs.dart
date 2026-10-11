@@ -288,6 +288,76 @@ const Map<String, String> _enBooks = {
   'revelation': 'REV',
 };
 
+/// OSIS-аббревиатуры — языконезависимые ссылки слоя параллельных
+/// (ADR 0023: текст x-спанов слоя «Ps 104:30»). Проверяются после
+/// полных имён, чтобы не перекрывать их (job/acts/mark…).
+const Map<String, String> _osisBooks = {
+  'gen': 'GEN',
+  'exod': 'EXO',
+  'lev': 'LEV',
+  'num': 'NUM',
+  'deut': 'DEU',
+  'josh': 'JOS',
+  'judg': 'JDG',
+  'ruth': 'RUT',
+  '1sam': '1SA',
+  '2sam': '2SA',
+  '1kgs': '1KI',
+  '2kgs': '2KI',
+  '1chr': '1CH',
+  '2chr': '2CH',
+  'ezra': 'EZR',
+  'neh': 'NEH',
+  'esth': 'EST',
+  'job': 'JOB',
+  'ps': 'PSA',
+  'prov': 'PRO',
+  'eccl': 'ECC',
+  'song': 'SNG',
+  'isa': 'ISA',
+  'jer': 'JER',
+  'lam': 'LAM',
+  'ezek': 'EZK',
+  'dan': 'DAN',
+  'hos': 'HOS',
+  'joel': 'JOL',
+  'amos': 'AMO',
+  'obad': 'OBA',
+  'jonah': 'JON',
+  'mic': 'MIC',
+  'nah': 'NAM',
+  'hab': 'HAB',
+  'zeph': 'ZEP',
+  'hag': 'HAG',
+  'zech': 'ZEC',
+  'mal': 'MAL',
+  'matt': 'MAT',
+  'mark': 'MRK',
+  'luke': 'LUK',
+  'acts': 'ACT',
+  'rom': 'ROM',
+  '1cor': '1CO',
+  '2cor': '2CO',
+  'gal': 'GAL',
+  'eph': 'EPH',
+  'phil': 'PHP',
+  'col': 'COL',
+  '1thess': '1TH',
+  '2thess': '2TH',
+  '1tim': '1TI',
+  '2tim': '2TI',
+  'titus': 'TIT',
+  'phlm': 'PHM',
+  'heb': 'HEB',
+  'jas': 'JAS',
+  '1pet': '1PE',
+  '2pet': '2PE',
+  '1john': '1JN',
+  '2john': '2JN',
+  '3john': '3JN',
+  'rev': 'REV',
+};
+
 /// Паттерн «Книга Гл:Ст»: книга — буквенный префикс (1-3 слова, допускает
 /// ведущую цифру и пробел), далее глава, двоеточие, стих или диапазон.
 /// Буква части стиха («1:1a», ADR 0016) входит в подсветку ссылки,
@@ -329,5 +399,5 @@ List<RefMatch> findRefs(String text) {
 String? _bookOf(String raw) {
   var s = raw.trim().toLowerCase().replaceAll(RegExp(r'\.$'), '');
   s = s.replaceAll(RegExp(r'\s+'), ' ');
-  return _ruBooks[s] ?? _enBooks[s];
+  return _ruBooks[s] ?? _enBooks[s] ?? _osisBooks[s];
 }
