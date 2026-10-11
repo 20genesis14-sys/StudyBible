@@ -1,11 +1,16 @@
-# Релизная сборка: Android (3 ABI), Windows x64, Web.
-# Запускается по пушу тега v* или вручную (workflow_dispatch).
-# Собранные артефакты прикрепляются к GitHub Release этого тега.
+name: Release builds
+
+# Сборка релизных артефактов по тегу v* (или вручную).
 #
-# Секреты (Settings → Secrets and variables → Actions):
-#   KEYSTORE_BASE64 — android-кеystore в base64
-#   KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD — параметры подписи
-name: release
+# Окружение намеренно повторяет рецепт fdroiddata (metadata/dev.studybible.yml):
+# тот же коммит Flutter, та же версия Rust, тот же NDK — тогда APK из CI
+# побайтно совпадают со сборкой F-Droid buildserver и проходят fdroid verify.
+#
+# Нужные secrets (Settings → Secrets and variables → Actions):
+#   KEYSTORE_BASE64    — base64 файла studybible-release.jks
+#   KEYSTORE_PASSWORD  — пароль хранилища
+#   KEY_ALIAS          — алиас ключа
+#   KEY_PASSWORD       — пароль ключа
 
 on:
   push:
@@ -13,11 +18,16 @@ on:
   workflow_dispatch:
 
 env:
-  FLUTTER_VERSION: '3.47.6'
+  FLUTTER_COMMIT: 5fc346839b5d0eef006ed8404392afb4dfae428d
   RUST_VERSION: '1.99.0'
+  NDK_VERSION: '28.2.13676358'
 
 jobs:
-  android:
+  # ---------------------------------------------------------------
+  # Android: три per-ABI APK (armv7/arm64/x86_64), versionCode
+  # выводится из pubspec (+N -> N*1000 + {1,2,3}).
+  # ---------------------------------------------------------------
+  apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,109 +37,152 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - name: Install Android SDK + NDK (pinned)
+        uses: android-actions/setup-android@v3
+      - run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "ndk;${{ env.NDK_VERSION }}" "build-tools;36.0.0"
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
-
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-
-      - name: Ключ подписи из секретов
+      - name: Flutter SDK @ pinned commit
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+          git clone --filter=blob:none --no-checkout https://github.com/flutter/flutter.git "$HOME/flutter"
+          cd "$HOME/flutter"
+          git fetch --depth 1 origin "${{ env.FLUTTER_COMMIT }}"
+          git checkout FETCH_HEAD
+          "$HOME/flutter/bin/flutter" --version
+          "$HOME/flutter/bin/flutter" precache --android
+
+      - name: Rust toolchain + android targets
+        run: |
+          rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal
+          rustup default ${{ env.RUST_VERSION }}
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+
+      - name: Keystore from secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$HOME/release.jks"
           cat > apps/studybible-flutter/android/key.properties <<EOF
-          storeFile=$RUNNER_TEMP/release.jks
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
+          storeFile=$HOME/release.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
           EOF
 
-      - name: APK по ABI
-        working-directory: apps/studybible-flutter
-        run: flutter build apk --release --split-per-abi
+      - name: Build ABI APKs
         env:
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_LATEST_HOME }}
+          PATH: "$HOME/flutter/bin:$HOME/.cargo/bin:$PATH"
+          CARGO_BUILD_JOBS: '4'
+        run: |
+          cd apps/studybible-flutter
+          BASE=$(grep '^version:' pubspec.yaml | sed 's/.*+\([0-9]*\)/\1')
+          flutter build apk --release --target-platform android-arm   --build-number=${BASE}001
+          mv build/app/outputs/flutter-apk/app-release.apk /tmp/dev.studybible_${BASE}001.apk
+          flutter build apk --release --target-platform android-arm64 --build-number=${BASE}002
+          mv build/app/outputs/flutter-apk/app-release.apk /tmp/dev.studybible_${BASE}002.apk
+          flutter build apk --release --target-platform android-x64   --build-number=${BASE}003
+          mv build/app/outputs/flutter-apk/app-release.apk /tmp/dev.studybible_${BASE}003.apk
+          ls -la /tmp/dev.studybible_*.apk
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-apks
-          path: apps/studybible-flutter/build/app/outputs/flutter-apk/app-*-release.apk
+      - name: Upload APKs to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --notes "Release $TAG"
+          for f in /tmp/dev.studybible_*.apk; do
+            gh release upload "$TAG" "$f" --clobber
+          done
 
+  # ---------------------------------------------------------------
+  # Windows x64 zip
+  # ---------------------------------------------------------------
   windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - name: Flutter SDK @ pinned commit
+        shell: bash
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/flutter/flutter.git "$HOME/flutter"
+          cd "$HOME/flutter"
+          git fetch --depth 1 origin "${{ env.FLUTTER_COMMIT }}"
+          git checkout FETCH_HEAD
+          "$HOME/flutter/bin/flutter" --version
+          "$HOME/flutter/bin/flutter" precache --windows
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          targets: x86_64-pc-windows-msvc
+      - name: Rust toolchain (msvc)
+        run: |
+          rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal
+          rustup default ${{ env.RUST_VERSION }}
+          rustup target add x86_64-pc-windows-msvc
 
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - run: echo "RUSTC_WRAPPER=sccache" | Out-File -Append $env:GITHUB_ENV
+      - name: Build Windows release + zip
+        shell: bash
+        env:
+          PATH: "$HOME/flutter/bin:$HOME/.cargo/bin:$PATH"
+          CARGO_BUILD_JOBS: '4'
+        run: |
+          cd apps/studybible-flutter
+          VER=$(grep '^version:' pubspec.yaml | sed 's/version: \([0-9.]*\).*/\1/')
+          flutter build windows --release
+          cd build/windows/x64/runner
+          mv Release "StudyBible-${VER}-windows-x64"
+          powershell -Command "Compress-Archive -Path 'StudyBible-${VER}-windows-x64' -DestinationPath '/tmp/StudyBible-${VER}-windows-x64.zip'"
+          ls -la /tmp/*.zip
 
-      - name: Windows x64
-        working-directory: apps/studybible-flutter
-        run: flutter build windows --release
+      - name: Upload Windows zip to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --notes "Release $TAG"
+          gh release upload "$TAG" /tmp/StudyBible-*-windows-x64.zip --clobber
 
-      - name: Упаковать
-        working-directory: apps/studybible-flutter/build/windows/x64/runner/Release
-        run: Compress-Archive -Path * -DestinationPath "$env:GITHUB_WORKSPACE/studybible-windows-x64.zip"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-zip
-          path: studybible-windows-x64.zip
-
+  # ---------------------------------------------------------------
+  # Web bundle zip
+  # ---------------------------------------------------------------
   web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+      - name: Flutter SDK @ pinned commit
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/flutter/flutter.git "$HOME/flutter"
+          cd "$HOME/flutter"
+          git fetch --depth 1 origin "${{ env.FLUTTER_COMMIT }}"
+          git checkout FETCH_HEAD
+          "$HOME/flutter/bin/flutter" --version
+          "$HOME/flutter/bin/flutter" precache --web
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          targets: wasm32-unknown-unknown
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal
+          rustup default ${{ env.RUST_VERSION }}
 
-      - name: Web (WASM)
-        working-directory: apps/studybible-flutter
-        run: flutter build web --release
+      - name: Build web bundle + zip
+        env:
+          PATH: "$HOME/flutter/bin:$HOME/.cargo/bin:$PATH"
+        run: |
+          cd apps/studybible-flutter
+          VER=$(grep '^version:' pubspec.yaml | sed 's/version: \([0-9.]*\).*/\1/')
+          flutter build web --release
+          cd build
+          mv web "StudyBible-${VER}-web"
+          zip -qr "/tmp/StudyBible-${VER}-web.zip" "StudyBible-${VER}-web"
+          ls -la /tmp/*.zip
 
-      - name: Упаковать
-        working-directory: apps/studybible-flutter/build/web
-        run: zip -qr "$GITHUB_WORKSPACE/studybible-web.zip" .
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-zip
-          path: studybible-web.zip
-
-  release:
-    needs: [android, windows, web]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-      - name: Релиз по тегу
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            android-apks/*.apk
-            windows-zip/*.zip
-            web-zip/*.zip
-          generate_release_notes: true
+      - name: Upload web zip to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --notes "Release $TAG"
+          gh release upload "$TAG" /tmp/StudyBible-*-web.zip --clobber
