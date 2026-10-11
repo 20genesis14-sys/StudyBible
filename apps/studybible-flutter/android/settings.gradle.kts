@@ -11,12 +11,9 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
-        // Зеркала: repo.maven.apache.org отвечает 429.
-        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
         google()
-        // mavenCentral/gradlePluginPortal убраны: repo.maven.apache.org → 429.
-        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
+        mavenCentral()
+        gradlePluginPortal()
     }
 }
 
