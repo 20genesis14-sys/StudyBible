@@ -2,7 +2,7 @@
 
 All notable changes after the 1.0 release — one per line.
 
-## 1.1.0 (unreleased)
+## 1.1.0 (2026-10-11)
 
 - New app icon — an open book with light on a dark-red background;
   an Android adaptive icon added (foreground + dark-red backdrop).
@@ -66,6 +66,17 @@ All notable changes after the 1.0 release — one per line.
   Interlinear columns don't paint partial highlights yet.
 - Footnote card redesigned: height wraps content (max 75 % of the
   screen, long notes scroll), note text at a readable 15 pt base.
+- Reproducible release builds: Rust paths remapped to stable anchors
+  (`/cargo`, `/src`), `.note.gnu.build-id` stripped from native
+  libraries — two independent builds differ only in the embedded
+  build path; the canonical F-Droid path makes APKs bit-identical.
+- Voice accent dictionaries now ship as plain `.tsv` (was `.tsv.gz`) —
+  transparent source data for repository scanners; `accent_init`
+  takes TSV strings directly.
+- `docs/MODULE-LICENSES.md`: per-module license and attribution
+  statuses for all bundled `.sbz` modules.
+- F-Droid store metadata: `fastlane/` directory with en-US and ru-RU
+  descriptions, icon, feature graphic, screenshots and changelog.
 
 ## 1.0.1 (2026-10-09)
 
