@@ -1946,7 +1946,6 @@ dependencies = [
 name = "studybible-accent"
 version = "0.0.1"
 dependencies = [
- "flate2",
  "tract-onnx",
 ]
 
@@ -2010,7 +2009,6 @@ name = "studybible_flutter_bridge"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "flate2",
  "flutter_rust_bridge",
  "serde",
  "serde_json",

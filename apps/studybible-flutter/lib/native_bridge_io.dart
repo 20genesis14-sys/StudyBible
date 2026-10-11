@@ -533,15 +533,15 @@ Future<List<SearchHit>> bridgeModuleSearch(
 Future<void> bridgeAccentInit(
   Uint8List model,
   String vocab,
-  Uint8List yoGz,
-  Uint8List lexiconGz,
+  String yo,
+  String lexicon,
 ) => _guard(
   'accentInit',
   () => api_voice.accentInit(
     model: model,
     vocab: vocab,
-    yoGz: yoGz,
-    lexiconGz: lexiconGz,
+    yo: yo,
+    lexicon: lexicon,
   ),
 );
 

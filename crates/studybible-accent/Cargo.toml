@@ -13,9 +13,6 @@ publish.workspace = true
 # sherpa-onnx дала бы конфликт нативных библиотек (ADR 0017).
 tract-onnx = "=0.23.8"
 
-[dev-dependencies]
-# Тесты читают сжатые ассеты (lexicon.tsv.gz, yo_words.tsv.gz).
-flate2 = "1.1"
 
 [lints]
 workspace = true

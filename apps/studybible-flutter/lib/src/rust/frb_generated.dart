@@ -75,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-        stem: 'studybible_flutter_bridge',
+        stem: 'UNKNOWN',
         ioDirectory: 'rust/target/release/',
         webPrefix: 'pkg/',
         wasmBindgenName: 'wasm_bindgen',
@@ -86,8 +86,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiVoiceAccentInit({
     required List<int> model,
     required String vocab,
-    required List<int> yoGz,
-    required List<int> lexiconGz,
+    required String yo,
+    required String lexicon,
   });
 
   Future<String> crateApiVoiceAccentText({required String text});
@@ -232,8 +232,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void> crateApiVoiceAccentInit({
     required List<int> model,
     required String vocab,
-    required List<int> yoGz,
-    required List<int> lexiconGz,
+    required String yo,
+    required String lexicon,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -241,8 +241,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_list_prim_u_8_loose(model, serializer);
           sse_encode_String(vocab, serializer);
-          sse_encode_list_prim_u_8_loose(yoGz, serializer);
-          sse_encode_list_prim_u_8_loose(lexiconGz, serializer);
+          sse_encode_String(yo, serializer);
+          sse_encode_String(lexicon, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -255,7 +255,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiVoiceAccentInitConstMeta,
-        argValues: [model, vocab, yoGz, lexiconGz],
+        argValues: [model, vocab, yo, lexicon],
         apiImpl: this,
       ),
     );
@@ -263,7 +263,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiVoiceAccentInitConstMeta => const TaskConstMeta(
     debugName: "accent_init",
-    argNames: ["model", "vocab", "yoGz", "lexiconGz"],
+    argNames: ["model", "vocab", "yo", "lexicon"],
   );
 
   @override

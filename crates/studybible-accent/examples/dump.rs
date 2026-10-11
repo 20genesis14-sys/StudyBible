@@ -1,23 +1,14 @@
-use std::io::Read;
 use std::path::PathBuf;
 
 use studybible_accent::Accentor;
-
-fn gz(dir: &std::path::Path, name: &str) -> String {
-    let mut s = String::new();
-    flate2::read::GzDecoder::new(std::fs::File::open(dir.join(name)).unwrap())
-        .read_to_string(&mut s)
-        .unwrap();
-    s
-}
 
 fn main() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../apps/studybible-flutter/assets/voice/ru");
     let model = std::fs::read(dir.join("accent.onnx")).unwrap();
     let vocab = std::fs::read_to_string(dir.join("vocab.txt")).unwrap();
-    let yo = gz(&dir, "yo_words.tsv.gz");
-    let lexicon = gz(&dir, "lexicon.tsv.gz");
+    let yo = std::fs::read_to_string(dir.join("yo_words.tsv")).unwrap();
+    let lexicon = std::fs::read_to_string(dir.join("lexicon.tsv")).unwrap();
     let a = Accentor::new(&model, &vocab, Some(&yo), Some(&lexicon)).unwrap();
     for w in [
         "замок",
