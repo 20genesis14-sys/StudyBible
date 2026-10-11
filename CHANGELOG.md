@@ -2,6 +2,8 @@
 
 All notable changes after the 1.0 release — one per line.
 
+## 1.1.1 (unreleased)
+
 ## 1.1.0 (2026-10-11)
 
 - New app icon — an open book with light on a dark-red background;
