@@ -30,7 +30,7 @@ are written together with the test fixture of their stage.
 | 10 | Network, repositories, AI | DECISIONS: "Network, repositories, AI" | post-1.0 |
 | 11 | Converter | DECISIONS: "Converter"; ADR 0016 | inputs USFM, OSIS, Zefania, MyBible, BibleQuote, TSV |
 | 12 | Interface | DECISIONS: "Interface"; ADR 0012–0015 | Flutter chosen; design system approved by prototype |
-| 13 | Sources and licenses | DECISIONS: "Licenses", "Data for reading and study"; ADR 0002 | texts and modules outside git, `STUDYBIBLE_DATA` directory |
+| 13 | Sources and licenses | DECISIONS: "Licenses", "Data for reading and study"; [MODULE-LICENSES.md](MODULE-LICENSES.md); ADR 0002 | texts and modules outside git, `STUDYBIBLE_DATA` directory; bundled-module statuses fixed 2026-10-11 |
 | 14 | Voice and accessibility | DECISIONS: "Voice and accessibility"; ADR 0010, 0017 | per-verse TTS, media session; voice engine implemented (system/neural backends, RUAccent, packages); audio Bibles — after 1.0 |
 
 ## ADRs

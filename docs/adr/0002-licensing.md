@@ -24,3 +24,5 @@ GPL components (e.g. espeak-ng) — only separate from the core, optional.
 Source texts and built modules are not committed to git: a separate
 `STUDYBIBLE_DATA` directory, so that publishing the repository does not
 publish translations.
+The per-module statuses and bundling requirements are kept in
+`docs/MODULE-LICENSES.md` (added 2026-10-11).

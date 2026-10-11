@@ -420,6 +420,10 @@ cargo-deny in CI checks dependency licenses.
 Texts are separate from the engine. A module's metadata carries a
 license and attribution, the app shows them. We do not perform a
 detailed legal review.
+Bundled module statuses and per-module requirements are documented
+in `docs/MODULE-LICENSES.md` (2026-10-11): `russyn` — public domain,
+`eng-kjv2006` — public domain outside the UK, `openbible-xrefs` —
+CC-BY; all other modules — user import only.
 
 ## Data and modules
 A module is our own SQLite format: text, markup, tokens, metadata.
