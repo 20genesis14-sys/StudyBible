@@ -74,3 +74,30 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// Reproducible builds: GNU build-id в .so зависит от каталога сборки,
+// поэтому note-секция удаляется из всех нативных библиотек перед упаковкой.
+val llvmPrebuilt = when {
+    System.getProperty("os.name").lowercase().startsWith("windows") -> "windows-x86_64"
+    System.getProperty("os.name").lowercase().startsWith("mac") -> "darwin-x86_64"
+    else -> "linux-x86_64"
+}
+val llvmObjcopyBin = if (llvmPrebuilt == "windows-x86_64") "llvm-objcopy.exe" else "llvm-objcopy"
+val llvmObjcopy = File(android.ndkDirectory, "toolchains/llvm/prebuilt/$llvmPrebuilt/bin/$llvmObjcopyBin")
+
+tasks.matching { it.name == "stripReleaseDebugSymbols" }.configureEach {
+    doLast {
+        if (llvmObjcopy.exists()) {
+            val outDir = layout.buildDirectory
+                .dir("intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out")
+                .get().asFile
+            outDir.walkTopDown().filter { it.isFile && it.extension == "so" }.forEach { so ->
+                ProcessBuilder(
+                    llvmObjcopy.absolutePath,
+                    "--remove-section", ".note.gnu.build-id",
+                    so.absolutePath,
+                ).inheritIO().start().waitFor()
+            }
+        }
+    }
+}
