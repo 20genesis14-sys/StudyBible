@@ -131,6 +131,9 @@ fn main() -> Result<(), String> {
         }
         w.add_xref(fk.book, fk.chapter, fk.verse, seq, &texts.join("; "))
             .map_err(|e| e.to_string())?;
+        // Структурные цели (таблица xrefs): те же top-N в координатах.
+        w.add_xref_targets(fk.book, fk.chapter, fk.verse, &lst[..top.min(lst.len())])
+            .map_err(|e| e.to_string())?;
         seq += 1;
         n += 1;
     }

@@ -517,6 +517,18 @@ mod tests {
         let gen_ = BookCode::new("GEN").unwrap();
         w.add_xref(gen_, 1, 1, 0, "Ps 33:6; John 1:1").unwrap();
         w.add_xref(gen_, 1, 2, 1, "2Cor 4:6").unwrap();
+        let psa = BookCode::new("PSA").unwrap();
+        let jhn = BookCode::new("JHN").unwrap();
+        w.add_xref_targets(
+            gen_,
+            1,
+            1,
+            &[
+                (VerseKey::new(psa, 33, 6), VerseKey::new(psa, 33, 6), 100),
+                (VerseKey::new(jhn, 1, 1), VerseKey::new(jhn, 1, 3), 90),
+            ],
+        )
+        .unwrap();
         w.finish().unwrap();
         p
     }
@@ -549,6 +561,31 @@ mod tests {
         assert!(matches!(spans[v3 - 1], Span::Note { kind: 'x', .. }));
         // Стих 3 без ссылки — ничего не добавлено.
         assert!(!matches!(spans.last(), Some(Span::Note { .. })));
+    }
+
+    #[test]
+    fn layer_xref_targets_structured() {
+        let dir = tempfile::tempdir().unwrap();
+        let layer = Module::open(&layer(dir.path())).unwrap();
+        assert!(layer.has_xref_targets());
+        let t = layer
+            .xref_targets(BookCode::new("GEN").unwrap(), 1)
+            .unwrap();
+        assert_eq!(t.len(), 2);
+        assert_eq!(t[0].verse, 1);
+        assert_eq!(t[0].to.book.as_str(), "PSA");
+        assert_eq!((t[0].to.chapter, t[0].to.verse), (33, 6));
+        assert!(t[0].end.is_none());
+        assert_eq!(t[0].votes, 100);
+        assert_eq!(t[1].to.book.as_str(), "JHN");
+        assert_eq!(t[1].end.unwrap().verse, 3);
+        // Стих без целей — пусто.
+        assert!(
+            layer
+                .xref_targets(BookCode::new("GEN").unwrap(), 2)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

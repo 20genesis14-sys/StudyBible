@@ -13,12 +13,7 @@ static ACCENTOR: OnceLock<Mutex<Accentor>> = OnceLock::new();
 
 /// Инициализировать акцентор байтами модели и содержимым словарей
 /// (`accent.onnx`, `vocab.txt`, `yo_words.tsv`, `lexicon.tsv`).
-pub fn accent_init(
-    model: Vec<u8>,
-    vocab: String,
-    yo: String,
-    lexicon: String,
-) -> Result<()> {
+pub fn accent_init(model: Vec<u8>, vocab: String, yo: String, lexicon: String) -> Result<()> {
     let a = Accentor::new(&model, &vocab, Some(&yo), Some(&lexicon))?;
     if let Some(slot) = ACCENTOR.get() {
         // Повторная инициализация — заменяем; отравленный мьютекс
