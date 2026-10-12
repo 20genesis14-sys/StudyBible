@@ -1,0 +1,1 @@
+Per-ABI APKs (smaller installs), faster web start (trimmed and lazy fonts, local renderer), localized book names in cross-references, footnote panel and settings fixes

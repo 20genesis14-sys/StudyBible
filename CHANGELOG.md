@@ -2,7 +2,27 @@
 
 All notable changes after the 1.0 release — one per line.
 
-## 1.1.1 (unreleased)
+## 1.1.1 (2026-10-12)
+
+- Cross-reference layer stores structured targets (`xrefs_pack`):
+  verse coordinates as packed data — the foundation for links that
+  survive translation updates; display is unchanged for now.
+- Layered cross-references now show book names in the interface
+  language (was: English OSIS names from the layer itself).
+- Web cold start is much lighter: the font manifest was cut to the
+  fonts actually used (Paper Mono, Charis SIL and Roboto Serif
+  removed), optional reading fonts load lazily only when selected,
+  and skwasm/CanvasKit is served locally instead of a CDN —
+  about 28.5 -> 12.8 MB on first load.
+- Web/desktop: the footnote panel no longer sits under the top bar.
+- Settings: switch rows are aligned evenly.
+- Android: APKs are split per ABI (armv7 / arm64 / x86_64) with
+  versionCode = version * 10 + ABI — smaller installs and the scheme
+  F-Droid requires.
+- Fixed: Android failed to load the Rust bridge library
+  (libstudybible_flutter_bridge.so) in some builds.
+- F-Droid recipe: reproducible build verified locally for all three
+  ABIs (build + verify_apks + allowed signer).
 
 ## 1.1.0 (2026-10-11)
 
