@@ -1070,3 +1070,39 @@ Markdown; на web — заглушка.
   отображаемый текст синтезируется локально под локаль.
 - Страж: `module check` линтит, чтобы ни одна таблица слоя не
   ссылалась на `book_id` без резолвимой таблицы `books`.
+
+## Рецепт F-Droid починен, воспроизводимость подтверждена (12.10.2026)
+
+Ответ ревьюеров F-Droid (шаблон build-flutter, ABI-сплит со схемой
+versionCode `versionCode * 10 + abiCode`, rustup из Debian) реализован
+и проверен локально end-to-end:
+
+- `build.gradle.kts`: `splits.abi` (без universal APK) + блок
+  `ApkVariantOutputImpl.versionCodeOverride` — armeabi-v7a→1,
+  arm64-v8a→2, x86_64→3 (коммит `11e25ac`). Версия 1.1.1+705 даёт
+  versionCode 7051/7052/7053.
+- Метадата `/home/vagrant/fdroiddata/metadata/dev.studybible.yml`:
+  отдельный блок на ABI, `flutter build apk --release --split-per-abi
+  --target-platform android-arm|android-arm64|android-x64`, rustup
+  1.99.0 + три Android-таргета Rust, JDK 17, `AllowedAPKSigningKeys` =
+  SHA-256 релизного ключа (`e0e45a73…2f32af8`).
+- **Причина падения `ryanheise`/`AudioServiceActivity`**: `PUB_CACHE`
+  указывал внутрь билд-дира (`$(pwd)/.pub-cache`). С кэшем внутри
+  чекаута `flutter pub get` не пишет `.flutter-plugins-dependencies` —
+  загрузчик плагинов Gradle видит ноль плагинов,
+  `GeneratedPluginRegistrant` пустой. Фикс: `PUB_CACHE=$HOME/.pub-cache`
+  (вне дерева сборки), `.pub-cache` убран из `scandelete`.
+  Воспроизведено в обе стороны.
+- **fdroid сам вычищает `signingConfigs`** из `build.gradle.kts`
+  («Cleaned build.gradle.kts of keysigning configs») — эталонные APK
+  надо собирать из дерева, где блок восстановлен (`git checkout --`),
+  иначе подпись откатывается на debug.
+- Эталонные APK собираются с теми же `--target-platform`, что и
+  рецепт: обычный `--split-per-abi` вписывает все три ABI в
+  `NativeAssetsManifest.json` и верификация падает.
+- Локальная проверка: все три записи (7051/7052/7053) проходят
+  `fdroid build` + `verify_apks` против эталонов, собранных в том же
+  WSL/тулчейне — воспроизводимая сборка подтверждена.
+- Остался внешний шаг: загрузить `dev.studybible_705{1,2,3}.apk` в
+  GitHub-релиз `v1.1.1`, чтобы `binary:`-URL резолвились на
+  билдсервере.

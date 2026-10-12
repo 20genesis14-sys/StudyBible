@@ -1176,3 +1176,42 @@ data. Accepted rules:
   text is synthesized locally per locale.
 - Guard: `module check` lints that no layer table references `book_id`
   without a resolvable `books` table.
+
+## F-Droid recipe fixed and reproducibility verified (2026-10-12)
+
+The F-Droid reviewers' reply (build-flutter template, ABI split with
+versionCode scheme `versionCode * 10 + abiCode`, rustup from Debian)
+was implemented and locally verified end-to-end:
+
+- `build.gradle.kts`: `splits.abi` enabled (no universal APK) plus the
+  `ApkVariantOutputImpl.versionCodeOverride` block mapping
+  armeabi-v7a→1, arm64-v8a→2, x86_64→3 (commit `11e25ac`). Version
+  1.1.1+705 yields APK versionCodes 7051/7052/7053.
+- Metadata `/home/vagrant/fdroiddata/metadata/dev.studybible.yml`:
+  one build block per ABI, `flutter build apk --release --split-per-abi
+  --target-platform android-arm|android-arm64|android-x64`, rustup
+  toolchain 1.99.0 + three Android Rust targets, JDK 17 forced,
+  `AllowedAPKSigningKeys` set to the release key's SHA-256
+  (`e0e45a73…2f32af8`).
+- **Root cause of the `ryanheise`/`AudioServiceActivity` failure**:
+  `PUB_CACHE` pointed inside the build dir (`$(pwd)/.pub-cache`).
+  With the cache inside the checkout, `flutter pub get` does not write
+  `.flutter-plugins-dependencies`, so the Gradle plugin loader sees
+  zero plugins and `GeneratedPluginRegistrant` is generated empty.
+  Fix: `PUB_CACHE=$HOME/.pub-cache` (outside the build tree) and the
+  `.pub-cache` entry removed from `scandelete`. Reproduced both ways
+  in the fdroid build tree.
+- **fdroid itself strips `signingConfigs`** from `build.gradle.kts`
+  ("Cleaned build.gradle.kts of keysigning configs") — reference
+  binaries must be built from a tree where the block is restored
+  (`git checkout --`), otherwise the build falls back to debug
+  signing.
+- Reference APKs must be built with the *same* `--target-platform`
+  flags as the recipe: a plain `--split-per-abi` build bakes all three
+  ABI entries into `NativeAssetsManifest.json` and fails verification.
+- Local verification: all three entries (7051/7052/7053) pass
+  `fdroid build` + `verify_apks` against reference APKs built in the
+  same WSL/toolchain — reproducible build confirmed.
+- Remaining external step: upload `dev.studybible_705{1,2,3}.apk` to
+  the GitHub `v1.1.1` release so the `binary:` URLs resolve on the
+  real buildserver.
