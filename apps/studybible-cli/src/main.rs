@@ -659,13 +659,14 @@ fn lint(m: &Module) -> Vec<String> {
 
     // Неизвестный kind (spec/05 С-8) — читается как bible, но автору
     // лучше знать.
-    const KINDS: [&str; 6] = [
+    const KINDS: [&str; 7] = [
         "bible",
         "interlinear",
         "commentary",
         "dictionary",
         "layer",
         "critical",
+        "knowledge",
     ];
     if !meta.kind.is_empty() && !KINDS.contains(&meta.kind.as_str()) {
         out.push(format!(
@@ -726,7 +727,8 @@ fn lint(m: &Module) -> Vec<String> {
                 .query_row("SELECT count(*) FROM spans WHERE kind='x'", [], |r| {
                     r.get(0)
                 })
-                .unwrap_or(0),
+                .unwrap_or(0)
+                .max(count("xrefs_pack")),
             "fts" => {
                 if m.has_search_index() {
                     1
@@ -790,6 +792,58 @@ fn lint(m: &Module) -> Vec<String> {
     let verses = count("verses");
     if verses == 0 && matches!(meta.kind.as_str(), "" | "bible" | "interlinear") {
         out.push("пустой verses у текстового модуля".into());
+    }
+
+    // ADR 0023: коды книг в целях xrefs_pack должны резолвиться в
+    // каталоге books модуля — иначе машинные цели не состыкуются.
+    if m.has_xref_targets() {
+        let codes: std::collections::HashSet<String> = m
+            .books()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(c, _)| c.as_str().into())
+            .collect();
+        let mut st = match conn.prepare("SELECT blob FROM xrefs_pack") {
+            Ok(s) => s,
+            Err(_) => {
+                out.push("xrefs_pack заявлена, но таблица не читается".into());
+                return out;
+            }
+        };
+        let blobs = st
+            .query_map([], |r| r.get::<_, Vec<u8>>(0))
+            .map(|q| q.flatten().collect::<Vec<_>>())
+            .unwrap_or_default();
+        let mut targets = 0u64;
+        let mut bad: std::collections::BTreeSet<String> = Default::default();
+        for blob in &blobs {
+            match studybible_store::pack::decode_xrefs(blob) {
+                Ok(entries) => {
+                    for e in entries {
+                        targets += 1;
+                        if !codes.contains(&e.to_book) {
+                            bad.insert(e.to_book.clone());
+                        }
+                        if let Some(b) = e.end_book.filter(|b| !codes.contains(b)) {
+                            bad.insert(b);
+                        }
+                    }
+                }
+                Err(e) => out.push(format!("xrefs_pack: блоб не читается — {e}")),
+            }
+        }
+        if !bad.is_empty() {
+            let list: Vec<_> = bad.iter().take(8).cloned().collect();
+            out.push(format!(
+                "xrefs_pack: {} целей, {} кодов вне каталога books: {}{}",
+                targets,
+                bad.len(),
+                list.join(", "),
+                if bad.len() > 8 { ", …" } else { "" }
+            ));
+        } else if targets > 0 {
+            println!("  целей xrefs_pack: {targets}");
+        }
     }
     out
 }

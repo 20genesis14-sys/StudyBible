@@ -179,3 +179,24 @@ only `meta.id`, the file name plays no role. Requirements for v2:
   storage-format change is invisible to extensions. A v2 plus for
   extensions: HTTP-Range streaming makes "module as a remote resource"
   possible without a full download.
+
+## Addendum 2026-10-13 — canonical coordinates instead of local ids
+
+Format review confirmed a boundary v2 must hold from day one: the
+public coordinate of a unit is `(book code, chapter, verse, segment)`,
+not the file-local `book_id`. The book is the textual `BookCode`
+(`GEN`, `PSA`, `1SA`); `segment` is the verse-part letter (`1:1a`;
+0 = whole verse). Local numeric keys remain an internal index detail
+and never appear in cross-module data: layers, user data, embeddings,
+exports.
+
+- "Book"-level coordinates in v2 are code-based; `ord` is display
+  order only.
+- `verse_map` is part of the v2 contract: manual versification
+  overrides apply before the automatic `.vrs` map
+  (`Versification::convert`, DECISIONS 2026-10-13).
+- Cross-module links (xref layers, the knowledge graph, future
+  connections) are stored as structured coordinates; display text is
+  synthesized locally. Precedent already shipped in v1: `xrefs_pack`
+  keeps `openbible-xrefs` targets as `(BookCode, chapter, verse,
+  segment)` plus a range end, one varint blob per verse.
