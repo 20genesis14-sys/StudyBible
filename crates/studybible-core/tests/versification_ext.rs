@@ -11,8 +11,16 @@ fn k(b: &str, c: u16, v: u16) -> VerseKey {
 fn verse_key_parse() {
     assert_eq!(VerseKey::parse("GEN 1:1"), Some(k("GEN", 1, 1)));
     assert_eq!(VerseKey::parse("PSA 89:22"), Some(k("PSA", 89, 22)));
-    // Буквенный сегмент отбрасывается.
-    assert_eq!(VerseKey::parse("ESG 1:1a"), Some(k("ESG", 1, 1)));
+    // Буквенный сегмент сохраняется: 1:1a → segment=1.
+    assert_eq!(
+        VerseKey::parse("ESG 1:1a"),
+        Some(VerseKey::with_segment(BookCode::new("ESG").unwrap(), 1, 1, 1))
+    );
+    assert_eq!(
+        VerseKey::parse("GEN 1:1z"),
+        Some(VerseKey::with_segment(BookCode::new("GEN").unwrap(), 1, 1, 26))
+    );
+    assert_eq!(format!("{:?}", VerseKey::parse("PSA 22:1b").unwrap()), "PSA 22:1b");
     assert_eq!(VerseKey::parse("GEN 1:1 "), Some(k("GEN", 1, 1)));
     assert_eq!(VerseKey::parse("GEN 1"), None);
     assert_eq!(VerseKey::parse("GEN:1:1"), None);
@@ -65,6 +73,19 @@ fn mappings() {
     assert_eq!(rsc.convert(org, k("PSA", 22, 1)), vec![k("PSA", 23, 1)]);
     // Преобразование в ту же версификацию — идентичность.
     assert_eq!(rsc.convert(rsc, k("GEN", 1, 1)), vec![k("GEN", 1, 1)]);
+
+    // Сегмент переносится на результат маппинга: Пс 22:1a rsc → Пс 23:1a org.
+    let seg_a = VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 1);
+    assert_eq!(
+        rsc.convert(org, seg_a),
+        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 23, 1, 1)]
+    );
+    // И обратно из org в rsc сегмент сохраняется.
+    let org_a = VerseKey::with_segment(BookCode::new("PSA").unwrap(), 23, 1, 1);
+    assert_eq!(
+        org.convert(rsc, org_a),
+        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 1)]
+    );
 }
 
 #[test]

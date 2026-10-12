@@ -15,33 +15,52 @@ pub struct VerseKey {
     pub book: BookCode,
     pub chapter: u16,
     pub verse: u16,
+    /// Буквенная часть стиха (`1:1a` → 1): 0 = весь стих, 1..=26 = a..z.
+    pub segment: u8,
 }
 
 impl VerseKey {
     pub fn new(book: BookCode, chapter: u16, verse: u16) -> Self {
+        Self::with_segment(book, chapter, verse, 0)
+    }
+
+    pub fn with_segment(book: BookCode, chapter: u16, verse: u16, segment: u8) -> Self {
         Self {
             book,
             chapter,
             verse,
+            segment,
         }
     }
 
-    /// `GEN 1:1`; буквенный сегмент (`1:1a`) отбрасывается.
+    /// `GEN 1:1`, `GEN 1:1a`; сегмент — одна строчная буква после номера.
     pub fn parse(s: &str) -> Option<Self> {
         let (book, cv) = s.trim().split_once(' ')?;
         let (c, v) = cv.trim().split_once(':')?;
+        let digits = v.len() - v.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+        let seg = v[digits..]
+            .chars()
+            .next()
+            .filter(|c| c.is_ascii_lowercase())
+            .map(|c| c as u8 - b'a' + 1)
+            .unwrap_or(0);
         let v: String = v.chars().take_while(char::is_ascii_digit).collect();
-        Some(Self {
-            book: BookCode::new(book)?,
-            chapter: c.parse().ok()?,
-            verse: v.parse().ok()?,
-        })
+        Some(Self::with_segment(
+            BookCode::new(book)?,
+            c.parse().ok()?,
+            v.parse().ok()?,
+            seg,
+        ))
     }
 }
 
 impl fmt::Debug for VerseKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}:{}", self.book, self.chapter, self.verse)
+        write!(f, "{} {}:{}", self.book, self.chapter, self.verse)?;
+        if self.segment > 0 {
+            write!(f, "{}", (b'a' + self.segment - 1) as char)?;
+        }
+        Ok(())
     }
 }
 
@@ -170,13 +189,24 @@ impl Versification {
     }
 
     /// Перевод стиха между версификациями через org.
+    ///
+    /// `.vrs`-соответствия оперируют целыми стихами, поэтому сегмент в
+    /// поиске не участвует: маппится стих целиком, исходный сегмент
+    /// переносится на каждый результат (0 — без изменений).
     pub fn convert(&self, to: &Versification, k: VerseKey) -> Vec<VerseKey> {
+        let seg = k.segment;
+        let whole = VerseKey { segment: 0, ..k };
         let set: BTreeSet<VerseKey> = self
-            .to_org(k)
+            .to_org(whole)
             .into_iter()
             .flat_map(|o| to.from_org(o))
             .collect();
-        set.into_iter().collect()
+        set.into_iter()
+            .map(|mut t| {
+                t.segment = seg;
+                t
+            })
+            .collect()
     }
 }
 
