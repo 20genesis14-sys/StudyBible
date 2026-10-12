@@ -63,6 +63,12 @@ android {
                 signingConfigs.getByName("debug")
         }
     }
+
+    // F-Droid: не вшивать Dependency metadata в signing block APK
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 }
 
 kotlin {
