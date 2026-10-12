@@ -1,4 +1,5 @@
-﻿import java.util.Properties
+﻿import com.android.build.gradle.internal.api.ApkVariantOutputImpl
+import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
@@ -68,6 +69,25 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
+    }
+
+}
+
+// F-Droid: схема versionCode для ABI-split (их ответ в GitLab):
+// versionCode * 10 + abiCode (armeabi-v7a=1, arm64-v8a=2, x86_64=3).
+// Собственный оверрайд Flutter (+1000*abi) отключён флагом
+// force-version-code-ignoring-abi в gradle.properties. Сами сплиты
+// включает плагин при `flutter build apk --split-per-abi`.
+val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
+android.applicationVariants.configureEach {
+    val variant = this
+    outputs.forEach { output ->
+        val abiVersionCode =
+            abiCodes[output.filters.find { it.filterType == "ABI" }?.identifier]
+        if (abiVersionCode != null) {
+            (output as ApkVariantOutputImpl).versionCodeOverride =
+                variant.versionCode * 10 + abiVersionCode
+        }
     }
 }
 
