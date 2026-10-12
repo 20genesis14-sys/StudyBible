@@ -66,3 +66,20 @@ Fetch/verify commands and the `data/` layout: `docs/ENVIRONMENT.md`.
 ## Environment
 
 Toolchain paths and machine quirks — `docs/ENVIRONMENT.md`.
+
+## WSL builds — permanent rule
+
+All Linux-side work (F-Droid builds/verifies, `flutter build linux`,
+heavy git/file operations) runs **inside the WSL ext4 filesystem**,
+never over `/mnt/d` (9p — tens of times slower on metadata):
+
+- Checkout and build from `~/StudyBible` in the Ubuntu distro
+  (origin `file:///mnt/d/StudyBible`; sync via `git fetch` + checkout).
+  `D:\StudyBible` remains the master copy.
+- F-Droid workdir is `/home/vagrant/fdroiddata` (canonical path,
+  mirrors the buildserver — required for `fdroid verify` parity).
+- `D:\StudyBible-fdroid` is an outdated copy — do not build from it.
+- `/mnt/d` is used only for inputs and exporting artifacts
+  (e.g. `D:\StudyBible-dist`).
+- Full layout and `fdroid verify` specifics: `docs/ENVIRONMENT.md`
+  («WSL layout»).

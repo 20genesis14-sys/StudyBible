@@ -65,3 +65,21 @@ fetch/check-data и структура `data/` — в `docs/ENVIRONMENT-ru.md`.
 ## Окружение
 
 Пути инструментов и особенности машины — `docs/ENVIRONMENT-ru.md`.
+
+## Сборки в WSL — постоянное правило
+
+Вся Linux-сторона работы (сборки и проверки F-Droid,
+`flutter build linux`, тяжёлые git/файловые операции) выполняется
+**внутри ext4-файловки WSL**, никогда через `/mnt/d`
+(9p — в десятки раз медленнее на метаданных):
+
+- Чекаут и сборка — из `~/StudyBible` в дистрибуции Ubuntu
+  (origin `file:///mnt/d/StudyBible`; синхронизация — `git fetch`
+  + checkout). `D:\StudyBible` остаётся мастер-копией.
+- Рабочее дерево F-Droid — `/home/vagrant/fdroiddata` (канонический
+  путь, повторяет buildserver — нужно для паритета `fdroid verify`).
+- `D:\StudyBible-fdroid` — устаревшая копия, собирать из неё нельзя.
+- `/mnt/d` используется только для входа и выгрузки артефактов
+  (например, `D:\StudyBible-dist`).
+- Полная раскладка и особенности `fdroid verify` —
+  `docs/ENVIRONMENT-ru.md` («Раскладка WSL»).
