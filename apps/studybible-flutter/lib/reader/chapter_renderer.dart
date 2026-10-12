@@ -46,8 +46,6 @@ extension _ChapterRenderer on _ReadingScreenState {
         'Lora',
         'Alegreya',
         'SourceSerif4',
-        'RobotoSerif',
-        'PaperMono',
       }.contains(family))
         FontVariation('wght', wght),
     ];
@@ -77,8 +75,6 @@ extension _ChapterRenderer on _ReadingScreenState {
         'Lora',
         'Alegreya',
         'SourceSerif4',
-        'RobotoSerif',
-        'PaperMono',
       }.contains(family))
         const FontVariation('wght', 900),
     ];

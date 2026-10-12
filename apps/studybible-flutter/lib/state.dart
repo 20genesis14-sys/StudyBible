@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:ui' show Color, FontWeight;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show FontLoader, rootBundle;
 
 // Прогресс через мост; на web — заглушка без сохранения.
 import 'native_bridge_stub.dart'
@@ -55,14 +56,71 @@ enum ReadingFont {
   /// Source Serif 4 — переменная, Adobe.
   sourceSerif,
 
-  /// Roboto Serif — переменная, кириллица полная.
+  /// Roboto Serif — надгробие: шрифт вырезан из бандла (тяжёлый).
   robotoSerif,
 
-  /// Charis SIL — максимальная читабельность, статические начертания.
+  /// Charis SIL — надгробие: шрифт вырезан из бандла.
   charisSil,
 
-  /// Paper Mono — моноширинный, только латиница (кириллица — fallback).
+  /// Paper Mono — надгробие: шрифт вырезан из бандла.
   paperMono,
+}
+
+/// Значения, чьи файлы вырезаны из бандла: скрываются из выбора,
+/// сохранённый выбор коэрсится в [ReadingFont.literata] при загрузке.
+/// Значения остаются в enum — в настройках хранится индекс.
+const Set<ReadingFont> kRemovedReadingFonts = {
+  ReadingFont.robotoSerif,
+  ReadingFont.charisSil,
+  ReadingFont.paperMono,
+};
+
+/// Шрифты вне web-манифеста (pubspec): фоллбэк-проба движка качает
+/// каждое объявленное семейство при старте, поэтому опциональные
+/// грузятся явно через [ensureReadingFontLoaded] при выборе.
+const Map<ReadingFont, List<String>> kLazyReadingFontAssets = {
+  ReadingFont.ptSerif: [
+    'assets/fonts/PTSerif-Regular.ttf',
+    'assets/fonts/PTSerif-Italic.ttf',
+    'assets/fonts/PTSerif-Bold.ttf',
+    'assets/fonts/PTSerif-BoldItalic.ttf',
+  ],
+  ReadingFont.lora: [
+    'assets/fonts/Lora-VF.ttf',
+    'assets/fonts/Lora-Italic-VF.ttf',
+  ],
+  ReadingFont.alegreya: [
+    'assets/fonts/Alegreya-VF.ttf',
+    'assets/fonts/Alegreya-Italic-VF.ttf',
+  ],
+  ReadingFont.sourceSerif: [
+    'assets/fonts/SourceSerif4-VF.ttf',
+    'assets/fonts/SourceSerif4-Italic-VF.ttf',
+  ],
+};
+
+final Map<ReadingFont, Future<bool>> _lazyFontLoads = {};
+
+/// Грузит файлы ленивого шрифта [f] через FontLoader; no-op для
+/// семейств из манифеста. Возвращает false при неудаче — вызывающий
+/// оставляет прежний шрифт.
+Future<bool> ensureReadingFontLoaded(ReadingFont f) {
+  if (!kLazyReadingFontAssets.containsKey(f)) return Future.value(true);
+  return _lazyFontLoads.putIfAbsent(f, () async {
+    final family = readingFontFamily(f);
+    if (family == null) return true;
+    final loader = FontLoader(family);
+    for (final path in kLazyReadingFontAssets[f]!) {
+      loader.addFont(rootBundle.load(path));
+    }
+    try {
+      await loader.load();
+      return true;
+    } catch (_) {
+      _lazyFontLoads.remove(f);
+      return false;
+    }
+  });
 }
 
 /// Имя семейства из pubspec (null — системный).
@@ -310,6 +368,14 @@ class Settings extends ChangeNotifier {
         layerXrefs = j['layerXrefs'] as bool? ?? true;
         layerStrongs = j['layerStrongs'] as bool? ?? true;
         readingFont = ReadingFont.values[j['readingFont'] as int? ?? 0];
+        if (kRemovedReadingFonts.contains(readingFont)) {
+          readingFont = ReadingFont.literata;
+        }
+        unawaited(
+          ensureReadingFontLoaded(readingFont).then(
+            (ok) => ok ? notifyListeners() : null,
+          ),
+        );
         bookFullNames = j['bookFullNames'] as bool? ?? false;
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
         activePlan = j['activePlan'] as String? ?? '';

@@ -1027,13 +1027,16 @@ extension _ReaderChrome on _ReadingScreenState {
                     initialSelection: settings.readingFont,
                     expandedInsets: EdgeInsets.zero,
                     textStyle: const TextStyle(fontSize: 13),
-                    onSelected: (f) {
-                      if (f != null) {
+                    onSelected: (f) async {
+                      if (f != null &&
+                          await ensureReadingFontLoaded(f)) {
                         settings.update(() => settings.readingFont = f);
                       }
                     },
                     dropdownMenuEntries: [
-                      for (final f in ReadingFont.values)
+                      for (final f in ReadingFont.values.where(
+                        (f) => !kRemovedReadingFonts.contains(f),
+                      ))
                         DropdownMenuEntry(
                           value: f,
                           label: f == ReadingFont.system

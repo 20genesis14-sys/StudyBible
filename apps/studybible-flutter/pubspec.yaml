@@ -91,6 +91,9 @@ flutter:
     - assets/voice/ru/
     # Текст SIL OFL 1.1 — лицензия обязана идти вместе со шрифтами.
     - assets/fonts/OFL.txt
+    # Файлы опциональных шрифтов — как данные для ленивого FontLoader
+    # (см. fonts: ниже — в манифесте их нет).
+    - assets/fonts/
 
   fonts:
     # Вариативная Literata (opsz + wght, ADR 0015): оптический размер
@@ -100,16 +103,10 @@ flutter:
         - asset: assets/fonts/Literata-var.ttf
         - asset: assets/fonts/Literata-Italic-var.ttf
           style: italic
-    - family: PTSerif
-      fonts:
-        - asset: assets/fonts/PTSerif-Regular.ttf
-        - asset: assets/fonts/PTSerif-Italic.ttf
-          style: italic
-        - asset: assets/fonts/PTSerif-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/PTSerif-BoldItalic.ttf
-          weight: 700
-          style: italic
+    # Опциональные шрифты чтения (PTSerif, Lora, Alegreya, SourceSerif4)
+    # — НЕ в манифесте: на web фоллбэк-проба глифов качает каждое
+    # объявленное семейство при старте (~10+ МБ). Они остаются ассетами
+    # и грузятся через FontLoader при выборе (state.dart).
     - family: GentiumBookPlus
       fonts:
         - asset: assets/fonts/GentiumBookPlus-Regular.ttf
@@ -123,41 +120,10 @@ flutter:
     - family: NotoSerifHebrew
       fonts:
         - asset: assets/fonts/NotoSerifHebrew.ttf
-    # Кандидаты шрифтов чтения (переменные wght, кириллица).
-    - family: Lora
-      fonts:
-        - asset: assets/fonts/Lora-VF.ttf
-        - asset: assets/fonts/Lora-Italic-VF.ttf
-          style: italic
-    - family: Alegreya
-      fonts:
-        - asset: assets/fonts/Alegreya-VF.ttf
-        - asset: assets/fonts/Alegreya-Italic-VF.ttf
-          style: italic
-    - family: SourceSerif4
-      fonts:
-        - asset: assets/fonts/SourceSerif4-VF.ttf
-        - asset: assets/fonts/SourceSerif4-Italic-VF.ttf
-          style: italic
-    - family: RobotoSerif
-      fonts:
-        - asset: assets/fonts/RobotoSerif-VF.ttf
-        - asset: assets/fonts/RobotoSerif-Italic-VF.ttf
-          style: italic
-    - family: CharisSIL
-      fonts:
-        - asset: assets/fonts/CharisSIL-Regular.ttf
-        - asset: assets/fonts/CharisSIL-Italic.ttf
-          style: italic
-        - asset: assets/fonts/CharisSIL-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/CharisSIL-BoldItalic.ttf
-          weight: 700
-          style: italic
-    # Только латиница — для тестов (цифры, UI).
-    - family: PaperMono
-      fonts:
-        - asset: assets/fonts/PaperMono-VF.ttf
+    # Вырезано (web-манифест пробовал все семейства при фоллбэке —
+    # каждый объявленный файл качался при старте): RobotoSerif,
+    # CharisSIL, PaperMono. Значения ReadingFont оставлены надгробиями
+    # — в настройках хранится индекс (state.dart).
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

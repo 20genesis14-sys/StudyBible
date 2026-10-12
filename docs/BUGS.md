@@ -4,6 +4,24 @@
 
 Format: date, symptom, cause/fix, commit. New entries on top.
 
+## 2026-10-14
+
+- **Web cold start pulled ~28 MB — every bundled font** — the engine's
+  glyph-fallback probe downloaded each of the 22 families declared in
+  the manifest plus canvaskit/skwasm from the gstatic CDN. Measured
+  with a headless-Edge CDP run (serve_web.py + script outside the
+  repo): 28.5 → 12.8 MB after fixes. Fix: PaperMono/RobotoSerif/
+  CharisSIL cut from the bundle (enum values kept as tombstones —
+  the setting stores an index), the optional reading fonts (PTSerif,
+  Lora, Alegreya, SourceSerif4) removed from the font manifest and
+  loaded lazily via `FontLoader` (`ensureReadingFontLoaded`,
+  `kLazyReadingFontAssets`), web built with
+  `--no-web-resources-cdn` so skwasm is served locally.
+- **The `assets/modules/` copy of `.sbz` in the web bundle** — the
+  pubspec `assets:` entry duplicates `modules/` (~11 MB of extra
+  deploy weight; not fetched at startup). Kept — native seeding needs
+  it; noted so the web deploy can prune it.
+
 ## 2026-10-12
 
 - **`Module::open_bytes`: buffer smaller than the data being copied for

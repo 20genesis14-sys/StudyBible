@@ -372,6 +372,15 @@ GlobalKey. Производные представления главы и ви�
   текста и сносок), без перехода в «Настройки».
 - Поиск по тексту — без выбора перевода: ищется в том переводе,
   откуда поиск открыт (из чтения — текущий, иначе — основной).
+- Загрузка шрифтов на web (14.10.2026): в манифесте остаются только
+  Literata, GentiumBookPlus и NotoSerifHebrew — фоллбэк-проба движка
+  качает каждое объявленное семейство при старте (~19 МБ замерено).
+  Опциональные шрифты чтения (PTSerif, Lora, Alegreya, SourceSerif4)
+  идут обычными ассетами и грузятся лениво через `FontLoader`
+  (`ensureReadingFontLoaded`, state.dart); PaperMono/RobotoSerif/
+  CharisSIL вырезаны из бандла (надгробия в enum — в настройке индекс).
+  Веб-сборка — с `--no-web-resources-cdn`: skwasm отдаётся из
+  `canvaskit/` локально, а не с gstatic.
 - Web: сборка `--wasm` (рендерер skwasm); многопоточный растр через
   COOP/COEP (serve_web.py → crossOriginIsolated, SharedArrayBuffer);
   JS+CanvasKit фоллбэк для старых браузеров (flutter_bootstrap.js

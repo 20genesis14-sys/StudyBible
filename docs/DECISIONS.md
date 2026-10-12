@@ -395,6 +395,15 @@ files.
 - Text search — without picking a translation: it searches the
   translation the search was opened from (from reading — the current
   one, otherwise the main one).
+- Web font loading (2026-10-14): only Literata, GentiumBookPlus and
+  NotoSerifHebrew stay in the font manifest — the engine's
+  glyph-fallback probe downloads every declared family at startup
+  (~19 MB measured). Optional reading fonts (PTSerif, Lora, Alegreya,
+  SourceSerif4) ship as plain assets and load lazily via `FontLoader`
+  (`ensureReadingFontLoaded`, state.dart); PaperMono/RobotoSerif/
+  CharisSIL removed from the bundle entirely (enum tombstones — the
+  setting stores an index). Web builds use `--no-web-resources-cdn`:
+  skwasm is served from `canvaskit/` locally instead of gstatic.
 - Web: a `--wasm` build (skwasm renderer); multithreaded raster via
   COOP/COEP (serve_web.py → crossOriginIsolated, SharedArrayBuffer);
   JS+CanvasKit fallback for old browsers (flutter_bootstrap.js chooses
