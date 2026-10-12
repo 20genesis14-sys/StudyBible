@@ -158,7 +158,7 @@ class NotesSheet extends StatelessWidget {
                 child: Text.rich(
                   TextSpan(
                     children: _noteSpans(
-                      n.text,
+                      _noteText(n),
                       p,
                       onRef,
                       scale: n.kind == 'x'
@@ -269,7 +269,8 @@ Future<NoteTextItems> _noteTexts(
   final mid = settings.xrefModule.isEmpty ? openModule : settings.xrefModule;
   final fb = mainModuleId();
   return _noteTextsCache.putIfAbsent(
-    '$mid\x00$fb\x00$fromVrs\x00${note.text}',
+    // Язык и раскладка — в ключе: подписи ссылок локализуются.
+    '$mid\x00$fb\x00$fromVrs\x00${settings.lang}\x00${settings.bookNames}\x00${note.text}',
     () => _loadNoteTexts(note, fromVrs, mid, fb),
   );
 }
@@ -335,7 +336,8 @@ Future<NoteTextItems> _loadNoteTexts(
   String mid,
   String fbMid,
 ) async {
-  final refs = findRefs(note.text);
+  final noteText = _noteText(note);
+  final refs = findRefs(noteText);
   if (refs.isEmpty) return const [];
   final m = await loadModule(mid);
   ModuleDoc? fb;
@@ -347,7 +349,7 @@ Future<NoteTextItems> _loadNoteTexts(
     if (!seen.add('${r.book}:${r.chapter}:${r.verse}-${r.verseEnd}')) {
       continue;
     }
-    final label = note.text.substring(rm.start, rm.end);
+    final label = noteText.substring(rm.start, rm.end);
     jobs.add(
       _noteTargets(m, r, fromVrs).then((targets) async {
         var t = targets.isEmpty
@@ -486,7 +488,7 @@ class _NoteCardState extends State<_NoteCard> {
                       Text.rich(
                         TextSpan(
                           children: _noteSpans(
-                            note.text,
+                            _noteText(note),
                             p,
                             widget.onRef,
                             scale: note.kind == 'x'
@@ -579,6 +581,14 @@ class _NoteCardState extends State<_NoteCard> {
     );
   }
 }
+
+/// Текст спана для показа: слойные x-ссылки (attrs `src="layer"`)
+/// приходят с OSIS-именами книг — переписываем их именами по языку
+/// интерфейса и раскладке «Названия книг» (ADR 0023).
+String _noteText(NoteSpanDoc n) =>
+    n.kind == 'x' && n.attrs.contains('src="layer"')
+    ? localizeRefs(n.text, bookShort)
+    : n.text;
 
 /// Разбить текст сноски на спаны: обычный текст + гиперссылки
 /// «Быт 1:1» → onRef. Ссылки рисуем виджетом (тапабельным), текст — спанами.

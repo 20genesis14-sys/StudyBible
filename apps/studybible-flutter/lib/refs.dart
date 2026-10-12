@@ -396,6 +396,26 @@ List<RefMatch> findRefs(String text) {
   return out;
 }
 
+/// Переписать имена книг в ссылках [text] через [bookName]
+/// (код → «Лев»/«Lev» по языку интерфейса и раскладке названий);
+/// числа, диапазоны и пунктуация остаются как в оригинале.
+/// Применяется к слойным x-ссылкам (attrs `src="layer"`), которые
+/// приходят с OSIS-именами книг (ADR 0023).
+String localizeRefs(String text, String Function(String code) bookName) {
+  final buf = StringBuffer();
+  var pos = 0;
+  for (final m in _pattern.allMatches(text)) {
+    final book = _bookOf(m.group(1)!);
+    if (book == null) continue;
+    buf.write(text.substring(pos, m.start));
+    buf.write(bookName(book));
+    buf.write(text.substring(m.start + m.group(1)!.length, m.end));
+    pos = m.end;
+  }
+  buf.write(text.substring(pos));
+  return buf.toString();
+}
+
 String? _bookOf(String raw) {
   var s = raw.trim().toLowerCase().replaceAll(RegExp(r'\.$'), '');
   s = s.replaceAll(RegExp(r'\s+'), ' ');

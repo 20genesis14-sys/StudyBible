@@ -110,6 +110,34 @@ void main() {
     });
   });
 
+  group('localizeRefs: имена книг по локали', () {
+    final ru = {'LEV': 'Лев', 'NUM': 'Чис', 'DEU': 'Втор', 'GEN': 'Быт'};
+
+    test('OSIS-имена заменяются локальными', () {
+      expect(
+        localizeRefs('Lev 23:10; Num 15:18', (c) => ru[c] ?? c),
+        'Лев 23:10; Чис 15:18',
+      );
+    });
+
+    test('диапазоны и разделители сохраняются', () {
+      expect(
+        localizeRefs('Gen 4:25 – Gen 5:32; Lev 1:1-17', (c) => ru[c] ?? c),
+        'Быт 4:25 – Быт 5:32; Лев 1:1-17',
+      );
+    });
+
+    test('текст без ссылок не меняется', () {
+      const t = 'просто текст без ссылок';
+      expect(localizeRefs(t, (c) => c), t);
+    });
+
+    test('результат снова разбирается findRefs', () {
+      final t = localizeRefs('Lev 23:10; Num 15:18', (c) => ru[c] ?? c);
+      expect(findRefs(t).map((m) => m.ref.book).toList(), ['LEV', 'NUM']);
+    });
+  });
+
   group('findRefs: отказ в непонятном', () {
     test('не книга — не ссылка', () {
       expect(findRefs('см. раздел 3:5 далее'), isEmpty);

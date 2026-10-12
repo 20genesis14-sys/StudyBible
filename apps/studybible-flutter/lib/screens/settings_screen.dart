@@ -321,17 +321,16 @@ class SettingsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            _row(
+                            _switchRow(
+                              context,
                               p,
                               tr(
                                 'Полные имена книг в сетке',
                                 'Full book names in grid',
                               ),
-                              Switch(
-                                value: settings.bookFullNames,
-                                onChanged: (v) => settings.update(
-                                  () => settings.bookFullNames = v,
-                                ),
+                              value: settings.bookFullNames,
+                              onChanged: (v) => settings.update(
+                                () => settings.bookFullNames = v,
                               ),
                             ),
                             _row(
@@ -358,17 +357,16 @@ class SettingsScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            _row(
+                            _switchRow(
+                              context,
                               p,
                               tr(
                                 'Выбор стиха при выборе главы',
                                 'Verse picker after choosing chapter',
                               ),
-                              Switch(
-                                value: settings.versePickerEnabled,
-                                onChanged: (v) => settings.update(
-                                  () => settings.versePickerEnabled = v,
-                                ),
+                              value: settings.versePickerEnabled,
+                              onChanged: (v) => settings.update(
+                                () => settings.versePickerEnabled = v,
                               ),
                             ),
                           ],
@@ -657,14 +655,13 @@ class SettingsScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            _row(
+                            _switchRow(
+                              context,
                               p,
                               tr('Подсветка слов', 'Word highlight'),
-                              Switch(
-                                value: settings.voiceWords,
-                                onChanged: (v) => settings.update(
-                                  () => settings.voiceWords = v,
-                                ),
+                              value: settings.voiceWords,
+                              onChanged: (v) => settings.update(
+                                () => settings.voiceWords = v,
                               ),
                             ),
                             if (!kIsWeb) const _VoicesCard(),
@@ -755,6 +752,52 @@ class SettingsScreen extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
     child: _labeled(p, label, control, padding: EdgeInsets.zero),
   );
+
+  /// Подпись слева + свитч справа в одну строку: текст не влезает —
+  /// ужимается шрифтом поменьше и переносится на вторую строку
+  /// внутри той же строки, свитч остаётся у правого края.
+  Widget _switchRow(
+    BuildContext context,
+    Palette p,
+    String label, {
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: LayoutBuilder(
+              builder: (_, c) {
+                final fits14 =
+                    (TextPainter(
+                          text: TextSpan(
+                            text: label,
+                            style: TextStyle(fontSize: 14, color: p.ink),
+                          ),
+                          maxLines: 1,
+                          textDirection: Directionality.of(context),
+                        )..layout(maxWidth: c.maxWidth))
+                        .didExceedMaxLines ==
+                    false;
+                return Text(
+                  label,
+                  maxLines: 2,
+                  style: TextStyle(
+                    fontSize: fits14 ? 14 : 12.5,
+                    color: p.ink,
+                    height: 1.2,
+                  ),
+                );
+              },
+            ),
+          ),
+          Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
 
   /// Подпись + контрол: на узких экранах контрол уходит под подпись
   /// и умещается в горизонтальную прокрутку вместо переполнения.
