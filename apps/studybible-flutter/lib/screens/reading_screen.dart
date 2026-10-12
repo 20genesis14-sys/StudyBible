@@ -16,7 +16,7 @@ import '../frag.dart';
 import '../native_bridge.dart' show UserEntry;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
-    if (dart.library.html) '../native_bridge_web.dart';
+    if (dart.library.js_interop) '../native_bridge_web.dart';
 import '../reader/notes_sheet.dart';
 import '../reader/page_swipe.dart';
 import '../reader/reader_dialogs.dart';

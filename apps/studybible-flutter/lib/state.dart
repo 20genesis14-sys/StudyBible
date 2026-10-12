@@ -15,7 +15,7 @@ import 'package:flutter/services.dart' show FontLoader, rootBundle;
 // Прогресс через мост; на web — заглушка без сохранения.
 import 'native_bridge_stub.dart'
     if (dart.library.io) 'native_bridge_io.dart'
-    if (dart.library.html) 'native_bridge_web.dart';
+    if (dart.library.js_interop) 'native_bridge_web.dart';
 import 'native_bridge.dart' show UserEntry;
 import 'data.dart' show installedModules, mainModuleId;
 import 'theme.dart';

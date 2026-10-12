@@ -11,7 +11,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'lexicon_ru_stub.dart'
-    if (dart.library.html) 'lexicon_ru_web.dart'
+    if (dart.library.js_interop) 'lexicon_ru_web.dart'
     if (dart.library.io) 'lexicon_ru_io.dart';
 
 /// Одна статья словаря Стронга.

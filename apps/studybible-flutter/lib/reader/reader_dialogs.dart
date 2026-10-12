@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 
 import '../attachments_stub.dart'
     if (dart.library.io) '../attachments_io.dart'
-    if (dart.library.html) '../attachments_web.dart';
+    if (dart.library.js_interop) '../attachments_web.dart';
 import '../l10n.dart';
 import '../lexicon.dart';
 import '../state.dart' show splitNote, joinNote;
 import '../native_bridge.dart' show UserEntry;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
-    if (dart.library.html) '../native_bridge_web.dart';
+    if (dart.library.js_interop) '../native_bridge_web.dart';
 import '../theme.dart';
 
 /// Диалог тегов стиха: контроллер живёт в State. Если dispose()

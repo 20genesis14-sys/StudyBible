@@ -11,7 +11,7 @@ import 'models.dart';
 // фоллбэк — предвыгруженные JSON-ассеты.
 import 'l10n.dart';
 import 'native_bridge_stub.dart'
-    if (dart.library.html) 'native_bridge_web.dart'
+    if (dart.library.js_interop) 'native_bridge_web.dart'
     if (dart.library.io) 'native_bridge_io.dart';
 import 'state.dart';
 import 'theme.dart';

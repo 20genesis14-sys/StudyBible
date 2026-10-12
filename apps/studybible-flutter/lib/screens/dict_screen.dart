@@ -8,7 +8,7 @@ import '../data.dart';
 import '../l10n.dart';
 import '../native_bridge.dart' show DictEntryInfo;
 import '../native_bridge_stub.dart'
-    if (dart.library.html) '../native_bridge_web.dart'
+    if (dart.library.js_interop) '../native_bridge_web.dart'
     if (dart.library.io) '../native_bridge_io.dart';
 import '../theme.dart';
 
