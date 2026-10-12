@@ -639,6 +639,16 @@ explicitly. All other tables (`f`/`x`/`v` spans, `verses`, `entries`,
 source); saving for eng-kjv2006 is ~35–40 MB raw. `content_hash` is
 computed from the logical reading stream and is unaffected by packing.
 
+Lazy module reading (2026-10-14, ADR 0022 addendum): two deferred
+alternatives recorded as equal candidates — A (block container: the
+`.sb` image in ~64 KB zstd frames with a shared trained dictionary +
+a page VFS decompressing only requested frames, also enabling HTTP
+Range streaming on web) and C (`text_pack`: per-chapter zstd-compressed
+verse text inside `.sb`, no VFS, laziness via the OS page cache).
+`sqlite_zstd_vfs` and `phiresky/sqlite-zstd` were reviewed and not
+adopted; the dictionary-per-chunk idea is borrowed. The choice is
+postponed until lazy-reading work starts (OPEN-QUESTIONS № 47).
+
 Shared cross-reference layer (2026-10-10, ADR 0023): instead of
 injecting the same ~29.4 K OpenBible links into every module, they
 live in a separate kind="layer" module openbible-xrefs

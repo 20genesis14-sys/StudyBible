@@ -157,7 +157,11 @@ limitation: a lot of code is already built around "3 levels"
 ## Related decisions
 
 - ADR 0016 — v1 format extensions (kind, features, rights, .sbz).
-- Variant B (block VFS) — fallback plan between v1 and v2.
+- Variant B (block VFS) — fallback plan between v1 and v2. Detailing
+  (2026-10-14): ADR 0022 addendum records two equal candidates for
+  lazy module reading — A (block container + shared dictionary +
+  page VFS) and C (`text_pack`, per-chapter zstd verse text inside
+  `.sb`); the choice is deferred (OPEN-QUESTIONS № 47).
 - Freeze: `.sb` v1 freezes at the 1.0 release; v2 is the next version,
   coexistence via `module check` and the converter, without a "silent"
   swap for the user.
