@@ -1,6 +1,6 @@
 //! Версификации — краевые случаи разбора `.vrs` и перевода стихов.
 
-use studybible_core::versification::BUILTIN;
+use studybible_core::versification::{VerseMap, BUILTIN};
 use studybible_core::{BookCode, VerseKey, Versification};
 
 fn k(b: &str, c: u16, v: u16) -> VerseKey {
@@ -134,4 +134,67 @@ fn parse_bad_vrs() {
     assert_eq!(v.last_verse(BookCode::new("GEN").unwrap(), 1), Some(31));
     assert_eq!(v.last_verse(BookCode::new("GEN").unwrap(), 2), Some(25));
     assert_eq!(v.last_verse(BookCode::new("PSA").unwrap(), 1), Some(6));
+}
+
+#[test]
+fn verse_map_overrides() {
+    // Ручная карта побеждает автоматический маршрут через org.
+    let a = Versification::parse(
+        "tA",
+        "GEN 1:10 2:10\nPSA 1:6 23:6\nGEN 1:1-2 = GEN 1:1-2",
+    )
+    .unwrap();
+    let b = Versification::parse("tB", "GEN 1:10 2:10\nPSA 1:6 23:6").unwrap();
+
+    // Автоматика (без карты) — тот же номер.
+    assert_eq!(a.convert(&b, k("PSA", 23, 1)), vec![k("PSA", 23, 1)]);
+
+    let map = VerseMap::parse("tA tB PSA 23:1 PSA 22:1").unwrap();
+    assert_eq!(
+        a.convert_mapped(&b, k("PSA", 23, 1), &map),
+        vec![k("PSA", 22, 1)]
+    );
+    // Непокрытые строки идут автоматическим маршрутом.
+    assert_eq!(
+        a.convert_mapped(&b, k("PSA", 23, 2), &map),
+        vec![k("PSA", 23, 2)]
+    );
+
+    // 1:N — несколько строк на один источник.
+    let map = VerseMap::parse("tA tB PSA 51:0 PSA 51:1\ntA tB PSA 51:0 PSA 51:2").unwrap();
+    assert_eq!(
+        a.convert_mapped(&b, k("PSA", 51, 0), &map),
+        vec![k("PSA", 51, 1), k("PSA", 51, 2)]
+    );
+
+    // Сегмент источника переносится на цель без сегмента.
+    let src = VerseKey::with_segment(BookCode::new("PSA").unwrap(), 23, 1, 2);
+    let map = VerseMap::parse("tA tB PSA 23:1 PSA 22:1").unwrap();
+    assert_eq!(
+        a.convert_mapped(&b, src, &map),
+        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 2)]
+    );
+    // Явный сегмент у цели не перезаписывается.
+    let map = VerseMap::parse("tA tB PSA 23:1 PSA 22:1a").unwrap();
+    assert_eq!(
+        a.convert_mapped(&b, src, &map),
+        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 1)]
+    );
+
+    // Ключ без сегмента матчит запрос с сегментом (целый стих).
+    let map = VerseMap::parse("tA tB PSA 23:1a PSA 22:1b").unwrap();
+    assert_eq!(
+        a.convert_mapped(&b, k("PSA", 23, 1), &map),
+        vec![k("PSA", 23, 1)] // запрос без сегмента — ручная карта не сработала
+    );
+}
+
+#[test]
+fn verse_map_parse_errors() {
+    assert!(VerseMap::parse("tA tB PSA 23:1 PSA 22:1").is_ok());
+    assert!(VerseMap::parse("tA tB PSA 23:1").is_err());
+    assert!(VerseMap::parse("tA tB psa 23:1 PSA 22:1").is_err());
+    // Комментарии и пустые строки пропускаются.
+    let m = VerseMap::parse("# шапка\n\n  \ntA tB PSA 1:1 PSA 1:2 # хвост\n").unwrap();
+    assert_eq!(m.pair_count(), 1);
 }

@@ -77,6 +77,66 @@ pub struct Versification {
 /// Встроенные версификации Paratext.
 pub const BUILTIN: [&str; 6] = ["org", "eng", "lxx", "vul", "rso", "rsc"];
 
+/// Ручные переопределения соответствий версификаций (`verse_map`).
+///
+/// `.vrs`-карты — автоматика; там, где она врёт или не покрывает случай,
+/// действует курируемый файл `data/versification/verse_map.tsv`:
+/// `SRC\tDST\tSRC_REF\tDST_REF` (несколько строк — несколько целей).
+/// Переопределение прямое: `(src_vrs, src_стих) → dst_стихи`, и побеждает
+/// автоматический маршрут через org.
+#[derive(Debug, Default)]
+pub struct VerseMap {
+    /// (имя src-версификации, имя dst) → src-стих → dst-стихи.
+    map: HashMap<(String, String), HashMap<VerseKey, Vec<VerseKey>>>,
+}
+
+impl VerseMap {
+    /// Встроенная курируемая карта исключений.
+    pub fn builtin() -> &'static VerseMap {
+        static M: OnceLock<VerseMap> = OnceLock::new();
+        M.get_or_init(|| {
+            VerseMap::parse(include_str!("../../../data/versification/verse_map.tsv"))
+                .expect("verse_map.tsv")
+        })
+    }
+
+    pub fn parse(text: &str) -> Result<Self, String> {
+        let mut m = VerseMap::default();
+        for (n, raw) in text.lines().enumerate() {
+            let line = raw.split('#').next().unwrap_or("").trim();
+            if line.is_empty() {
+                continue;
+            }
+            let err = || format!("verse_map.tsv:{}: {raw}", n + 1);
+            let mut f = line.split_whitespace();
+            let (src, dst) = (f.next().ok_or_else(err)?, f.next().ok_or_else(err)?);
+            let (sb, scv) = (f.next().ok_or_else(err)?, f.next().ok_or_else(err)?);
+            let (db, dcv) = (f.next().ok_or_else(err)?, f.next().ok_or_else(err)?);
+            let s = VerseKey::parse(&format!("{sb} {scv}")).ok_or_else(err)?;
+            let d = VerseKey::parse(&format!("{db} {dcv}")).ok_or_else(err)?;
+            push_unique(
+                m.map
+                    .entry((src.into(), dst.into()))
+                    .or_default()
+                    .entry(s)
+                    .or_default(),
+                d,
+            );
+        }
+        Ok(m)
+    }
+
+    /// Число пар версификаций с переопределениями (для аудита/тестов).
+    pub fn pair_count(&self) -> usize {
+        self.map.len()
+    }
+
+    /// Целевые стихи по ручной карте `self.name → to.name`, если есть.
+    fn lookup(&self, from: &str, to: &str, k: VerseKey) -> Option<&Vec<VerseKey>> {
+        self.map.get(&(from.into(), to.into()))?.get(&k)
+    }
+}
+
 impl Versification {
     pub fn builtin(name: &str) -> Option<&'static Versification> {
         macro_rules! vrs {
@@ -190,12 +250,37 @@ impl Versification {
 
     /// Перевод стиха между версификациями через org.
     ///
-    /// `.vrs`-соответствия оперируют целыми стихами, поэтому сегмент в
-    /// поиске не участвует: маппится стих целиком, исходный сегмент
-    /// переносится на каждый результат (0 — без изменений).
+    /// Сначала проверяется ручная `verse_map` (прямое переопределение),
+    /// затем автоматическая `.vrs`-карта. `.vrs`-соответствия оперируют
+    /// целыми стихами, поэтому сегмент в поиске не участвует: маппится
+    /// стих целиком, исходный сегмент переносится на каждый результат,
+    /// у которого он не задан (0 — без изменений).
     pub fn convert(&self, to: &Versification, k: VerseKey) -> Vec<VerseKey> {
+        self.convert_mapped(to, k, VerseMap::builtin())
+    }
+
+    /// `convert` с явной картой переопределений (тесты, будущие
+    /// модульные `verse_map`).
+    pub fn convert_mapped(&self, to: &Versification, k: VerseKey, map: &VerseMap) -> Vec<VerseKey> {
         let seg = k.segment;
         let whole = VerseKey { segment: 0, ..k };
+        // Ключ ручной карты тоже ищется целым стихом, если точного
+        // совпадения с сегментом нет.
+        if let Some(v) = map
+            .lookup(&self.name, &to.name, k)
+            .or_else(|| map.lookup(&self.name, &to.name, whole))
+        {
+            return v
+                .iter()
+                .map(|t| {
+                    let mut t = *t;
+                    if t.segment == 0 {
+                        t.segment = seg;
+                    }
+                    t
+                })
+                .collect();
+        }
         let set: BTreeSet<VerseKey> = self
             .to_org(whole)
             .into_iter()
