@@ -56,3 +56,6 @@
 | [0019](adr/0019-navigation-workspace.md) | Навигация: единое рабочее место, стек позиций, панели без дублирования логики |
 | [0020](adr/0020-contributions.md) | Реестр вкладов и движок расширений (data/ui/web) |
 | [0021](adr/0021-gpui-ui-track.md) | Собственная текстовая система `studybible-text` (пост-1.0 трек) |
+| [0022](adr/0022-packed-span-storage.md) | Varint-упаковка спанов/tokens/alignment (`required="pack"`) |
+| [0023](adr/0023-xrefs-layer.md) | Параллельные места как общий модуль-слой `kind="layer"` |
+| [0024](adr/0024-knowledge-graph.md) | Библейский граф знаний — модуль `knowledge.sb` (дизайн, отложено) |

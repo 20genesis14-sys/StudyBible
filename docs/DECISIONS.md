@@ -1108,3 +1108,28 @@ overridden.
   re-slice its chapter. Footnote/cross-ref card results are cached
   per (module, versification, note text) and prefetched in the
   background when a chapter opens (commits 603c111, b4f3263).
+
+## Biblical knowledge graph (2026-10-12, ADR 0024)
+
+Design accepted and deferred to the far-future track (alongside format
+v2 and `studybible-text`). An optional `knowledge.sb` module with a new
+`meta.kind="knowledge"`, shared by all translations: entities (people,
+places, objects, customs, concepts, events, etc.), relations between
+them, and verse mentions. Key points:
+
+- Tables: `entities`, `entity_names` (names/synonyms as a separate
+  table, no JSON aliases), `relationships` (anchor verse as
+  `book/chapter/verse/seg` coordinates — the book is the canonical
+  `BookCode`, not a module-local `book_id`, since a layer module has
+  no `books` of its own), `verse_mentions`,
+  `type_hierarchy` (type taxonomy), `media`, optional `embeddings` —
+  all optional per v1 rules.
+- Coordinates are stored in the `eng` versification, converted at read
+  time via `Versification::convert` (ADR 0023 precedent); an optional
+  `verse_map` table covers ambiguous mappings.
+- `source` (provenance) is mandatory; versioning via `meta`.
+- Staging: stage 1 — people and places (TIPNR + OpenBible) plus a
+  minimal entity card; concepts, embeddings and media later. AI only
+  at data-preparation time, never at runtime.
+- Deferred: user annotations (`user_knowledge.sb`), place coordinates
+  + map, enriching `x`-spans with entities.

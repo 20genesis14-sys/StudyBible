@@ -37,6 +37,33 @@ Toolchain paths and local quirks of the working machine.
 - CI prerequisites: `rustup target add wasm32-unknown-unknown`,
   `cargo install cargo-deny --locked`.
 
+## WSL layout (F-Droid / Linux builds)
+
+The `Ubuntu` distro lives on `D:` (`D:\WSL\Ubuntu`, ext4.vhdx) — everything
+inside `~` is physically on `D:` but accessed as native ext4, avoiding the
+`/mnt/d` (9p/DrvFs) penalty on metadata-heavy work
+(`git status` on the repo: ~3.4 s via `/mnt/d` vs ~0.1 s in `~`).
+
+- `~/StudyBible` — second checkout of the repo in ext4;
+  `origin = file:///mnt/d/StudyBible`, sync via `git fetch` + checkout.
+  `D:\StudyBible` stays the master copy for Windows tools.
+- `/home/vagrant/fdroiddata` — **canonical** F-Droid workdir (mirrors the
+  buildserver layout `/home/vagrant/fdroiddata/build/<appid>` so APK paths
+  match for `fdroid verify`). Builds/verifies run here as user `gedeon`.
+- `~/fdroid-fork` — fdroiddata fork for the upstream MR (GitHub-source
+  recipe with `binary:` + `AllowedAPKSigningKeys`).
+- `~/flutter` — Flutter SDK checkout pinned at `5fc346839b` (3.47.6),
+  used by F-Droid builds (srclib) and Linux builds.
+- `~/Android/Sdk` — Android SDK + NDK 28.2 inside ext4; rustup 1.99.0 in
+  `~/.cargo`.
+- `D:\StudyBible-fdroid` — **outdated** copy of an old local-repo
+  fdroiddata; kept as backup, do not build from it.
+- `fdroid verify`: downloads go to `f-droid.org` by default; for local
+  comparison copy reference APKs to `tmp/<name>.apk` and run
+  `fdroid verify --reuse-remote-apk`.
+- Rule of thumb: sources, build trees and caches inside ext4 (`~` or
+  `/home/vagrant`); `/mnt/d` only for inputs and exported artifacts.
+
 ## External data (`STUDYBIBLE_DATA`)
 
 `D:\StudyBible-data` (`C:\StudyBible-data` is a leftover directory).

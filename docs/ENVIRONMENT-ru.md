@@ -38,6 +38,34 @@
 - Зависимости CI: `rustup target add wasm32-unknown-unknown`,
   `cargo install cargo-deny --locked`.
 
+## Раскладка WSL (F-Droid / Linux-сборки)
+
+Дистрибуция `Ubuntu` хранится на `D:` (`D:\WSL\Ubuntu`, ext4.vhdx) —
+всё внутри `~` физически на `D:`, но доступно как родная ext4,
+без штрафа `/mnt/d` (9p/DrvFs) на метаданных
+(`git status` по репо: ~3,4 с через `/mnt/d` против ~0,1 с в `~`).
+
+- `~/StudyBible` — второй чекаут репо в ext4;
+  `origin = file:///mnt/d/StudyBible`, синхронизация через `git fetch`
+  + checkout. `D:\StudyBible` остаётся мастер-копией для Windows-инструментов.
+- `/home/vagrant/fdroiddata` — **каноническое** рабочее дерево F-Droid
+  (повторяет раскладку buildserver `/home/vagrant/fdroiddata/build/<appid>`,
+  чтобы пути в APK совпадали для `fdroid verify`). Сборки и проверки
+  запускаются отсюда пользователем `gedeon`.
+- `~/fdroid-fork` — форк fdroiddata для апстрим-MR (рецепт с источником
+  GitHub, `binary:` + `AllowedAPKSigningKeys`).
+- `~/flutter` — чекаут Flutter SDK, пин `5fc346839b` (3.47.6);
+  используется F-Droid-сборками (srclib) и Linux-сборкой.
+- `~/Android/Sdk` — Android SDK + NDK 28.2 в ext4; rustup 1.99.0
+  в `~/.cargo`.
+- `D:\StudyBible-fdroid` — **устаревшая** копия старого локального
+  fdroiddata; оставлена как бэкап, собирать из неё не надо.
+- `fdroid verify`: по умолчанию тянет APK с `f-droid.org`; для локального
+  сравнения кладём эталонные APK в `tmp/<имя>.apk` и запускаем
+  `fdroid verify --reuse-remote-apk`.
+- Правило: исходники, деревья сборки и кэши — внутри ext4 (`~` или
+  `/home/vagrant`); `/mnt/d` — только вход и выгрузка артефактов.
+
 ## Внешние данные (`STUDYBIBLE_DATA`)
 
 `D:\StudyBible-data` (`C:\StudyBible-data` — остаточный каталог).

@@ -58,3 +58,6 @@ are written together with the test fixture of their stage.
 | [0019](adr/0019-navigation-workspace.md) | Navigation: unified workspace, position stack, panes without duplicated logic |
 | [0020](adr/0020-contributions.md) | Contribution registry and extension engine (data/ui/web) |
 | [0021](adr/0021-gpui-ui-track.md) | Custom text system `studybible-text` (post-1.0 track) |
+| [0022](adr/0022-packed-span-storage.md) | Packed varint storage of spans/tokens/alignment (`required="pack"`) |
+| [0023](adr/0023-xrefs-layer.md) | Cross-references as a shared `kind="layer"` module |
+| [0024](adr/0024-knowledge-graph.md) | Biblical knowledge graph — `knowledge.sb` module (design, deferred) |

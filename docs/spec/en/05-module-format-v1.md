@@ -100,7 +100,7 @@ break reading.
 None of this is mandatory and none goes into `required`.
 
 - `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` |
-  `layer` | `critical`.
+  `layer` | `critical` | `knowledge` (ADR 0024 — design, deferred).
 - `meta.features`: `strongs,morph,tokens,alignment,variants,entries,
   fts,marks` (comma-separated, open list — see S-9).
 - `entries(ord INTEGER PRIMARY KEY, headword TEXT NOT NULL,
@@ -241,7 +241,9 @@ same.
   verses; `interlinear` — same plus `alignment`/`tokens`;
   `commentary` — blocks bound to verses, no verse text;
   `dictionary` and `layer` — `books` may be empty (content in
-  `entries`/apparatus); `critical` — carries `variants`. Unknown
+  `entries`/apparatus); `critical` — carries `variants`;
+  `knowledge` — the knowledge-graph module (entities, relations,
+  verse mentions; ADR 0024, implementation deferred). Unknown
   `kind` — read as `bible` (soft).
 - **S-9.** `meta.features` — an **open** list. Known values
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,

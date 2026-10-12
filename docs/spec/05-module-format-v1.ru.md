@@ -89,7 +89,7 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
 
 Ничего из этого не обязательно и не идёт в `required`.
 
-- `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` | `layer` | `critical`.
+- `meta.kind`: `bible` | `interlinear` | `commentary` | `dictionary` | `layer` | `critical` | `knowledge` (ADR 0024 — дизайн, отложено).
 - `meta.features`: `strongs,morph,tokens,alignment,variants,entries,fts,marks`
   (через запятую).
 - `entries(ord INTEGER PRIMARY KEY, headword TEXT NOT NULL,
@@ -217,8 +217,9 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   `interlinear` — тот же + `alignment`/`tokens`; `commentary` — блоки
   привязаны к стихам, стихового текста нет; `dictionary` и `layer` —
   `books` может быть пустой (контент в `entries`/аппарате);
-  `critical` — несёт `variants`. Неизвестный `kind` — читается как
-  `bible` (мягко).
+  `critical` — несёт `variants`; `knowledge` — модуль графа знаний
+  (сущности, связи, упоминания в стихах; ADR 0024, реализация
+  отложена). Неизвестный `kind` — читается как `bible` (мягко).
 - **С-9.** `meta.features` — **открытый** список. Известные значения
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,
   `fts`, `marks`, `xrefs`) включают слои UI. Значения с префиксом `x-` —
