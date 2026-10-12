@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OpenFlags, params};
 use sha2::Digest as _;
-use studybible_core::BookCode;
 use studybible_core::text::{Block, BlockKind, Chapter, Span};
+use studybible_core::{BookCode, VerseKey};
 
 /// `SBM1` — подпись файла модуля в `PRAGMA application_id`.
 pub const APP_ID: i64 = 0x5342_4D31;
@@ -267,7 +267,26 @@ CREATE TABLE token_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
 CREATE TABLE align_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
                         verse INTEGER NOT NULL, blob BLOB NOT NULL,
                         PRIMARY KEY(book_id, chapter, verse));
+-- ADR 0023/0022 (необязательная): структурные цели перекрёстных ссылок
+-- слоя, varint-блоб на стих (pack.rs::PackedXref). Цель — каноническая
+-- координата (BookCode текстом, глава, стих, сегмент); отображаемая
+-- строка — в spans.x, здесь — машинные цели.
+CREATE TABLE xrefs_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
+                        verse INTEGER NOT NULL, blob BLOB NOT NULL,
+                        PRIMARY KEY(book_id, chapter, verse));
 ";
+
+/// Структурная цель перекрёстной ссылки (таблица `xrefs`, ADR 0023):
+/// `verse` — стих источника (глава известна из запроса), `to` — цель
+/// в канонических координатах версификации модуля, `end` — конец
+/// диапазона (`None` = одиночный стих), `votes` — вес из источника.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct XrefTarget {
+    pub verse: u16,
+    pub to: VerseKey,
+    pub end: Option<VerseKey>,
+    pub votes: i64,
+}
 
 /// Слово уровня токена (таблица `tokens`, ADR 0016).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -812,6 +831,40 @@ impl ModuleWriter {
         Ok(())
     }
 
+    /// Структурные цели ссылок стиха (`xrefs_pack`, ADR 0023):
+    /// `(начало, конец диапазона или начало, votes)` в канонических
+    /// координатах `(BookCode, chapter, verse, segment)` версификации
+    /// модуля. Порядок целей — порядок в срезе.
+    pub fn add_xref_targets(
+        &self,
+        book: BookCode,
+        chapter: u16,
+        verse: u16,
+        targets: &[(VerseKey, VerseKey, i64)],
+    ) -> Result<()> {
+        let book_id = self.book_id(book)?;
+        let entries: Vec<crate::pack::PackedXref> = targets
+            .iter()
+            .map(|(a, b, votes)| crate::pack::PackedXref {
+                to_book: a.book.as_str().into(),
+                to_chapter: a.chapter,
+                to_verse: a.verse,
+                to_seg: a.segment,
+                end_book: (a != b).then(|| b.book.as_str().into()),
+                end_chapter: (a != b).then_some(b.chapter),
+                end_verse: (a != b).then_some(b.verse),
+                end_seg: (a != b).then_some(b.segment),
+                votes: *votes,
+            })
+            .collect();
+        let blob = crate::pack::encode_xrefs(&entries);
+        self.conn.execute(
+            "INSERT INTO xrefs_pack VALUES(?1, ?2, ?3, ?4)",
+            params![book_id, chapter, verse, blob],
+        )?;
+        Ok(())
+    }
+
     /// Встроить поисковый индекс FTS5 в модуль (таблица `fts`,
     /// ADR 0016 п. 11). Та же схема и нормализация, что у кэш-индекса
     /// `SearchIndex`; читатель без `fts` строит кэш как раньше.
@@ -922,6 +975,8 @@ pub struct Module {
     has_align_pack: bool,
     /// Есть ли у модуля собственные `x`-спаны (ADR 0023).
     has_xrefs: bool,
+    /// Таблица `xrefs_pack` со структурными целями ссылок (ADR 0023).
+    has_xref_targets: bool,
     has_variants: bool,
     has_entries: bool,
     has_marks: bool,
@@ -1111,6 +1166,7 @@ impl Module {
             has_token_pack,
             has_align_pack,
             has_xrefs,
+            has_xref_targets: has_pack("xrefs_pack")?,
             has_variants: has("variants")?,
             has_entries: has("entries")?,
             has_marks: has("marks")?,
@@ -1198,6 +1254,51 @@ impl Module {
             Ok((r.get::<_, u16>(0)?, r.get::<_, String>(1)?))
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Структурные цели перекрёстных ссылок главы (таблица `xrefs`,
+    /// ADR 0023): цели в канонических координатах версификации модуля.
+    /// Для модулей без таблицы (старые `.sb`) — пусто.
+    pub fn xref_targets(&self, book: BookCode, chapter: u16) -> Result<Vec<XrefTarget>> {
+        if !self.has_xref_targets {
+            return Ok(vec![]);
+        }
+        let Some(bid) = self.bid(book) else {
+            return Ok(vec![]);
+        };
+        let mut st = self.conn.prepare(
+            "SELECT verse, blob FROM xrefs_pack
+             WHERE book_id=?1 AND chapter=?2 ORDER BY verse",
+        )?;
+        let rows = st.query_map(params![bid, chapter], |r| {
+            Ok((r.get::<_, u16>(0)?, r.get::<_, Vec<u8>>(1)?))
+        })?;
+        let point = |b: &str, c: u16, v: u16, s: u8| -> Option<VerseKey> {
+            Some(VerseKey::with_segment(BookCode::new(b)?, c, v, s))
+        };
+        let mut out = Vec::new();
+        for r in rows {
+            let (verse, blob) = r?;
+            for e in crate::pack::decode_xrefs(&blob)? {
+                out.push(XrefTarget {
+                    verse,
+                    to: point(&e.to_book, e.to_chapter, e.to_verse, e.to_seg).ok_or(
+                        ModuleError::BadFormat("xrefs_pack: невалидный код книги".into()),
+                    )?,
+                    end: match (e.end_book, e.end_chapter, e.end_verse, e.end_seg) {
+                        (Some(b), Some(c), Some(v), Some(s)) => point(&b, c, v, s),
+                        _ => None,
+                    },
+                    votes: e.votes,
+                });
+            }
+        }
+        Ok(out)
+    }
+
+    /// Таблица `xrefs_pack` со структурными целями ссылок есть в файле.
+    pub fn has_xref_targets(&self) -> bool {
+        self.has_xref_targets
     }
 
     pub fn books(&self) -> Result<Vec<(BookCode, String)>> {

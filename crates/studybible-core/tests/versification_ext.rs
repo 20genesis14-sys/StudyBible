@@ -1,6 +1,6 @@
 //! Версификации — краевые случаи разбора `.vrs` и перевода стихов.
 
-use studybible_core::versification::{VerseMap, BUILTIN};
+use studybible_core::versification::{BUILTIN, VerseMap};
 use studybible_core::{BookCode, VerseKey, Versification};
 
 fn k(b: &str, c: u16, v: u16) -> VerseKey {
@@ -14,13 +14,26 @@ fn verse_key_parse() {
     // Буквенный сегмент сохраняется: 1:1a → segment=1.
     assert_eq!(
         VerseKey::parse("ESG 1:1a"),
-        Some(VerseKey::with_segment(BookCode::new("ESG").unwrap(), 1, 1, 1))
+        Some(VerseKey::with_segment(
+            BookCode::new("ESG").unwrap(),
+            1,
+            1,
+            1
+        ))
     );
     assert_eq!(
         VerseKey::parse("GEN 1:1z"),
-        Some(VerseKey::with_segment(BookCode::new("GEN").unwrap(), 1, 1, 26))
+        Some(VerseKey::with_segment(
+            BookCode::new("GEN").unwrap(),
+            1,
+            1,
+            26
+        ))
     );
-    assert_eq!(format!("{:?}", VerseKey::parse("PSA 22:1b").unwrap()), "PSA 22:1b");
+    assert_eq!(
+        format!("{:?}", VerseKey::parse("PSA 22:1b").unwrap()),
+        "PSA 22:1b"
+    );
     assert_eq!(VerseKey::parse("GEN 1:1 "), Some(k("GEN", 1, 1)));
     assert_eq!(VerseKey::parse("GEN 1"), None);
     assert_eq!(VerseKey::parse("GEN:1:1"), None);
@@ -78,13 +91,23 @@ fn mappings() {
     let seg_a = VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 1);
     assert_eq!(
         rsc.convert(org, seg_a),
-        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 23, 1, 1)]
+        vec![VerseKey::with_segment(
+            BookCode::new("PSA").unwrap(),
+            23,
+            1,
+            1
+        )]
     );
     // И обратно из org в rsc сегмент сохраняется.
     let org_a = VerseKey::with_segment(BookCode::new("PSA").unwrap(), 23, 1, 1);
     assert_eq!(
         org.convert(rsc, org_a),
-        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 1)]
+        vec![VerseKey::with_segment(
+            BookCode::new("PSA").unwrap(),
+            22,
+            1,
+            1
+        )]
     );
 }
 
@@ -139,11 +162,8 @@ fn parse_bad_vrs() {
 #[test]
 fn verse_map_overrides() {
     // Ручная карта побеждает автоматический маршрут через org.
-    let a = Versification::parse(
-        "tA",
-        "GEN 1:10 2:10\nPSA 1:6 23:6\nGEN 1:1-2 = GEN 1:1-2",
-    )
-    .unwrap();
+    let a =
+        Versification::parse("tA", "GEN 1:10 2:10\nPSA 1:6 23:6\nGEN 1:1-2 = GEN 1:1-2").unwrap();
     let b = Versification::parse("tB", "GEN 1:10 2:10\nPSA 1:6 23:6").unwrap();
 
     // Автоматика (без карты) — тот же номер.
@@ -172,13 +192,23 @@ fn verse_map_overrides() {
     let map = VerseMap::parse("tA tB PSA 23:1 PSA 22:1").unwrap();
     assert_eq!(
         a.convert_mapped(&b, src, &map),
-        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 2)]
+        vec![VerseKey::with_segment(
+            BookCode::new("PSA").unwrap(),
+            22,
+            1,
+            2
+        )]
     );
     // Явный сегмент у цели не перезаписывается.
     let map = VerseMap::parse("tA tB PSA 23:1 PSA 22:1a").unwrap();
     assert_eq!(
         a.convert_mapped(&b, src, &map),
-        vec![VerseKey::with_segment(BookCode::new("PSA").unwrap(), 22, 1, 1)]
+        vec![VerseKey::with_segment(
+            BookCode::new("PSA").unwrap(),
+            22,
+            1,
+            1
+        )]
     );
 
     // Ключ без сегмента матчит запрос с сегментом (целый стих).

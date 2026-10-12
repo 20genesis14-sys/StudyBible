@@ -41,6 +41,23 @@ pub struct PackedAlign {
     pub span: u16,
 }
 
+/// Цель перекрёстной ссылки внутри блоба `xrefs_pack` (вариант B):
+/// координата `(book_code, chapter, verse, segment)` + конец диапазона.
+/// Коды книг — через пул строк (66 вариантов, сильно повторяются).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PackedXref {
+    pub to_book: String,
+    pub to_chapter: u16,
+    pub to_verse: u16,
+    pub to_seg: u8,
+    /// Конец диапазона (то же представление); `None` — одиночный стих.
+    pub end_book: Option<String>,
+    pub end_chapter: Option<u16>,
+    pub end_verse: Option<u16>,
+    pub end_seg: Option<u8>,
+    pub votes: i64,
+}
+
 fn wvarint(buf: &mut Vec<u8>, mut v: u64) {
     loop {
         let b = (v & 0x7f) as u8;
@@ -317,6 +334,84 @@ pub fn decode_align(blob: &[u8]) -> Result<Vec<PackedAlign>> {
     Ok(out)
 }
 
+const X_END: u8 = 1;
+
+/// Упаковать цели перекрёстных ссылок одного стиха.
+pub fn encode_xrefs(entries: &[PackedXref]) -> Vec<u8> {
+    let mut pool = Pool::new();
+    for e in entries {
+        pool.idx(&e.to_book);
+        if let Some(b) = &e.end_book {
+            pool.idx(b);
+        }
+    }
+    let mut buf = Vec::new();
+    pool.write(&mut buf);
+    wvarint(&mut buf, entries.len() as u64);
+    let find = |pool: &Pool, s: &str| pool.index[s];
+    for e in entries {
+        let mut flags = 0u8;
+        if e.end_book.is_some() {
+            flags |= X_END;
+        }
+        buf.push(flags);
+        wvarint(&mut buf, find(&pool, &e.to_book));
+        wvarint(&mut buf, e.to_chapter as u64);
+        wvarint(&mut buf, e.to_verse as u64);
+        wvarint(&mut buf, e.to_seg as u64);
+        if let (Some(b), Some(c), Some(v), Some(s)) =
+            (&e.end_book, e.end_chapter, e.end_verse, e.end_seg)
+        {
+            wvarint(&mut buf, find(&pool, b));
+            wvarint(&mut buf, c as u64);
+            wvarint(&mut buf, v as u64);
+            wvarint(&mut buf, s as u64);
+        }
+        wvarint(&mut buf, e.votes as u64);
+    }
+    buf
+}
+
+/// Распаковать цели перекрёстных ссылок стиха.
+pub fn decode_xrefs(blob: &[u8]) -> Result<Vec<PackedXref>> {
+    let mut r = Reader::new(blob);
+    let pool = r.pool()?;
+    let n = r.entries()?;
+    if n > 100_000 {
+        return Err(ModuleError::BadFormat("pack: записей раздуто".into()));
+    }
+    let mut out = Vec::with_capacity(n);
+    for _ in 0..n {
+        let flags = r.rbyte()?;
+        let to_book = pool_get(&pool, r.rvarint()?)?;
+        let to_chapter = r.rvarint()? as u16;
+        let to_verse = r.rvarint()? as u16;
+        let to_seg = r.rvarint()? as u8;
+        let (end_book, end_chapter, end_verse, end_seg) = if flags & X_END != 0 {
+            (
+                Some(pool_get(&pool, r.rvarint()?)?),
+                Some(r.rvarint()? as u16),
+                Some(r.rvarint()? as u16),
+                Some(r.rvarint()? as u8),
+            )
+        } else {
+            (None, None, None, None)
+        };
+        out.push(PackedXref {
+            to_book,
+            to_chapter,
+            to_verse,
+            to_seg,
+            end_book,
+            end_chapter,
+            end_verse,
+            end_seg,
+            votes: r.rvarint()? as i64,
+        });
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -395,9 +490,50 @@ mod tests {
     }
 
     #[test]
+    fn xrefs_roundtrip() {
+        let entries = vec![
+            PackedXref {
+                to_book: "PSA".into(),
+                to_chapter: 33,
+                to_verse: 6,
+                to_seg: 0,
+                end_book: None,
+                end_chapter: None,
+                end_verse: None,
+                end_seg: None,
+                votes: 100,
+            },
+            PackedXref {
+                to_book: "JHN".into(),
+                to_chapter: 1,
+                to_verse: 1,
+                to_seg: 0,
+                end_book: Some("JHN".into()),
+                end_chapter: Some(1),
+                end_verse: Some(3),
+                end_seg: Some(0),
+                votes: 90,
+            },
+            PackedXref {
+                to_book: "GEN".into(),
+                to_chapter: 1,
+                to_verse: 1,
+                to_seg: 1, // 1:1a
+                end_book: None,
+                end_chapter: None,
+                end_verse: None,
+                end_seg: None,
+                votes: 0,
+            },
+        ];
+        assert_eq!(decode_xrefs(&encode_xrefs(&entries)).unwrap(), entries);
+    }
+
+    #[test]
     fn empty_blobs() {
         assert!(decode_spans(&encode_spans(&[])).unwrap().is_empty());
         assert!(decode_tokens(&encode_tokens(&[])).unwrap().is_empty());
         assert!(decode_align(&encode_align(&[])).unwrap().is_empty());
+        assert!(decode_xrefs(&encode_xrefs(&[])).unwrap().is_empty());
     }
 }

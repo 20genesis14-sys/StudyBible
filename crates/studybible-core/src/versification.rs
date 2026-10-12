@@ -288,7 +288,10 @@ impl Versification {
             .collect();
         set.into_iter()
             .map(|mut t| {
-                t.segment = seg;
+                // Свой сегмент из .vrs (ESG 10:3a) важнее переносимого.
+                if t.segment == 0 {
+                    t.segment = seg;
+                }
                 t
             })
             .collect()
