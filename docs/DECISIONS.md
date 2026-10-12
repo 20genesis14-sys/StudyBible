@@ -1133,3 +1133,27 @@ them, and verse mentions. Key points:
   at data-preparation time, never at runtime.
 - Deferred: user annotations (`user_knowledge.sb`), place coordinates
   + map, enriching `x`-spans with entities.
+
+## Canonical verse coordinate and the `book_id` boundary (2026-10-13)
+
+External review of the module format confirmed: `book_id` is a
+module-local surrogate key — it must never leak into cross-module
+data. Accepted rules:
+
+- Public verse coordinate = `(book code, chapter, verse, segment)`;
+  the book is the canonical `BookCode` (`GEN`, `PSA`, `1SA`…),
+  `segment` is the verse-part letter (`1:1a`; 0 = whole verse).
+- `book_id INTEGER` stays as the internal SQLite index inside `.sb`
+  (compact, local) — it is forbidden in layer coordinates, user data,
+  embedding keys, exports and any public API.
+- `ord` is ordering metadata only, never an identity.
+- `VerseKey` gains a `segment` field (0 = whole verse, 1..26 = a..z).
+- `verse_map` — an optional manual versification-override table for
+  places where the automatic `.vrs` mapping is wrong or ambiguous
+  (Ps 22/23, Mal 4, Joel 2:28, psalm superscriptions = verse 0);
+  `Versification::convert` consults it before the automatic map.
+- Cross-reference targets move from display strings to structured
+  coordinates in the xref layer (see ADR 0023 addendum); display
+  text is synthesized locally per locale.
+- Guard: `module check` lints that no layer table references `book_id`
+  without a resolvable `books` table.

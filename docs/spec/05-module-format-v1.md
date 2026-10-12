@@ -44,6 +44,12 @@ stored once.
 
 - `books` — `book_id` (equal to `ord`), USFM/OSIS code (`code` UNIQUE),
   order `ord`, title. All other tables reference `book_id`.
+  `book_id` is a module-local surrogate key: it is an internal index
+  detail and MUST NOT appear in cross-module data (layer coordinates,
+  user data, embeddings, exports). The portable verse coordinate is
+  `(book code, chapter, verse, segment)` — the book is the canonical
+  `code`, `segment` is the verse-part letter (0 = whole verse,
+  1..26 = a..z). See DECISIONS "Canonical verse coordinate".
 - `book_headers` — book headers from USFM (`h`, `toc1`, `mt1`…), except
   `id`.
 - `blocks` — the reading stream: the block's USFM marker (`p`, `q1`,
