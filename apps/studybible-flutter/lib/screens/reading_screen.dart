@@ -489,7 +489,13 @@ class _ReadingScreenState extends State<ReadingScreen> {
             },
             child: _overlayScreen() ??
                 Scaffold(
-              body: Stack(
+              // Боковая панель сносок — снаружи Stack: верхний бар
+              // перекрывает только колонку текста, заголовок панели
+              // виден всегда (десктоп/веб).
+              body: Row(
+                children: [
+                  Expanded(
+                    child: Stack(
                 children: [
                   NotificationListener<ScrollNotification>(
                     // Прокрутка текста прячет панель управления.
@@ -526,49 +532,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
                           ),
                           if (_compare && wide && !_interleaved)
                             _compareBody(p),
-                          if (_notesOpen && wide)
-                            Container(
-                              width: 360,
-                              decoration: BoxDecoration(
-                                border: Border(left: BorderSide(color: p.edge)),
-                              ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Text(
-                                          tr(
-                                            'Сноски и параллельные',
-                                            'Footnotes and cross-refs',
-                                          ),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: p.ink,
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        tooltip: tr('Закрыть', 'Close'),
-                                        icon: const Icon(Icons.close, size: 18),
-                                        onPressed: () =>
-                                            setState(() => _notesOpen = false),
-                                      ),
-                                    ],
-                                  ),
-                                  Expanded(
-                                    child: NotesSheet(
-                                      notes: notes,
-                                      selectedVerse: _selectedVerse,
-                                      controller: ScrollController(),
-                                      onRef: _goToRef,
-                                      variants: ch?.variants ?? const [],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -624,6 +587,52 @@ class _ReadingScreenState extends State<ReadingScreen> {
                           ? MediaQuery.of(context).padding.bottom + 64
                           : MediaQuery.of(context).padding.bottom + 12,
                       child: _ttsPlayer(p),
+                    ),
+                ],
+              ),
+                  ),
+                  if (_notesOpen && wide)
+                    Container(
+                      width: 360,
+                      decoration: BoxDecoration(
+                        border: Border(left: BorderSide(color: p.edge)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  tr(
+                                    'Сноски и параллельные',
+                                    'Footnotes and cross-refs',
+                                  ),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: p.ink,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: tr('Закрыть', 'Close'),
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () =>
+                                    setState(() => _notesOpen = false),
+                              ),
+                            ],
+                          ),
+                          Expanded(
+                            child: NotesSheet(
+                              notes: notes,
+                              selectedVerse: _selectedVerse,
+                              controller: ScrollController(),
+                              onRef: _goToRef,
+                              variants: ch?.variants ?? const [],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
