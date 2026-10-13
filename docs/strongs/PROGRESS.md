@@ -244,3 +244,16 @@ can be attached to base-layer words deterministically.
   2,880 missed spans logged to `bsb-strongs.misses.tsv` (psalm
   superscriptions vs-0/vs-1, edition diffs). clippy `-D warnings` and
   the whole test suite are green.
+- 2026-10-13 — **Phase 3 done**: `step-orig.sb` v0.1.0 built and
+  checked (tools `tools/strongs/orig/`, report
+  `work/strongs/orig/report-phase3.md`). Morpheme-level spans per
+  ADR 0025 §3 concrete schema: `gr`/`strong`/`morph`/`lemma`/`wid`/
+  `typ`/`ed`/`sns`/`eid`/`conj`/`mid`. 31,210 verses, 679,155 spans
+  (OT 537,409 · NT 141,746); `mid` 512,853 (75.5%) — OT verses
+  aligned 21,320/23,261, NT 7,647/7,949; remaining gaps are
+  expected (X/R extra words absent from WLC, Ketiv-vs-Qere form
+  differences, TR-only words absent from SBLGNT, punctuation
+  morphemes). `eid` 45,131, `sns` 80,345. `module check` clean;
+  Gen 1:1, John 1:1, Job 1:4 (Qere), 1Jn 5:7 (Comma Johanneum,
+  `typ=K`/`ed=TR`) spot-verified. Open: 193 MB unpacked — blob
+  packing (ADR 0022) is a pending optimization.

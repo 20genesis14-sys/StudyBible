@@ -1391,3 +1391,25 @@ plan, tasks, data inventory and skill specs —
   0.65 %) are psalm superscriptions (table verse 1 vs module verse 0)
   and edition diffs between the two BSB exports — all logged in
   `bsb-strongs.misses.tsv`. `module check` passes.
+
+## Base layer `step-orig` — morpheme-level spans (2026-10-13, ADR 0025 impl.)
+
+- **One `w` span per morpheme** (not per word). TAHOT morphemes
+  (`/` and `\` separators; `\` = postposed punctuation) become
+  separate spans, so verse text reads as the English context gloss in
+  original word order and each morpheme keeps its own
+  `gr`/`strong`/`morph`/`lemma`. Punctuation morphemes (`H9016` ׃)
+  carry the character itself, glued to the previous word.
+- **`wid`** (`Gen.1.1#03`) is word-level and shared by a word's
+  morphemes; **`mid`** is the MACULA token id (`o…WWWP` OT,
+  `n…WWW` NT) — assigned per morpheme where verse word count and
+  ordered forms match WLCM/SBLGNT; punctuation morphemes are skipped
+  for part matching (they are absent from WLCM).
+- **`typ`** keeps the source letters verbatim (`L|R|X|Q|Q(K)|N|K|O`
+  combos); **`ed`** the TAGNT edition list; **`sns`** the numeric
+  sense label; **`eid`** the raw `Name@Range` entity id;
+  **`conj`** only meaningful conjoin references (containing `»`/`:`).
+- Pipeline is Python (`tools/strongs/orig/`), same interim
+  compromise as phase 2; coverage and misses: report
+  `work/strongs/orig/report-phase3.md` (mid 75.5%; gaps are
+  documented, not defects).

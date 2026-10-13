@@ -80,6 +80,33 @@ Findings that shaped the decision (verified 2026-10-12/13):
    (`Gen.1.1#03`), morphemes, dStrong, lemma, morphology, context
    English gloss, editions (NA/TR/Byz…, Ketiv/Qere), person/place ID,
    and later the MACULA word id. `eng` versification.
+
+   Concrete schema (v0.1.0): one `p` block per verse; **one span per
+   morpheme** (TAGNT words are single morphemes). Each span has
+   `style='w'`; its `text` is the context English gloss of the
+   morpheme (punctuation morphemes such as `H9016` ׃ carry the
+   character itself). The verse text therefore reads as an English
+   context translation in original word order. Span attributes:
+
+   | attr | content |
+   |---|---|
+   | `gr` | surface form of the morpheme (vocalised) |
+   | `strong` | dStrong code (single; braces of the source dropped) |
+   | `morph` | morphology code of the morpheme |
+   | `lemma` | lexical/dictionary form |
+   | `wid` | TAHOT/TAGNT word address `Gen.1.1#03` — identical for all morphemes of a word |
+   | `typ` | source letter(s): TAHOT `L|R|X|Q|Q(K)|…`, TAGNT `N|K|O` and combos (`NKO`) |
+   | `ed` | edition list (`NA28+NA27+Tyn+SBL+WH+Treg+TR+Byz`) — TAGNT only |
+   | `sns` | sense label (`1_beginning`) when tagged |
+   | `eid` | person/place entity id (`Abraham@Gen.11.26-1Pe`) when present |
+   | `conj` | conjoin phrase reference (`#04»05:G2501`) when present |
+   | `mid` | MACULA token id — OT `oBBCCCVVVWWWP` (morpheme part), NT `nBBCCCVVVWWW` — only where an order-verified match exists |
+
+   `mid` is assigned per verse only where the module word count equals
+   the source (WLCM/SBLGNT) word count and the ordered forms match;
+   otherwise it is left empty and counted in the build report.
+   `tokens`/`alignment` are derived automatically (`tokens.surface` =
+   `gr`, `tokens.gloss` = span text).
 4. **Interlinears**: the primary product is the **dictionary
    interlinear** — the dStrong gloss under every original word plus a
    morphology line (TEHMC/TEGMC). It needs no model for a new language

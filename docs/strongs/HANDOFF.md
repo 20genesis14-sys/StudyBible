@@ -364,15 +364,19 @@ every row has a gloss; every morphology code occurring has a `morph`
 row; `module check` passes; unit test on 10 known keys (H0776G/H,
 H5414G/H, H1254A, H0430G, G2424G, G4151G/H, H9003, G3056).
 
-### Phase 3 — base layer `step-orig` (no model)
+### Phase 3 — base layer `step-orig` — **done 2026-10-13**
 
-`studybible module orig-step <stepbible dir> -o step-orig.sb`:
-`kind=interlinear`, versification `eng`, verse text = original words.
-Token fields: address (`Gen.1.1#03`), surface, lemma, `strong`
-(dStrong, morphemes joined with `/`), morph, gloss (context English),
-editions, entity (person/place ID), `macula_id` (after G).
-Acceptance: word counts equal source files per book; all strongs in
-lexicon; golden test on Gen 1:1, Mat 1:1, John 1:1.
+Built in Python as `tools/strongs/orig/` (3 steps:
+`step01_parse.py` TAHOT+TAGNT → `orig-words.jsonl`,
+`step02_macula.py` WLCM/SBLGNT → `mid`, `step03_build.py` → .sb).
+Concrete span schema is fixed in ADR 0025 §3: one `p` block per
+verse, **one `w` span per morpheme**, span text = context English
+gloss; attrs `gr`/`strong`/`morph`/`lemma`/`wid` (+`typ`/`ed`/`sns`/
+`eid`/`conj`/`mid`). Result: 31,210 verses, 679,155 spans,
+`mid` 512,853 (75.5%), `eid` 45,131, `sns` 80,345; `module check`
+clean; report `work/strongs/orig/report-phase3.md`. Output:
+`work/strongs/orig/step-orig.sb` (~193 MB unpacked; blob packing is
+a pending optimization).
 
 ### Phase 3b — mega-encyclopedia stage 1 export
 
