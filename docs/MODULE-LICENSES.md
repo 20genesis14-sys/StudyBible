@@ -72,3 +72,13 @@ current is part of adding or updating any bundled module.
   `LICENSE-ruaccent.txt` in the repo root.
 - Fonts, engine dependencies — `deny.toml` / `cargo deny`, and the
   licenses of vendored web decoders (`web/zstd/`, BSD-3 @bokuweb).
+
+## Planned external sources (not yet modules)
+
+- **BibleAquifer** resources (`github.com/BibleAquifer`, long-term
+  "own study Bible" track — DECISIONS 2026-10-13): study notes,
+  book intros, key terms, dictionaries, maps/images — mostly
+  **CC BY-SA 4.0**, © Biblica Inc. / Tyndale House Publishers /
+  unfoldingWord / UBS, adaptations © Mission Mutual. Derived `.sb`
+  modules require attribution in `meta` and stay under CC BY-SA.
+  `ACAI` entity data likewise CC BY-SA © Mission Mutual.

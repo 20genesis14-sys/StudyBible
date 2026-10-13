@@ -118,3 +118,48 @@
 - Позже — источники понятий: смысловые домены MACULA (лицензию
   проверить), OpenBible Topical Bible (CC BY), Manser's Dictionary of
   Bible Themes (CC BY-SA), TBCWG от STEPBible, когда выйдет.
+
+## Дополнение 13.10.2026 — BibleAquifer как источник контента
+
+Организация `github.com/BibleAquifer` (~73 публичных репозитория)
+публикует готовые наборы данных в JSON + Markdown (языковые папки;
+для ресурсов Biblica есть `rus`), в основном под CC BY-SA 4.0:
+
+- **`ACAI` — главная находка**: аннотации сущностей на уровне слов и
+  фраз в языках оригинала — люди, места, божества, группы, фауна, флора,
+  реалии, ключевые термины — с предпочтительными метками, описаниями
+  и **связями между сущностями**. Структура записей (`id`/`primary_id`/
+  `referred_to_as`, идентификаторы вида `person:Aaron`) ложится почти
+  напрямую на `entities`/`entity_names`/`verse_mentions`/`relationships`;
+  для упоминаний с точностью до слова это аналог ID людей/мест в
+  TAHOT/TAGNT. CC BY-SA © Mission Mutual.
+- **Покрытие типов сущностей, которым раньше не было источника**:
+  `UBSFloraLexicon` (`plant`), `UBSFaunaLexicon` (`creature`),
+  `UBSRealiaLexicon` (`object`/`custom`/`material`),
+  `BiblicaStudyNotesKeyTerms` и `FIAKeyTerms` (`concept`, локализованные
+  статьи), `DictionaryBibleThemes` (`concept`/`event`),
+  `AquiferOpenBibleDictionary` и `UWTranslationWords` (все типы —
+  люди/места/термины), `UBSHebrewDictionary`, `UBSGreekNTDictionary`,
+  `BDBHebrewLexicon`, `BDBAramaicLexicon` (статьи/`name_original`,
+  кросс-ссылки `strongs`).
+- **Медиа для `media`/`image_path`**: `BiblicaOpenBibleMaps`,
+  `FIAMaps`, `FIAImages`, `UBSImages`, `VideoBibleDictionary`.
+- **Тексты на языках оригинала**: `WestminsterLeningradCodex`,
+  `SBLGNT`, плюс `text-align` — относится к треку интерлинеара/tokens,
+  а не к графу напрямую.
+- **Лицензионная заметка**: материалы Biblica study notes — CC BY-SA 4.0
+  (© Biblica Inc. 2023; адаптации © Mission Mutual) — обязательна
+  атрибуция, производные модули остаются под CC BY-SA, записи идут в
+  MODULE-LICENSES. Сам текст NIV проприетарен и в Aquifer отсутствует;
+  `BiblicaOpen*` покрывает только арабский/китайский/непальский/
+  индонезийский — английского нет. Примечания привязаны к стихам
+  (`book/chapter/verse`), а не к переводу — что совпадает с моделью
+  координат слоёв.
+- **Документация форматов для конвертеров**: репозиторий `docs`
+  фиксирует JSON-схемы (`aquifer_resource.schema.json`,
+  `aquifer_article.schema.json`, документы по alignments);
+  `aquifer-api-client` — готовый Python-клиент.
+- Смежный трек (вне этого ADR): `BiblicaStudyNotes` +
+  `AquiferOpenStudyNotes` (адаптация примечаний Tyndale) + BookIntros +
+  словари — контентная база будущей «своей учебной Библии»,
+  см. ROADMAP (локальный).

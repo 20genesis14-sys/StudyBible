@@ -75,3 +75,14 @@
   `LICENSE-ruaccent.txt` в корне репозитория.
 - Шрифты, зависимости движка — `deny.toml` / `cargo deny`, а также
   лицензии вендоренных веб-декодеров (`web/zstd/`, BSD-3 @bokuweb).
+
+## Планируемые внешние источники (пока не модули)
+
+- Ресурсы **BibleAquifer** (`github.com/BibleAquifer`, долгосрочный
+  трек «своей учебной Библии» — DECISIONS 13.10.2026): учебные
+  примечания, введения к книгам, ключевые термины, словари,
+  карты/изображения — в основном **CC BY-SA 4.0**, © Biblica Inc. /
+  Tyndale House Publishers / unfoldingWord / UBS, адаптации ©
+  Mission Mutual. Производные `.sb`-модули требуют атрибуции в `meta`
+  и остаются под CC BY-SA. Данные `ACAI` по сущностям — также
+  CC BY-SA © Mission Mutual.

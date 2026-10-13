@@ -1315,3 +1315,30 @@ plan, tasks, data inventory and skill specs —
   Louw–Nida (licence check pending); MACULA words map onto TAHOT/TAGNT
   deterministically (99.9 % OT, 99.3 % NT); eng → rsc has only 10
   non-one-to-one mappings.
+
+## Own study Bible — BibleAquifer content (2026-10-13)
+
+- **A new long-term track is accepted**: a "study Bible" as a set of
+  companion modules over any translation — verse-anchored notes
+  (`kind="commentary"`; two independent sets — `BiblicaStudyNotes`
+  and `AquiferOpenStudyNotes`, the latter an adaptation of Tyndale
+  Open Study Notes, plus UW/SIL translation notes), book
+  introductions, dictionaries/key terms, maps/media; source — the
+  `BibleAquifer` GitHub org (~73 repos, JSON+Markdown, `rus` present,
+  mostly CC BY-SA 4.0). Roadmap entry added; implementation post-1.0.
+- **`ACAI` is a ready graph dataset**: word-level entity annotations
+  (people/places/deities/groups/fauna/flora/realia/keyterms) with
+  labels, descriptions and relationships — feeds `entities`/
+  `verse_mentions`/`relationships` almost directly (ADR 0024
+  addendum). The `docs` repo pins the Aquifer JSON schemas for
+  future converters.
+- Study notes are anchored to verse coordinates, not to a translation
+  — they ship as an independent layer (ADR 0023 precedent). The NIV
+  text is proprietary and not on Aquifer; the product is a
+  composition, not a copy of the NIV Study Bible.
+- Aquifer dictionaries close previously uncovered graph entity types
+  (flora/fauna/realia/keyterms/themes — see ADR 0024 addendum);
+  `concept`/`event` sources in OQ 45 updated accordingly.
+- Licence handling: CC BY-SA attribution (Biblica Inc. / Mission
+  Mutual), derived modules under CC BY-SA, entries in
+  MODULE-LICENSES.
