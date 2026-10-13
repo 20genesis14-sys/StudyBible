@@ -269,7 +269,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       _blockKeys.clear();
       _bookVerseKeys.clear();
     });
-    _scroll.jumpTo(0);
+    if (_scroll.hasClients) _scroll.jumpTo(0);
     if (_compareScroll.hasClients) _compareScroll.jumpTo(0);
     _load(_moduleId);
     _loadVerseEntries();
