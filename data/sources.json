@@ -522,6 +522,414 @@
                                       }
                                   ],
                         "note":  "Полная BDB с маппингом на номера Стронга и ссылками; кандидат на lex_def уровня «глубокая статья» наряду с OSHB BDB."
+                    },
+                    {
+                        "id":  "bdb-aramaic",
+                        "title":  "Aquifer: BDB Aramaic Lexicon (арамейский раздел BDB, json+alignments)",
+                        "language":  "arc,en",
+                        "format":  "aquifer-json",
+                        "dest":  "strongs/bdb-aramaic",
+                        "page":  "https://github.com/BibleAquifer/BDBAramaicLexicon",
+                        "license":  "CC0 (public domain)",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BDBAramaicLexicon/releases/download/v2026-09-18/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "e2f78a47d16699d88906e605ac560a7c357ea11711e7e386f7de81f3c90f4366"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BDBAramaicLexicon/releases/download/v2026-09-18/English-alignments.zip",
+                                          "path":  "English-alignments.zip",
+                                          "sha256":  "42e4df22ed0d7233221b7127601d5b14db530b9799533e74059df57ed60b73ad"
+                                      }
+                                  ],
+                        "note":  "Арамейская часть BDB (номера H10xxx) — закрывает пробел bdb-full; alignments = привязка значений к стихам."
+                    },
+                    {
+                        "id":  "bdb-hebrew-aq",
+                        "title":  "Aquifer: BDB Hebrew Lexicon (json+alignments, редакция Aquifer)",
+                        "language":  "hbo,en",
+                        "format":  "aquifer-json",
+                        "dest":  "strongs/bdb-hebrew-aq",
+                        "page":  "https://github.com/BibleAquifer/BDBHebrewLexicon",
+                        "license":  "CC0 (public domain)",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BDBHebrewLexicon/releases/download/v2026-09-18/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "66870220c3b274f874858467ee978f20284e761feba0c98ba0763f578a0057c2"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BDBHebrewLexicon/releases/download/v2026-09-18/English-alignments.zip",
+                                          "path":  "English-alignments.zip",
+                                          "sha256":  "9082033ea5461314bf09105fac9cf6134429f3a0a6713f7b0ebb4b1c4995960b"
+                                      }
+                                  ],
+                        "note":  "Третья редакция BDB (после OSHB и bdb-full); alignments размечают значения по стихам — корпус снятой неоднозначности для lex_def и словарного интерлинеара."
+                    },
+                    {
+                        "id":  "rsb-aquifer",
+                        "title":  "Aquifer: Russian Synodal Bible + ручное пословное выравнивание (WLCM/SBLGNT→RUSSYN)",
+                        "language":  "ru",
+                        "format":  "usfm+alignment-json",
+                        "dest":  "strongs/rsb-aquifer",
+                        "page":  "https://github.com/BibleAquifer/RussianSynodalBible",
+                        "license":  "Public Domain CC0",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/RussianSynodalBible/releases/download/v2026-09-18/Russian-usfm.zip",
+                                          "path":  "Russian-usfm.zip",
+                                          "sha256":  "e8a728fc185c2c541299147a43b0efaa7424254e2381ed4bf35c7430c9bcd9a3"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/RussianSynodalBible/releases/download/v2026-09-18/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "7426494a00536141eda781ec0076ca2c2f49def145a281aeb0b4594c98b7bb80"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/RussianSynodalBible/releases/download/v2026-09-18/Russian-alignments.zip",
+                                          "path":  "Russian-alignments.zip",
+                                          "sha256":  "b7475db986abdada06727427420e2c0b25a0bb217e779c2ccdf63259d5bd213f"
+                                      }
+                                  ],
+                        "note":  "234 908 записей ручного выравнивания на все 66 книг (process=manual, формат Burrito/Clear, ID MACULA). Главный русский эталон фазы 8.3 вместе с rsts."
+                    },
+                    {
+                        "id":  "uw-tw",
+                        "title":  "Aquifer: unfoldingWord Translation Words (ключевые термины)",
+                        "language":  "en",
+                        "format":  "aquifer-json",
+                        "dest":  "strongs/uw-tw",
+                        "page":  "https://github.com/BibleAquifer/UWTranslationWords",
+                        "license":  "CC BY-SA 4.0 © unfoldingWord 2022; адаптация © Mission Mutual",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UWTranslationWords/releases/download/v2026-10-12/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "175fedb0777ff72d2d3008f7810cec7ec1e10b6e130d963b9bae967e61a57122"
+                                      }
+                                  ],
+                        "note":  "Статьи по ключевым терминам (русского релизного ассета нет — в репозитории есть rus-папка, при нужде брать оттуда)."
+                    },
+                    {
+                        "id":  "aquifer-obd",
+                        "title":  "Aquifer Open Bible Dictionary (адаптация Tyndale OBD, есть русский)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "strongs/aquifer-obd",
+                        "page":  "https://github.com/BibleAquifer/AquiferOpenBibleDictionary",
+                        "license":  "CC BY-SA 4.0; адаптация © Mission Mutual 2026, оригинал © Tyndale House Publishers 2023",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/AquiferOpenBibleDictionary/releases/download/v2026-10-12/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "b3449fb34fdf17e89182bb623ff987ebe1026078aca476e819eec5bc9ba3dde3"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/AquiferOpenBibleDictionary/releases/download/v2026-10-12/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "3d5e4b11ad18bb7fc6cd1976c81996114305c423208c1f46294717d1e07b9d07"
+                                      }
+                                  ],
+                        "note":  "Словарные статьи о сущностях/терминах на en+ru — контент карточек сущностей графа и имена entity_names(ru)."
+                    },
+                    {
+                        "id":  "ubs-fauna",
+                        "title":  "Aquifer: UBS Fauna Lexicon — животные Библии (md)",
+                        "language":  "en",
+                        "format":  "aquifer-md",
+                        "dest":  "strongs/ubs-fauna",
+                        "page":  "https://github.com/BibleAquifer/UBSFaunaLexicon",
+                        "license":  "CC BY-SA 4.0 © United Bible Societies 2025 (адаптация из E.R.Hope, 2005)",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UBSFaunaLexicon/releases/download/v2026-09-18/English-md.zip",
+                                          "path":  "English-md.zip",
+                                          "sha256":  "8f15f7ffdb1a898810bfed2765437c2735e7ab9026a3783ddee05491b543f0d0"
+                                      }
+                                  ],
+                        "note":  "Статьи по животным (сущности fauna графа). json-ассет ~223 МБ (встроенные медиа) — при нужде тянуть отдельно."
+                    },
+                    {
+                        "id":  "ubs-flora",
+                        "title":  "Aquifer: UBS Flora Lexicon — растения Библии (md)",
+                        "language":  "en",
+                        "format":  "aquifer-md",
+                        "dest":  "strongs/ubs-flora",
+                        "page":  "https://github.com/BibleAquifer/UBSFloraLexicon",
+                        "license":  "CC BY-SA 4.0 © United Bible Societies 2025",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UBSFloraLexicon/releases/download/v2026-09-18/English-md.zip",
+                                          "path":  "English-md.zip",
+                                          "sha256":  "176efe798bf4fe2efd5ca8f3e4aea69ebbf4f2d776c7acfb1e159f8aa762f212"
+                                      }
+                                  ],
+                        "note":  "Статьи по растениям (сущности flora графа)."
+                    },
+                    {
+                        "id":  "ubs-realia",
+                        "title":  "Aquifer: UBS Realia Lexicon — предметы/реалии (md)",
+                        "language":  "en",
+                        "format":  "aquifer-md",
+                        "dest":  "strongs/ubs-realia",
+                        "page":  "https://github.com/BibleAquifer/UBSRealiaLexicon",
+                        "license":  "CC BY-SA 4.0 © United Bible Societies 2025",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UBSRealiaLexicon/releases/download/v2026-09-18/English-md.zip",
+                                          "path":  "English-md.zip",
+                                          "sha256":  "5c88357099b8ab23019f6cead7efc9bf58a6ee354da4182c599d13e62bcd6d1e"
+                                      }
+                                  ],
+                        "note":  "Статьи по предметам/обычаям/материалам (object/custom/material графа). json-ассеты ~790 МБ — при нужде тянуть отдельно."
+                    },
+                    {
+                        "id":  "dict-themes",
+                        "title":  "Aquifer: Dictionary of Bible Themes (Manser)",
+                        "language":  "en",
+                        "format":  "aquifer-json",
+                        "dest":  "strongs/dict-themes",
+                        "page":  "https://github.com/BibleAquifer/DictionaryBibleThemes",
+                        "license":  "CC BY-SA 4.0 © Martin Manser 1999 (через Biblica)",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/DictionaryBibleThemes/releases/download/v2026-10-02/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "07afe5c8e771102bafce9c9937af7edf322ea8322dd4772cbc96efd54c77f01e"
+                                      }
+                                  ],
+                        "note":  "Тематический словарь — источник сущностей concept/event графа."
+                    },
+                    {
+                        "id":  "fia-keyterms",
+                        "title":  "Aquifer: FIA Key Terms (en+ru)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "strongs/fia-keyterms",
+                        "page":  "https://github.com/BibleAquifer/FIAKeyTerms",
+                        "license":  "CC BY-SA 4.0 © Word Collective 2025; адаптация © Mission Mutual",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/FIAKeyTerms/releases/download/v2026-10-05/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "94b94d181a1a4bd10c17d69779610a6861bedabc5f84511495bd850eb3c35ecc"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/FIAKeyTerms/releases/download/v2026-10-05/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "893c37498995ad4a7ee44d5dc6bee4107308d21ed65beede2ad7fa6a6779bd8a"
+                                      }
+                                  ],
+                        "note":  "Ключевые термины с русской локализацией — concept-сущности графа и entity_names(ru)."
+                    },
+                    {
+                        "id":  "biblica-keyterms",
+                        "title":  "Aquifer: Biblica Study Notes — Key Terms (en+ru)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "strongs/biblica-keyterms",
+                        "page":  "https://github.com/BibleAquifer/BiblicaStudyNotesKeyTerms",
+                        "license":  "CC BY-SA 4.0 © Biblica Inc. 2023; адаптация © Mission Mutual",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BiblicaStudyNotesKeyTerms/releases/download/v2026-09-18/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "bd09f945a3f9d287fe16b179e1c6c41f82f4528a18e0f3ef4b68a0547b1df248"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BiblicaStudyNotesKeyTerms/releases/download/v2026-09-18/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "fbd19a0f77affbab9118ac916b2c47e088cac4800c632ed35b6bd807d73ed90a"
+                                      }
+                                  ],
+                        "note":  "Ключевые термины Biblica (Biblica Bible Dictionary) с русской локализацией."
+                    },
+                    {
+                        "id":  "acai",
+                        "title":  "Aquifer ACAI — аннотации сущностей на уровне слов (WLC/SBLGNT, MACULA ID)",
+                        "language":  "en+локализации",
+                        "format":  "json+md",
+                        "dest":  "strongs/acai",
+                        "url":  "https://github.com/BibleAquifer/ACAI/archive/7e6a2d6674910aedb0888493ebbe6684d374ae5c.zip",
+                        "flatten":  true,
+                        "sha256":  "b287fc3bda2ac34afc250a7750d9e3220842b9ea55ee39327eea0236a42ecdcc",
+                        "page":  "https://github.com/BibleAquifer/ACAI",
+                        "license":  "CC BY-SA 4.0 © Mission Mutual 2025",
+                        "commit":  "7e6a2d6674910aedb0888493ebbe6684d374ae5c",
+                        "note":  "Люди/места/божества/группы/фауна/флора/реалии/термины: связи, метки на 11 языках (вкл. rus), explicit/pronominal/subject referents по ID MACULA → стыкуется со step-orig."
+                    },
+                    {
+                        "id":  "aquifer-osn",
+                        "title":  "Aquifer Open Study Notes (адаптация Tyndale OSN, en+ru)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/aquifer-osn",
+                        "page":  "https://github.com/BibleAquifer/AquiferOpenStudyNotes",
+                        "license":  "CC BY-SA 4.0; © Mission Mutual 2026 (адаптация Tyndale Open Study Notes)",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/AquiferOpenStudyNotes/releases/download/v2026-09-18/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "c50f4ae0a7284d86418f13bba44948a6979ca9d38f0cb42f4babda20dcda558f"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/AquiferOpenStudyNotes/releases/download/v2026-09-18/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "93ee72320b8ef25e11a91a792421ec49ecf2a955451f96ed62a855321a94fe44"
+                                      }
+                                  ],
+                        "note":  "Постиховые учебные примечания — будущий модуль kind=commentary (трек «учебная Библия», после 1.0)."
+                    },
+                    {
+                        "id":  "biblica-notes",
+                        "title":  "Aquifer: Biblica Study Notes (en+ru)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/biblica-notes",
+                        "page":  "https://github.com/BibleAquifer/BiblicaStudyNotes",
+                        "license":  "CC BY-SA 4.0 © Biblica Inc. 2023; адаптация © Mission Mutual",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BiblicaStudyNotes/releases/download/v2026-09-18/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "5cc9ec0dcebb49a3e643d38b7be05cd3b7b2474d2088ad9c3c6e723628874b0c"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/BiblicaStudyNotes/releases/download/v2026-09-18/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "cdfab112ca14e5f219dde33ac9ed4cc9d23a7613cc3165f7d3ceb809fad2c7d6"
+                                      }
+                                  ],
+                        "note":  "Второй независимый набор учебных примечаний (трек «учебная Библия»)."
+                    },
+                    {
+                        "id":  "sil-tn",
+                        "title":  "Aquifer: SIL Open Translator\u0027s Notes (en)",
+                        "language":  "en",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/sil-tn",
+                        "page":  "https://github.com/BibleAquifer/SILOpenTranslatorsNotes",
+                        "license":  "CC BY-SA 4.0 © SIL International 2024",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/SILOpenTranslatorsNotes/releases/download/v2026-09-18/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "8b563bd2d31594584e3fb5bd32f6e77ecf60422878a6fe12d8d424b580840c71"
+                                      }
+                                  ]
+                    },
+                    {
+                        "id":  "uw-tn",
+                        "title":  "Aquifer: unfoldingWord Translation Notes (en)",
+                        "language":  "en",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/uw-tn",
+                        "page":  "https://github.com/BibleAquifer/UWTranslationNotes",
+                        "license":  "CC BY-SA 4.0 © unfoldingWord 2022",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UWTranslationNotes/releases/download/v2026-10-12/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "fba73d2d7dbca1cf2727b67f823bdc43ad4778d8112f925307e04f779875e8d0"
+                                      }
+                                  ]
+                    },
+                    {
+                        "id":  "uw-tq",
+                        "title":  "Aquifer: unfoldingWord Translation Questions (en)",
+                        "language":  "en",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/uw-tq",
+                        "page":  "https://github.com/BibleAquifer/UWTranslationQuestions",
+                        "license":  "CC BY-SA 4.0 © unfoldingWord 2022",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UWTranslationQuestions/releases/download/v2026-10-12/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "8cc8302f58f91aef5f257a61c61900bfcaf00cf85b7f47f4ccb3baf9cab19ee1"
+                                      }
+                                  ]
+                    },
+                    {
+                        "id":  "uw-tm",
+                        "title":  "Aquifer: unfoldingWord Translation Manual (en)",
+                        "language":  "en",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/uw-tm",
+                        "page":  "https://github.com/BibleAquifer/UWTranslationManual",
+                        "license":  "CC BY-SA 4.0 © unfoldingWord 2022",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UWTranslationManual/releases/download/v2026-10-12/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "eebf6328025fd7e7a53992daf4c00dfcf4e9d8608e71801b36b4146ca84e7a6f"
+                                      }
+                                  ]
+                    },
+                    {
+                        "id":  "fia-tg",
+                        "title":  "Aquifer: FIA Translation Guide (en+ru)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/fia-tg",
+                        "page":  "https://github.com/BibleAquifer/FIATranslationGuide",
+                        "license":  "CC BY-SA 4.0 © Word Collective 2025; адаптация © Mission Mutual",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/FIATranslationGuide/releases/download/v2026-10-05-0001/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "f80b5dd8c37792d307445bd19bef469411fcc4f5e0bab21c8226c41f63545649"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/FIATranslationGuide/releases/download/v2026-10-05-0001/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "7a92c36fbc1a46076d7bfe219fef16f62bfb278a0aa4e129a8094ccfa8bb67f7"
+                                      }
+                                  ]
+                    },
+                    {
+                        "id":  "uw-obs",
+                        "title":  "Aquifer: unfoldingWord Open Bible Stories (en+ru)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/uw-obs",
+                        "page":  "https://github.com/BibleAquifer/UWOpenBibleStories",
+                        "license":  "CC BY-SA 4.0 © unfoldingWord 2022; адаптация © Mission Mutual",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UWOpenBibleStories/releases/download/v2026-09-18/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "81de071e75651dfa0a70f69aae82e9275a5810544e49b9bbb379014277e0f005"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/UWOpenBibleStories/releases/download/v2026-09-18/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "816798c95eee6e0df1460a8565498e38c2398e71337db9a4ae3dd62a5aaa1ff9"
+                                      }
+                                  ]
+                    },
+                    {
+                        "id":  "video-bible-dict",
+                        "title":  "Aquifer: Video Bible Dictionary (en+ru)",
+                        "language":  "en,ru",
+                        "format":  "aquifer-json",
+                        "dest":  "aquifer/video-bible-dict",
+                        "page":  "https://github.com/BibleAquifer/VideoBibleDictionary",
+                        "license":  "CC BY-SA 4.0 © Word Collective 2025; адаптация © Mission Mutual",
+                        "files":  [
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/VideoBibleDictionary/releases/download/v2026-09-23/English-json.zip",
+                                          "path":  "English-json.zip",
+                                          "sha256":  "9c31ac7926c29345857e5f3599789b2974c89ee5878bb95b86cac5f2a115e05b"
+                                      },
+                                      {
+                                          "url":  "https://github.com/BibleAquifer/VideoBibleDictionary/releases/download/v2026-09-23/Russian-json.zip",
+                                          "path":  "Russian-json.zip",
+                                          "sha256":  "804698bf9863e5de4d2cf232533ebd9cf629974850354e32cd7511d27c7fc845"
+                                      }
+                                  ],
+                        "note":  "Видео-словарь: метаданные статей (медиа в json-ассетах тяжёлые — при нужде отдельно)."
                     }
                 ]
 }
