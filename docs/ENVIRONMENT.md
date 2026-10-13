@@ -64,6 +64,24 @@ inside `~` is physically on `D:` but accessed as native ext4, avoiding the
 - Rule of thumb: sources, build trees and caches inside ext4 (`~` or
   `/home/vagrant`); `/mnt/d` only for inputs and exported artifacts.
 
+## APK signing — one key everywhere
+
+Every build (release **and** debug) is signed with the same release
+key so any APK installs over any other:
+
+- Keystore (not in git): Windows `D:\StudyBible-tools\keys\studybible-release.jks`,
+  WSL copy `~/StudyBible-keys/studybible-release.jks`.
+- `android/key.properties` (gitignored, per machine): Windows
+  `storeFile=D:/StudyBible-tools/keys/...`, WSL
+  `~/StudyBible/apps/studybible-flutter/android/key.properties` with
+  `storeFile=/home/gedeon/StudyBible-keys/...`; same passwords/alias
+  on both.
+- `build.gradle.kts`: `debug` and `release` build types both use the
+  `release` signingConfig when `key.properties` exists; without the
+  file release falls back to the debug key (foreign machines, CI).
+- F-Droid `fdroid verify` builds run without key.properties — the
+  signature is injected by `apksigcopier` at verification, as usual.
+
 ## External data (`STUDYBIBLE_DATA`)
 
 `D:\StudyBible-data` (`C:\StudyBible-data` is a leftover directory).

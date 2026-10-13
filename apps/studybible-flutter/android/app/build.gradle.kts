@@ -54,6 +54,13 @@ android {
             // Debug ставится отдельным приложением рядом с release —
             // не нужно удалять одно ради другого.
             applicationIdSuffix = ".debug"
+            // Одна подпись везде: и debug подписываем release-ключом,
+            // чтобы любая сборка ставилась поверх любой (решение:
+            // key.properties с путём к jks кладётся на каждой машине —
+            // на Windows D:\..., в WSL ~/StudyBible-keys/...).
+            if (keystoreProperties.getProperty("storeFile") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         release {
             // Подпись release-ключом из android/key.properties;
