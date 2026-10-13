@@ -2,6 +2,22 @@
 
 All notable changes after the 1.0 release — one per line.
 
+## 1.1.2 — Visual update (unreleased)
+
+Usability and intuitiveness — fixing visual rough edges.
+
+- Search: query operators `"phrase"` (exact phrase), `word*`
+  (prefix), `?` (single letter), `*` inside a word — work across the
+  Bible, module footnotes ("In footnotes" chip) and personal notes.
+- Search: "By book" results mode — a List/By book segment,
+  accordion "Name · N".
+- Reading/Study mode switch as a glasses button, bottom-right corner.
+- Contents (Bible book picker) as an open-book button, bottom-left
+  corner.
+- The header now shows the full book and chapter name, plus the
+  translation and mode.
+- Miscellaneous fixes.
+
 ## 1.1.1 (2026-10-12)
 
 - Cross-reference layer stores structured targets (`xrefs_pack`):
