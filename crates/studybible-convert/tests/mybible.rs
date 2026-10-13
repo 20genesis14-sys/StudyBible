@@ -176,6 +176,33 @@ fn multiple_strongs_and_both_note_kinds() {
     assert!(note_texts.iter().any(|t| t.contains("примечание")));
 }
 
+/// Подряд идущие `<S>` к одному слову склеиваются в один спан `w`
+/// с несколькими `strong=` — раньше каждый следующий перезатирал
+/// предыдущий номер.
+#[test]
+fn consecutive_strongs_merge() {
+    let dir = tempfile::tempdir().unwrap();
+    let conn = Connection::open(dir.path().join("m.SQLite3")).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE verses(book_number INT, chapter INT, verse INT, text TEXT);
+         INSERT INTO verses VALUES(10,1,1,'сотворил<S>1254</S><S>853</S> небо');",
+    )
+    .unwrap();
+    let books = mybible::parse_file(&dir.path().join("m.SQLite3")).unwrap();
+    let strongs: Vec<&Span> = books[0].chapters[0]
+        .blocks
+        .iter()
+        .flat_map(|b| &b.spans)
+        .filter(|s| matches!(s, Span::Text { style, .. } if style == "w"))
+        .collect();
+    assert_eq!(strongs.len(), 1);
+    let Span::Text { text, attrs, .. } = strongs[0] else {
+        panic!("ожидался текстовый спан");
+    };
+    assert_eq!(text.trim(), "сотворил");
+    assert_eq!(attrs, "strong=\"H1254\" strong=\"H853\"");
+}
+
 /// stories с order_if_several > 1: заголовки склеиваются по порядку.
 #[test]
 fn stories_order_if_several() {

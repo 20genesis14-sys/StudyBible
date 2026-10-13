@@ -13,7 +13,8 @@ pub mod search;
 pub mod userdata;
 
 pub use module::{
-    Alignment, Mark, Meta, Module, ModuleError, ModuleWriter, Reading, Token, Variant, XrefTarget,
+    Alignment, Link, Mark, Meta, Module, ModuleError, ModuleWriter, Reading, Token, Variant,
+    XrefTarget,
 };
 pub use search::{Hit, SearchIndex};
 pub use userdata::{

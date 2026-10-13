@@ -207,7 +207,19 @@ pub(crate) fn strip_tags(s: &str) -> String {
 
 /// Привязать номер Стронга к последнему слову накопленных спанов:
 /// хвостовое слово последнего текстового спана выносится в спан `w`.
+/// Подряд идущие `<S>` к тому же слову дописывают номер в attrs
+/// существующего `w`-спана (`strong="H1254" strong="H853"`), иначе
+/// вынос слова из текстового спана повторялся бы и первый номер терялся.
 fn attach_strong(spans: &mut Vec<Span>, num: &str) {
+    if let Some(Span::Text { style, attrs, .. }) = spans.last_mut()
+        && style == "w"
+    {
+        if !attrs.is_empty() {
+            attrs.push(' ');
+        }
+        attrs.push_str(&format!("strong=\"{num}\""));
+        return;
+    }
     let Some(Span::Text { text, .. }) = spans.last_mut() else {
         return;
     };

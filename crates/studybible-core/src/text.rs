@@ -130,6 +130,34 @@ impl Chapter {
     }
 }
 
+/// Версия словесного токенизатора (ADR 0025): привязка слоя разметки
+/// к тексту перевода хранит `tokenizer`, значения применяются только
+/// при совпадении версии.
+pub const WORDS_VERSION: &str = "w1";
+
+/// Токенизация `w1`: слова стиха для слоёв разметки (links.word —
+/// порядковый номер в этом списке, с нуля).
+///
+/// Правила:
+/// - вход — уже собранный текст стиха ([`Chapter::verse_text`]);
+/// - токены режутся по пробелам;
+/// - краевые знаки препинания снимаются (`"God," → "God"`,
+///   `"(the)" → "the"`), внутренние сохраняются (`don't`,
+///   `son-in-law`, `Maher-shalal-hash-baz`, `3:00`);
+/// - токены без букв/цифр (`—`, `«`, `…`) не считаются словами и
+///   не входят в нумерацию.
+///
+/// Функция детерминирована и не зависит от локали — один и тот же
+/// код исполняется и в приложении (wasm), и в `studybible tokenize`.
+pub fn words(text: &str) -> Vec<&str> {
+    text.split_whitespace()
+        .filter_map(|t| {
+            let w = t.trim_matches(|c: char| !c.is_alphanumeric());
+            (!w.is_empty()).then_some(w)
+        })
+        .collect()
+}
+
 /// Пробельные последовательности → один пробел, без пробелов по краям и перед знаками препинания.
 pub fn collapse_spaces(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -140,4 +168,43 @@ pub fn collapse_spaces(s: &str) -> String {
         out.push_str(word);
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn words_w1_basics() {
+        assert_eq!(
+            words("In the beginning God created the heavens and the earth."),
+            [
+                "In",
+                "the",
+                "beginning",
+                "God",
+                "created",
+                "the",
+                "heavens",
+                "and",
+                "the",
+                "earth"
+            ]
+        );
+        // Внутренняя пунктуация сохраняется, краевая снимается.
+        assert_eq!(
+            words("don't (the) son-in-law, — Maher-shalal-hash-baz; «3:00»"),
+            [
+                "don't",
+                "the",
+                "son-in-law",
+                "Maher-shalal-hash-baz",
+                "3:00"
+            ]
+        );
+        // Токены без букв/цифр не входят в нумерацию.
+        assert_eq!(words("а — б … в «г»"), ["а", "б", "в", "г"]);
+        assert!(words("— … «»").is_empty());
+        assert_eq!(WORDS_VERSION, "w1");
+    }
 }
