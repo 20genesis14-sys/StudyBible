@@ -16,6 +16,7 @@ Usability and intuitiveness — fixing visual rough edges.
   corner.
 - The header now shows the full book and chapter name, plus the
   translation and mode.
+- Various fixes of visual rough edges across the app.
 - Miscellaneous fixes.
 
 ## 1.1.1 (2026-10-12)
