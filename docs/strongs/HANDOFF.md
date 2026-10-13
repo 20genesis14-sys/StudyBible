@@ -60,7 +60,8 @@ All under `D:\StudyBible-data\sources\strongs\` (pinned in
 `sources.json` ids: `stepbible-data`, `oshb-lexicon`, `bsb-tables`,
 `macula-hebrew`, `macula-greek`, `clear-alignments`,
 `asv-alignment-data`, `asv-bible`, `openbible-geocoding`,
-`abbott-smith` (≈ 0.9 GB total). `macula-hebrew.tsv` is stored in Git
+`abbott-smith`, `ubs-dictionaries`, `bdb-full` (≈ 1 GB) — plus the
+BibleAquifer set (below). `macula-hebrew.tsv` is stored in Git
 LFS upstream and is fetched from `media.githubusercontent.com`; the
 Clear Alignments `catalog.tsv` stays an LFS pointer (not needed).
 `-Pin` re-downloads everything it touches.
@@ -78,7 +79,20 @@ Clear Alignments `catalog.tsv` stays an LFS pointer (not needed).
 | `esv/` (local, not re-fetchable) | `ttesv.txt`, `esv2016_*.sqlite`, `build_esv2016_strongs.py`, `make_variants.py`, `converter.py`, README, source JSON | ESV text © Crossway — never commit/distribute | ESV gold on held-out books |
 | `ubs-dictionaries` | UBS Dictionary of Biblical Hebrew (from SDBH, ~99 % of OT words) and UBS Dictionary of NT Greek (revised Louw–Nida): senses, glosses, references, semantic domains; en JSON | **CC BY-SA 4.0** © UBS — the legal channel for publishing domains/senses | `lex_def` + domain field; `@ln`/`@sdbh` verification |
 | `bdb-full` | full unabridged BDB (eliranwong), `DictBDB` JSON (8,090 articles keyed H…) + CSV with Strong's mapping | public domain | `lex_def` "deep article" level (alongside OSHB) |
+| `bdb-aramaic` | Aquifer: BDB Aramaic section, `English-json`+`alignments` | CC0 | `lex_def` for Aramaic numbers H10xxx |
+| `bdb-hebrew-aq` | Aquifer: BDB Hebrew, `English-json`+`alignments` | CC0 | `lex_def` + **alignments tag senses per verse** — a disambiguated-sense corpus |
+| `rsb-aquifer` | Aquifer RussianSynodalBible: usfm/json + **234,908 manual word-level alignments WLCM/SBLGNT→RUSSYN** (all 66 books, `process=manual`, Burrito format, MACULA ids) | **CC0** | second Russian gold (alongside rsts), *publishable* — open licence; prior + gold for 8.3 |
+| `acai` | Aquifer ACAI: entities people/places/deities/groups/fauna/flora/realia/keyterms — relationships, labels in 11 langs (incl. rus), referents keyed by MACULA ids, TIPNR crosswalk | CC BY-SA 4.0 © Mission Mutual | graph (ADR 0024 add. 2026-10-13); lexicon name data and entity_names |
+| `aquifer-obd` | Aquifer Open Bible Dictionary (Tyndale OBD adaptation) en+ru | CC BY-SA 4.0 (Tyndale→Mission Mutual) | entity articles, entity_names(ru) |
+| `uw-tw`, `fia-keyterms`, `biblica-keyterms` | key-term articles uW / FIA / Biblica (en; FIA & Biblica also ru) | CC BY-SA 4.0 | graph concept entities, term cards |
+| `ubs-fauna`, `ubs-flora`, `ubs-realia` | UBS lexicons: animals, plants, realia (md) | CC BY-SA 4.0 © UBS | graph fauna/flora/object entities |
+| `dict-themes` | Dictionary of Bible Themes (Manser) | CC BY-SA 4.0 | graph concept/event |
 | `analysis/` | scripts used for the 2026-10-12/13 findings (`senses.py`, `compare.py`, `quality.py`, `q2.py`) | — | reproduce findings |
+
+`D:\StudyBible-data\sources\aquifer\` also holds the "own study
+Bible" track content (post-1.0): `aquifer-osn`, `biblica-notes`
+(en+ru), `sil-tn`, `uw-tn`, `uw-tq`, `uw-tm` (en), `fia-tg`,
+`uw-obs`, `video-bible-dict` — all CC BY-SA 4.0.
 
 Already in `D:\StudyBible-data\modules`: `russyn.sb`, `rsts.sb`
 (Synodal with Strong's from swmail/RST — **primary Russian gold and
@@ -311,7 +325,10 @@ Definitions: Hebrew — OpenScriptures BDB via the chain in §3 (render
 `<sense>` outline as numbered text, keep `<ref>`) plus optionally the
 full BDB from `bdb-full` (`def_source='bdb-full'`) and UBS articles
 from `ubs-dictionaries` (`def_source='ubs-sdbh'`, that module part is
-CC BY-SA); names — TBESH/TIPNR biographies; Greek — Abbott-Smith +
+CC BY-SA); Aramaic — `bdb-aramaic` (CC0, Aquifer); `bdb-hebrew-aq`
+is a third BDB edition whose alignments map senses to verses; names —
+TBESH/TIPNR biographies (the ACAI→TIPNR crosswalk helps); Greek —
+Abbott-Smith +
 STEPBible text + UBS Greek senses (`def_source='ubs-sdgnt'`,
 LEXEntryCode = Louw–Nida codes); replace the 76 ML entries in
 G1–G5624 + G6000–6099 by Abbott-Smith where present else gloss only
@@ -425,13 +442,16 @@ calibration monotonic. **Fail → no Russian.**
   frequency + all rows with `conf ≤ 7`.
 - **8.2** Russian dictionary interlinear (no model): base layer + ru
   glosses + ru morphology; disputed marks visible.
-- **8.3** Synodal (`russyn`): phase-6 pipeline; gold — **`rsts`
-  (primary, 66 books with Strong's; read numbers from `spans.attrs`
-  until `token_of` is fixed)** + fixed RST+ + ru_rob; word→classical
-  prior from `rsts`. Clear RUSSYN excluded (broken, measurement F).
-  On the ~6 % of verses where `rsts` text differs from `russyn`
-  (different 1876 edition) set an edition flag — they go through the
-  pipeline and are excluded from scoring. Expert sample 200–300 verses.
+- **8.3** Synodal (`russyn`): phase-6 pipeline; gold —
+  **`rsb-aquifer` (manual word-level alignment RUSSYN→WLCM/SBLGNT,
+  234,908 records, all 66 books, CC0 — publishable)** and **`rsts`
+  (66 books with Strong's from swmail/RST; read numbers from
+  `spans.attrs` until `token_of` is fixed; licence unstated —
+  internal only)** + fixed RST+ + ru_rob; word→classical prior from
+  `rsts` and the Aquifer alignment. Clear RUSSYN excluded (broken,
+  measurement F). Text editions diverge (~6 % in rsts — check the
+  Aquifer edition separately); divergent verses get an edition flag
+  and are excluded from scoring. Expert sample 200–300 verses.
 - **8.4** knowledge graph `entity_names` (ru) from the Synodal layer.
 
 Next languages: glosses + morphology with `conf`, dictionary

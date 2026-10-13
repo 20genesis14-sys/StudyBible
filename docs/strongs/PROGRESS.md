@@ -179,3 +179,16 @@ can be attached to base-layer words deterministically.
   module (swmail/RST, 66 books with Strong's) verified as Russian
   gold/prior; `token_of` bug confirmed (drops 2nd+ Strong's in
   `tokens` — spans intact).
+- 2026-10-13 — BibleAquifer inventoried (71 repos, JSON+Markdown,
+  mostly CC BY-SA). 21 sources pinned (all SHA-256) and downloaded.
+  Key finds: **manual word-level RUSSYN→WLCM/SBLGNT alignment**
+  (`rsb-aquifer`, 234,908 records, 66 books, CC0 — a publishable
+  Russian gold), **ACAI** (graph entities: relationships, labels in
+  11 languages incl. Russian, MACULA-id referents, TIPNR crosswalk),
+  `bdb-aramaic` (Aramaic BDB, CC0), `bdb-hebrew-aq` (BDB + sense-to-
+  verse alignments), `aquifer-obd` (Tyndale OBD, Russian included),
+  uW/FIA/Biblica key terms, UBS flora/fauna/realia lexicons, Manser
+  Themes. `sources/aquifer/` holds the "own study Bible" track
+  content (en+ru notes etc.). UW resources ship no Russian release
+  assets (en only); `ubs-fauna/flora/realia` pulled md only — json
+  assets carry hundreds of MB of media.

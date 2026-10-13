@@ -64,7 +64,8 @@ RUSSYN от Clear оказался непригоден, фаза 8.3 идёт �
 лицензией. id в `sources.json`: `stepbible-data`, `oshb-lexicon`,
 `bsb-tables`, `macula-hebrew`, `macula-greek`, `clear-alignments`,
 `asv-alignment-data`, `asv-bible`, `openbible-geocoding`,
-`abbott-smith` (всего ≈ 0,9 ГБ). `macula-hebrew.tsv` в оригинале лежит в
+`abbott-smith`, `ubs-dictionaries`, `bdb-full` (≈ 1 ГБ) — плюс набор
+BibleAquifer (см. ниже). `macula-hebrew.tsv` в оригинале лежит в
 Git LFS и скачивается с `media.githubusercontent.com`; `catalog.tsv`
 Clear Alignments остаётся указателем LFS (не нужен). `-Pin` заново
 скачивает всё, что обрабатывает.
@@ -82,7 +83,20 @@ Clear Alignments остаётся указателем LFS (не нужен). `-
 | `esv/` (локально, повторно не скачать) | `ttesv.txt`, `esv2016_*.sqlite`, `build_esv2016_strongs.py`, `make_variants.py`, `converter.py`, README, исходный JSON | текст ESV © Crossway — не коммитить и не распространять | эталон ESV по отложенным книгам |
 | `ubs-dictionaries` | UBS Dictionary of Biblical Hebrew (из SDBH, ~99 % слов ВЗ) и UBS Dictionary of NT Greek (переработанный Louw–Nida): значения, глоссы, ссылки, семантические домены; en-JSON | **CC BY-SA 4.0** © UBS — легальный канал публикации доменов/значений | `lex_def` + поле домена; сверка @ln/@sdbh |
 | `bdb-full` | полная несокращённая BDB (eliranwong), JSON `DictBDB` (8 090 статей по ключу H…) + CSV с маппингом | общественное достояние | `lex_def` уровень «глубокая статья» (наряду с OSHB) |
+| `bdb-aramaic` | Aquifer: арамейский раздел BDB, `English-json`+`alignments` | CC0 | `lex_def` для арамейских номеров H10xxx |
+| `bdb-hebrew-aq` | Aquifer: BDB Hebrew, `English-json`+`alignments` | CC0 | `lex_def` + **alignments размечают значения по стихам** — корпус снятой неоднозначности |
+| `rsb-aquifer` | Aquifer RussianSynodalBible: usfm/json + **234 908 записей ручного пословного выравнивания WLCM/SBLGNT→RUSSYN** (все 66 книг, `process=manual`, формат Burrito, ID MACULA) | **CC0** | второй русский эталон (наряду с rsts), *публикуемый* — лицензия открытая; приор и gold фазы 8.3 |
+| `acai` | Aquifer ACAI: сущности people/places/deities/groups/fauna/flora/realia/keyterms — связи, метки на 11 яз. (вкл. rus), referents по ID MACULA, кросс-ворк на TIPNR | CC BY-SA 4.0 © Mission Mutual | граф (ADR 0024, доп. 13.10); в лексиконе — данные имён и entity_names |
+| `aquifer-obd` | Aquifer Open Bible Dictionary (адаптация Tyndale OBD) en+ru | CC BY-SA 4.0 (Tyndale→Mission Mutual) | статьи сущностей, entity_names(ru) |
+| `uw-tw`, `fia-keyterms`, `biblica-keyterms` | ключевые термины uW / FIA / Biblica (en; у FIA и Biblica есть ru) | CC BY-SA 4.0 | concept-сущности графа, карточки терминов |
+| `ubs-fauna`, `ubs-flora`, `ubs-realia` | лексиконы UBS: животные, растения, реалии (md) | CC BY-SA 4.0 © UBS | сущности fauna/flora/object графа |
+| `dict-themes` | Dictionary of Bible Themes (Manser) | CC BY-SA 4.0 | concept/event графа |
 | `analysis/` | скрипты, которыми получены выводы 12–13.10.2026 (`senses.py`, `compare.py`, `quality.py`, `q2.py`) | — | воспроизвести выводы |
+
+В `sources/…/aquifer/` также лежит контент трека «учебная Библия»
+(после 1.0): `aquifer-osn`, `biblica-notes` (en+ru), `sil-tn`,
+`uw-tn`, `uw-tq`, `uw-tm` (en), `fia-tg`, `uw-obs`,
+`video-bible-dict` — все CC BY-SA 4.0.
 
 Уже есть в `D:\StudyBible-data\modules`: `russyn.sb`, `rsts.sb`
 (Синодальный со Стронгом из swmail/RST — **главный русский эталон и
@@ -321,7 +335,10 @@ meta: kind=dictionary, features=entries, id=strongs-step, license, attribution, 
 `<sense>` выводить нумерованным текстом, `<ref>` сохранять) плюс
 опционально полная BDB из `bdb-full` (`def_source='bdb-full'`) и
 статьи UBS из `ubs-dictionaries` (`def_source='ubs-sdbh'`, часть
-модуля CC BY-SA); имена — биографии TBESH/TIPNR; греческий —
+модуля CC BY-SA); арамейский — `bdb-aramaic` (CC0, Aquifer);
+`bdb-hebrew-aq` — третья редакция BDB, её alignments дают привязку
+значений к стихам; имена — биографии TBESH/TIPNR (кросс-ворк ACAI
+на TIPNR помогает); греческий —
 Abbott-Smith + тексты STEPBible + значения UBS Greek
 (`def_source='ubs-sdgnt'`, коды LEXEntryCode = Louw–Nida); 76
 статей ML в G1–G5624 + G6000–6099 заменить Abbott-Smith, где он есть,
@@ -443,13 +460,16 @@ TIPNR; `strongs` = уточнённые номера), `entity_names` (en),
   выборка по частотности + все строки с `conf ≤ 7`.
 - **8.2** Русский словарный подстрочник (без модели): опорный слой +
   русские толкования + русская морфология; спорные места видны.
-- **8.3** Синодальный (`russyn`): конвейер фазы 6; эталоны — **`rsts`
-  (главный, 66 книг со Стронгом; номера читать из `spans.attrs` до
-  починки `token_of`)** + исправленный RST+ + ru_rob; приор
-  «слово → классический номер» из `rsts`. RUSSYN от Clear исключён
-  (сломан, замер F). На ~6 % стихов, где текст `rsts` отличается от
-  `russyn` (другая редакция 1876), ставится флаг редакции — они идут
-  конвейером и в оценку не входят. Экспертная выборка 200–300 стихов.
+- **8.3** Синодальный (`russyn`): конвейер фазы 6; эталоны —
+  **`rsb-aquifer` (ручное пословное выравнивание RUSSYN→WLCM/SBLGNT,
+  234 908 записей, все 66 книг, CC0 — публикуемый)** и **`rsts`
+  (66 книг со Стронгом из swmail/RST; номера читать из `spans.attrs`
+  до починки `token_of`; лицензия не указана — только внутренне)** +
+  исправленный RST+ + ru_rob; приор «слово → классический номер»
+  из `rsts` и выравнивания Aquifer. RUSSYN от Clear исключён
+  (сломан, замер F). Редакции текста расходятся (~6 % у rsts —
+  Aquifer-редакцию сверить отдельно), на расходящихся стихах — флаг
+  редакции, в оценку не входят. Экспертная выборка 200–300 стихов.
 - **8.4** `entity_names` (ru) графа знаний из слоя Синодального.
 
 Следующие языки: толкования + морфология с `conf`, словарный
