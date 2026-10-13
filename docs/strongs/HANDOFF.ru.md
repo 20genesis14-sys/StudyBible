@@ -406,29 +406,33 @@ TIPNR; `strongs` = уточнённые номера), `entity_names` (en),
 → карточка лексикона; на имя → карточка сущности. Приёмка: Быт 1, Пс 23,
 Ин 1 отображаются в приложении; `flutter analyze` чисто.
 
-### Фаза 5 — формат слоя, разбиение на слова в ядре, приложение, исправления импортёров
+### Фаза 5 — формат слоя, разбиение на слова в ядре, приложение, исправления импортёров — **сделано 13.10.2026**
 
-- `studybible_core::text::words(text) -> Vec<(start, len)>` (`w1`):
-  слова через дефис (Tubal-cain, из-за), апострофы, числа, U+0301,
-  пунктуация не входит. Эталонные тесты en/ru. CLI `studybible tokenize
-  <module.sb>` → JSONL `{book, chapter, verse, words:[[start,len,text]]}`.
-- Запись слоя `studybible module strongs-layer <links.jsonl> --target
-  <module.sb> -o <id>-strongs.sb`; meta `target_id`, `target_hash`,
-  `tokenizer`, `license`, `sources`.
-- Читатель: накладывать слой в `chapter_doc`, если совпали
-  id+хэш+разбиение; `conf` 5–7 → сноска «спорно»; несовпадение →
-  сообщение в «Модулях».
-- Flutter: `normalizeStrong` принимает `H0029G` и `G15100` (uW: при 5
-  цифрах после G отбросить последнюю); поиск уточнённый → расширенный →
-  классический; список статей для классического номера.
-- Исправления импортёров (отдельными коммитами):
-  `crates/studybible-convert/src/mybible.rs` `attach_strong` — подряд
-  идущие `<S>` на одном слове должны дописываться
-  (`strong="H1254 H853"`), а не заново отрезать слово (в RST+ Быт 1:1
-  `сотворил<S>1254</S><S>853</S>` сейчас остаётся только H853;
-  затронуто 23 529 из 347 055 размеченных слов); нормализация uW в
-  ru_rob; модуль BSB из `bsb_tables.tsv`.
-Приёмка: CI зелёный; тесты на каждое исправление.
+Реализовано (см. DECISIONS «таблица `links` и токенизатор `w1`»):
+- `studybible_core::text::words(text) -> Vec<&str>` (`w1`,
+  `WORDS_VERSION`): резка по пробелам, краевая пунктуация снимается,
+  внутренняя хранится (`don't`, `son-in-law`, `3:00`), токены без
+  букв/цифр индекса не получают. CLI `studybible tokenize
+  <module.sb>` → JSONL `_meta` + `{book, chapter, verse, words:[…]}`
+  на стих.
+- `links(book_id, chapter, verse, word, ref, strong, conf, flags,
+  source)` в SCHEMA + `Link`/`add_link`/`links()`/`has_links()`;
+  привязка meta `target_id`/`target_hash`/`tokenizer`.
+- Исправления импортёров сделаны: `attach_strong` дописывает
+  `strong="H1254" strong="H853"` в тот же `w`-спан (было: брался
+  последний тег); `token_of`/`attr_all` собирает все значения
+  `strong=`/`morph=` через пробел (было: только первое — 30 041
+  спан rsts).
+- Flutter `normalizeStrong`: `H0029G` (+канон `H29G`), uW `G15100`,
+  списки через пробел; поиск сперва по исходному ключу.
+- Наложение слоя в `chapter_doc` (conf 5–7 → «спорно», уведомление о
+  несовпадении) — открыто, идёт с работой приложения.
+- Пилот `engbsb-strongs.sb` через `apps/studybible-cli/src/bin/
+  strongs_layer.rs` (bsb_tables.tsv → 706 502 связи, `conf=10`;
+  пропуски в `bsb-strongs.misses.tsv`; `module check` чист).
+  NB: `bsb_tables.tsv` несёт классические номера, не dStrong.
+Приёмка выполнена: clippy `-D warnings` чист, тесты зелёные,
+регрессионные тесты на оба исправления.
 
 ### Фаза 6 — конвейер разметки (`tools/strongs/`)
 
@@ -568,21 +572,20 @@ note}`. Затем сравнение двух вариантов, обратн�
 ## 9. Где что в коде
 
 - Запись модулей: `crates/studybible-store/src/module.rs`
-  (`ModuleWriter`); пример слоя: `apps/studybible-cli/src/bin/
-  xref_layer.rs`; CLI: `apps/studybible-cli/src/main.rs`.
+  (`ModuleWriter`); примеры слоёв: `apps/studybible-cli/src/bin/
+  xref_layer.rs`, `strongs_layer.rs` (писатель таблицы `links`);
+  CLI: `apps/studybible-cli/src/main.rs` (`tokenize` — слова `w1`).
 - Версификация: `crates/studybible-core/src/versification.rs`
-  (`convert`, `convert_mapped`).
-- Ошибка импортёра MyBible: `crates/studybible-convert/src/mybible.rs`
-  `attach_strong`.
-- Вторая ошибка множественных номеров (13.10.2026): `token_of` +
-  `attr()` в `crates/studybible-store/src/module.rs` — берётся только
-  первое `strong="…"` из атрибутов спана, в `tokens` теряются 2-й и
-  далее номера (у rsts 30 041 спан с 2+). Спаны/span_pack целы — для
-  замеров читать их. Фикс фазы 5: `strong` = список через пробел
-  (`"H1254 H853"`), кодек `token_pack` не трогаем.
+  (`convert`, `convert_mapped`); токенизатор `w1`:
+  `crates/studybible-core/src/text.rs` (`words`, `WORDS_VERSION`).
+- Исправлено 13.10.2026 (есть регрессионные тесты):
+  `attach_strong` MyBible (подряд `<S>` сливаются в один `w`-спан);
+  `token_of`/`attr_all` (все `strong=`/`morph=` собираются через
+  пробел — 30 041 спан rsts с несколькими номерами сохраняет номера;
+  кодек `token_pack` не тронут).
 - Лексикон во Flutter: `apps/studybible-flutter/lib/lexicon.dart`
-  (`normalizeStrong`, логика наложения, которой пользуется словарь
-  Цыганкова).
+  (`normalizeStrong`: dStrong `H0029G`, uW `G15100`, списки;
+  логика наложения, которой пользуется словарь Цыганкова).
 - Пример записи модуля на Python (схема + `content_hash`):
   `scripts/build-interlinear.py`.
 - Загрузка данных: `scripts/fetch-data.ps1` (`-Only`, `dest`, `files`),

@@ -1349,3 +1349,45 @@ plan, tasks, data inventory and skill specs —
 - Licence handling: CC BY-SA attribution (Biblica Inc. / Mission
   Mutual), derived modules under CC BY-SA, entries in
   MODULE-LICENSES.
+
+## Tagging layer `links` table and the `w1` tokenizer (2026-10-13, ADR 0025 impl.)
+
+- **`links` joins SCHEMA** (created always, empty when unused — the
+  same convention as `tokens`/`entries`/`marks`):
+  `links(book_id, chapter, verse, word, ref, strong, conf, flags,
+  source)`, PK `(book_id, chapter, verse, word)`. `word` is the `w1`
+  word index (0-based); `ref` is the base-layer word address
+  (`Gen.1.1#03`), empty when the link is Strong's-only; `strong` may
+  hold several dStrong keys space-separated.
+- **`w1` rules** (`studybible_core::text::words`,
+  `WORDS_VERSION="w1"`): split on whitespace of the assembled verse
+  text; strip edge punctuation (`"God," → "God"`, `"(the)" → "the"`),
+  keep inner punctuation (`don't`, `son-in-law`, `3:00`); tokens with
+  no letter/digit are not words and take no index. Deterministic and
+  locale-independent; tooling gets words only via
+  `studybible tokenize` (JSONL: `_meta` header with
+  `target_id`/`target_hash`/`tokenizer`, then one line per verse).
+- **Multi-value span attributes**: a span may carry several
+  `strong=`/`morph=` (`strong="H1254" strong="H853"`); `token_of`
+  collects all values space-separated, keeping the positional
+  strong↔morph pairing (fixes the loss of the 2nd+ numbers — 30,041
+  spans in rsts).
+- **MyBible importer**: consecutive `<S>` tags append to the same
+  `w` span's attrs instead of re-splitting the word (fixes the
+  last-tag-wins loss, 6.8 % of tagged words in RST+).
+- **`normalizeStrong`** (app): lettered dStrong `H0029G` accepted and
+  canonized (`H29G` → `H0029G`); uW padding `G15100` → `G1510`
+  (5 digits ending in 0); space-separated lists normalize each
+  member; callers try the raw key first — a genuine dStrong like
+  `G21370` must not be read as uW.
+- **Layer binding**: `meta.target_id` + `meta.target_hash` +
+  `meta.tokenizer`; applied at read time only when all three match
+  the target module.
+- **Pilot `engbsb-strongs`**: `bsb_tables.tsv` rows are in English
+  order (`BSB Sort` is a global row counter, `Heb Sort` the Hebrew
+  index; `VerseId` fills only the first row of a verse — carried
+  forward); every `w1` word of a span gets its own `links` row
+  (`conf=10`, `source=bsb_tables`). 706,502 links; misses (2,880 rows,
+  0.65 %) are psalm superscriptions (table verse 1 vs module verse 0)
+  and edition diffs between the two BSB exports — all logged in
+  `bsb-strongs.misses.tsv`. `module check` passes.

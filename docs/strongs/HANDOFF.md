@@ -392,27 +392,31 @@ mode with "dictionary/context" switch; tap word → lexicon card; tap
 name → entity card. Acceptance: renders Gen 1, Ps 23, John 1 in the
 app; Flutter analyze clean.
 
-### Phase 5 — layer format, core tokenizer, app, importer fixes
+### Phase 5 — layer format, core tokenizer, app, importer fixes — **done 2026-10-13**
 
-- `studybible_core::text::words(text) -> Vec<(start, len)>` (`w1`):
-  hyphenated words (Tubal-cain, из-за), apostrophes, numbers, U+0301,
-  punctuation excluded. Golden tests en/ru. CLI `studybible tokenize
-  <module.sb>` → JSONL `{book, chapter, verse, words:[[start,len,text]]}`.
-- Layer module writer `studybible module strongs-layer <links.jsonl>
-  --target <module.sb> -o <id>-strongs.sb`; meta `target_id`,
-  `target_hash`, `tokenizer`, `license`, `sources`.
-- Reader: apply layer in `chapter_doc` when id+hash+tokenizer match;
-  `conf` 5–7 → footnote "disputed"; mismatch → message in Modules.
-- Flutter: `normalizeStrong` accepts `H0029G` and `G15100` (uW: drop
-  trailing digit when 5 digits after G); lookup dStrong → eStrong →
-  classic; list of entries for classic numbers.
-- Importer fixes (separate commits): `crates/studybible-convert/src/
-  mybible.rs` `attach_strong` — consecutive `<S>` on one word must
-  append (`strong="H1254 H853"`), not re-split the word (RST+ Gen 1:1
-  `сотворил<S>1254</S><S>853</S>` currently keeps only H853; 23 529 of
-  347 055 tagged words affected); ru_rob uW normalization; BSB module
-  from `bsb_tables.tsv`.
-Acceptance: CI green; tests for each fix.
+Implemented (see DECISIONS «`links` table and the `w1` tokenizer»):
+- `studybible_core::text::words(text) -> Vec<&str>` (`w1`,
+  `WORDS_VERSION`): whitespace split, edge punctuation stripped,
+  inner punctuation kept (`don't`, `son-in-law`, `3:00`), punct-only
+  tokens take no index. CLI `studybible tokenize <module.sb>` →
+  JSONL `_meta` + `{book, chapter, verse, words:[…]}` per verse.
+- `links(book_id, chapter, verse, word, ref, strong, conf, flags,
+  source)` in SCHEMA + `Link`/`add_link`/`links()`/`has_links()`;
+  binding meta `target_id`/`target_hash`/`tokenizer`.
+- Importer fixes done: `attach_strong` appends
+  `strong="H1254" strong="H853"` to the same `w` span (was: last tag
+  won); `token_of`/`attr_all` collects every `strong=`/`morph=` value
+  space-separated (was: first only — 30,041 rsts spans affected).
+- Flutter `normalizeStrong`: `H0029G` (+canon `H29G`), uW `G15100`,
+  space-separated lists; search tries the raw key first.
+- Layer reader application in `chapter_doc` (conf 5–7 → "disputed",
+  mismatch notice) — still open, goes with the app work.
+- Pilot `engbsb-strongs.sb` via `apps/studybible-cli/src/bin/
+  strongs_layer.rs` (bsb_tables.tsv → 706,502 links, `conf=10`;
+  misses logged in `bsb-strongs.misses.tsv`; `module check` clean).
+  Note: `bsb_tables.tsv` carries classic numbers, not dStrong.
+Acceptance met: clippy `-D warnings` clean, suite green, regression
+tests for both importer/reader fixes.
 
 ### Phase 6 — tagging pipeline (`tools/strongs/`)
 
@@ -545,20 +549,20 @@ upcoming data).
 ## 9. Code pointers
 
 - Module writer: `crates/studybible-store/src/module.rs`
-  (`ModuleWriter`); layer example: `apps/studybible-cli/src/bin/
-  xref_layer.rs`; CLI: `apps/studybible-cli/src/main.rs`.
+  (`ModuleWriter`); layer examples: `apps/studybible-cli/src/bin/
+  xref_layer.rs`, `strongs_layer.rs` (`links` table writer);
+  CLI: `apps/studybible-cli/src/main.rs` (`tokenize` — `w1` words).
 - Versification: `crates/studybible-core/src/versification.rs`
-  (`convert`, `convert_mapped`).
-- MyBible importer bug: `crates/studybible-convert/src/mybible.rs`
-  `attach_strong`.
-- Second multi-Strong's bug (2026-10-13): `token_of` + `attr()` in
-  `crates/studybible-store/src/module.rs` — only the first `strong="…"`
-  of a span is taken, tokens lose the 2nd+ numbers (rsts has 30,041
-  spans with 2+). spans/span_pack are intact — read them for
-  measurements. Phase-5 fix: `strong` = space-separated list
-  (`"H1254 H853"`); `token_pack` codec unchanged.
+  (`convert`, `convert_mapped`); word tokenizer `w1`:
+  `crates/studybible-core/src/text.rs` (`words`, `WORDS_VERSION`).
+- Fixed 2026-10-13 (regression tests in place): MyBible
+  `attach_strong` (consecutive `<S>` merge); `token_of`/`attr_all`
+  (every `strong=`/`morph=` collected space-separated — rsts 30,041
+  multi-Strong's spans keep all numbers; `token_pack` codec
+  unchanged).
 - Flutter lexicon: `apps/studybible-flutter/lib/lexicon.dart`
-  (`normalizeStrong`, overlay logic used by the Tsygankov dictionary).
+  (`normalizeStrong`: dStrong `H0029G`, uW `G15100`, lists;
+  overlay logic used by the Tsygankov dictionary).
 - Python module writer example (schema + `content_hash`):
   `scripts/build-interlinear.py`.
 - Data fetch: `scripts/fetch-data.ps1` (`-Only`, `dest`, `files`),

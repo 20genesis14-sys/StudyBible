@@ -226,3 +226,21 @@ can be attached to base-layer words deterministically.
   `morph` holds 3,190 rows). Still open for expert review: 12
   `ambiguous-base` keys (`lex.review` has candidates) and the rare
   `bdb-aramaic` majority-vote mislinks (one seen at `H9003`).
+- 2026-10-13 — **Phase 5 done**: layer infrastructure + both known
+  bugs fixed. (1) `token_of` collected only the first `strong=`/`morph=`
+  span attr — now gathers all values space-separated (30,041 multi-
+  Strong's spans in rsts keep their numbers; regression test added).
+  (2) MyBible `attach_strong` overwrote consecutive `<S>` numbers —
+  now appends `strong="…"` to the same `w` span (test added).
+  (3) Core `studybible_core::text::words` tokenizer `w1` + CLI
+  `studybible tokenize` (JSONL, `_meta` binding header; 31,163 verses
+  on rsts). (4) `normalizeStrong` (app): dStrong `H0029G`, uW pad
+  `G15100`→`G1510`, space-separated lists; raw-key-first lookup.
+  (5) `links` table in SCHEMA + `Link`/`add_link`/`links()`/
+  `has_links()` + lint rule (`strongs` counts `links` rows).
+  (6) Pilot `engbsb-strongs.sb` (bin `strongs_layer`): 706,502 links
+  from `bsb_tables.tsv`, `conf=10`, bound by
+  `target_id`/`target_hash`/`tokenizer=w1`; `module check` clean;
+  2,880 missed spans logged to `bsb-strongs.misses.tsv` (psalm
+  superscriptions vs-0/vs-1, edition diffs). clippy `-D warnings` and
+  the whole test suite are green.
