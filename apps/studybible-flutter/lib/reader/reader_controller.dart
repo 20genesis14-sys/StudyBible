@@ -483,11 +483,7 @@ extension _ReaderController on _ReadingScreenState {
     if (m.id != _moduleId) return;
     final ch = m.chapter(_code, _ch);
     if (ch != null) {
-      prefetchChapterNotes(
-        ch,
-        fromVrs: m.versification,
-        openModule: m.id,
-      );
+      prefetchChapterNotes(ch, fromVrs: m.versification, openModule: m.id);
     }
   }
 
@@ -787,14 +783,11 @@ extension _ReaderController on _ReadingScreenState {
   String _titleOf(String code) =>
       _module?.bookByCode(code)?.title ?? bookShort(code);
 
-  /// Название книги для верхней панели: длинные имена режем до
-  /// ~12 знаков с многоточием — иначе они выталкивают пилюлю
-  /// поиска за край экрана (узкие телефоны).
-  String _titleCapped() {
-    final t = _titleOf(_code);
-    if (t.length <= 13) return t;
-    return '${t.substring(0, 12).trimRight()}…';
-  }
+  /// Название книги для верхней панели: полное имя, реальное
+  /// переполнение обрабатывает Flexible + TextOverflow.ellipsis
+  /// (искусственный лимит ~12 знаков был защитой от пилюли
+  /// поиска — её давно нет).
+  String _titleCapped() => _titleOf(_code);
 
   /// Цель перехода _go без побочек: (код книги, глава, баннер края
   /// книги) — null на краю канона. Та же цель у листания-подгляда.

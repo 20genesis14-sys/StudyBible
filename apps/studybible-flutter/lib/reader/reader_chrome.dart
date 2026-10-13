@@ -127,8 +127,8 @@ extension _ReaderChrome on _ReadingScreenState {
   /// (ADR 0015): круглая полупрозрачная плашка справа внизу,
   /// над нижней панелью. В «Изучении» акцентная, в «Чтении» —
   /// приглушённая. Прячется вместе с хромом (`_barVisible`) и под
-  /// шторками. Глиф очков рисует [_GlassesPainter] — в Material
-  /// подходящей иконки нет.
+  /// шторками. Глиф — ассет `assets/icons/glasses.png` (утверждённый
+  /// макет; белый на прозрачном, тонируется цветом палитры).
   Widget _glassesFab(Palette p) {
     final study = settings.readerMode == ReaderMode.study;
     return Tooltip(
@@ -153,8 +153,13 @@ extension _ReaderChrome on _ReadingScreenState {
               color: p.card.withValues(alpha: 0.92),
               border: Border.all(color: p.edge.withValues(alpha: 0.6)),
             ),
-            child: CustomPaint(
-              painter: _GlassesPainter(study ? p.accent : p.muted),
+            child: Center(
+              child: Image.asset(
+                'assets/icons/glasses.png',
+                width: 26,
+                color: study ? p.accent : p.muted,
+                colorBlendMode: BlendMode.srcIn,
+              ),
             ),
           ),
         ),
@@ -1383,50 +1388,4 @@ extension _ReaderChrome on _ReadingScreenState {
         _rebuild(() => _selectedVerse = null); // тап мимо — снять выбор
     }
   }
-}
-
-/// Глиф «очки» для плавающей кнопки режима (нет в Material):
-/// два круглых ободка, дужки вверх от внешних краёв и волнистая
-/// перемычка — по утверждённому макету (кремовый круг + глиф).
-class _GlassesPainter extends CustomPainter {
-  _GlassesPainter(this.color);
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.075
-      ..strokeCap = StrokeCap.round;
-    final r = w * 0.115; // радиус линзы
-    final cy = h * 0.60;
-    final lc = Offset(w * 0.32, cy); // центр левой линзы
-    final rc = Offset(w * 0.68, cy); // центр правой
-    canvas.drawCircle(lc, r, paint);
-    canvas.drawCircle(rc, r, paint);
-    // Дужки: от верхне-внешнего края линзы вверх с лёгким
-    // наклоном наружу.
-    final temple = w * 0.20;
-    canvas.drawLine(
-      Offset(lc.dx - r * 0.55, cy - r * 0.8),
-      Offset(lc.dx - r * 0.85, cy - r * 0.8 - temple),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(rc.dx + r * 0.55, cy - r * 0.8),
-      Offset(rc.dx + r * 0.85, cy - r * 0.8 - temple),
-      paint,
-    );
-    // Перемычка — волна с провисанием посередине.
-    final bridge = Path()
-      ..moveTo(lc.dx + r, cy - r * 0.15)
-      ..quadraticBezierTo(w * 0.5, cy + r * 0.55, rc.dx - r, cy - r * 0.15);
-    canvas.drawPath(bridge, paint);
-  }
-
-  @override
-  bool shouldRepaint(_GlassesPainter old) => old.color != color;
 }
