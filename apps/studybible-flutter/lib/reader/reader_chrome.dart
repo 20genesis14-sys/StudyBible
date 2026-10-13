@@ -150,14 +150,14 @@ extension _ReaderChrome on _ReadingScreenState {
             height: 46,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: p.card.withValues(alpha: 0.92),
-              border: Border.all(color: p.edge.withValues(alpha: 0.6)),
+              color: p.card,
+              border: Border.all(color: p.edge),
             ),
             child: Center(
               child: Image.asset(
                 'assets/icons/glasses.png',
-                width: 26,
-                color: study ? p.accent : p.muted,
+                width: 27,
+                color: study ? p.accent : p.ink,
                 colorBlendMode: BlendMode.srcIn,
               ),
             ),
@@ -210,10 +210,9 @@ extension _ReaderChrome on _ReadingScreenState {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Название книги короткое (~12 знаков + …) — длинные
-                  // имена не выталкивают поисковую пилюлю за экран.
-                  // Flexible loose: заголовок может сжаться до нуля,
-                  // пилюля при этом всегда целиком на экране.
+                  // Полное название книги + глава; под ним мелко —
+                  // перевод и режим. Flexible loose: при реальном
+                  // переполнении текст режется ellipsis.
                   Flexible(
                     // Тап по «Книга Гл. ▾» — быстрый переход
                     // книга → глава (ADR 0015).
@@ -221,22 +220,43 @@ extension _ReaderChrome on _ReadingScreenState {
                       borderRadius: BorderRadius.circular(8),
                       onTap: _quickNav,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              child: Text(
-                                '${_titleCapped()} $_ch',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${_titleCapped()} $_ch',
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
+                                Icon(
+                                  Icons.expand_more,
+                                  size: 16,
+                                  color: p.muted,
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '${moduleName(_moduleId)} · '
+                              '${settings.readerMode == ReaderMode.study ? tr('Изучение', 'Study') : tr('Чтение', 'Reading')}',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: 10,
+                                letterSpacing: 0.3,
+                                color: p.muted,
                               ),
                             ),
-                            Icon(Icons.expand_more, size: 16, color: p.muted),
                           ],
                         ),
                       ),
@@ -266,8 +286,6 @@ extension _ReaderChrome on _ReadingScreenState {
                         ),
                       ),
                     ),
-                  ] else ...[
-                    const Spacer(),
                   ],
                 ],
               ),
