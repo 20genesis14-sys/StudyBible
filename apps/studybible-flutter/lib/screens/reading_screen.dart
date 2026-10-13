@@ -605,6 +605,28 @@ class _ReadingScreenState extends State<ReadingScreen> {
                                   ),
                                 ),
                               ),
+                            // «Оглавление» — плавающая кнопка выбора
+                            // книги/главы слева внизу, пара к «очкам»;
+                            // тот же ритм появления/скрытия.
+                            if (!_searchOpen)
+                              Positioned(
+                                left: 16,
+                                bottom:
+                                    MediaQuery.of(context).padding.bottom +
+                                    (wide ? 16 : 76),
+                                child: AnimatedSlide(
+                                  offset: _barVisible
+                                      ? Offset.zero
+                                      : const Offset(0, 0.4),
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeOut,
+                                  child: AnimatedOpacity(
+                                    opacity: _barVisible ? 1.0 : 0.0,
+                                    duration: const Duration(milliseconds: 250),
+                                    child: _bookFab(p),
+                                  ),
+                                ),
+                              ),
                             // Мини-плеер чтения вслух: пауза/перемотка по стихам,
                             // плавает над нижней панелью и остаётся, когда панели
                             // спрятаны прокруткой.

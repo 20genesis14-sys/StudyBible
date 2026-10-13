@@ -167,6 +167,41 @@ extension _ReaderChrome on _ReadingScreenState {
     );
   }
 
+  /// Плавающая кнопка «оглавление» — быстрый переход книга → глава:
+  /// круглая плашка слева внизу, пара к «очкам» справа (ADR 0015).
+  /// Тап повторяет тап по заголовку (`_quickNav`); удержание —
+  /// подсказка «Оглавление». Глиф — ассет `assets/icons/book.png`.
+  Widget _bookFab(Palette p) {
+    return Tooltip(
+      message: tr('Оглавление', 'Contents'),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: _quickNav,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: p.card,
+              border: Border.all(color: p.edge),
+            ),
+            child: Center(
+              child: Image.asset(
+                'assets/icons/book.png',
+                width: 26,
+                color: p.ink,
+                colorBlendMode: BlendMode.srcIn,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _topBar(Palette p, Color color, {required bool wide}) {
     // Фон панели рисуем ПОД строкой состояния (edge-to-edge), а
     // содержимое опускаем на её высоту — иначе над панелью остаётся

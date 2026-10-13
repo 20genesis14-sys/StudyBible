@@ -330,6 +330,13 @@ files.
   with the rest of the chrome on scroll in either direction and
   under open sheets; the top-bar segment toggle is removed, freeing
   the header for the full book+chapter name.
+- Mirroring the glasses button, a floating "contents" button sits
+  bottom-left above the bottom bar: same round pill, open-book glyph
+  (asset `assets/icons/book.png` — variant B; the app-icon silhouette
+  variant is kept at `D:\StudyBible-data\icon\book_a_silhouette.png`).
+  Tap opens `_quickNav` (book → chapter), long-press shows the
+  "Contents" tooltip; it hides with the chrome and under search
+  (ADR 0015).
 - The "Layers" sheet instead of separate comparison/interlinear/
   footnote buttons.
 - Bottom reading bar: Translation · Layers · Listen · More
