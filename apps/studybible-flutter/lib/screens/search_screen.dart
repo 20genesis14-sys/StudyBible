@@ -306,13 +306,40 @@ class _SearchScreenState extends State<SearchScreen> {
             onExpansionChanged: (v) => setState(
               () => v ? _expanded.add(code) : _expanded.remove(code),
             ),
-            title: Text(
-              '${bookFull(code)} · ${byBook[code]!.length}',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: p.ink,
-              ),
+            title: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    bookFull(code),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: p.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Счётчик совпадений — пилюля, чтобы не сливался
+                // с названием книги.
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: p.accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${byBook[code]!.length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: p.accent,
+                    ),
+                  ),
+                ),
+              ],
             ),
             children: [
               for (final h in byBook[code]!)
