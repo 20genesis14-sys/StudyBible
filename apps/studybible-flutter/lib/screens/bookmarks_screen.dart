@@ -6,6 +6,7 @@ import '../l10n.dart';
 import '../state.dart';
 import '../frag.dart';
 import '../native_bridge.dart' show UserEntry;
+import '../search_norm.dart' show normForIndex, parseSearchQuery, scanMatch;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
     if (dart.library.js_interop) '../native_bridge_web.dart';
@@ -36,6 +37,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   /// Выбранный тег-фильтр; null — все.
   String? _tag;
 
+  /// Поиск по личным заметкам (заголовок+текст, те же операторы,
+  /// что и в поиске по модулю). Пустой — обычный вид экрана.
+  final _search = TextEditingController();
+
   /// Id записей-сирот последнего прогона relink (секция
   /// «Потерянные»: модуль есть, якорного стиха/контекста в нём нет).
   Set<String> _orphans = {};
@@ -45,6 +50,13 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     super.initState();
     _load();
     notes.load();
+    _search.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -251,7 +263,29 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       ),
       body: ListView(
         children: [
-          if (tags.isNotEmpty)
+          // Живой поиск по личным заметкам (заголовок + текст),
+          // операторы — как в поиске по модулю («…», *, ?).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: TextField(
+              controller: _search,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: tr('Поиск по заметкам…', 'Search notes…'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+                prefixIcon: const Icon(Icons.search, size: 18),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        onPressed: _search.clear,
+                      ),
+              ),
+            ),
+          ),
+          if (_search.text.trim().isNotEmpty) ..._searchResults(p),
+          if (_search.text.trim().isEmpty && tags.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
               child: Wrap(
@@ -272,7 +306,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 ],
               ),
             ),
-          if (_tag == null) ...[
+          if (_search.text.trim().isEmpty && _tag == null) ...[
             _header(tr('Заметки', 'Notes'), p),
             _noteComposer(),
             ListenableBuilder(
@@ -299,10 +333,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             ),
             ..._orphanSection(p),
           ],
-          if (_tag != null) ...[
+          if (_search.text.trim().isEmpty && _tag != null) ...[
             _header('#$_tag', p),
             for (final e in _byTag[_tag]!) _tile(e, Icons.label, p),
-          ] else if (_byTag.isNotEmpty) ...[
+          ] else if (_search.text.trim().isEmpty && _byTag.isNotEmpty) ...[
             _header(tr('По тегам', 'By tag'), p),
             for (final t in tags) ...[
               Padding(
@@ -323,6 +357,63 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         ],
       ),
     );
+  }
+
+  /// Результаты поиска по заметкам: заголовок + текст (через
+  /// `scanMatch` — операторы «…», *, ? как в поиске по модулю);
+  /// сниппет с метками `[` `]` показывается под заголовком.
+  List<Widget> _searchResults(Palette p) {
+    final terms = parseSearchQuery(_search.text.trim());
+    if (terms.isEmpty) return const [];
+    final out = <Widget>[];
+    for (final n in notes.items) {
+      final norm = normForIndex('${n.title} ${n.text}');
+      final snip = scanMatch(norm, terms);
+      if (snip == null) continue;
+      out.add(
+        ListTile(
+          dense: true,
+          leading: Icon(
+            Icons.sticky_note_2_outlined,
+            size: 18,
+            color: p.accent,
+          ),
+          title: Text(
+            n.title.isEmpty ? n.text : n.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: p.ink, fontSize: 14),
+          ),
+          subtitle: Text(
+            snip,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: p.muted, fontSize: 12),
+          ),
+          onTap: n.anchored
+              ? () => _open(
+                  UserEntry(
+                    id: n.id,
+                    module: n.module,
+                    kind: 'note',
+                    book: n.book,
+                    chapter: n.chapter,
+                    verse: n.verse,
+                    text: n.text,
+                    context: '',
+                    created: n.created.millisecondsSinceEpoch,
+                    updated: n.created.millisecondsSinceEpoch,
+                  ),
+                )
+              : () => _noteDialog(n: n),
+        ),
+      );
+    }
+    return [
+      _header(tr('Заметки: ${out.length}', 'Notes: ${out.length}'), p),
+      if (out.isEmpty) _empty(tr('Ничего не найдено.', 'Nothing found.'), p),
+      ...out,
+    ];
   }
 
   /// Кнопка «новая заметка» → диалог с названием и текстом.
