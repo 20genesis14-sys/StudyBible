@@ -34,6 +34,7 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
                                         norm_version и content_hash
   studybible module pack <файл.sb> [--codec zstd|brotli] [--out <файл.sbz>]
   studybible read <файл.sb> \"<ссылка>\"          — глава или диапазон («Быт 1», «Ин 3:16-18»)
+  studybible tokenize <файл.sb>                 — слова стихов (JSONL, токенизатор w1, ADR 0025)
   studybible search <файл.sb> \"<запрос>\" [--cache <файл>] [--limit N]
   studybible user add note|mark|hl <модуль> <КОД> <гл:ст> [текст...] [--db <файл>]
   studybible user relink [--db <файл>]       перепривязка записей к модулям (в.12)
@@ -60,6 +61,7 @@ fn main() -> ExitCode {
             _ => usage(),
         },
         Some("read") => run(read(&args[1..])),
+        Some("tokenize") => run(tokenize(&args[1..])),
         Some("search") => run(search(&args[1..])),
         Some("user") => run(user(&args[1..])),
         Some("say") => run(say(&args[1..])),
@@ -712,7 +714,8 @@ fn lint(m: &Module) -> Vec<String> {
             "strongs" => count("tokens")
                 .max(count("token_pack"))
                 .max(attr_count("strong"))
-                .max(pack_attr("strong")),
+                .max(pack_attr("strong"))
+                .max(count("links")),
             "morph" => count("tokens")
                 .max(count("token_pack"))
                 .max(attr_count("morph"))
@@ -1079,6 +1082,62 @@ fn block_text(b: &studybible_core::text::Block) -> String {
         }
     }
     s
+}
+
+/// Слова стихов модуля (токенизатор `w1`, ADR 0025) — вход для
+/// конвейера разметки: JSONL, первая строка `_meta` с привязкой
+/// (id, content_hash, версия токенизатора), дальше по стиху:
+/// `{"book":"GEN","chapter":1,"verse":1,"words":[…]}`.
+fn tokenize(args: &[String]) -> Result<(), String> {
+    let path = module_arg(args)?;
+    let opened = open_any(&path)?;
+    let m = &opened.module;
+    let meta = m.meta();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    writeln!(
+        out,
+        "{}",
+        serde_json::json!({
+            "_meta": {
+                "target_id": meta.id,
+                "target_hash": meta.content_hash,
+                "tokenizer": studybible_core::text::WORDS_VERSION,
+                "versification": meta.versification,
+            }
+        })
+    )
+    .map_err(|e| e.to_string())?;
+    let mut verses = 0usize;
+    for (code, _) in m.books().map_err(|e| e.to_string())? {
+        let mut ch_n = 1u16;
+        while let Some(ch) = m.chapter(code, ch_n).map_err(|e| e.to_string())? {
+            for (verse, text) in ch.verse_texts() {
+                let ws: Vec<&str> = studybible_core::text::words(&text);
+                if ws.is_empty() {
+                    continue;
+                }
+                writeln!(
+                    out,
+                    "{}",
+                    serde_json::json!({
+                        "book": code.to_string(),
+                        "chapter": ch_n,
+                        "verse": verse,
+                        "words": ws,
+                    })
+                )
+                .map_err(|e| e.to_string())?;
+                verses += 1;
+            }
+            ch_n += 1;
+        }
+    }
+    eprintln!(
+        "стихов: {verses} (токенизатор {})",
+        studybible_core::text::WORDS_VERSION
+    );
+    Ok(())
 }
 
 fn read(args: &[String]) -> Result<(), String> {
