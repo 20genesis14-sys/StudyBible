@@ -31,6 +31,12 @@ enum ReaderMode { reading, study }
 /// Ширина текстовой колонки на десктопе.
 enum ColumnWidth { reading, full }
 
+/// Вид результатов поиска (DECISIONS «Поиск»): плоский список или
+/// аккордеон по книгам. Выбор пока живёт в состоянии экрана;
+/// поле сериализуется — возможность «запоминать вид» есть в коде,
+/// в интерфейс настроек сознательно не выносится.
+enum SearchResultsView { list, books }
+
 /// Шрифт основного текста главы.
 enum ReadingFont {
   /// Literata — шрифт Google для чтения с экрана.
@@ -243,6 +249,10 @@ class Settings extends ChangeNotifier {
   /// Режим «Чтение» / «Изучение» (ADR 0015).
   ReaderMode readerMode = ReaderMode.reading;
 
+  /// Вид результатов поиска — сейчас перезаписывается экраном
+  /// поиска при переключении сегмента; UI-опции в Настройках нет.
+  SearchResultsView searchResultsView = SearchResultsView.list;
+
   /// Слои учебных меток (лист «Слои», ADR 0014/0015): видны в режиме
   /// «Изучение»; выключенные скрывают маркеры даже там.
   bool layerFootnotes = true;
@@ -356,14 +366,17 @@ class Settings extends ChangeNotifier {
         nightEnd = j['nightEnd'] as int? ?? 7 * 60;
         nightTheme = AppTheme.values[j['nightTheme'] as int? ?? 1];
         fontScale = (j['fontScale'] as num? ?? 1.0).toDouble();
-        fontWeightStep = (j['fontWeightStep'] as num? ?? 0)
-            .toInt()
-            .clamp(0, kFontWeightSteps.length - 1);
+        fontWeightStep = (j['fontWeightStep'] as num? ?? 0).toInt().clamp(
+          0,
+          kFontWeightSteps.length - 1,
+        );
         footScale = (j['footScale'] as num? ?? 1.0).toDouble();
         xrefScale = (j['xrefScale'] as num? ?? 1.0).toDouble();
         layoutMode = LayoutMode.values[j['layoutMode'] as int? ?? 0];
         columnWidth = ColumnWidth.values[j['columnWidth'] as int? ?? 1];
         readerMode = ReaderMode.values[j['readerMode'] as int? ?? 0];
+        searchResultsView =
+            SearchResultsView.values[j['searchResultsView'] as int? ?? 0];
         layerFootnotes = j['layerFootnotes'] as bool? ?? true;
         layerXrefs = j['layerXrefs'] as bool? ?? true;
         layerStrongs = j['layerStrongs'] as bool? ?? true;
@@ -372,9 +385,8 @@ class Settings extends ChangeNotifier {
           readingFont = ReadingFont.literata;
         }
         unawaited(
-          ensureReadingFontLoaded(readingFont).then(
-            (ok) => ok ? notifyListeners() : null,
-          ),
+          ensureReadingFontLoaded(readingFont)
+              .then((ok) => ok ? notifyListeners() : null),
         );
         bookFullNames = j['bookFullNames'] as bool? ?? false;
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
@@ -418,6 +430,7 @@ class Settings extends ChangeNotifier {
       'layoutMode': layoutMode.index,
       'columnWidth': columnWidth.index,
       'readerMode': readerMode.index,
+      'searchResultsView': searchResultsView.index,
       'layerFootnotes': layerFootnotes,
       'layerXrefs': layerXrefs,
       'layerStrongs': layerStrongs,

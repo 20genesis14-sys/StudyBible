@@ -47,6 +47,14 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _busy = false;
   String? _notice;
 
+  /// Вид результатов — состояние экрана, сессия (DECISIONS «Поиск»).
+  /// Стартует из settings.searchResultsView (скрытая возможность
+  /// «запоминать вид»), но назад не пишется.
+  late SearchResultsView _view = settings.searchResultsView;
+
+  /// Раскрытые книги в режиме «По книгам».
+  final Set<String> _expanded = {};
+
   @override
   void initState() {
     super.initState();
@@ -134,7 +142,34 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ],
                 ),
-
+                // Переключатель вида: плоский список / аккордеон книг.
+                if (_hits.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SegmentedButton<SearchResultsView>(
+                      segments: [
+                        ButtonSegment(
+                          value: SearchResultsView.list,
+                          icon: const Icon(Icons.view_list, size: 16),
+                          label: Text(tr('Список', 'List')),
+                        ),
+                        ButtonSegment(
+                          value: SearchResultsView.books,
+                          icon: const Icon(
+                            Icons.account_tree_outlined,
+                            size: 16,
+                          ),
+                          label: Text(tr('По книгам', 'By books')),
+                        ),
+                      ],
+                      selected: {_view},
+                      onSelectionChanged: (s) =>
+                          setState(() => _view = s.first),
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -152,7 +187,10 @@ class _SearchScreenState extends State<SearchScreen> {
                           'Найдено: $_searchLimit+ (показаны первые)',
                           'Found: $_searchLimit+ (first shown)',
                         )
-                      : tr('Найдено: ${_hits.length}', 'Found: ${_hits.length}'),
+                      : tr(
+                          'Найдено: ${_hits.length}',
+                          'Found: ${_hits.length}',
+                        ),
                   style: TextStyle(fontSize: 13, color: p.muted),
                 ),
               ),
@@ -163,45 +201,105 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Text(_notice!, style: TextStyle(color: p.muted)),
             ),
           Expanded(
-            child: ListView.builder(
-              itemCount: _hits.length,
-              itemBuilder: (context, i) {
-                final h = _hits[i];
-                final book = bookShort(h.book);
-                return ListTile(
-                  dense: true,
-                  title: Text(
-                    '$book ${h.chapter}:${h.verse}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: p.accent,
-                    ),
+            child: _view == SearchResultsView.books
+                ? _booksView(p)
+                : ListView.builder(
+                    itemCount: _hits.length,
+                    itemBuilder: (context, i) => _hitTile(p, _hits[i]),
                   ),
-                  subtitle: Text(
-                    h.snippet,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: p.ink),
-                  ),
-                  onTap: widget.onOpenVerse != null
-                      ? () => widget.onOpenVerse!(
-                          _moduleId, h.book, h.chapter, h.verse)
-                      : () => Navigator.of(context).push(
-                          fastRoute(
-                            ReadingScreen(
-                              bookCode: h.book,
-                              chapter: h.chapter,
-                              verse: h.verse,
-                              moduleId: _moduleId,
-                            ),
-                          ),
-                        ),
-                );
-              },
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Один результат поиска — ссылка «Книга Гл:Ст» и сниппет.
+  Widget _hitTile(Palette p, SearchHit h) {
+    final book = bookShort(h.book);
+    return ListTile(
+      dense: true,
+      title: Text(
+        '$book ${h.chapter}:${h.verse}',
+        style: TextStyle(fontWeight: FontWeight.w600, color: p.accent),
+      ),
+      subtitle: Text(
+        h.snippet,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: p.ink),
+      ),
+      onTap: _openHit(h),
+    );
+  }
+
+  VoidCallback? _openHit(SearchHit h) => widget.onOpenVerse != null
+      ? () => widget.onOpenVerse!(_moduleId, h.book, h.chapter, h.verse)
+      : () => Navigator.of(context).push(
+          fastRoute(
+            ReadingScreen(
+              bookCode: h.book,
+              chapter: h.chapter,
+              verse: h.verse,
+              moduleId: _moduleId,
+            ),
+          ),
+        );
+
+  /// Режим «По книгам»: аккордеон «Название · N»; внутри книги —
+  /// плоские совпадения, отсортированные по главе и стиху (канон).
+  /// Книги — в каноническом порядке, вне каталога — в конце по
+  /// порядку появления.
+  Widget _booksView(Palette p) {
+    final byBook = <String, List<SearchHit>>{};
+    for (final h in _hits) {
+      byBook.putIfAbsent(h.book, () => []).add(h);
+    }
+    final books = byBook.keys.toList()
+      ..sort((a, b) {
+        final ia = bookIndexOf(a);
+        final ib = bookIndexOf(b);
+        if (ia < 0 && ib < 0) return 0;
+        if (ia < 0) return 1;
+        if (ib < 0) return -1;
+        return ia - ib;
+      });
+    for (final hits in byBook.values) {
+      hits.sort(
+        (a, b) =>
+            a.chapter != b.chapter ? a.chapter - b.chapter : a.verse - b.verse,
+      );
+    }
+    return ListView(
+      children: [
+        for (final code in books)
+          ExpansionTile(
+            key: PageStorageKey('search-book-$code'),
+            shape: const Border(),
+            collapsedShape: const Border(),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            childrenPadding: const EdgeInsets.only(bottom: 4),
+            dense: true,
+            initiallyExpanded: _expanded.contains(code),
+            onExpansionChanged: (v) => setState(
+              () => v ? _expanded.add(code) : _expanded.remove(code),
+            ),
+            title: Text(
+              '${bookFull(code)} · ${byBook[code]!.length}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: p.ink,
+              ),
+            ),
+            children: [
+              for (final h in byBook[code]!)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _hitTile(p, h),
+                ),
+            ],
+          ),
+      ],
     );
   }
 }
