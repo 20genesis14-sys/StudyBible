@@ -595,6 +595,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                     Container(
                       width: 360,
                       decoration: BoxDecoration(
+                        color: p.card,
                         border: Border(left: BorderSide(color: p.edge)),
                       ),
                       child: Column(

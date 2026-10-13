@@ -42,6 +42,17 @@ class NotesSheet extends StatelessWidget {
         ),
       );
     }
+    final selKey = GlobalKey();
+    var selBound = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = selKey.currentContext;
+      if (selBound && ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 200),
+        );
+      }
+    });
     return ListView.builder(
       controller: controller,
       padding: const EdgeInsets.all(16),
@@ -106,7 +117,9 @@ class NotesSheet extends StatelessWidget {
         }
         final n = notes[i].note;
         final sel = selectedVerse != null && notes[i].verse == selectedVerse;
+        if (sel) selBound = true;
         return Container(
+          key: sel ? selKey : null,
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
