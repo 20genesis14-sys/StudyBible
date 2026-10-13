@@ -487,157 +487,169 @@ class _ReadingScreenState extends State<ReadingScreen> {
                 _stackForward();
               }
             },
-            child: _overlayScreen() ??
+            child:
+                _overlayScreen() ??
                 Scaffold(
-              // Боковая панель сносок — снаружи Stack: верхний бар
-              // перекрывает только колонку текста, заголовок панели
-              // виден всегда (десктоп/веб).
-              body: Row(
-                children: [
-                  Expanded(
-                    child: Stack(
-                children: [
-                  NotificationListener<ScrollNotification>(
-                    // Прокрутка текста прячет панель управления.
-                    onNotification: (n) {
-                      if (n is ScrollUpdateNotification && _barVisible) {
-                        setState(() => _barVisible = false);
-                      }
-                      return false;
-                    },
-                    child: ReaderPageSwipe<(String, int, String?)>(
-                      targetFor: _goTarget,
-                      prepareTarget: (t) {
-                        final m = _module;
-                        if (m != null) _ensureChapter(m, t.$1, t.$2);
-                      },
-                      peekBuilder: (t) => _peekPage(p, wide, t.$1, t.$2),
-                      canStart: () =>
-                          _selectedText == null || _selectedText!.isEmpty,
-                      onTap: () {
-                        if (!_barVisible) {
-                          setState(() => _barVisible = true);
-                        }
-                      },
-                      onCommit: _go,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Directionality(
-                              textDirection: _isRtl
-                                  ? TextDirection.rtl
-                                  : TextDirection.ltr,
-                              child: _readingBody(ch, p, wide),
+                  // Боковая панель сносок — снаружи Stack: верхний бар
+                  // перекрывает только колонку текста, заголовок панели
+                  // виден всегда (десктоп/веб).
+                  body: Row(
+                    children: [
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            NotificationListener<ScrollNotification>(
+                              // Прокрутка текста прячет панель управления.
+                              onNotification: (n) {
+                                if (n is ScrollUpdateNotification &&
+                                    _barVisible) {
+                                  setState(() => _barVisible = false);
+                                }
+                                return false;
+                              },
+                              child: ReaderPageSwipe<(String, int, String?)>(
+                                targetFor: _goTarget,
+                                prepareTarget: (t) {
+                                  final m = _module;
+                                  if (m != null) _ensureChapter(m, t.$1, t.$2);
+                                },
+                                peekBuilder: (t) =>
+                                    _peekPage(p, wide, t.$1, t.$2),
+                                canStart: () =>
+                                    _selectedText == null ||
+                                    _selectedText!.isEmpty,
+                                onTap: () {
+                                  if (!_barVisible) {
+                                    setState(() => _barVisible = true);
+                                  }
+                                },
+                                onCommit: _go,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Directionality(
+                                        textDirection: _isRtl
+                                            ? TextDirection.rtl
+                                            : TextDirection.ltr,
+                                        child: _readingBody(ch, p, wide),
+                                      ),
+                                    ),
+                                    if (_compare && wide && !_interleaved)
+                                      _compareBody(p),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                          if (_compare && wide && !_interleaved)
-                            _compareBody(p),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Верхняя панель: назад + «Книга Гл.» + поле поиска.
-                  // На десктопе она же несёт все кнопки управления; на
-                  // телефоне кнопки живут в нижней панели.
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    child: AnimatedSlide(
-                      offset: _barVisible ? Offset.zero : const Offset(0, -1),
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOut,
-                      child: AnimatedOpacity(
-                        opacity: _barVisible ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 250),
-                        child: _topBar(p, color, wide: wide),
-                      ),
-                    ),
-                  ),
-                  // Нижняя панель кнопок — только на узком экране.
-                  if (!wide)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: AnimatedSlide(
-                        offset: _barVisible ? Offset.zero : const Offset(0, 1),
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut,
-                        child: AnimatedOpacity(
-                          opacity: _barVisible ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 250),
-                          child: _controlBar(p, color, wide: wide),
-                        ),
-                      ),
-                    ),
-                  // Плавающее поле поиска — над нижней панелью, не
-                  // закрывает текст (мобильная раскладка).
-                  if (!wide && _searchOpen) _searchField(p),
-                  // Мини-плеер чтения вслух: пауза/перемотка по стихам,
-                  // плавает над нижней панелью и остаётся, когда панели
-                  // спрятаны прокруткой.
-                  if (_ttsPlaying)
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      left: 12,
-                      right: 12,
-                      bottom: (_barVisible && !wide)
-                          ? MediaQuery.of(context).padding.bottom + 64
-                          : MediaQuery.of(context).padding.bottom + 12,
-                      child: _ttsPlayer(p),
-                    ),
-                ],
-              ),
-                  ),
-                  if (_notesOpen && wide)
-                    Container(
-                      width: 360,
-                      decoration: BoxDecoration(
-                        color: p.card,
-                        border: Border(left: BorderSide(color: p.edge)),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Text(
-                                  tr(
-                                    'Сноски и параллельные',
-                                    'Footnotes and cross-refs',
-                                  ),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: p.ink,
+                            // Верхняя панель: назад + «Книга Гл.» + поле поиска.
+                            // На десктопе она же несёт все кнопки управления; на
+                            // телефоне кнопки живут в нижней панели.
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              top: 0,
+                              child: AnimatedSlide(
+                                offset: _barVisible
+                                    ? Offset.zero
+                                    : const Offset(0, -1),
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeOut,
+                                child: AnimatedOpacity(
+                                  opacity: _barVisible ? 1.0 : 0.0,
+                                  duration: const Duration(milliseconds: 250),
+                                  child: _topBar(p, color, wide: wide),
+                                ),
+                              ),
+                            ),
+                            // Нижняя панель кнопок — только на узком экране.
+                            if (!wide)
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: AnimatedSlide(
+                                  offset: _barVisible
+                                      ? Offset.zero
+                                      : const Offset(0, 1),
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeOut,
+                                  child: AnimatedOpacity(
+                                    opacity: _barVisible ? 1.0 : 0.0,
+                                    duration: const Duration(milliseconds: 250),
+                                    child: _controlBar(p, color, wide: wide),
                                   ),
                                 ),
                               ),
-                              IconButton(
-                                tooltip: tr('Закрыть', 'Close'),
-                                icon: const Icon(Icons.close, size: 18),
-                                onPressed: () =>
-                                    setState(() => _notesOpen = false),
+                            // Плавающее поле поиска — над нижней панелью, не
+                            // закрывает текст (мобильная раскладка).
+                            if (!wide && _searchOpen) _searchField(p),
+                            // Мини-плеер чтения вслух: пауза/перемотка по стихам,
+                            // плавает над нижней панелью и остаётся, когда панели
+                            // спрятаны прокруткой.
+                            if (_ttsPlaying)
+                              AnimatedPositioned(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeOut,
+                                left: 12,
+                                right: 12,
+                                bottom: (_barVisible && !wide)
+                                    ? MediaQuery.of(context).padding.bottom + 64
+                                    : MediaQuery.of(context).padding.bottom +
+                                          12,
+                                child: _ttsPlayer(p),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (_notesOpen && wide)
+                        Container(
+                          width: 360,
+                          decoration: BoxDecoration(
+                            color: p.card,
+                            border: Border(left: BorderSide(color: p.edge)),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Text(
+                                      tr(
+                                        'Сноски и параллельные',
+                                        'Footnotes and cross-refs',
+                                      ),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: p.ink,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: tr('Закрыть', 'Close'),
+                                    icon: const Icon(Icons.close, size: 18),
+                                    onPressed: () =>
+                                        setState(() => _notesOpen = false),
+                                  ),
+                                ],
+                              ),
+                              Expanded(
+                                child: NotesSheet(
+                                  notes: notes,
+                                  selectedVerse: _selectedVerse,
+                                  controller: ScrollController(),
+                                  onRef: _goToRef,
+                                  variants: ch?.variants ?? const [],
+                                  openModule: _moduleId,
+                                  fromVrs: _module?.versification ?? '',
+                                  onOpenModule: _goToRefModule,
+                                ),
                               ),
                             ],
                           ),
-                          Expanded(
-                            child: NotesSheet(
-                              notes: notes,
-                              selectedVerse: _selectedVerse,
-                              controller: ScrollController(),
-                              onRef: _goToRef,
-                              variants: ch?.variants ?? const [],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                        ),
+                    ],
+                  ),
+                ),
           ),
         ),
       ),
@@ -740,9 +752,8 @@ class _ReadingScreenState extends State<ReadingScreen> {
     if (widget.openedFromGrid && _code == widget.bookCode) {
       Navigator.of(context).maybePop();
     } else {
-      Navigator.of(context).pushReplacement(
-        fastRoute(ChapterGridScreen(bookCode: _code)),
-      );
+      Navigator.of(context)
+          .pushReplacement(fastRoute(ChapterGridScreen(bookCode: _code)));
     }
   });
 

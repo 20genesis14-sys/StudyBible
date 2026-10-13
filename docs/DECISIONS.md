@@ -109,6 +109,9 @@ files.
 - Chapter: swipe and ← → keys across book boundaries; verse numbers in
   the group color and bold; tap a verse → action panel + a footnote side
   panel (mobile — a sheet); double-tap → translation comparison.
+  The side panel lists all chapter notes as links; under the selected
+  verse's cross-reference entry it expands the referenced verse texts
+  (settings.xrefModule, same source as the note card).
 - Layout modes: paragraphs (indent) / "verse per line"; font scale via
   slider and Ctrl+wheel; a narrow "Reading" column option.
 - Themes: light "paper" — the ADR 0015 palette (warm sepia, ink,

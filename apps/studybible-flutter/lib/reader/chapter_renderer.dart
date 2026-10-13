@@ -533,6 +533,9 @@ extension _ChapterRenderer on _ReadingScreenState {
             controller: c,
             onRef: _goToRef,
             variants: ch.variants,
+            openModule: _moduleId,
+            fromVrs: _module?.versification ?? '',
+            onOpenModule: _goToRefModule,
           ),
         ),
       );
@@ -1155,19 +1158,19 @@ extension _ChapterRenderer on _ReadingScreenState {
           child: SelectionArea(
             onSelectionChanged: (c) => _selectedText = c?.plainText,
             contextMenuBuilder: _selectionMenu,
-          child: _pinchZoom(
-            ListView.builder(
-              controller: _scroll,
-              padding: EdgeInsets.fromLTRB(
-                wide ? 48 : 20,
-                _topClear(),
-                wide ? 48 : 20,
-                wide ? 16 : _bottomClear(),
+            child: _pinchZoom(
+              ListView.builder(
+                controller: _scroll,
+                padding: EdgeInsets.fromLTRB(
+                  wide ? 48 : 20,
+                  _topClear(),
+                  wide ? 48 : 20,
+                  wide ? 16 : _bottomClear(),
+                ),
+                itemCount: total,
+                itemBuilder: (_, i) => _bookChapter(i + 1, p),
               ),
-              itemCount: total,
-              itemBuilder: (_, i) => _bookChapter(i + 1, p),
             ),
-          ),
           ),
         ),
       ),
@@ -1390,7 +1393,13 @@ extension _ChapterRenderer on _ReadingScreenState {
                   style: _baseStyle(p),
                   children: [
                     if (i == capAt) _chapterCap(p),
-                    ..._spansOf(b, p, null, anchorVerses, i == capAt ? 1 : null),
+                    ..._spansOf(
+                      b,
+                      p,
+                      null,
+                      anchorVerses,
+                      i == capAt ? 1 : null,
+                    ),
                   ],
                 ),
               ),
@@ -1410,7 +1419,13 @@ extension _ChapterRenderer on _ReadingScreenState {
                       _chapterCap(p)
                     else
                       const TextSpan(text: '\u2003'),
-                    ..._spansOf(b, p, null, anchorVerses, i == capAt ? 1 : null),
+                    ..._spansOf(
+                      b,
+                      p,
+                      null,
+                      anchorVerses,
+                      i == capAt ? 1 : null,
+                    ),
                   ],
                 ),
               ),

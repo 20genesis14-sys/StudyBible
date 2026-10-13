@@ -19,11 +19,26 @@ class NotesSheet extends StatelessWidget {
     required this.controller,
     required this.onRef,
     this.variants = const [],
+    this.openModule,
+    this.fromVrs = '',
+    this.onOpenModule,
   });
 
   final List<({int verse, NoteSpanDoc note})> notes;
   final int? selectedVerse;
   final ScrollController controller;
+
+  /// Модуль открытой главы — источник текстов параллельных мест
+  /// по умолчанию; задан → у записи выбранного стиха раскрываются
+  /// тексты ссылок (как в карточке по маркеру).
+  final String? openModule;
+
+  /// Версификация модуля-источника ссылок.
+  final String fromVrs;
+
+  /// Тап по тексту места → навигация в его переводе (координата
+  /// уже конвертирована); без него — onRef по исходной ссылке.
+  final void Function(Ref, String moduleId)? onOpenModule;
 
   /// Варианты критического аппарата главы (ADR 0016).
   final List<VariantDoc> variants;
@@ -168,21 +183,114 @@ class NotesSheet extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: _noteSpans(
-                      _noteText(n),
-                      p,
-                      onRef,
-                      scale: n.kind == 'x'
-                          ? settings.xrefScale
-                          : settings.footScale,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: _noteSpans(
+                          _noteText(n),
+                          p,
+                          onRef,
+                          scale: n.kind == 'x'
+                              ? settings.xrefScale
+                              : settings.footScale,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (sel && n.kind == 'x' && openModule != null)
+                      _XrefTexts(
+                        future: _noteTexts(
+                          n,
+                          fromVrs: fromVrs,
+                          openModule: openModule!,
+                        ),
+                        onRef: onRef,
+                        onOpenModule: onOpenModule,
+                      ),
+                  ],
                 ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+/// Тексты параллельных мест записи выбранного стиха в боковой
+/// панели (компактный вид карточки): подпись-ссылка + текст из
+/// settings.xrefModule/открытого перевода; тап навигирует.
+class _XrefTexts extends StatelessWidget {
+  const _XrefTexts({
+    required this.future,
+    required this.onRef,
+    this.onOpenModule,
+  });
+  final Future<NoteTextItems> future;
+  final void Function(Ref) onRef;
+  final void Function(Ref, String moduleId)? onOpenModule;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return FutureBuilder<NoteTextItems>(
+      future: future,
+      builder: (context, snap) {
+        final items = snap.data;
+        if (items == null) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: p.muted),
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final it in items)
+              if (it.text != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: GestureDetector(
+                    onTap: () {
+                      final open = onOpenModule;
+                      if (open != null) {
+                        open(it.nav, it.mid);
+                      } else {
+                        onRef(it.ref);
+                      }
+                    },
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${it.label} — ',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: p.accent,
+                            ),
+                          ),
+                          TextSpan(
+                            text: it.text!,
+                            style: TextStyle(
+                              fontSize: 13 * settings.xrefScale,
+                              color: p.ink,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+          ],
         );
       },
     );
@@ -302,11 +410,12 @@ void prefetchChapterNotes(
     for (final s in b.spans) {
       if (s is NoteSpanDoc) {
         unawaited(
-          _noteTexts(s, fromVrs: fromVrs, openModule: openModule)
-              .catchError(
-                (_) =>
-                    <({Ref ref, Ref nav, String label, String? text, String mid})>[],
-              ),
+          _noteTexts(s, fromVrs: fromVrs, openModule: openModule).catchError(
+            (_) =>
+                <
+                  ({Ref ref, Ref nav, String label, String? text, String mid})
+                >[],
+          ),
         );
       }
     }
@@ -316,11 +425,7 @@ void prefetchChapterNotes(
 /// Координаты ссылки [r] (в версификации модуля-источника [fromVrs])
 /// в версификации перевода [m]: каждый стих диапазона конвертируется,
 /// совпадения дедуплицируются. Стихи диапазона — параллельно.
-Future<List<CvPoint>> _noteTargets(
-  ModuleDoc m,
-  Ref r,
-  String fromVrs,
-) async {
+Future<List<CvPoint>> _noteTargets(ModuleDoc m, Ref r, String fromVrs) async {
   final perVerse = <Future<List<CvPoint>>>[
     for (var v = r.verse; v <= r.verseEnd; v++)
       fromVrs.isEmpty || m.versification.isEmpty
@@ -365,9 +470,7 @@ Future<NoteTextItems> _loadNoteTexts(
     final label = noteText.substring(rm.start, rm.end);
     jobs.add(
       _noteTargets(m, r, fromVrs).then((targets) async {
-        var t = targets.isEmpty
-            ? null
-            : await convertedVerseText(m, targets);
+        var t = targets.isEmpty ? null : await convertedVerseText(m, targets);
         var midUsed = mid;
         var navTargets = targets;
         if (t == null && fbMid != mid) {
