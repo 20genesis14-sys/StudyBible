@@ -124,7 +124,7 @@ extension _ReaderChrome on _ReadingScreenState {
   }
 
   /// Плавающая кнопка «очки» — переключатель «Чтение ↔ Изучение»
-  /// (ADR 0015): скруглённая полупрозрачная плашка справа внизу,
+  /// (ADR 0015): круглая полупрозрачная плашка справа внизу,
   /// над нижней панелью. В «Изучении» акцентная, в «Чтении» —
   /// приглушённая. Прячется вместе с хромом (`_barVisible`) и под
   /// шторками. Глиф очков рисует [_GlassesPainter] — в Material
@@ -135,27 +135,27 @@ extension _ReaderChrome on _ReadingScreenState {
       message: study
           ? tr('Режим чтения', 'Reading mode')
           : tr('Режим изучения', 'Study mode'),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => settings.update(
-          () => settings.readerMode = study
-              ? ReaderMode.reading
-              : ReaderMode.study,
-        ),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: study
-                ? p.accent.withValues(alpha: 0.18)
-                : p.card.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: study ? p.accent.withValues(alpha: 0.4) : p.edge,
-            ),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => settings.update(
+            () => settings.readerMode = study
+                ? ReaderMode.reading
+                : ReaderMode.study,
           ),
-          child: CustomPaint(
-            painter: _GlassesPainter(study ? p.accent : p.muted),
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: p.card.withValues(alpha: 0.92),
+              border: Border.all(color: p.edge.withValues(alpha: 0.6)),
+            ),
+            child: CustomPaint(
+              painter: _GlassesPainter(study ? p.accent : p.muted),
+            ),
           ),
         ),
       ),
@@ -1386,63 +1386,45 @@ extension _ReaderChrome on _ReadingScreenState {
 }
 
 /// Глиф «очки» для плавающей кнопки режима (нет в Material):
-/// два скруглённых ободка, дужка-арка и короткие заушники.
+/// два круглых ободка, дужки вверх от внешних краёв и волнистая
+/// перемычка — по утверждённому макету (кремовый круг + глиф).
 class _GlassesPainter extends CustomPainter {
   _GlassesPainter(this.color);
   final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.075
+      ..strokeWidth = w * 0.075
       ..strokeCap = StrokeCap.round;
-    final w = size.width;
-    final h = size.height;
-    final rimW = w * 0.30; // ширина ободка
-    final rimH = h * 0.34;
-    final cy = h * 0.55;
-    final leftRim = Rect.fromCenter(
-      center: Offset(w * 0.27, cy),
-      width: rimW,
-      height: rimH,
-    );
-    final rightRim = Rect.fromCenter(
-      center: Offset(w * 0.73, cy),
-      width: rimW,
-      height: rimH,
-    );
-    // Ободки.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(leftRim, Radius.circular(rimH * 0.42)),
+    final r = w * 0.115; // радиус линзы
+    final cy = h * 0.60;
+    final lc = Offset(w * 0.32, cy); // центр левой линзы
+    final rc = Offset(w * 0.68, cy); // центр правой
+    canvas.drawCircle(lc, r, paint);
+    canvas.drawCircle(rc, r, paint);
+    // Дужки: от верхне-внешнего края линзы вверх с лёгким
+    // наклоном наружу.
+    final temple = w * 0.20;
+    canvas.drawLine(
+      Offset(lc.dx - r * 0.55, cy - r * 0.8),
+      Offset(lc.dx - r * 0.85, cy - r * 0.8 - temple),
       paint,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rightRim, Radius.circular(rimH * 0.42)),
+    canvas.drawLine(
+      Offset(rc.dx + r * 0.55, cy - r * 0.8),
+      Offset(rc.dx + r * 0.85, cy - r * 0.8 - temple),
       paint,
     );
-    // Дужка-арка между ободками.
+    // Перемычка — волна с провисанием посередине.
     final bridge = Path()
-      ..moveTo(leftRim.right, cy - rimH * 0.1)
-      ..quadraticBezierTo(
-        w * 0.5,
-        cy - rimH * 0.7,
-        rightRim.left,
-        cy - rimH * 0.1,
-      );
+      ..moveTo(lc.dx + r, cy - r * 0.15)
+      ..quadraticBezierTo(w * 0.5, cy + r * 0.55, rc.dx - r, cy - r * 0.15);
     canvas.drawPath(bridge, paint);
-    // Заушники — короткие линии наружу и чуть вверх.
-    canvas.drawLine(
-      Offset(leftRim.left - w * 0.09, cy - rimH * 0.28),
-      Offset(leftRim.left, cy - rimH * 0.1),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(rightRim.right, cy - rimH * 0.1),
-      Offset(rightRim.right + w * 0.09, cy - rimH * 0.28),
-      paint,
-    );
   }
 
   @override

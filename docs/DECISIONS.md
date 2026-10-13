@@ -320,7 +320,7 @@ files.
   (ADR 0015).
 - "Reading" (clean text) and "Study" (verse per line, margin dot,
   footnote letters) modes — a floating "glasses" button, bottom-right
-  above the bottom bar (~16 px right, ~12 px above it): rounded,
+  above the bottom bar (~16 px right, ~12 px above it): round,
   translucent, accent palette, custom-drawn glasses glyph. It hides
   with the rest of the chrome on scroll in either direction and
   under open sheets; the top-bar segment toggle is removed, freeing
