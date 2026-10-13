@@ -246,15 +246,36 @@ extension _ReaderChrome on _ReadingScreenState {
                                 ),
                               ],
                             ),
-                            Text(
-                              '${moduleName(_moduleId)} · '
-                              '${settings.readerMode == ReaderMode.study ? tr('Изучение', 'Study') : tr('Чтение', 'Reading')}',
+                            Text.rich(
+                              // Перевод — нейтральные чернила,
+                              // режим — акцент: состояние видно
+                              // сразу и перекликается с очками.
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '${moduleName(_moduleId)} · ',
+                                    style: TextStyle(
+                                      color: p.ink.withValues(alpha: 0.7),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text:
+                                        settings.readerMode == ReaderMode.study
+                                        ? tr('Изучение', 'Study')
+                                        : tr('Чтение', 'Reading'),
+                                    style: TextStyle(
+                                      color: p.accent,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 10,
                                 letterSpacing: 0.3,
-                                color: p.muted,
                               ),
                             ),
                           ],
