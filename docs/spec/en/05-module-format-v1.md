@@ -245,7 +245,7 @@ same.
   `commentary` — blocks bound to verses, no verse text;
   `dictionary` and `layer` — `books` may be empty (content in
   `entries`/apparatus); `critical` — carries `variants`;
-  `knowledge` — the knowledge-graph module (entities, relations,
+  `knowledge` — the mega-encyclopedia module (entities, relations,
   verse mentions; ADR 0024, implementation deferred). Unknown
   `kind` — read as `bible` (soft).
 - **S-9.** `meta.features` — an **open** list. Known values

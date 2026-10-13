@@ -19,7 +19,7 @@ Goals of this track:
 3. **Strong's tagging of translations that have none**, published as
    add-on layers that attach to an existing translation without
    redistributing its text (the AndBible-style "number list per verse").
-4. Feeding the **knowledge graph** (ADR 0024) with word-level person and
+4. Feeding the **mega-encyclopedia** (ADR 0024) with word-level person and
    place mentions.
 
 Findings that shaped the decision (verified 2026-10-12/13):
@@ -136,7 +136,7 @@ Findings that shaped the decision (verified 2026-10-12/13):
     RUSSYN alignment if measurement F validates it, otherwise produced
     by the pipeline; gold: Clear RUSSYN (if valid), RST+ (after the
     MyBible importer fix), ru_rob.
-11. **Knowledge graph feed** (ADR 0024 stage 1): person/place IDs in
+11. **Mega-encyclopedia feed** (ADR 0024 stage 1): person/place IDs in
     TAHOT/TAGNT + TIPNR give word-level `verse_mentions`,
     `relationships`, `entities`; OpenBible Geocoding gives coordinates;
     MACULA participant referents are an optional extra mention source;

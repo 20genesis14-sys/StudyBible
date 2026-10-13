@@ -223,7 +223,7 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   `interlinear` — тот же + `alignment`/`tokens`; `commentary` — блоки
   привязаны к стихам, стихового текста нет; `dictionary` и `layer` —
   `books` может быть пустой (контент в `entries`/аппарате);
-  `critical` — несёт `variants`; `knowledge` — модуль графа знаний
+  `critical` — несёт `variants`; `knowledge` — модуль мегаэнциклопедии
   (сущности, связи, упоминания в стихах; ADR 0024, реализация
   отложена). Неизвестный `kind` — читается как `bible` (мягко).
 - **С-9.** `meta.features` — **открытый** список. Известные значения

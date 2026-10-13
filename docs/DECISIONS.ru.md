@@ -1195,7 +1195,7 @@ versionCode `versionCode * 10 + abiCode`, rustup из Debian) реализова
   полные определения — после ответа Online Bible; слой Синодального —
   из ручной разметки RUSSYN от Clear, если её подтвердит замер F, иначе
   конвейером.
-- **Граф знаний**: этап 1 наполняется из ID людей и мест в TAHOT/TAGNT
+- **Мегаэнциклопедия**: этап 1 наполняется из ID людей и мест в TAHOT/TAGNT
   + TIPNR + OpenBible Geocoding (дополнение ADR 0024).
 - **Источники** закреплены в `data/sources.json` (коммит + SHA-256),
   скачиваются `scripts/fetch-data.ps1` (`-Only`, `dest`, `files`) в

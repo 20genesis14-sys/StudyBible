@@ -245,7 +245,7 @@ existing fields must not change even if the column type stays the same.
   verses; `interlinear` — the same + `alignment`/`tokens`;
   `commentary` — blocks bound to verses, no verse text; `dictionary`
   and `layer` — `books` may be empty (content in `entries`/apparatus);
-  `critical` — carries `variants`; `knowledge` — the knowledge-graph
+  `critical` — carries `variants`; `knowledge` — the mega-encyclopedia
   module (entities, relations, verse mentions; ADR 0024, implementation
   deferred). An unknown `kind` reads as `bible` (soft).
 - **C-9.** `meta.features` — an **open** list. Known values

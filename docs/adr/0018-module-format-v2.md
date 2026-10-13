@@ -199,7 +199,7 @@ exports.
 - `verse_map` is part of the v2 contract: manual versification
   overrides apply before the automatic `.vrs` map
   (`Versification::convert`, DECISIONS 2026-10-13).
-- Cross-module links (xref layers, the knowledge graph, future
+- Cross-module links (xref layers, the mega-encyclopedia, future
   connections) are stored as structured coordinates; display text is
   synthesized locally. Precedent already shipped in v1: `xrefs_pack`
   keeps `openbible-xrefs` targets as `(BookCode, chapter, verse,

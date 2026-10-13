@@ -1304,7 +1304,7 @@ plan, tasks, data inventory and skill specs —
   definitions after the Online Bible answer; Synodal layer from the
   Clear manual RUSSYN alignment if validated (measurement F), otherwise
   from the pipeline.
-- **Knowledge graph** stage 1 is fed from person/place IDs in
+- **Mega-encyclopedia** stage 1 is fed from person/place IDs in
   TAHOT/TAGNT + TIPNR + OpenBible Geocoding (ADR 0024 addendum).
 - **Sources** pinned in `data/sources.json` (commit + SHA-256),
   fetched by `scripts/fetch-data.ps1` (`-Only`, `dest`, `files`) into
@@ -1333,7 +1333,7 @@ plan, tasks, data inventory and skill specs —
   introductions, dictionaries/key terms, maps/media; source — the
   `BibleAquifer` GitHub org (~73 repos, JSON+Markdown, `rus` present,
   mostly CC BY-SA 4.0). Roadmap entry added; implementation post-1.0.
-- **`ACAI` is a ready graph dataset**: word-level entity annotations
+- **`ACAI` is a ready mega-encyclopedia dataset**: word-level entity annotations
   (people/places/deities/groups/fauna/flora/realia/keyterms) with
   labels, descriptions and relationships — feeds `entities`/
   `verse_mentions`/`relationships` almost directly (ADR 0024
@@ -1343,7 +1343,7 @@ plan, tasks, data inventory and skill specs —
   — they ship as an independent layer (ADR 0023 precedent). The NIV
   text is proprietary and not on Aquifer; the product is a
   composition, not a copy of the NIV Study Bible.
-- Aquifer dictionaries close previously uncovered graph entity types
+- Aquifer dictionaries close previously uncovered mega-encyclopedia entity types
   (flora/fauna/realia/keyterms/themes — see ADR 0024 addendum);
   `concept`/`event` sources in OQ 45 updated accordingly.
 - Licence handling: CC BY-SA attribution (Biblica Inc. / Mission
