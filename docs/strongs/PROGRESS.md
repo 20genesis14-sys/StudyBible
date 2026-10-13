@@ -171,3 +171,11 @@ can be attached to base-layer words deterministically.
 - 2026-10-13 — MACULA dependency licence audit (N1904, SBLGNT,
   MARBLE/SDBH, Clear's own data); conclusions in HANDOFF §4.3 and
   OQ 49; MARBLE analysis saved to `sources/strongs/legal/`.
+- 2026-10-13 — New sources: `ubs-dictionaries` (official UBS open
+  release under CC BY-SA — SDBH and revised Louw–Nida; legal channel
+  for publishing domains/senses, codes match MACULA `@ln`) and
+  `bdb-full` (full unabridged BDB, PD, 8,090 articles). Both pinned in
+  sources.json with SHA-256, downloaded, MANIFEST rebuilt. `rsts.sb`
+  module (swmail/RST, 66 books with Strong's) verified as Russian
+  gold/prior; `token_of` bug confirmed (drops 2nd+ Strong's in
+  `tokens` — spans intact).

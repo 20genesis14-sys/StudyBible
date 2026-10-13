@@ -80,9 +80,15 @@ Clear Alignments остаётся указателем LFS (не нужен). `-
 | `openbible-geocoding` | места с координатами | CC BY 4.0 | граф знаний |
 | `abbott-smith` | греческий лексикон Abbott-Smith (TEI) | общ. достояние | греческие определения, замена ML |
 | `esv/` (локально, повторно не скачать) | `ttesv.txt`, `esv2016_*.sqlite`, `build_esv2016_strongs.py`, `make_variants.py`, `converter.py`, README, исходный JSON | текст ESV © Crossway — не коммитить и не распространять | эталон ESV по отложенным книгам |
+| `ubs-dictionaries` | UBS Dictionary of Biblical Hebrew (из SDBH, ~99 % слов ВЗ) и UBS Dictionary of NT Greek (переработанный Louw–Nida): значения, глоссы, ссылки, семантические домены; en-JSON | **CC BY-SA 4.0** © UBS — легальный канал публикации доменов/значений | `lex_def` + поле домена; сверка @ln/@sdbh |
+| `bdb-full` | полная несокращённая BDB (eliranwong), JSON `DictBDB` (8 090 статей по ключу H…) + CSV с маппингом | общественное достояние | `lex_def` уровень «глубокая статья» (наряду с OSHB) |
 | `analysis/` | скрипты, которыми получены выводы 12–13.10.2026 (`senses.py`, `compare.py`, `quality.py`, `q2.py`) | — | воспроизвести выводы |
 
-Уже есть в `D:\StudyBible-data\modules`: `russyn.sb`, `rstplus.sb`
+Уже есть в `D:\StudyBible-data\modules`: `russyn.sb`, `rsts.sb`
+(Синодальный со Стронгом из swmail/RST — **главный русский эталон и
+полнобиблейский приор**; лицензия не указана → только внутренне; текст —
+другая редакция 1876, ~6 % реальных расхождений с `russyn`; сборка
+воспроизводима: `module build --defs rstgit-defs.json`), `rstplus.sb`
 (Синодальный + Стронг, ошибка импортёра — §9), `ru_rob.sb` (23
 размеченные книги, греческие номера в формате uW `G15100`),
 `eng-kjv2006.sb` (слова упакованы в `token_pack`), `engbsb.sb` (номера
@@ -228,8 +234,13 @@ Alignments) и список наших изменений.
   знаний с атрибуцией.
 - MARBLE `@ln`/`@domain` и SDBH `@sdbh` — «used with permission» UBS,
   объём передачи прав не оговорён → используем только для внутреннего
-  расчёта баллов; метки доменов в модули не включаем. Если захотим
-  показывать домены в карточке — сначала подтверждение UBS/Clear.
+  расчёта баллов; метки из MACULA в модули не включаем.
+- **Легальный канал публикации есть** (13.10.2026): тот же материал
+  официально опубликован самой UBS под CC BY-SA 4.0 —
+  `ubsicap/ubs-open-license` → `ubs-dictionaries` (греческий =
+  Louw–Nida SDGNT, иврит = SDBH). Коды доменов совпадают с `@ln`
+  MACULA (формат «33.98»). Публикуемые метки/значения доменов — только
+  отсюда, часть модуля тогда помечается CC BY-SA.
 - На semanticdictionary.org есть русская версия MARBLE — проверить в
   фазе 8 как источник русских названий доменов и значений.
 
@@ -296,7 +307,7 @@ lex(key TEXT PRIMARY KEY,    -- dStrong 'H5414H'
     lang TEXT,               -- 'en'
     lemma, xlit, pos, gloss, -- краткое толкование Tyndale
     sense_label,             -- '2_put;_set' (из TAHOT)
-    sense_domain,            -- Louw–Nida/SDBH, если лицензия позволит (замер E)
+    sense_domain,            -- код домена из ubs-dictionaries (CC BY-SA); метку показывать только с этой пометкой
     relation, related,       -- 'aramaic_of'|'name_of'|'combination', 'H0006'
     ustrong, source,
     conf INTEGER, flags TEXT, review TEXT)   -- у английской основы conf=10
@@ -307,8 +318,12 @@ meta: kind=dictionary, features=entries, id=strongs-step, license, attribution, 
 ```
 
 Определения: иврит — BDB от OpenScriptures по цепочке из §3 (схему
-`<sense>` выводить нумерованным текстом, `<ref>` сохранять); имена —
-биографии TBESH/TIPNR; греческий — Abbott-Smith + тексты STEPBible; 76
+`<sense>` выводить нумерованным текстом, `<ref>` сохранять) плюс
+опционально полная BDB из `bdb-full` (`def_source='bdb-full'`) и
+статьи UBS из `ubs-dictionaries` (`def_source='ubs-sdbh'`, часть
+модуля CC BY-SA); имена — биографии TBESH/TIPNR; греческий —
+Abbott-Smith + тексты STEPBible + значения UBS Greek
+(`def_source='ubs-sdgnt'`, коды LEXEntryCode = Louw–Nida); 76
 статей ML в G1–G5624 + G6000–6099 заменить Abbott-Smith, где он есть,
 иначе только кратким толкованием (`def_source='gloss-only'`). Строки
 TBESH Meaning (`def_source='OLB-abridged-BDB'`) добавлять **только при
@@ -428,11 +443,13 @@ TIPNR; `strongs` = уточнённые номера), `entity_names` (en),
   выборка по частотности + все строки с `conf ≤ 7`.
 - **8.2** Русский словарный подстрочник (без модели): опорный слой +
   русские толкования + русская морфология; спорные места видны.
-- **8.3** Синодальный (`russyn`): если замер F удачен — слой из RUSSYN
-  от Clear → номера слов MACULA → опорный слой (`source=manual`),
-  конвейер прогоняется отдельно и измеряется против неё; иначе
-  конвейер с эталонами RST+ (после исправления) и ru_rob. Экспертная
-  выборка 200–300 стихов.
+- **8.3** Синодальный (`russyn`): конвейер фазы 6; эталоны — **`rsts`
+  (главный, 66 книг со Стронгом; номера читать из `spans.attrs` до
+  починки `token_of`)** + исправленный RST+ + ru_rob; приор
+  «слово → классический номер» из `rsts`. RUSSYN от Clear исключён
+  (сломан, замер F). На ~6 % стихов, где текст `rsts` отличается от
+  `russyn` (другая редакция 1876), ставится флаг редакции — они идут
+  конвейером и в оценку не входят. Экспертная выборка 200–300 стихов.
 - **8.4** `entity_names` (ru) графа знаний из слоя Синодального.
 
 Следующие языки: толкования + морфология с `conf`, словарный
@@ -515,6 +532,12 @@ note}`. Затем сравнение двух вариантов, обратн�
   (`convert`, `convert_mapped`).
 - Ошибка импортёра MyBible: `crates/studybible-convert/src/mybible.rs`
   `attach_strong`.
+- Вторая ошибка множественных номеров (13.10.2026): `token_of` +
+  `attr()` в `crates/studybible-store/src/module.rs` — берётся только
+  первое `strong="…"` из атрибутов спана, в `tokens` теряются 2-й и
+  далее номера (у rsts 30 041 спан с 2+). Спаны/span_pack целы — для
+  замеров читать их. Фикс фазы 5: `strong` = список через пробел
+  (`"H1254 H853"`), кодек `token_pack` не трогаем.
 - Лексикон во Flutter: `apps/studybible-flutter/lib/lexicon.dart`
   (`normalizeStrong`, логика наложения, которой пользуется словарь
   Цыганкова).

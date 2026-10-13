@@ -76,9 +76,15 @@ Clear Alignments `catalog.tsv` stays an LFS pointer (not needed).
 | `openbible-geocoding` | places with coordinates | CC BY 4.0 | knowledge graph |
 | `abbott-smith` | Abbott-Smith Greek lexicon TEI | PD | Greek definitions, ML replacement |
 | `esv/` (local, not re-fetchable) | `ttesv.txt`, `esv2016_*.sqlite`, `build_esv2016_strongs.py`, `make_variants.py`, `converter.py`, README, source JSON | ESV text © Crossway — never commit/distribute | ESV gold on held-out books |
+| `ubs-dictionaries` | UBS Dictionary of Biblical Hebrew (from SDBH, ~99 % of OT words) and UBS Dictionary of NT Greek (revised Louw–Nida): senses, glosses, references, semantic domains; en JSON | **CC BY-SA 4.0** © UBS — the legal channel for publishing domains/senses | `lex_def` + domain field; `@ln`/`@sdbh` verification |
+| `bdb-full` | full unabridged BDB (eliranwong), `DictBDB` JSON (8,090 articles keyed H…) + CSV with Strong's mapping | public domain | `lex_def` "deep article" level (alongside OSHB) |
 | `analysis/` | scripts used for the 2026-10-12/13 findings (`senses.py`, `compare.py`, `quality.py`, `q2.py`) | — | reproduce findings |
 
-Already in `D:\StudyBible-data\modules`: `russyn.sb`, `rstplus.sb`
+Already in `D:\StudyBible-data\modules`: `russyn.sb`, `rsts.sb`
+(Synodal with Strong's from swmail/RST — **primary Russian gold and
+whole-Bible prior**; licence unstated → internal use only; text is a
+different 1876 edition, ~6 % real diffs vs `russyn`; rebuildable via
+`module build --defs rstgit-defs.json`), `rstplus.sb`
 (Synodal + Strong's, importer bug — §9), `ru_rob.sb` (23 books aligned,
 Greek numbers uW format `G15100`), `eng-kjv2006.sb` (tokens packed in
 `token_pack`), `engbsb.sb` (eBible tags shifted — not gold), `oshb.sb`,
@@ -219,8 +225,13 @@ MACULA dependency audit (2026-10-13, details —
   graph with attribution.
 - MARBLE `@ln`/`@domain` and SDBH `@sdbh` — "used with permission"
   from UBS, sublicensing scope unspecified → internal scoring only;
-  domain labels never ship in modules. If a UI "sense domain" feature
-  is ever wanted, get UBS/Clear confirmation first.
+  MACULA attributes never ship in modules.
+- **Legal publication channel exists** (2026-10-13): the same material
+  is officially released by UBS under CC BY-SA 4.0 —
+  `ubsicap/ubs-open-license` → `ubs-dictionaries` (Greek = Louw–Nida
+  SDGNT, Hebrew = SDBH). Domain codes match MACULA `@ln` ("33.98"
+  format). Published domain labels/senses come only from here; the
+  derived module part is then marked CC BY-SA.
 - semanticdictionary.org has a Russian MARBLE version — check in
   phase 8 as a source for Russian domain names and senses.
 
@@ -286,7 +297,7 @@ lex(key TEXT PRIMARY KEY,    -- dStrong 'H5414H'
     lang TEXT,               -- 'en'
     lemma, xlit, pos, gloss, -- Tyndale gloss
     sense_label,             -- '2_put;_set' (from TAHOT)
-    sense_domain,            -- Louw–Nida/SDBH if licence allows (phase 1 E)
+    sense_domain,            -- domain code from ubs-dictionaries (CC BY-SA); show labels only under that marking
     relation, related,       -- 'aramaic_of'|'name_of'|'combination', 'H0006'
     ustrong, source,
     conf INTEGER, flags TEXT, review TEXT)   -- English base: conf=10
@@ -297,10 +308,14 @@ meta: kind=dictionary, features=entries, id=strongs-step, license, attribution, 
 ```
 
 Definitions: Hebrew — OpenScriptures BDB via the chain in §3 (render
-`<sense>` outline as numbered text, keep `<ref>`); names — TBESH/TIPNR
-biographies; Greek — Abbott-Smith + STEPBible text; replace the 76 ML
-entries in G1–G5624 + G6000–6099 by Abbott-Smith where present else
-gloss only (`def_source='gloss-only'`). Add TBESH Meaning rows
+`<sense>` outline as numbered text, keep `<ref>`) plus optionally the
+full BDB from `bdb-full` (`def_source='bdb-full'`) and UBS articles
+from `ubs-dictionaries` (`def_source='ubs-sdbh'`, that module part is
+CC BY-SA); names — TBESH/TIPNR biographies; Greek — Abbott-Smith +
+STEPBible text + UBS Greek senses (`def_source='ubs-sdgnt'`,
+LEXEntryCode = Louw–Nida codes); replace the 76 ML entries in
+G1–G5624 + G6000–6099 by Abbott-Smith where present else gloss only
+(`def_source='gloss-only'`). Add TBESH Meaning rows
 (`def_source='OLB-abridged-BDB'`) **only if OQ 48 is granted**.
 
 Separate optional `lsj.sb` from TFLSJ (`license` "CC BY-SA (Perseus
@@ -410,10 +425,13 @@ calibration monotonic. **Fail → no Russian.**
   frequency + all rows with `conf ≤ 7`.
 - **8.2** Russian dictionary interlinear (no model): base layer + ru
   glosses + ru morphology; disputed marks visible.
-- **8.3** Synodal (`russyn`): if F validated — layer from Clear RUSSYN
-  → MACULA ids → base layer (`source=manual`), pipeline run separately
-  and measured against it; else pipeline with gold RST+ (after fix) and
-  ru_rob. Expert sample 200–300 verses.
+- **8.3** Synodal (`russyn`): phase-6 pipeline; gold — **`rsts`
+  (primary, 66 books with Strong's; read numbers from `spans.attrs`
+  until `token_of` is fixed)** + fixed RST+ + ru_rob; word→classical
+  prior from `rsts`. Clear RUSSYN excluded (broken, measurement F).
+  On the ~6 % of verses where `rsts` text differs from `russyn`
+  (different 1876 edition) set an edition flag — they go through the
+  pipeline and are excluded from scoring. Expert sample 200–300 verses.
 - **8.4** knowledge graph `entity_names` (ru) from the Synodal layer.
 
 Next languages: glosses + morphology with `conf`, dictionary
@@ -492,6 +510,12 @@ upcoming data).
   (`convert`, `convert_mapped`).
 - MyBible importer bug: `crates/studybible-convert/src/mybible.rs`
   `attach_strong`.
+- Second multi-Strong's bug (2026-10-13): `token_of` + `attr()` in
+  `crates/studybible-store/src/module.rs` — only the first `strong="…"`
+  of a span is taken, tokens lose the 2nd+ numbers (rsts has 30,041
+  spans with 2+). spans/span_pack are intact — read them for
+  measurements. Phase-5 fix: `strong` = space-separated list
+  (`"H1254 H853"`); `token_pack` codec unchanged.
 - Flutter lexicon: `apps/studybible-flutter/lib/lexicon.dart`
   (`normalizeStrong`, overlay logic used by the Tsygankov dictionary).
 - Python module writer example (schema + `content_hash`):
