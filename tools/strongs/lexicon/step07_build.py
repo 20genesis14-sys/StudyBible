@@ -157,7 +157,7 @@ def main():
             (k, m.get('e', ''), m.get('base') or C.classic(k) or k,
              'en', lemma.lstrip('/'), m.get('xlit', ''),
              m.get('pos', ''), m.get('gloss', '') or
-             (c.get('glosses') or [''])[0],
+             (c.get('glosses') or [''])[0] or '(no STEP gloss)',
              sl, doms.get(k, ''),
              m.get('rel', ''), ';'.join(m.get('related', [])),
              m.get('u', ''), 'stepbible', conf,
@@ -196,6 +196,15 @@ def main():
               'bdb-full': 'BDB', 'bdb-hebrew-aq': 'BDB(Aq)',
               'bdb-aramaic': 'BDB-Aram', 'abbott-smith': 'AS',
               'gloss-only': ''}
+    # представитель базы: лемма первого dStrong с леммой ('G'-вариант вперёд)
+    rep = {}
+    for k in keys:
+        m = lmap.get(k) or lmap.get(alias.get(k, ''), {})
+        lem = (m.get('lemma', '') or core.get(k, {}).get('top_form', '')).lstrip('/')
+        b = m.get('base') or C.classic(k)
+        if lem and b:
+            if b not in rep or (k.endswith('G') and not rep[b][1]):
+                rep[b] = (lem, k.endswith('G'))
     ord_ = 0
     entry_keys = list(keys) + sorted(set(defs) - set(keys))
     for k in entry_keys:
@@ -203,7 +212,7 @@ def main():
         c = core.get(k, {})
         nm = names.get(k, {})
         lemma = (m.get('lemma', '') or c.get('top_form', '')).lstrip('/')
-        headword = lemma or k
+        headword = lemma or (rep.get(k, ('',))[0]) or k
         if not headword:
             headword = k
         parts = ['%s  %s' % (k, m.get('pos', ''))]

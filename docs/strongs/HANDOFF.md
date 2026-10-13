@@ -309,6 +309,15 @@ aquifer alignments are candidate lists → article↔base by first
 tables (`entries,lex,lex_def,lex_base,morph`). 12 keys flagged
 `ambiguous-base` pending review; TBESH `Meaning` not used.
 
+Post-build self-audit (same day): deduped UBS defs (repeated glosses
+across `BaseForms`) → `lex_def` 54,959; `G21370` (the only glossless
+row — LXX reserve) marked `(no STEP gloss)`; base-key entry cards now
+headworded by the family lemma (`אֱלֹהִים` for `H430`). `lex_base`
+bases without a `lex` row are by design (base = family normalization
+key, not a dStrong key). Open for expert review: the 12
+`ambiguous-base` keys; rare `bdb-aramaic` majority-vote mislinks
+(one seen at `H9003`).
+
 CLI subcommand `studybible module lexicon-step <stepbible dir>
 <oshb-lexicon dir> <abbott-smith dir> -o strongs-step.sb` (Rust, in
 `apps/studybible-cli`, pattern: `src/bin/xref_layer.rs`; writer:

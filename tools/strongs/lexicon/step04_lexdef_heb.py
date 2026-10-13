@@ -108,6 +108,9 @@ def load_ubs_hebrew():
                 cur = by_base.setdefault(b, {'defs': [], 'doms': []})
                 cur['defs'].extend(defs)
                 cur['doms'].extend(doms)
+    # UBS повторяет одно значение в нескольких BaseForms — дедупликация
+    for u in by_base.values():
+        u['defs'] = list(dict.fromkeys(u['defs']))
     return by_base
 
 

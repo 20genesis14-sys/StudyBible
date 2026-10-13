@@ -319,6 +319,16 @@ ROADMAP, этот спек, данные закреплены.
 помечены `ambiguous-base` на проверку; TBESH `Meaning` не
 использовался.
 
+Перепроверка после сборки (тот же день): дедуп UBS-значений
+(повторы глоссов между `BaseForms`) → `lex_def` 54 959; `G21370`
+(единственная строка без глосса — LXX-запас) помечен
+`(no STEP gloss)`; карточки под ключом базы теперь с headword =
+лемма семейства (`אֱלֹהִים` для `H430`). Базы `lex_base` без строки
+в `lex` — по дизайну (база — ключ нормализации семейства, а не
+dStrong-ключ). На экспертную проверку: 12 ключей `ambiguous-base`;
+редкие промахи привязки `bdb-aramaic` по majority vote (замечен
+один у `H9003`).
+
 Подкоманда CLI `studybible module lexicon-step <папка stepbible>
 <папка oshb-lexicon> <папка abbott-smith> -o strongs-step.sb` (Rust, в
 `apps/studybible-cli`, образец — `src/bin/xref_layer.rs`; запись —

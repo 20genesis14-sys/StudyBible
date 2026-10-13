@@ -210,3 +210,19 @@ can be attached to base-layer words deterministically.
   `lex_base` (no text duplication across lettered variants);
   aquifer alignments treated as candidate lists → article→base link
   by first `strongs-number` or majority base vote.
+- 2026-10-13 — **Phase 2 self-audit**: a second pass over the built
+  module found and fixed three issues. (1) UBS repeats one gloss
+  across several `BaseForms` of the same entry (e.g. `G2590` ×4) —
+  defs are now deduped on load; exact `(key, source, def)` dupes: 0,
+  `lex_def` 55,084 → 54,959. (2) `G21370` was the only glossless row
+  (empty Gloss column in TBESG for this LXX-reserve key) — marker
+  `(no STEP gloss)` set. (3) Base-key entry cards (`H430`, `G2424`…)
+  had the code as headword — now use the family representative's
+  lemma (`אֱלֹהִים`, `Ἰησοῦς`), code stays in `norm`/text for search.
+  Clarified, no fix needed: 3,296 `lex_base` bases without a `lex`
+  row are normal — a base is a family normalization key, not a
+  dStrong key; the linter warning "feature morph declared but no
+  data" is a false positive (it looks for verse-level morphology,
+  `morph` holds 3,190 rows). Still open for expert review: 12
+  `ambiguous-base` keys (`lex.review` has candidates) and the rare
+  `bdb-aramaic` majority-vote mislinks (one seen at `H9003`).
