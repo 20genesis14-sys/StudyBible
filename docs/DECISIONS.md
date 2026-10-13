@@ -319,7 +319,12 @@ files.
   accent; a chapter-number initial, superscript verse numbers
   (ADR 0015).
 - "Reading" (clean text) and "Study" (verse per line, margin dot,
-  footnote letters) modes — one toggle in the top bar.
+  footnote letters) modes — a floating "glasses" button, bottom-right
+  above the bottom bar (~16 px right, ~12 px above it): rounded,
+  translucent, accent palette, custom-drawn glasses glyph. It hides
+  with the rest of the chrome on scroll in either direction and
+  under open sheets; the top-bar segment toggle is removed, freeing
+  the header for the full book+chapter name.
 - The "Layers" sheet instead of separate comparison/interlinear/
   footnote buttons.
 - Bottom reading bar: Translation · Layers · Listen · More
@@ -1231,3 +1236,68 @@ was implemented and locally verified end-to-end:
 - Remaining external step: upload `dev.studybible_705{1,2,3}.apk` to
   the GitHub `v1.1.1` release so the `binary:` URLs resolve on the
   real buildserver.
+
+## Extended Strong's lexicon, interlinears and tagging layers (2026-10-13, ADR 0025)
+
+Approved by the user as a whole plan; implementation not started. Full
+plan, tasks, data inventory and skill specs —
+[docs/strongs/HANDOFF.md](strongs/HANDOFF.md).
+
+- **Modules**: `strongs-step` (universal lexicon, `kind=dictionary`,
+  CC BY), `strongs-step-<lang>` (localized overlays), `step-orig`
+  (TAHOT/TAGNT base layer, `kind=interlinear`), interlinears per
+  language, `<target>-strongs` (tagging layer of one translation,
+  `kind=layer`, `features=strongs`), optional `lsj` (TFLSJ).
+- **Key = disambiguated Strong's number** (dStrong, `H5414H`); it is
+  also the word sense for interlinears (TAHOT sense labels = TBESH
+  sub-meanings). eStrong and classic numbers are fallback keys. No
+  mapping to BDB sense numbers.
+- **Definitions are switchable** (`def_source`): default —
+  OpenScriptures BDB (Hebrew, CC BY) and Abbott-Smith + STEPBible
+  (Greek; 76 Middle Liddell entries in the NT range replaced). TBESH
+  Meaning (Online Bible abridged BDB, © Larry Pierce) only with
+  permission — requested 2026-10-13, pending; blocks nothing before
+  Russian definition translation.
+- **Interlinear**: the dictionary interlinear (dStrong gloss +
+  morphology line from TEHMC/TEGMC) is the primary product for every
+  language; the English context interlinear comes from the TAHOT/TAGNT
+  gloss column (replaces the personal `int_en.sb`); reverse interlinear
+  from tagging layers.
+- **Tagging layer**: `links(book, chapter, verse, word, ref, strong,
+  conf, flags, source)` in the target's own versification; bound by
+  `target_id` + `target_hash` + `tokenizer`; one core tokenizer
+  `studybible_core::text::words` (`w1`), exposed as
+  `studybible tokenize`.
+- **Confidence `conf` 0–10** on every translated/tagged item with
+  `flags`, `review` (`auto|judge|human`), `source`: 10–9 auto-accept;
+  8 accept with note; 7–6 shown as disputed with alternative; 5 manual
+  review, shown as disputed; 3–4 manual review, hidden; 0–2 not
+  published. Calibration is an acceptance criterion.
+- **Pipeline**: deterministic candidates (base layer filtered by the
+  translation's edition) → eflomal → lexical priors → combination →
+  model only for unresolved words: align → independent review →
+  chapter reconcile, **run as an agent per chapter**, with per-chapter
+  provenance and resumable runs. Gold never goes into prompts.
+- **English first** (BSB primary, KJV second, ESV/TTESV on held-out
+  books, OpenBible ASV interlinear for comparison); quality gate before
+  any other language: F1 on content words ≥ inter-gold agreement − N,
+  proper-name dStrong accuracy ≥ 95 %, monotonic calibration;
+  textual-basis differences reported separately (100 % not expected).
+  Held-out books: Ruth, Jonah, Ezra, Ps 1–41, Isa 40–55, Mark,
+  Philippians, James, Rev 1–5.
+- **TTESV** (CC BY-NC) allowed as an input on development books only;
+  such layers are CC BY-NC; never in the lexicon or the base layer.
+  ESV text — verification only.
+- **Russian after the gate**: glosses and morphology first, full
+  definitions after the Online Bible answer; Synodal layer from the
+  Clear manual RUSSYN alignment if validated (measurement F), otherwise
+  from the pipeline.
+- **Knowledge graph** stage 1 is fed from person/place IDs in
+  TAHOT/TAGNT + TIPNR + OpenBible Geocoding (ADR 0024 addendum).
+- **Sources** pinned in `data/sources.json` (commit + SHA-256),
+  fetched by `scripts/fetch-data.ps1` (`-Only`, `dest`, `files`) into
+  `STUDYBIBLE_DATA/sources/strongs/`; local ESV-related materials
+  (copyrighted, never committed) in `sources/strongs/esv/`.
+- **App fixes queued**: MyBible importer drops all but the last `<S>`
+  on a word; `normalizeStrong` rejects `H0029G`/`G15100`; BSB module
+  to be rebuilt from `bsb_tables.tsv` (eBible BSB tags are shifted).

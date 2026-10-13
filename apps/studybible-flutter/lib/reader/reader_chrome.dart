@@ -123,47 +123,41 @@ extension _ReaderChrome on _ReadingScreenState {
     ];
   }
 
-  /// Переключатель «Чтение / Изучение» (ADR 0015): компактная
-  /// двухсегментная пилюля в верхней панели.
-  Widget _modeSwitch(Palette p) {
-    Widget seg(String label, ReaderMode m) {
-      final on = settings.readerMode == m;
-      return InkWell(
+  /// Плавающая кнопка «очки» — переключатель «Чтение ↔ Изучение»
+  /// (ADR 0015): скруглённая полупрозрачная плашка справа внизу,
+  /// над нижней панелью. В «Изучении» акцентная, в «Чтении» —
+  /// приглушённая. Прячется вместе с хромом (`_barVisible`) и под
+  /// шторками. Глиф очков рисует [_GlassesPainter] — в Material
+  /// подходящей иконки нет.
+  Widget _glassesFab(Palette p) {
+    final study = settings.readerMode == ReaderMode.study;
+    return Tooltip(
+      message: study
+          ? tr('Режим чтения', 'Reading mode')
+          : tr('Режим изучения', 'Study mode'),
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: on
-            ? null
-            : () => settings.update(() => settings.readerMode = m),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        onTap: () => settings.update(
+          () => settings.readerMode = study
+              ? ReaderMode.reading
+              : ReaderMode.study,
+        ),
+        child: Container(
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            color: on ? p.accent.withValues(alpha: 0.16) : Colors.transparent,
+            color: study
+                ? p.accent.withValues(alpha: 0.18)
+                : p.card.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(14),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: on ? FontWeight.w700 : FontWeight.w500,
-              color: on ? p.accent : p.muted,
+            border: Border.all(
+              color: study ? p.accent.withValues(alpha: 0.4) : p.edge,
             ),
           ),
+          child: CustomPaint(
+            painter: _GlassesPainter(study ? p.accent : p.muted),
+          ),
         ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: p.edge.withValues(alpha: 0.30),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          seg(tr('Чтение', 'Read'), ReaderMode.reading),
-          seg(tr('Изучение', 'Study'), ReaderMode.study),
-        ],
       ),
     );
   }
@@ -237,11 +231,7 @@ extension _ReaderChrome on _ReadingScreenState {
                                 ),
                               ),
                             ),
-                            Icon(
-                              Icons.expand_more,
-                              size: 16,
-                              color: p.muted,
-                            ),
+                            Icon(Icons.expand_more, size: 16, color: p.muted),
                           ],
                         ),
                       ),
@@ -266,18 +256,13 @@ extension _ReaderChrome on _ReadingScreenState {
                           reverse: true,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _modeSwitch(p),
-                              const SizedBox(width: 6),
-                              ..._toolActions(p),
-                            ],
+                            children: _toolActions(p),
                           ),
                         ),
                       ),
                     ),
                   ] else ...[
                     const Spacer(),
-                    _modeSwitch(p),
                   ],
                 ],
               ),
@@ -345,10 +330,7 @@ extension _ReaderChrome on _ReadingScreenState {
   void _openSearch() {
     final q = _searchCtrl.text.trim();
     _rebuild(() => _searchOpen = false);
-    _openScreen('search', {
-      'module': _moduleId,
-      if (q.isNotEmpty) 'q': q,
-    });
+    _openScreen('search', {'module': _moduleId, if (q.isNotEmpty) 'q': q});
   }
 
   /// Полоса прокрутки главы (была в AppBar).
@@ -442,25 +424,20 @@ extension _ReaderChrome on _ReadingScreenState {
                 _ttsPlaying,
                 () => _toggleTts(),
               ),
-              btn(
-                Icons.search,
-                tr('Поиск', 'Search'),
-                _searchOpen,
-                () {
-                  _rebuild(() {
-                    _searchOpen = !_searchOpen;
-                    if (!_searchOpen) _searchCtrl.clear();
-                  });
-                  // Поле вставлено в этот же кадр — autofocus на
-                  // Android часто не поднимает клавиатуру; просим
-                  // фокус явно, когда виджет уже на дереве.
-                  if (_searchOpen) {
-                    WidgetsBinding.instance.addPostFrameCallback(
-                      (_) => _searchFocus.requestFocus(),
-                    );
-                  }
-                },
-              ),
+              btn(Icons.search, tr('Поиск', 'Search'), _searchOpen, () {
+                _rebuild(() {
+                  _searchOpen = !_searchOpen;
+                  if (!_searchOpen) _searchCtrl.clear();
+                });
+                // Поле вставлено в этот же кадр — autofocus на
+                // Android часто не поднимает клавиатуру; просим
+                // фокус явно, когда виджет уже на дереве.
+                if (_searchOpen) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _searchFocus.requestFocus(),
+                  );
+                }
+              }),
               btn(Icons.more_horiz, tr('Ещё', 'More'), false, _moreSheet),
             ],
           ),
@@ -551,7 +528,10 @@ extension _ReaderChrome on _ReadingScreenState {
                 ),
                 sw(
                   tr('Подстрочное сравнение', 'Interleaved compare'),
-                  tr('Второй перевод под каждым стихом', 'Second line per verse'),
+                  tr(
+                    'Второй перевод под каждым стихом',
+                    'Second line per verse',
+                  ),
                   _interleaved,
                   (v) => _rebuild(() {
                     _interleaved = v;
@@ -595,9 +575,10 @@ extension _ReaderChrome on _ReadingScreenState {
                 // Слои-флаги перебираются из реестра вкладов (ADR 0020):
                 // порядок и фильтр requires — у реестра, состояние — у
                 // настроек. `layer.compare` обработан выше отдельно.
-                for (final c in contributions
-                    .ofKind(ContributionKind.layer)
-                    .where((c) => c.id != 'layer.compare'))
+                for (final c
+                    in contributions
+                        .ofKind(ContributionKind.layer)
+                        .where((c) => c.id != 'layer.compare'))
                   if (c.availableFor(_module))
                     sw(c.title, c.subtitle, _layerFlag(c.id), (v) {
                       settings.update(() => _setLayerFlag(c.id, v));
@@ -753,7 +734,9 @@ extension _ReaderChrome on _ReadingScreenState {
                     builder: (_) {
                       // Разделы как в каталоге: ВЗ → НЗ → прочие
                       // (книги модуля вне канона-66, напр. LXX).
-                      final ot = <BookDoc>[], nt = <BookDoc>[], ex = <BookDoc>[];
+                      final ot = <BookDoc>[],
+                          nt = <BookDoc>[],
+                          ex = <BookDoc>[];
                       for (final b in books) {
                         final idx = kCatalog.indexWhere((e) => e.$1 == b.code);
                         if (idx < 0) {
@@ -774,9 +757,7 @@ extension _ReaderChrome on _ReadingScreenState {
                           ])
                             if (list.isNotEmpty) ...[
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  2, 4, 2, 8,
-                                ),
+                                padding: const EdgeInsets.fromLTRB(2, 4, 2, 8),
                                 child: Text(
                                   label,
                                   style: TextStyle(
@@ -837,17 +818,20 @@ extension _ReaderChrome on _ReadingScreenState {
                         child: GridView.count(
                           // Плотнее: клетка главы ~вдвое меньше
                           // (десктоп 12, телефон 8 в строке).
-                          crossAxisCount:
-                              MediaQuery.of(ctx).size.width >= 700 ? 12 : 8,
+                          crossAxisCount: MediaQuery.of(ctx).size.width >= 700
+                              ? 12
+                              : 8,
                           childAspectRatio: 1.2,
                           padding: const EdgeInsets.all(12),
                           children: [
-                            for (var i = 1;
-                                i <=
-                                    (books
-                                        .firstWhere((b) => b.code == sel)
-                                        .chapters);
-                                i++)
+                            for (
+                              var i = 1;
+                              i <=
+                                  (books
+                                      .firstWhere((b) => b.code == sel)
+                                      .chapters);
+                              i++
+                            )
                               InkWell(
                                 borderRadius: BorderRadius.circular(8),
                                 onTap: () {
@@ -947,10 +931,7 @@ extension _ReaderChrome on _ReadingScreenState {
       children: [
         SizedBox(
           width: 96,
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 12, color: p.muted),
-          ),
+          child: Text(label, style: TextStyle(fontSize: 12, color: p.muted)),
         ),
         Expanded(
           child: Slider(
@@ -1028,8 +1009,7 @@ extension _ReaderChrome on _ReadingScreenState {
                     expandedInsets: EdgeInsets.zero,
                     textStyle: const TextStyle(fontSize: 13),
                     onSelected: (f) async {
-                      if (f != null &&
-                          await ensureReadingFontLoaded(f)) {
+                      if (f != null && await ensureReadingFontLoaded(f)) {
                         settings.update(() => settings.readingFont = f);
                       }
                     },
@@ -1157,9 +1137,7 @@ extension _ReaderChrome on _ReadingScreenState {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(tr('Закладка добавлена', 'Bookmark added')),
-        ),
+        SnackBar(content: Text(tr('Закладка добавлена', 'Bookmark added'))),
       );
     }
   }
@@ -1320,8 +1298,7 @@ extension _ReaderChrome on _ReadingScreenState {
         );
 
     final pos = _lastTapPos;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final choice = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -1364,9 +1341,7 @@ extension _ReaderChrome on _ReadingScreenState {
         ),
         mi(
           'mark',
-          _verseMarks.containsKey(v)
-              ? Icons.bookmark
-              : Icons.bookmark_outline,
+          _verseMarks.containsKey(v) ? Icons.bookmark : Icons.bookmark_outline,
           tr('Закладка', 'Bookmark'),
         ),
         // «Сравнить» — стих во всех переводах (экран; список
@@ -1408,4 +1383,68 @@ extension _ReaderChrome on _ReadingScreenState {
         _rebuild(() => _selectedVerse = null); // тап мимо — снять выбор
     }
   }
+}
+
+/// Глиф «очки» для плавающей кнопки режима (нет в Material):
+/// два скруглённых ободка, дужка-арка и короткие заушники.
+class _GlassesPainter extends CustomPainter {
+  _GlassesPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.075
+      ..strokeCap = StrokeCap.round;
+    final w = size.width;
+    final h = size.height;
+    final rimW = w * 0.30; // ширина ободка
+    final rimH = h * 0.34;
+    final cy = h * 0.55;
+    final leftRim = Rect.fromCenter(
+      center: Offset(w * 0.27, cy),
+      width: rimW,
+      height: rimH,
+    );
+    final rightRim = Rect.fromCenter(
+      center: Offset(w * 0.73, cy),
+      width: rimW,
+      height: rimH,
+    );
+    // Ободки.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(leftRim, Radius.circular(rimH * 0.42)),
+      paint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rightRim, Radius.circular(rimH * 0.42)),
+      paint,
+    );
+    // Дужка-арка между ободками.
+    final bridge = Path()
+      ..moveTo(leftRim.right, cy - rimH * 0.1)
+      ..quadraticBezierTo(
+        w * 0.5,
+        cy - rimH * 0.7,
+        rightRim.left,
+        cy - rimH * 0.1,
+      );
+    canvas.drawPath(bridge, paint);
+    // Заушники — короткие линии наружу и чуть вверх.
+    canvas.drawLine(
+      Offset(leftRim.left - w * 0.09, cy - rimH * 0.28),
+      Offset(leftRim.left, cy - rimH * 0.1),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(rightRim.right, cy - rimH * 0.1),
+      Offset(rightRim.right + w * 0.09, cy - rimH * 0.28),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlassesPainter old) => old.color != color;
 }

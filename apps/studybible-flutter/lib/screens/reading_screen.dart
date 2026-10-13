@@ -582,6 +582,29 @@ class _ReadingScreenState extends State<ReadingScreen> {
                             // Плавающее поле поиска — над нижней панелью, не
                             // закрывает текст (мобильная раскладка).
                             if (!wide && _searchOpen) _searchField(p),
+                            // «Очки» — плавающий переключатель
+                            // Чтение ↔ Изучение (ADR 0015): справа
+                            // внизу над нижней панелью; живёт и
+                            // прячется вместе с остальным хромом.
+                            if (!_searchOpen)
+                              Positioned(
+                                right: 16,
+                                bottom:
+                                    MediaQuery.of(context).padding.bottom +
+                                    (wide ? 16 : 76),
+                                child: AnimatedSlide(
+                                  offset: _barVisible
+                                      ? Offset.zero
+                                      : const Offset(0, 0.4),
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeOut,
+                                  child: AnimatedOpacity(
+                                    opacity: _barVisible ? 1.0 : 0.0,
+                                    duration: const Duration(milliseconds: 250),
+                                    child: _glassesFab(p),
+                                  ),
+                                ),
+                              ),
                             // Мини-плеер чтения вслух: пауза/перемотка по стихам,
                             // плавает над нижней панелью и остаётся, когда панели
                             // спрятаны прокруткой.
