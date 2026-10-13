@@ -1301,3 +1301,12 @@ plan, tasks, data inventory and skill specs —
 - **App fixes queued**: MyBible importer drops all but the last `<S>`
   on a word; `normalizeStrong` rejects `H0029G`/`G15100`; BSB module
   to be rebuilt from `bsb_tables.tsv` (eBible BSB tags are shifted).
+- **Phase 1 results (2026-10-13, `docs/strongs/PROGRESS.md`)**:
+  classic → dStrong is unique in 96–98.5 % of gold pairs (deterministic
+  by default); gate ceiling for content words ≈ 95 % (BSB tables ↔ Clear
+  BSB word level); NT form numbers (G2076, G5213…) are normalized to
+  lemmas in evaluation; Clear RUSSYN is unusable (ids shifted) — the
+  Synodal layer goes through the pipeline; Greek senses come from MACULA
+  Louw–Nida (licence check pending); MACULA words map onto TAHOT/TAGNT
+  deterministically (99.9 % OT, 99.3 % NT); eng → rsc has only 10
+  non-one-to-one mappings.

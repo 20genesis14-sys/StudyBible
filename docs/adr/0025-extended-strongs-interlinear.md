@@ -174,3 +174,18 @@ Findings that shaped the decision (verified 2026-10-12/13):
 - Cost concentrates in model passes; the dictionary interlinear for a
   new language is nearly mechanical.
 - ADR 0024 is amended: `entities.strongs` holds dStrongs.
+
+## Addendum 2026-10-13 — phase 1 results
+
+Measurements A–G ([PROGRESS.md](../strongs/PROGRESS.md)) settle three
+open points of this ADR:
+
+- Item 10: the Clear RUSSYN alignment is unusable as published (target
+  ids shifted against the word list) — the Synodal layer is produced by
+  the pipeline; gold: RST+ (after the importer fix) and ru_rob.
+- Greek senses for the interlinear: MACULA Louw–Nida domains (93 % of
+  NT words), subject to the MARBLE licence check; TAGNT numbered senses
+  cover only 6 %.
+- Gate ceiling for content words ≈ 95 % (BSB tables ↔ Clear BSB);
+  evaluation normalizes NT Strong's form numbers to lemma numbers and
+  scores function words separately.

@@ -9,6 +9,10 @@ self-contained: a new engineer or model with this file, the repository
 and `STUDYBIBLE_DATA` must be able to continue the work without the
 original conversation.
 
+**Current status and measured numbers: [PROGRESS.md](PROGRESS.md)** —
+read it right after this file; it overrides the expectations below
+(e.g. Clear RUSSYN turned out unusable, phase 8.3 uses the pipeline).
+
 ---
 
 ## 0. Read first
