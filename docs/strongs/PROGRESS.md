@@ -268,3 +268,18 @@ can be attached to base-layer words deterministically.
   lex-name + lemma→lex-core (5,067 entities = 89%); mentions from
   TIPNR names, ACAI references and MACULA referent ids. Spot checks
   Abraham/David/Herod/Jesus.2/Lord/Jerusalem/Leviathan pass.
+- 2026-10-13 — **BSB layer v2: real dStrong** (`engbsb-strongs.sb` in
+  `work/strongs/layers/`, builder `tools/strongs/layers/step_clear_bsb.py`).
+  **The v1 pilot carried classic numbers — superseded.** Source chain:
+  Clear manual alignments (WLCM-BSB + SBLGNT-BSB, CC BY 4.0) → MACULA id
+  → `step-orig.mid` → dStrong; word-position `wid` fallback for maqef /
+  textual gaps. 722,961 links = 99.3 % of w1 words; conf 10 → 614,976,
+  8 → 96,996 (wid fallback), 4 → 10,989 (unresolved, strong empty).
+  Token↔w1 mapping: SequenceMatcher + gap resolution (Clear `man's`
+  ↔ w1 `man s`); 1,593 tokens unmapped (edition text diffs — Clear's
+  BSB snapshot ≠ our bsb_tables text), logged `unmapped.tsv`.
+  137 verses unaligned at source (psalm superscriptions, Neh 7:68).
+  66,418 `diff` flags vs the classic layer → `engbsb-strongs.diffs.tsv`
+  review channel. Spot checks: Gen 1:1 (`H9003 H7225G` on "In the
+  beginning" — full morpheme coverage), John 1:1, 1Jn 5:7 clean.
+  `module check` clean, 55.8 MB.

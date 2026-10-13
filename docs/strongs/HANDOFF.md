@@ -420,6 +420,12 @@ Implemented (see DECISIONS «`links` table and the `w1` tokenizer»):
 - Pilot `engbsb-strongs.sb` via `apps/studybible-cli/src/bin/
   strongs_layer.rs` (bsb_tables.tsv → 706,502 links, `conf=10`;
   misses logged in `bsb-strongs.misses.tsv`; `module check` clean).
+- **v2 (supersedes the pilot):** `work/strongs/layers/engbsb-strongs.sb`
+  via `tools/strongs/layers/step_clear_bsb.py` — real dStrong from
+  Clear manual alignments through `step-orig.mid` (`wid` fallback for
+  maqef/textual gaps). 722,961 links, 99.3 % of w1 words; conf
+  10/8/4 tiers; 137 unaligned-at-source verses; `diff` review channel
+  vs the classic pilot (`engbsb-strongs.diffs.tsv`).
   Note: `bsb_tables.tsv` carries classic numbers, not dStrong.
 Acceptance met: clippy `-D warnings` clean, suite green, regression
 tests for both importer/reader fixes.

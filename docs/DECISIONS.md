@@ -1391,6 +1391,20 @@ plan, tasks, data inventory and skill specs —
   0.65 %) are psalm superscriptions (table verse 1 vs module verse 0)
   and edition diffs between the two BSB exports — all logged in
   `bsb-strongs.misses.tsv`. `module check` passes.
+- **v2: `bsb-strongs` upgraded to real dStrong** (2026-10-13). The
+  first pilot carried *classic* numbers (`7225`, one per Hebrew
+  word — morphemes lost). Rebuilt from Clear manual alignments
+  (`WLCM-BSB-manual`, `SBLGNT-BSB-manual`, CC BY 4.0): target token
+  → MACULA id → `step-orig.mid` → dStrong. Token↔`w1` index via
+  `SequenceMatcher` + gap resolution for tokenizer asymmetry
+  (`man's`↔`man s`). Word-position fallback (`wid`) covers maqef
+  splits and textual diffs (`flag=wid`, `conf=8`); leftovers are
+  `flag=unresolved,conf=4`. Result: 722,961 links, 99.3 % of w1
+  words; 1.52 % empty-strong flagged; `conf=10` for 85 %. Old
+  classic layer is the cross-check channel — 66,418 `diff` flags
+  logged to `engbsb-strongs.diffs.tsv` for review. 137 verses
+  unaligned at source (psalm superscriptions, Neh 7:68 — Clear never
+  aligned them). Builder: `tools/strongs/layers/step_clear_bsb.py`.
 
 ## Base layer `step-orig` — morpheme-level spans (2026-10-13, ADR 0025 impl.)
 

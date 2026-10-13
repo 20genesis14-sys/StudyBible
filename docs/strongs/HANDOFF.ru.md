@@ -435,6 +435,13 @@ kind='biblical'. Лицензия CC BY-SA 4.0. Отчёт —
 - Пилот `engbsb-strongs.sb` через `apps/studybible-cli/src/bin/
   strongs_layer.rs` (bsb_tables.tsv → 706 502 связи, `conf=10`;
   пропуски в `bsb-strongs.misses.tsv`; `module check` чист).
+- **v2 (заменяет пилот):** `work/strongs/layers/engbsb-strongs.sb`
+  через `tools/strongs/layers/step_clear_bsb.py` — настоящий dStrong
+  из ручных выравниваний Clear через `step-orig.mid` (запасной `wid`
+  для макеф-пар и текстуальных расхождений). 722 961 связь, 99,3 %
+  слов `w1`; уровни conf 10/8/4; 137 стихов без выравнивания в
+  источнике; канал разбора `diff` против классического пилота
+  (`engbsb-strongs.diffs.tsv`).
   NB: `bsb_tables.tsv` несёт классические номера, не dStrong.
 Приёмка выполнена: clippy `-D warnings` чист, тесты зелёные,
 регрессионные тесты на оба исправления.
