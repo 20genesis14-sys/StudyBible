@@ -85,7 +85,11 @@ def parse_tahot(verses):
                 morphs = [p.strip() for p in re.split(r'[/\\]', c[5].strip())
                           if p.strip()]
                 dsegs_m, dsegs_p = split_segs(c[4].strip())
-                dsts = [s.strip('{}') for s in dsegs_m + dsegs_p]
+                # сегмент может быть '{H2657H}+' — код берём regex
+                dsts = []
+                for s in dsegs_m + dsegs_p:
+                    mm = re.search(r'[HG]\d{3,5}[A-Z]?', s)
+                    dsts.append(mm.group(0) if mm else '')
                 gloss_parts = c[3].split('/')
 
                 n_all = len(dsts)
