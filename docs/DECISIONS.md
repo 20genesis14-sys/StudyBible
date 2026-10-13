@@ -724,6 +724,14 @@ stemming.
 Phrase, NEAR, word-start, scope restriction (books, canon, range).
 Multi-module search: results grouped by module, bm25 of different
 indexes is not mixed.
+Results view (1.1.2): a segmented control "List | By books" under the
+search field; default — the flat list. "By books" is an accordion of
+books (`Name · N` + ▾, re-tap collapses; no expand-all); inside a book —
+flat hits with chapter numbers in canon order. View mode lives only in
+the screen state (a persisted "remember view" capability exists in code
+but is deliberately not exposed in Settings). The earlier 3-level tree
+(book → chapters → verses) is kept as a concept for a future global
+search across modules/dictionaries, not for the single-module screen.
 
 ## Output
 Several translations in columns or lines, alignment through
