@@ -58,5 +58,5 @@
 | [0021](adr/0021-gpui-ui-track.md) | Собственная текстовая система `studybible-text` (пост-1.0 трек) |
 | [0022](adr/0022-packed-span-storage.md) | Varint-упаковка спанов/tokens/alignment (`required="pack"`) |
 | [0023](adr/0023-xrefs-layer.md) | Параллельные места как общий модуль-слой `kind="layer"` |
-| [0024](adr/0024-knowledge-graph.md) | Библейский граф знаний — модуль `knowledge.sb` (дизайн, отложено) |
+| [0024](adr/0024-knowledge-graph.md) | Библейская мегаэнциклопедия — модуль `knowledge.sb` (дизайн, отложено) |
 | [0025](adr/0025-extended-strongs-interlinear.md) | Расширенный лексикон Стронга, опорный слой оригинала, подстрочники и слои разметки |

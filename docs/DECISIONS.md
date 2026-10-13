@@ -1161,7 +1161,7 @@ overridden.
   per (module, versification, note text) and prefetched in the
   background when a chapter opens (commits 603c111, b4f3263).
 
-## Biblical knowledge graph (2026-10-12, ADR 0024)
+## Biblical mega-encyclopedia (2026-10-12, ADR 0024)
 
 Design accepted and deferred to the far-future track (alongside format
 v2 and `studybible-text`). An optional `knowledge.sb` module with a new

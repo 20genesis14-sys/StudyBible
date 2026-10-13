@@ -1,4 +1,4 @@
-# 0024. Biblical knowledge graph — the `knowledge.sb` module
+# 0024. The Biblical mega-encyclopedia — the `knowledge.sb` module
 
 **English** | [Русский](0024-knowledge-graph.ru.md)
 
