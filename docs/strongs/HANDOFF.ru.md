@@ -305,7 +305,19 @@ ROADMAP, этот спек, данные закреплены.
 Приёмка: все семь отчётов есть и пересказаны пользователю; вопросы
 50/51 закрыты.
 
-### Фаза 2 — лексикон `strongs-step` (без модели)
+### Фаза 2 — лексикон `strongs-step` — **готово 13.10.2026 (v0.2.0)**
+
+Статус: собран и принят — см. `report-phase2.md` в
+`work/strongs/lexicon/`. Примечание: реализовано как Python-конвейер
+`tools/strongs/lexicon/` (`step01`…`step07`, одобрено пользователем
+как временный компромисс; контракт спека — модуль и схема ниже, а не
+язык эмиттера — порт в Rust CLI позже, если станет продуктовой
+фичей). Решения по ходу: базовые слои ключом базы, джойн через
+`lex_base`; alignments Aquifer — списки кандидатов → привязка по
+первому `strongs-number`/majority vote; `features` перечисляет
+свои таблицы (`entries,lex,lex_def,lex_base,morph`). 12 ключей
+помечены `ambiguous-base` на проверку; TBESH `Meaning` не
+использовался.
 
 Подкоманда CLI `studybible module lexicon-step <папка stepbible>
 <папка oshb-lexicon> <папка abbott-smith> -o strongs-step.sb` (Rust, в

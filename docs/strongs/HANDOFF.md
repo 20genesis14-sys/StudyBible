@@ -295,7 +295,19 @@ plus a short Markdown summary for the user.
 Acceptance: all seven reports exist and are summarized for the user;
 OQ 50/51 answered.
 
-### Phase 2 — lexicon `strongs-step` (no model)
+### Phase 2 — lexicon `strongs-step` — **done 2026-10-13 (v0.2.0)**
+
+Status: built and accepted — see `report-phase2.md` in
+`work/strongs/lexicon/`. Implementation note: done as the Python
+pipeline `tools/strongs/lexicon/` (`step01`…`step07`, approved by
+the user as a temporary compromise; the spec contract is the
+module + schema below, not the emitter language — port to the
+Rust CLI later only if it productizes). In-flight decisions:
+base-level layers are keyed by base and joined via `lex_base`;
+aquifer alignments are candidate lists → article↔base by first
+`strongs-number`/majority vote; `features` lists the custom
+tables (`entries,lex,lex_def,lex_base,morph`). 12 keys flagged
+`ambiguous-base` pending review; TBESH `Meaning` not used.
 
 CLI subcommand `studybible module lexicon-step <stepbible dir>
 <oshb-lexicon dir> <abbott-smith dir> -o strongs-step.sb` (Rust, in

@@ -192,3 +192,21 @@ can be attached to base-layer words deterministically.
   content (en+ru notes etc.). UW resources ship no Russian release
   assets (en only); `ubs-fauna/flora/realia` pulled md only — json
   assets carry hundreds of MB of media.
+- 2026-10-13 — **Phase 2 done (v0.2.0)**: `strongs-step.sb` built by
+  the Python pipeline `tools/strongs/lexicon/` (user approved Python
+  over the Rust CLI plan — the spec's module/schema is the contract,
+  not the emitter language; port later if it productizes).
+  Numbers: `lex` 22,743 keys — 100 % of text-seen dStrong (17,025)
+  plus TBESH/G LXX reserve; `lex_def` 55,084 rows across 7 licensed
+  layers (`ubs-sdbh/sdgnt` CC BY-SA, `oshb-bdb` CC BY, `bdb-full` +
+  `abbott-smith` PD, `bdb-hebrew-aq`/`bdb-aramaic` CC0); `morph`
+  3,190 — 100 % of observed codes (457 via language-letter aliases);
+  `entries` 26,011; TIPNR names on 4,438 keys; `sense_domain` (UBS)
+  on ~16,300 keys; 12 keys flagged `ambiguous-base` for review.
+  `module check` passes. Full report:
+  `work/strongs/lexicon/report-phase2.md`.
+  Decisions taken in-flight: base-level layers (UBS, bdb-full,
+  bdb-aq, AS) are stored under the base key and joined via
+  `lex_base` (no text duplication across lettered variants);
+  aquifer alignments treated as candidate lists → article→base link
+  by first `strongs-number` or majority base vote.
