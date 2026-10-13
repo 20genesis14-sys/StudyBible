@@ -378,15 +378,17 @@ clean; report `work/strongs/orig/report-phase3.md`. Output:
 `work/strongs/orig/step-orig.sb` (~193 MB unpacked; blob packing is
 a pending optimization).
 
-### Phase 3b — mega-encyclopedia stage 1 export
+### Phase 3b — mega-encyclopedia stage 1 export — **done 2026-10-13**
 
-Build `knowledge.sb` tables per ADR 0024: `entities` (TIPNR people &
-places; `strongs` = dStrongs), `entity_names` (en), `relationships`
-(TIPNR family), `verse_mentions` (from base-layer entity IDs,
-`(BookCode, ch, v, seg)` in `eng`, `source='STEPBible'`), place
-`lat/lon` from OpenBible Geocoding, optional MACULA referents
-(`mention_type='referent'`). Acceptance: every entity ID in the base
-layer resolves to an entity; spot-check 20 people/places.
+Built in Python as `tools/strongs/knowledge/step01_build.py`.
+Backbone is ACAI (`primary_id` = entity id): 5,700 entities, 62,548
+names, 12,527 relationships, 114,214 `verse_mentions` in `eng`
+coordinates (USFM BookCode, `seg=0`). Entity ids normalize to
+`Name@FirstRef`; `entities.strongs` via three channels
+(eid→step-orig, lex-name, lemmas→lex-core) — 89% of entities have
+Strong's. Aquifer articles (OBD/FIA/Biblica) in `metadata.articles`,
+ru names as `kind='biblical'`. Licence CC BY-SA 4.0. Report —
+`work/strongs/knowledge/report-phase3b.md`.
 
 ### Phase 4 — English interlinears
 

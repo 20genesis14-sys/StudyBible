@@ -1413,3 +1413,23 @@ plan, tasks, data inventory and skill specs —
   compromise as phase 2; coverage and misses: report
   `work/strongs/orig/report-phase3.md` (mid 75.5%; gaps are
   documented, not defects).
+
+## `knowledge.sb` v0.1.0 — ACAI as the entity backbone (2026-10-13)
+
+- **Entity id = ACAI `primary_id`** (`person:Abraham`); non-primary
+  records contribute `entity_names` aliases only — relations and
+  mentions live on primary records.
+- **eid normalization**: the entity key on both sides is
+  `Name@FirstRef` — the range end (`-Heb`/`-1Pe`/`-Rev` or absent in
+  TAGNT) differs between TAHOT/TAGNT and ACAI, so joins strip it.
+  `step-orig` keeps the raw `eid`.
+- **entities.strongs** — three channels: eid→step-orig spans
+  (H9xxx/G9xxx function morphemes filtered), TIPNR `lex-name`
+  (name@first-ref), ACAI lemmas→`lex-core` (≤3 candidates).
+- **mention_type** collapses to the strongest of
+  name > explicit > subject > pronoun > speech > reference per
+  (book,ch,vs,seg,entity); `context` keeps the eid or first mid.
+- **Localized content**: ACAI localizations (12 langs) +
+  Aquifer OBD/FIA/Biblica key-term articles joined by
+  `alternate_sources.aquifer` ids into `metadata.articles`; ru titles
+  become `entity_names kind='biblical'`.

@@ -391,16 +391,17 @@ G4151G/H, H9003, G3056).
 Результат: `work/strongs/orig/step-orig.sb` (~193 MB без упаковки;
 блоб-пак — следующая оптимизация).
 
-### Фаза 3b — выгрузка для этапа 1 мегаэнциклопедии
+### Фаза 3b — выгрузка для этапа 1 мегаэнциклопедии — **готово 2026-10-13**
 
-Собрать таблицы `knowledge.sb` по ADR 0024: `entities` (люди и места
-TIPNR; `strongs` = уточнённые номера), `entity_names` (en),
-`relationships` (родство TIPNR), `verse_mentions` (из ID сущностей
-опорного слоя, `(BookCode, гл, ст, seg)` в `eng`,
-`source='STEPBible'`), `lat/lon` мест из OpenBible Geocoding, по
-желанию референты MACULA (`mention_type='referent'`). Приёмка: каждый ID
-сущности в опорном слое разрешается в сущность; выборочная проверка 20
-людей/мест.
+Собрано на Python в `tools/strongs/knowledge/step01_build.py`.
+Каркас — ACAI (`primary_id` = id сущности): 5 700 сущностей,
+62 548 имён, 12 527 отношений, 114 214 `verse_mentions` в
+координатах `eng` (USFM-код книги, `seg=0`). eid нормализуется к
+`Имя@ПерваяСсылка`; `entities.strongs` — по трём каналам (eid→
+step-orig, lex-name, леммы→lex-core), у 89 % сущностей есть номера.
+Статьи Aquifer (OBD/FIA/Biblica) в `metadata.articles`, ru-имена —
+kind='biblical'. Лицензия CC BY-SA 4.0. Отчёт —
+`work/strongs/knowledge/report-phase3b.md`.
 
 ### Фаза 4 — английские подстрочники
 

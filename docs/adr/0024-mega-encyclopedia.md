@@ -2,8 +2,11 @@
 
 **English** | [Русский](0024-mega-encyclopedia.ru.md)
 
-Status: design accepted (2026-10-12); implementation deferred — a
-far-future track alongside format v2 and `studybible-text`.
+Status: design accepted (2026-10-12); **stage 1 built 2026-10-13** —
+`knowledge.sb` v0.1.0 with ACAI as the entity backbone (5,700
+entities, 62.5k names, 12.5k relationships, 114k verse_mentions;
+see `work/strongs/knowledge/report-phase3b.md` and DECISIONS
+"ACAI as the entity backbone").
 
 ## Context
 

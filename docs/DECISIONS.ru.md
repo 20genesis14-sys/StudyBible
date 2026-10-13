@@ -1306,3 +1306,22 @@ versionCode `versionCode * 10 + abiCode`, rustup из Debian) реализова
   компромисс, что и фаза 2; охват и пропуски — в отчёте
   `work/strongs/orig/report-phase3.md` (mid 75,5 %; пропуски
   задокументированы, не дефекты).
+
+## `knowledge.sb` v0.1.0 — ACAI как каркас сущностей (2026-10-13)
+
+- **id сущности = ACAI `primary_id`** (`person:Abraham`); неосновные
+  записи дают только алиасы `entity_names` — отношения и упоминания
+  живут на основных записях.
+- **Нормализация eid**: ключ сущности с обеих сторон —
+  `Имя@ПерваяСсылка`: конец диапазона (`-Heb`/`-1Pe`/`-Rev` или
+  отсутствует в TAGNT) у TAHOT/TAGNT и ACAI расходится, поэтому при
+  джойне обрезается. В `step-orig` eid остаётся сырым.
+- **entities.strongs** — три канала: eid→спаны step-orig (служебные
+  морфемы H9xxx/G9xxx фильтруются), TIPNR `lex-name` (имя@ссылка),
+  леммы ACAI→`lex-core` (≤3 кандидатов).
+- **mention_type** сворачивается к сильнейшему из
+  name > explicit > subject > pronoun > speech > reference на
+  (книга,гл,стих,seg,сущность); `context` хранит eid или первый mid.
+- **Локализованный контент**: локализации ACAI (12 языков) + статьи
+  Aquifer OBD/FIA/Biblica по id `alternate_sources.aquifer` →
+  `metadata.articles`; ru-заголовки → `entity_names kind='biblical'`.

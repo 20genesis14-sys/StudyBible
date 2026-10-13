@@ -257,3 +257,14 @@ can be attached to base-layer words deterministically.
   Gen 1:1, John 1:1, Job 1:4 (Qere), 1Jn 5:7 (Comma Johanneum,
   `typ=K`/`ed=TR`) spot-verified. Open: 193 MB unpacked — blob
   packing (ADR 0022) is a pending optimization.
+- 2026-10-13 — **Phase 3b done**: `knowledge.sb` v0.1.0 built and
+  checked (tool `tools/strongs/knowledge/step01_build.py`, report
+  `work/strongs/knowledge/report-phase3b.md`). 5,700 entities
+  (person/place/concept/object/group/plant/creature/deity), 62,548
+  names (12 locales + original lemmas + ru biblical titles), 12,527
+  relationships, 114,214 verse_mentions in `eng` coordinates
+  (USFM BookCode). Crosswalk: eid normalized to `Name@FirstRef`
+  (all 4,205 ACAI eids resolved); strongs via eid→step-orig +
+  lex-name + lemma→lex-core (5,067 entities = 89%); mentions from
+  TIPNR names, ACAI references and MACULA referent ids. Spot checks
+  Abraham/David/Herod/Jesus.2/Lord/Jerusalem/Leviathan pass.
