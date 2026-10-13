@@ -99,3 +99,23 @@ a dedicated `kind`.
   `book_id`: the module has no `books` of its own, so a numeric id
   would have nothing to resolve against. Compatibility of the code
   set with translation modules is checked by `module check`.
+
+## Addendum 2026-10-13 — ADR 0025 (extended Strong's)
+
+- `entities.strongs` holds **disambiguated Strong's numbers**
+  (dStrong, e.g. `H0029H` — a specific person named Abijah), not
+  classic numbers; classic numbers resolve through the lexicon's
+  `lex_base`.
+- Stage 1 sources are extended: the person/place IDs on every
+  TAHOT/TAGNT word (`Abraham@Gen.11.26-1Pe`, carried into the
+  `step-orig` base layer) give **word-level** `verse_mentions`
+  (`source='STEPBible'`); TIPNR gives entities and family relations;
+  OpenBible Geocoding gives `lat`/`lon`; MACULA participant referents
+  are an optional extra source (`mention_type='referent'`).
+- Localized `entity_names` (e.g. `lang='ru'`, `kind='biblical'`) are
+  taken from Strong's tagging layers of the main translation of that
+  language (Synodal for Russian), and translation text can highlight
+  mentions through those layers.
+- Later concept sources: MACULA semantic domains (licence to verify),
+  OpenBible Topical Bible (CC BY), Manser's Dictionary of Bible Themes
+  (CC BY-SA), STEPBible TBCWG when released.

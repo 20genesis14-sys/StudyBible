@@ -25,7 +25,7 @@ are written together with the test fixture of their stage.
 | 05 | Module format | [spec/05-module-format-v1.md](spec/05-module-format-v1.md) ([English](spec/en/05-module-format-v1.md)); DECISIONS: "Module format v1"; ADR 0003, 0007, 0016 | v1 schema implemented; compact revision (`book_id`, single verse text, span slices); semantics C-1…C-20 fixed 2026-10-12 |
 | 06 | User data | [spec/06-user-data.md](spec/06-user-data.md); DECISIONS: "Synchronization"; ADR 0008 | v1 implemented |
 | 07 | Search | DECISIONS: "Search"; ADR 0003, 0006 | exact form in FTS5 cache; stemming and phrases — later |
-| 08 | Originals and interlinear | DECISIONS: "Data for reading and study" | decisions recorded |
+| 08 | Originals and interlinear | DECISIONS: "Data for reading and study", "Extended Strong's lexicon…"; ADR 0025; [strongs/HANDOFF.md](strongs/HANDOFF.md) | decisions recorded; extended Strong's / interlinear / tagging plan approved 2026-10-13 |
 | 09 | Extensions | DECISIONS: "Extensions"; ADR 0009 | normative form by 1.0 |
 | 10 | Network, repositories, AI | DECISIONS: "Network, repositories, AI" | post-1.0 |
 | 11 | Converter | DECISIONS: "Converter"; ADR 0016 | inputs USFM, OSIS, Zefania, MyBible, BibleQuote, TSV |
@@ -61,3 +61,4 @@ are written together with the test fixture of their stage.
 | [0022](adr/0022-packed-span-storage.md) | Packed varint storage of spans/tokens/alignment (`required="pack"`) |
 | [0023](adr/0023-xrefs-layer.md) | Cross-references as a shared `kind="layer"` module |
 | [0024](adr/0024-knowledge-graph.md) | Biblical knowledge graph — `knowledge.sb` module (design, deferred) |
+| [0025](adr/0025-extended-strongs-interlinear.md) | Extended Strong's lexicon, original-language base layer, interlinears and tagging layers |

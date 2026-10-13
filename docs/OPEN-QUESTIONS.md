@@ -46,6 +46,13 @@
 | 46 | Structural xref targets (ADR 0023 addendum, in progress): `x`-span `text` of `openbible-xrefs` holds display strings (`Gen 4:25 - Gen 5:32`); migration to structured coordinates `(book,ch,v,seg)` plus a localizing renderer. Open: compact encoding of target lists, compatibility with already-shipped layers, segment-aware parsing of source data | During the coordinate-contract cycle |
 | 47 | Lazy module reading (ADR 0022 addendum 2026-10-14): two equal candidates — A (block container: `.sb` in ~64 KB zstd frames + shared dictionary + page VFS; HTTP Range on web) vs C (`text_pack`: per-chapter zstd verse text inside `.sb`, no VFS). Choice deferred until implementation; open: dictionary shipping (file header vs app), frame size, whether A's VFS effort is justified once C exists | When lazy-reading work starts |
 
+| 48 | Online Bible permission for the TBESH **Meaning** column (abridged BDB, © Larry Pierce): request sent 2026-10-13. Without it the default definitions (OpenScriptures BDB) are used; Russian definition translation waits for the answer so it is done once (ADR 0025) | Before phase 8.1 (Russian definitions) / before shipping the English lexicon with TBESH Meaning |
+| 49 | Licences to confirm: Middle Liddell entries in TBESG and TFLSJ (derived from Perseus, likely CC BY-SA); MARBLE word-sense data inside MACULA (UBS dictionaries are CC BY-SA); STEPBible header request "please do not redistribute it yourself" vs CC BY (attribution + change list planned) | Before publishing `strongs-step`/`lsj` |
+| 50 | Quality of the Clear manual RUSSYN alignment (Clear-Bible/Alignments): 13–14 % of aligned target ids fall on punctuation, Gen 1:2 does not match the target TSV — id drift or different tokenization? Decides whether the Synodal tagging layer is derived directly (measurement F) | Phase 1 |
+| 51 | Greek senses: STEPBible has 292 lettered dStrongs in the NT range — is the TAGNT "Sub-meaning" column enough, or are MACULA Louw–Nida domains needed for a sense-level Greek interlinear (measurement E) | Phase 1 |
+| 52 | Numbers to freeze before the held-out run: N in the quality gate (F1 ≥ inter-gold agreement − N) and the rule combining signals into `conf` 0–10 | Phase 7, before held-out measurement |
+| 53 | STEPBible "Datasets coming" (TAGOT, TFBDB, TOTMM/TNTMM, TBCWG) have no published dates; TFBDB would give a full Hebrew lexicon, TOTMM/TNTMM — textual variants. Optionally ask STEPBibleATgmail.com | When needed |
+
 ## Closed
 
 - № 33. Footnotes: variant A by default — a superscript letter at the word, no space, unbreakable; variant B (dotted underline under the word, no mark) — when the module has binding text (`\fq`, `<catchWord>`). In "Reading" mode the marks are hidden; tap → card; hit area ≥ 44×44 (ADR 0015).
