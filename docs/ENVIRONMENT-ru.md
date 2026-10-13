@@ -66,6 +66,23 @@
 - Правило: исходники, деревья сборки и кэши — внутри ext4 (`~` или
   `/home/vagrant`); `/mnt/d` — только вход и выгрузка артефактов.
 
+## Подпись APK — один ключ везде
+
+Все сборки (release **и** debug) подписываются одним release-ключом —
+любой APK ставится поверх любого:
+
+- Keystore (не в гите): Windows `D:\StudyBible-tools\keys\studybible-release.jks`,
+  копия в WSL `~/StudyBible-keys/studybible-release.jks`.
+- `android/key.properties` (gitignored, свой на каждой машине): Windows
+  `storeFile=D:/StudyBible-tools/keys/...`, WSL
+  `~/StudyBible/apps/studybible-flutter/android/key.properties` с
+  `storeFile=/home/gedeon/StudyBible-keys/...`; пароли/alias одинаковые.
+- `build.gradle.kts`: `debug` и `release` используют `release`
+  signingConfig при наличии `key.properties`; без файла release
+  откатывается на debug-ключ (чужие машины, CI).
+- Сборки `fdroid verify` идут без key.properties — подпись накатывает
+  `apksigcopier` при верификации, как обычно.
+
 ## Внешние данные (`STUDYBIBLE_DATA`)
 
 `D:\StudyBible-data` (`C:\StudyBible-data` — остаточный каталог).
