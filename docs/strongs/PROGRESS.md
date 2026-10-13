@@ -168,3 +168,6 @@ can be attached to base-layer words deterministically.
   (`bc2e31e`).
 - 2026-10-13 — Phase 1 done: measurements A–G, scripts in
   `tools/strongs/measure/`, OQ 50/51 answered.
+- 2026-10-13 — MACULA dependency licence audit (N1904, SBLGNT,
+  MARBLE/SDBH, Clear's own data); conclusions in HANDOFF §4.3 and
+  OQ 49; MARBLE analysis saved to `sources/strongs/legal/`.

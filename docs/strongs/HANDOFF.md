@@ -70,7 +70,7 @@ Clear Alignments `catalog.tsv` stays an LFS pointer (not needed).
 | `stepbible` | STEPBible-Data: TAHOT ×4, TAGNT ×2, TBESH, TBESG, TFLSJ ×2, TEHMC, TEGMC, TIPNR, TVTMS, TTESV, README | CC BY 4.0; TTESV CC BY-NC; TBESH Meaning © Online Bible | core |
 | `oshb-lexicon` | OpenScriptures HebrewLexicon: BrownDriverBriggs.xml, LexicalIndex.xml, AugIndex.xml, HebrewStrong.xml, schemas, PDF doc | CC BY 4.0 / PD | Hebrew definitions (default) |
 | `bsb` | `bsb_tables.tsv` (Berean) | CC0 | primary gold + allowed input |
-| `macula-hebrew`, `macula-greek` | MACULA TSV (WLC; SBLGNT + Nestle1904) | CC BY 4.0 (MARBLE senses — verify) | cross-check, Greek senses, referents, bridge to Clear |
+| `macula-hebrew`, `macula-greek` | MACULA TSV (WLC; SBLGNT + Nestle1904) | repos CC BY 4.0 © Biblica; `@ln`/`@domain` (MARBLE) and `@sdbh` (SDBH) — "used with permission" from UBS → **internal cross-check only, never ship in modules** | cross-check, Greek senses, referents, bridge to Clear |
 | `clear-alignments` | Clear-Bible/Alignments: manual alignments eng BSB/YLT, rus RUSSYN, fra, spa, por, arb, hin, hau… | CC BY 4.0 | gold; RUSSYN possibly a direct source |
 | `asv-alignment`, `asv-bible` | OpenBible ASV interlinear: rules, driver, reviewed judgments, USX aligned | code MIT, judgments no claim, ASV PD | process template + comparison gold |
 | `openbible-geocoding` | places with coordinates | CC BY 4.0 | knowledge graph |
@@ -205,6 +205,24 @@ as priors on dev books → resulting layer `license=CC BY-NC`. ru_rob
 (STEPBible "STEP Bible, www.STEPBible.org"; OpenScriptures; MACULA
 "MACULA … Linguistic Datasets, available at github.com/Clear-Bible/…";
 Clear Alignments contributors) and a list of our changes.
+
+MACULA dependency audit (2026-10-13, details —
+`sources/strongs/legal/marble-license-analysis.ru.txt`):
+
+- Nestle1904: text, glosses (Berean), morphology/lemmas/Strong's —
+  public domain; XML markup CC BY-SA → may be used if needed with
+  attribution, but the derived module (or its part) is then licensed
+  CC BY-SA. Currently unused: TAHOT/TAGNT are canonical.
+- SBLGNT (Faithlife) — CC BY 4.0.
+- Clear's own data (syntax, participant referents, semantic frames,
+  synonyms, mappings) — CC BY 4.0 → optionally usable in the knowledge
+  graph with attribution.
+- MARBLE `@ln`/`@domain` and SDBH `@sdbh` — "used with permission"
+  from UBS, sublicensing scope unspecified → internal scoring only;
+  domain labels never ship in modules. If a UI "sense domain" feature
+  is ever wanted, get UBS/Clear confirmation first.
+- semanticdictionary.org has a Russian MARBLE version — check in
+  phase 8 as a source for Russian domain names and senses.
 
 ## 5. Phases, tasks, deliverables, acceptance
 

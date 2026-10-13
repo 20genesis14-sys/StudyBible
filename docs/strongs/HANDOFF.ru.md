@@ -74,7 +74,7 @@ Clear Alignments остаётся указателем LFS (не нужен). `-
 | `stepbible` | STEPBible-Data: TAHOT ×4, TAGNT ×2, TBESH, TBESG, TFLSJ ×2, TEHMC, TEGMC, TIPNR, TVTMS, TTESV, README | CC BY 4.0; TTESV — CC BY-NC; TBESH Meaning — © Online Bible | основа |
 | `oshb-lexicon` | OpenScriptures HebrewLexicon: BrownDriverBriggs.xml, LexicalIndex.xml, AugIndex.xml, HebrewStrong.xml, схемы, PDF | CC BY 4.0 / общ. достояние | определения иврита (по умолчанию) |
 | `bsb` | `bsb_tables.tsv` (Berean) | CC0 | главный эталон + разрешённый вход |
-| `macula-hebrew`, `macula-greek` | TSV MACULA (WLC; SBLGNT + Nestle1904) | CC BY 4.0 (значения MARBLE — проверить) | сверка, греческие значения, референты, мост к Clear |
+| `macula-hebrew`, `macula-greek` | TSV MACULA (WLC; SBLGNT + Nestle1904) | репозитории CC BY 4.0 © Biblica; `@ln`/`@domain` (MARBLE) и `@sdbh` (SDBH) — «used with permission» UBS → **только внутренняя сверка, в модули не включать** | сверка, греческие значения, референты, мост к Clear |
 | `clear-alignments` | Clear-Bible/Alignments: ручные разметки eng BSB/YLT, rus RUSSYN, fra, spa, por, arb, hin, hau… | CC BY 4.0 | эталоны; RUSSYN — возможно прямой источник |
 | `asv-alignment`, `asv-bible` | Подстрочник ASV от OpenBible: правила, драйвер, проверенные решения, USX с выравниванием | код MIT, на решения прав не заявлено, ASV — общ. достояние | образец процесса + эталон для сравнения |
 | `openbible-geocoding` | места с координатами | CC BY 4.0 | граф знаний |
@@ -213,6 +213,25 @@ id+хэш+разбиение; одно разбиение на слова в я�
 www.STEPBible.org»; OpenScriptures; MACULA «MACULA … Linguistic
 Datasets, available at github.com/Clear-Bible/…»; авторы Clear
 Alignments) и список наших изменений.
+
+Аудит зависимостей MACULA (13.10.2026, подробности —
+`sources/strongs/legal/marble-license-analysis.ru.txt`):
+
+- Nestle1904: текст, глоссы (Berean), морфология/леммы/номера — общ.
+  достояние; XML-разметка CC BY-SA → можно использовать при
+  необходимости с атрибуцией, но тогда производный модуль (или его
+  часть) лицензируется под CC BY-SA. Сейчас не используем: опора —
+  TAHOT/TAGNT.
+- SBLGNT (Faithlife) — CC BY 4.0.
+- Собственные данные Clear (синтаксис, референты, семантические рамки,
+  синонимы, mappings) — CC BY 4.0 → при желании допустимы в графе
+  знаний с атрибуцией.
+- MARBLE `@ln`/`@domain` и SDBH `@sdbh` — «used with permission» UBS,
+  объём передачи прав не оговорён → используем только для внутреннего
+  расчёта баллов; метки доменов в модули не включаем. Если захотим
+  показывать домены в карточке — сначала подтверждение UBS/Clear.
+- На semanticdictionary.org есть русская версия MARBLE — проверить в
+  фазе 8 как источник русских названий доменов и значений.
 
 ## 5. Фазы, задачи, результаты, приёмка
 
