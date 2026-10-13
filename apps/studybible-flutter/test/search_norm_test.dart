@@ -40,4 +40,81 @@ void main() {
       expect(normSearchQuery('כָּל־הָאָרֶץ'), 'כל הארצ');
     });
   });
+
+  // Операторы запроса — зеркало crates/studybible-store::search.
+  group('parseSearchQuery', () {
+    test('слова и операторы', () {
+      expect(
+        parseSearchQuery('свет земл*'),
+        [(kind: 'word', value: 'свет'), (kind: 'prefix', value: 'земл')],
+      );
+      expect(
+        parseSearchQuery('"да будет" све?'),
+        [(kind: 'phrase', value: 'да будет'), (kind: 'glob', value: 'све?')],
+      );
+      // Внутренняя * — glob, не префикс.
+      expect(parseSearchQuery('н*е'), [(kind: 'glob', value: 'н*е')]);
+      // Незакрытая кавычка — фраза до конца.
+      expect(
+        parseSearchQuery('"да будет'),
+        [(kind: 'phrase', value: 'да будет')],
+      );
+      // Пунктуация фразы токенизируется.
+      expect(
+        parseSearchQuery('"сказал Бог:"'),
+        [(kind: 'phrase', value: 'сказал бог')],
+      );
+      expect(parseSearchQuery('   '), isEmpty);
+    });
+  });
+
+  group('ftsQuery', () {
+    test('сборка MATCH', () {
+      expect(
+        ftsQuery([
+          (kind: 'word', value: 'свет'),
+          (kind: 'prefix', value: 'земл'),
+          (kind: 'phrase', value: 'да будет'),
+        ]),
+        '"свет" AND "земл"* AND "да будет"',
+      );
+    });
+  });
+
+  group('scanMatch', () {
+    const text = 'и сказал бог да будет свет и стал свет';
+    test('glob и префикс по токенам (пунктуация срезана)', () {
+      expect(
+        scanMatch('в начале сотворил бог небо и землю.', [
+          (kind: 'glob', value: 'земл?'),
+        ]),
+        'в начале сотворил бог небо и [землю]',
+      );
+      expect(
+        scanMatch(text, [(kind: 'prefix', value: 'св')]),
+        'и сказал бог да будет [свет] и стал [свет]',
+      );
+      expect(
+        scanMatch(text, [(kind: 'glob', value: 'све?')]),
+        contains('[свет]'),
+      );
+    });
+    test('AND и фраза', () {
+      expect(
+        scanMatch(text, [
+          (kind: 'phrase', value: 'да будет'),
+          (kind: 'word', value: 'стал'),
+        ]),
+        isNotNull,
+      );
+      expect(
+        scanMatch(text, [(kind: 'phrase', value: 'будет да')]),
+        isNull,
+      );
+      expect(
+        scanMatch('земля же была безвидна', [(kind: 'word', value: 'свет')]),
+        isNull,
+      );
+    });
+  });
 }

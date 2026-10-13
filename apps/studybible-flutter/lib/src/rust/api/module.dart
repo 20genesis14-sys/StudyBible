@@ -89,6 +89,20 @@ Future<List<SearchHitInfo>> moduleSearch({
   limit: limit,
 );
 
+/// Искать по сноскам и параллельным местам модуля — те же
+/// операторы запроса, что и `module_search` (фраза «…», `w*`, `?`).
+Future<List<SearchHitInfo>> moduleNotesSearch({
+  required String modulePath,
+  required String cachePath,
+  required String query,
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiModuleModuleNotesSearch(
+  modulePath: modulePath,
+  cachePath: cachePath,
+  query: query,
+  limit: limit,
+);
+
 /// Координата стиха — результат конверсии между версификациями.
 /// Книга возвращается тоже: часть отображений `.vrs` меняет её
 /// (Даниил-греческий DAG↔DAN/SUS/BEL и т. п.).

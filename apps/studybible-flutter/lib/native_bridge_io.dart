@@ -193,24 +193,20 @@ Future<T?> _guard<T>(String what, Future<T?> Function() f) async {
 /// Общий слой параллельных мест (ADR 0023): файл `openbible-xrefs`
 /// в каталоге модулей. Мост подмешивает его ссылки модулям без
 /// собственных `x`-спанов; настройка — `settings.externalXrefs`.
-Future<void> bridgeSetXrefLayer(bool enabled) =>
-    _guard('xrefLayer', () async {
-          var path = '';
-          if (enabled) {
-            final dir = _modulesDir();
-            for (final ext in ['sbz', 'sb']) {
-              final f = File(
-                '$dir${Platform.pathSeparator}openbible-xrefs.$ext',
-              );
-              if (f.existsSync()) {
-                path = f.path;
-                break;
-              }
-            }
-          }
-          await api_module.xrefLayerSet(path: path);
-        })
-        .then((_) {});
+Future<void> bridgeSetXrefLayer(bool enabled) => _guard('xrefLayer', () async {
+  var path = '';
+  if (enabled) {
+    final dir = _modulesDir();
+    for (final ext in ['sbz', 'sb']) {
+      final f = File('$dir${Platform.pathSeparator}openbible-xrefs.$ext');
+      if (f.existsSync()) {
+        path = f.path;
+        break;
+      }
+    }
+  }
+  await api_module.xrefLayerSet(path: path);
+}).then((_) {});
 
 /// JSON-документ модуля формата export.rs (без глав).
 Future<String?> bridgeModuleDoc(String path) =>
@@ -337,9 +333,7 @@ Future<List<({int s, int e})>> bridgeFragRanges(
     () async => api_userdata.fragRanges(text: verseText, frag: frag),
   );
   if (pairs == null) return const [];
-  return byteToUtf16(verseText, [
-    for (final n in pairs) n.toInt(),
-  ]);
+  return byteToUtf16(verseText, [for (final n in pairs) n.toInt()]);
 }
 
 Future<bool> bridgeEntryUpdate(String id, String text) async =>
@@ -508,6 +502,32 @@ Future<List<SearchHit>> bridgeModuleSearch(
   final hits = await _guard(
     'moduleSearch',
     () => api_module.moduleSearch(
+      modulePath: modulePath,
+      cachePath: '$modulePath.idx',
+      query: query,
+      limit: limit,
+    ),
+  );
+  return [
+    for (final h in hits ?? const <api_module.SearchHitInfo>[])
+      SearchHit(
+        book: h.book,
+        chapter: h.chapter.toInt(),
+        verse: h.verse.toInt(),
+        snippet: h.snippet,
+      ),
+  ];
+}
+
+/// Поиск по сноскам/параллельным местам модуля — те же операторы.
+Future<List<SearchHit>> bridgeNotesSearch(
+  String modulePath,
+  String query, {
+  int limit = 50,
+}) async {
+  final hits = await _guard(
+    'moduleNotesSearch',
+    () => api_module.moduleNotesSearch(
       modulePath: modulePath,
       cachePath: '$modulePath.idx',
       query: query,

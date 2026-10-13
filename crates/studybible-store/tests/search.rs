@@ -62,6 +62,47 @@ fn basic_and_normalization() {
 }
 
 #[test]
+fn operators_phrase_prefix_glob() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+    let idx = SearchIndex::open(&dir.path().join("a.idx"), &m).unwrap();
+
+    // Фраза — порядок слов важен.
+    let hits = idx.search("\"начале сотворил\"", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 1);
+    assert!(idx.search("\"сотворил начале\"", 10).unwrap().is_empty());
+    // Незакрытая кавычка — всё до конца как фраза.
+    assert_eq!(idx.search("\"да будет", 10).unwrap().len(), 1);
+
+    // Префикс `w*`: «свет*» — «свет» в 1:3 (дважды — один стих).
+    let hits = idx.search("свет*", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert!(hits.iter().all(|h| h.chapter == 1 && h.verse == 3));
+    // Префикс + слово — AND.
+    let hits = idx.search("св* стал", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 3);
+
+    // `?` — односимвольный wildcard: «све?» → «свет», «земл?» → «земля»/«землю».
+    let hits = idx.search("све?", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 3);
+    assert!(hits[0].snippet.contains("[свет]"));
+    let hits = idx.search("земл?", 10).unwrap();
+    assert_eq!(hits.len(), 3); // «землю» (1:1), «земля» (2:1)… и «земля» в 1:2
+    // Внутренняя `*` — тоже glob: «н*е» → «небо»/«небо.».
+    let hits = idx.search("н*е", 10).unwrap();
+    assert!(hits.iter().any(|h| h.verse == 1));
+    // Glob AND слово.
+    let hits = idx.search("земл? совершены", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].chapter, 2);
+    // Glob без совпадений.
+    assert!(idx.search("кот?", 10).unwrap().is_empty());
+}
+
+#[test]
 fn limit_respected() {
     let dir = tempfile::tempdir().unwrap();
     let (_, m) = module(&dir, "a.sb", SRC);

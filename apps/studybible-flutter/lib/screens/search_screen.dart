@@ -55,6 +55,9 @@ class _SearchScreenState extends State<SearchScreen> {
   /// Раскрытые книги в режиме «По книгам».
   final Set<String> _expanded = {};
 
+  /// Область поиска: текст стихов или сноски/параллельные места.
+  bool _notes = false;
+
   @override
   void initState() {
     super.initState();
@@ -85,7 +88,9 @@ class _SearchScreenState extends State<SearchScreen> {
       });
       return;
     }
-    final hits = await bridgeModuleSearch(path, q, limit: _searchLimit);
+    final hits = _notes
+        ? await bridgeNotesSearch(path, q, limit: _searchLimit)
+        : await bridgeModuleSearch(path, q, limit: _searchLimit);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -141,6 +146,24 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: Text(tr('Найти', 'Search')),
                     ),
                   ],
+                ),
+                // Область: стихи или сноски/параллельные (те же
+                // операторы запроса в обоих режимах).
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilterChip(
+                      selected: _notes,
+                      visualDensity: VisualDensity.compact,
+                      avatar: const Icon(Icons.notes, size: 16),
+                      label: Text(tr('В сносках', 'In notes')),
+                      onSelected: (v) => setState(() {
+                        _notes = v;
+                        if (_hits.isNotEmpty) _run();
+                      }),
+                    ),
+                  ),
                 ),
                 // Переключатель вида: плоский список / аккордеон книг.
                 if (_hits.isNotEmpty)

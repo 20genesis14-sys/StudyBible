@@ -146,3 +146,9 @@ Future<List<SearchHit>> bridgeModuleSearch(
   String query, {
   int limit = 50,
 }) async => const [];
+
+Future<List<SearchHit>> bridgeNotesSearch(
+  String modulePath,
+  String query, {
+  int limit = 50,
+}) async => const [];

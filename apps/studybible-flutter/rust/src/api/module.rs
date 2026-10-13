@@ -486,6 +486,29 @@ pub async fn module_search(
         .collect())
 }
 
+/// Искать по сноскам и параллельным местам модуля — те же
+/// операторы запроса, что и `module_search` (фраза «…», `w*`, `?`).
+pub async fn module_notes_search(
+    module_path: String,
+    cache_path: String,
+    query: String,
+    limit: i64,
+) -> Result<Vec<SearchHitInfo>> {
+    let m = open_cached(Path::new(&module_path))?;
+    let m = lock_module(&m)?;
+    let idx = studybible_store::SearchIndex::open(Path::new(&cache_path), &m)?;
+    let hits = idx.search_notes(&query, usize::try_from(limit).unwrap_or(usize::MAX))?;
+    Ok(hits
+        .iter()
+        .map(|h| SearchHitInfo {
+            book: h.book.to_string(),
+            chapter: h.chapter.into(),
+            verse: h.verse.into(),
+            snippet: h.snippet.clone(),
+        })
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

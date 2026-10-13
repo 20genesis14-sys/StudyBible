@@ -703,9 +703,12 @@ normalization changes the version rises and the cache rebuilds. The
 case, ё=е, pre-reform letters, diacritics via NFD), verse coordinates
 as unindexed columns.
 Query: words are normalized and joined with AND, order by bm25.
-Done in the MVP: exact form (`for_search`) and AND. Stemming,
-lemmatization, phrase, NEAR, word-start, scope restriction and
-multi-module search — not yet.
+Done: exact form (`for_search`) and AND; operators (1.1.2) —
+`"…"` phrase (FTS5), `w*` prefix (FTS5), `?` and inner `*` —
+glob scan over tokenized normalized text (FTS5 has no single-char
+wildcard); the same operators apply to footnote/xref search over
+`spans` (kinds 'f'/'n'/'x'). Stemming, lemmatization, NEAR, scope
+restriction and multi-module search — not yet.
 Normalization levels (target; `for_search` currently does only what is
 stated below):
 - Russian — case; ё = е; stress marks and soft hyphens; pre-reform

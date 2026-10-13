@@ -28,7 +28,7 @@
 // Section: imports
 
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -394851930;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2072223052;
 
 // Section: executor
 
@@ -797,6 +797,51 @@ fn wire__crate__api__module__module_doc_impl(
         },
     )
 }
+fn wire__crate__api__module__module_notes_search_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "module_notes_search",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_module_path = <String>::sse_decode(&mut deserializer);
+            let api_cache_path = <String>::sse_decode(&mut deserializer);
+            let api_query = <String>::sse_decode(&mut deserializer);
+            let api_limit = <i64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::module::module_notes_search(
+                            api_module_path,
+                            api_cache_path,
+                            api_query,
+                            api_limit,
+                        )
+                        .await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__module__module_search_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1429,22 +1474,23 @@ fn pde_ffi_dispatcher_primary_impl(
         17 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
         18 => wire__crate__api__module__list_modules_impl(port, ptr, rust_vec_len, data_len),
         19 => wire__crate__api__module__module_doc_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__module__module_search_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__userdata__progress_load_impl(port, ptr, rust_vec_len, data_len),
-        23 => {
+        20 => wire__crate__api__module__module_notes_search_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__module__module_search_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__userdata__progress_load_impl(port, ptr, rust_vec_len, data_len),
+        24 => {
             wire__crate__api__userdata__progress_mark_read_impl(port, ptr, rust_vec_len, data_len)
         }
-        24 => wire__crate__api__userdata__progress_reset_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__userdata__progress_set_position_impl(
+        25 => wire__crate__api__userdata__progress_reset_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__userdata__progress_set_position_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        26 => {
+        27 => {
             wire__crate__api__userdata__progress_set_verse_impl(port, ptr, rust_vec_len, data_len)
         }
-        27 => wire__crate__api__module__xref_layer_set_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__module__xref_layer_set_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1459,7 +1505,7 @@ fn pde_ffi_dispatcher_sync_impl(
     match func_id {
         12 => wire__crate__api__userdata__entries_relink_impl(ptr, rust_vec_len, data_len),
         16 => wire__crate__api__userdata__frag_ranges_impl(ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__userdata__orphan_ids_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__userdata__orphan_ids_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1833,7 +1879,7 @@ mod io {
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate
@@ -1857,7 +1903,7 @@ mod web {
     };
     use flutter_rust_bridge::for_generated::wasm_bindgen;
     use flutter_rust_bridge::for_generated::wasm_bindgen::prelude::*;
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate

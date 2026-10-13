@@ -23,7 +23,8 @@ import 'package:web/web.dart' as web;
 
 import 'frag.dart';
 import 'native_bridge.dart';
-import 'search_norm.dart' show normForIndex, normSearchQuery, normVersion;
+import 'search_norm.dart'
+    show ftsQuery, normForIndex, normVersion, parseSearchQuery, scanMatch;
 
 /// Открытые (свободные по лицензии) модули, которые скрипт кладёт
 /// в web/modules/. Личные модули пользователя сюда не попадают.
@@ -92,8 +93,7 @@ Future<CommonDatabase> _openDb(String path) async {
             Uint8List.fromList(sbz.sublist(5)).toJS,
           );
           if (out.isA<JSPromise>()) {
-            bytes = ((await (out as JSPromise).toDart) as JSUint8Array)
-                .toDart;
+            bytes = ((await (out as JSPromise).toDart) as JSUint8Array).toDart;
           }
         }
       }
@@ -439,9 +439,7 @@ void _injectLayerXrefs(
   try {
     final layer = _dbs['modules/openbible-xrefs.sb'];
     if (layer == null) return;
-    final br = layer.select('SELECT book_id FROM books WHERE code=?', [
-      book,
-    ]);
+    final br = layer.select('SELECT book_id FROM books WHERE code=?', [book]);
     if (br.isEmpty) return;
     final lbid = br.first['book_id'];
     final rows = layer.select(
@@ -450,11 +448,7 @@ void _injectLayerXrefs(
       [lbid, chapter],
     );
     for (final r in rows) {
-      _injectLayerNote(
-        out,
-        (r['verse'] as num).toInt(),
-        r['text'] as String,
-      );
+      _injectLayerNote(out, (r['verse'] as num).toInt(), r['text'] as String);
     }
   } catch (_) {
     // Слоя нет или он битый — чтение идёт без параллельных.
@@ -476,11 +470,7 @@ bool _moduleHasXrefs(CommonDatabase db) {
 /// x-спан слоя в конец стиха `v` потока чтения (перед маркером
 /// следующего стиха или в конец блока) — как inject_verse_note
 /// в api/module.rs.
-void _injectLayerNote(
-  List<Map<String, dynamic>> blocks,
-  int v,
-  String text,
-) {
+void _injectLayerNote(List<Map<String, dynamic>> blocks, int v, String text) {
   for (final b in blocks) {
     final spans = b['s'] as List;
     var seen = false;
@@ -552,14 +542,15 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
     var hasPack = false;
     try {
       hasPack =
-          (db.select(
-                    "SELECT count(*) AS n FROM sqlite_master "
-                    "WHERE name='span_pack' AND type='table'",
-                  ).first['n']
+          (db
+                      .select(
+                        "SELECT count(*) AS n FROM sqlite_master "
+                        "WHERE name='span_pack' AND type='table'",
+                      )
+                      .first['n']
                   as num) >
               0 &&
-          (db.select('SELECT count(*) AS n FROM span_pack').first['n']
-                  as num) >
+          (db.select('SELECT count(*) AS n FROM span_pack').first['n'] as num) >
               0;
     } catch (_) {}
     final out = <Map<String, dynamic>>[];
@@ -591,9 +582,7 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
               'text': e.text,
             });
           }
-          items.sort(
-            (a, b) => (a['seq'] as num).compareTo(b['seq'] as num),
-          );
+          items.sort((a, b) => (a['seq'] as num).compareTo(b['seq'] as num));
         }
       }
       for (final r in items) {
@@ -918,30 +907,30 @@ Future<List<SearchHit>> bridgeModuleSearch(
     final db = await _openDb(modulePath);
     final q = query.trim();
     if (q.isEmpty) return const [];
+    // Операторы запроса (зеркало crates/studybible-store::search):
+    // «…» — фраза, w* — префикс, ? и внутренняя * — glob-скан
+    // (FTS5 односимвольный wildcard не умеет).
+    final terms = parseSearchQuery(q);
+    if (terms.isEmpty) return const [];
     final hasFts = db.select(
       "SELECT count(*) AS n FROM sqlite_master WHERE name='fts' AND sql LIKE '%VIRTUAL TABLE%'",
     );
     // Встроенный индекс годится только при совпадающей версии
-    // нормализации (meta.norm_version); старый — LIKE-скан.
+    // нормализации (meta.norm_version); старый — скан ниже.
     final normVer = (hasFts.first['n'] as num) > 0
         ? db.select("SELECT value AS v FROM meta WHERE key='norm_version'")
         : const [];
     final ftsOk =
         (hasFts.first['n'] as num) > 0 &&
         normVer.isNotEmpty &&
-        '${normVer.first['v']}' == normVersion;
+        '${normVer.first['v']}' == normVersion &&
+        !terms.any((t) => t.kind == 'glob');
     if (ftsOk) {
-      final terms = normSearchQuery(q)
-          .split(RegExp(r'\s+'))
-          .where((w) => w.isNotEmpty)
-          .map((w) => '"${w.replaceAll('"', '""')}"')
-          .toList();
-      if (terms.isEmpty) return const [];
       try {
         final rows = db.select(
           "SELECT book, chapter, verse, snippet(fts, 3, '[', ']', '…', 8) AS s"
           ' FROM fts WHERE fts MATCH ? ORDER BY rank LIMIT ?',
-          [terms.join(' AND '), limit],
+          [ftsQuery(terms), limit],
         );
         return [
           for (final r in rows)
@@ -956,29 +945,72 @@ Future<List<SearchHit>> bridgeModuleSearch(
         // wasm-сборка sqlite без FTS5 или битый индекс — скан ниже.
       }
     }
-    // Схема 1.1: канонический текст стиха — в verses.text; код книги —
-    // по books.
+    // Скан по стихам: glob-запросы (их FTS5 не выражает) и модули
+    // без рабочей fts. Лексемы проверяются по токенам
+    // нормализованного текста, сниппет метит совпадения `[` `]`.
     final rows = db.select(
       'SELECT b.code, v.chapter, v.verse, v.text AS t FROM verses v '
       'JOIN books b ON b.book_id=v.book_id '
-      "WHERE v.text LIKE ? ESCAPE '\\' "
-      'ORDER BY b.ord, v.chapter, v.verse LIMIT ?',
-      [
-        '%${q.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%',
-        limit,
-      ],
+      'ORDER BY b.ord, v.chapter, v.verse',
     );
-    return [
-      for (final r in rows)
-        SearchHit(
-          book: '${r['code']}',
-          chapter: (r['chapter'] as num).toInt(),
-          verse: (r['verse'] as num?)?.toInt() ?? 0,
-          snippet: '${r['t']}',
-        ),
-    ];
+    final hits = <SearchHit>[];
+    for (final r in rows) {
+      final snip = scanMatch(normForIndex('${r['t']}'), terms);
+      if (snip != null) {
+        hits.add(
+          SearchHit(
+            book: '${r['code']}',
+            chapter: (r['chapter'] as num).toInt(),
+            verse: (r['verse'] as num?)?.toInt() ?? 0,
+            snippet: snip,
+          ),
+        );
+        if (hits.length >= limit) break;
+      }
+    }
+    return hits;
   } catch (e) {
     debugPrint('[bridge] search $modulePath: $e');
+    return const [];
+  }
+}
+
+/// Поиск по сноскам и параллельным местам (`spans` kind
+/// 'f'/'n'/'x' с текстом) — те же операторы, что и по стихам.
+/// Таблица мала — всегда скан в каноническом порядке.
+Future<List<SearchHit>> bridgeNotesSearch(
+  String modulePath,
+  String query, {
+  int limit = 50,
+}) async {
+  try {
+    final db = await _openDb(modulePath);
+    final terms = parseSearchQuery(query.trim());
+    if (terms.isEmpty) return const [];
+    final rows = db.select(
+      'SELECT b.code, s.chapter, s.verse, s.text AS t FROM spans s '
+      'JOIN books b ON b.book_id=s.book_id '
+      "WHERE s.kind IN ('f','n','x') AND s.text != '' "
+      'ORDER BY b.ord, s.chapter, s.verse',
+    );
+    final hits = <SearchHit>[];
+    for (final r in rows) {
+      final snip = scanMatch(normForIndex('${r['t']}'), terms);
+      if (snip != null) {
+        hits.add(
+          SearchHit(
+            book: '${r['code']}',
+            chapter: (r['chapter'] as num).toInt(),
+            verse: (r['verse'] as num?)?.toInt() ?? 0,
+            snippet: snip,
+          ),
+        );
+        if (hits.length >= limit) break;
+      }
+    }
+    return hits;
+  } catch (e) {
+    debugPrint('[bridge] notes search $modulePath: $e');
     return const [];
   }
 }
