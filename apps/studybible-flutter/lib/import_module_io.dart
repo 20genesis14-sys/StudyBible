@@ -57,3 +57,51 @@ Future<String?> importSbModule() async {
     'Imported: ${file.name}. Relink: $relink',
   );
 }
+
+/// Импорт русского словаря Стронга: пользователь выбирает JSON,
+/// файл копируется в `dataDir()/dictionaries/strongs_ru.json` —
+/// приватный каталог приложения, доступный на Android 13+ только
+/// изнутри приложения (поэтому нужен именно импорт, а не ручное
+/// копирование). После импорта нужен lexiconReset() + перезагрузка.
+Future<String?> importStrongsDict() async {
+  final files = await FilePicker.pickFiles(
+    dialogTitle: tr(
+      'Выберите словарь Стронга (strongs_ru.json)',
+      'Choose Strong\'s lexicon (strongs_ru.json)',
+    ),
+    type: FileType.custom,
+    allowedExtensions: ['json'],
+  );
+  final file = files.firstOrNull;
+  if (file == null) return null;
+  final src = file.path;
+  if (src == null) {
+    return tr('Не удалось получить путь к файлу', 'Could not get file path');
+  }
+  // Проверка формата: JSON-объект {номер: статья}.
+  try {
+    final j = jsonDecode(await File(src).readAsString());
+    if (j is! Map<String, dynamic> || j.isEmpty) {
+      return tr(
+        'Это не словарь Стронга: ${file.name}',
+        'Not a Strong\'s lexicon: ${file.name}',
+      );
+    }
+  } catch (_) {
+    return tr(
+      'Не удалось прочитать JSON: ${file.name}',
+      'Could not read JSON: ${file.name}',
+    );
+  }
+  final dictDir = Directory('${dataDir()}/dictionaries');
+  await dictDir.create(recursive: true);
+  try {
+    await File(src).copy('${dictDir.path}/strongs_ru.json');
+  } catch (e) {
+    return tr('Ошибка импорта: $e', 'Import error: $e');
+  }
+  return tr(
+    'Словарь Стронга импортирован: ${file.name}',
+    'Strong\'s lexicon imported: ${file.name}',
+  );
+}

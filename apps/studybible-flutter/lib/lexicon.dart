@@ -94,6 +94,14 @@ Future<Map<String, LexiconEntry>> lexicon() {
   }();
 }
 
+/// Сбросить кэш словаря (после импорта strongs_ru.json): следующий
+/// вызов lexicon() пересоберёт словарь с русским оверлеем.
+void lexiconReset() {
+  _dict = null;
+  _loading = null;
+  lexiconHasRussian = false;
+}
+
 /// Нормализация номера Стронга из текста модуля ('H3117', 'G3056',
 /// допускает ведущие нули 'G03056').
 String? normalizeStrong(String s) {

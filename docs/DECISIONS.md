@@ -222,6 +222,11 @@ files.
   pronunciation — from the Russian entry; derivation, points and KJV —
   from the English one); without the file the English one works. The
   local web build reads the same file from dicts/strongs_ru.json.
+  On native builds the loader checks `dataDir()/dictionaries/` first
+  (the app's private storage — Android 13+ blocks file-manager access,
+  so there is an «Import» button on the Modules screen that copies a
+  chosen JSON there via file_picker), then the dev STUDYBIBLE_DATA
+  path as a fallback.
 - Web module serving: we deploy `modules/*.sbz` (zstd — the same
   container as native platforms, one artifact for all) plus an
   index.json with the list; `native_bridge_web` on module open first
