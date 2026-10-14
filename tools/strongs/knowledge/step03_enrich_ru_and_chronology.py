@@ -68,6 +68,57 @@ OBLIQUE_TO_NOMINATIVE: dict[str, str] = {
     "агарянин": "Агарянин",
     "город Наас ": "Ир-Нахаш",
     "книга Праведного": "Книга Праведного (Яшар)",
+    "Ахсf": "Ахса",
+    "Alexandria": "Александрия",
+    "Аcтароф": "Аштароф",
+    "Гадорамa": "Гадорам",
+    "Жена (Phineas)": "Жена Финееса",
+    "Сиistr (трещотка)": "Систр (трещотка)",
+    "Ваалверифа": "Ваал-Вериф",
+    "Серафимов": "Серафимы",
+    "Авиноамов": "Авиноам",
+    "Авиноамова": "Авиноам",
+}
+
+# Метрические эквиваленты библейских мер длины, объёма, веса и денежных единиц
+MEASURE_METRIC_RU: dict[str, str] = {
+    "realia:Cubit": "Мера длины (расстояние от локтя до кончика среднего пальца): стандартный локоть ≈ 44,5 см.",
+    "realia:Cubit.2": "Длинный (царский) локоть (6 ладоней + палец, Иез 40:5) ≈ 51,8 см.",
+    "realia:Span": "Пядь (расстояние между разведёнными большим пальцем и мизинцем, ½ локтя) ≈ 22,2 см.",
+    "realia:Handbreadth": "Ладонь (ширина четырёх пальцев, 1/6 локтя) ≈ 7,4 см.",
+    "realia:Finger": "Палец (перст, наименьшая мера длины, ¼ ладони) ≈ 1,85 см.",
+    "realia:Gomed": "Гомед (короткий локоть от локтя до сжатого кулака, Сд 3:16) ≈ 38 см.",
+    "realia:MeasuringReed": "Измерительная трость (6 локтей): обычная ≈ 2,67 м; длинная (Иез 40:5) ≈ 3,11 м.",
+    "realia:Fathom": "Сажень (оргия, морская мера глубины, Де 27:28) ≈ 1,8 м.",
+    "realia:Stade": "Стадий (греческая и римская мера расстояния, 600 футов) ≈ 185 м.",
+    "keyterm:HalfAMile": "Субботний путь (допустимое расстояние от города в субботу, Де 1:12, 2 000 локтей) ≈ 0,9–1 км.",
+    "realia:Acre": "Цемед (участок поля, который пара волов вспахивает за один день, 1См 14:14) ≈ 0,2–0,25 га.",
+    "realia:Bath": "Бат (основная мера жидких тел, равная по объёму ефе) ≈ 22 л (1/10 кора).",
+    "realia:Hin": "Гин (мера жидкостей: вина и масла, 1/6 бата) ≈ 3,67 л.",
+    "realia:Log": "Лог (наименьшая библейская мера жидкостей, 1/12 гина) ≈ 0,31 л.",
+    "realia:Ephah": "Ефа (основная мера сыпучих тел, равная по объёму бату) ≈ 22 л (10 гоморов / 3 саты).",
+    "realia:Saton": "Сата (греч. форма евр. сеа, мера муки и зерна, 1/3 ефы) ≈ 7,33 л.",
+    "realia:Seah": "Сеа (сата, мера сыпучих тел, 1/3 ефы) ≈ 7,33 л.",
+    "realia:Omer": "Гомор (омер, дневная норма манны на человека, 1/10 ефы, Исх 16:36) ≈ 2,2 л.",
+    "realia:Kab": "Кав (мера сыпучих тел, 1/18 ефы или 4 лога) ≈ 1,22 л.",
+    "realia:Homer": "Хомер (ослиный вьюк, наибольшая мера сыпучих тел, 10 еф / 10 батов) ≈ 220 л.",
+    "realia:Kor": "Кор (крупная мера сыпучих и жидких тел, равная хомеру, 10 батов / 10 еф) ≈ 220 л.",
+    "realia:Kor.2": "Кор (мера зерна и масла, равная 10 ефам или 10 батам) ≈ 220 л.",
+    "realia:Quart": "Хиникс (дневной паёк пшеницы в НЗ, Отк 6:6) ≈ 1,08 л.",
+    "realia:Gerah": "Гера (наименьшая еврейская мера веса, 1/20 шекеля) ≈ 0,57 г.",
+    "realia:AHalfShekel": "Полшекеля (бека, храмовый сбор с каждого взрослого мужчины, 10 гер) ≈ 5,7 г.",
+    "realia:Shekel": "Шекель (сикль, основная еврейская единица веса серебра и золота, 20 гер) ≈ 11,4 г.",
+    "realia:Mina": "Мина (50 шекелей в Еврейских Писаниях ≈ 570 г; греческая мина в НЗ = 100 драхм ≈ 340 г).",
+    "realia:Talent": "Талант (крупнейшая единица веса и денежного счёта, 3 000 шекелей / 60 мин) ≈ 34,2 кг (греч. талант ≈ 20,4 кг).",
+    "realia:Pound": "Литра (римский фунт мирры и алоэ, Ин 12:3; 19:39) ≈ 327 г.",
+    "realia:Daric": "Дарик (персидская золотая монета высокой пробы, 1Лт 29:7; Езд 8:27) ≈ 8,4 г золота.",
+    "realia:Lepton": "Лепта (мельчайшая медная/бронзовая иудейская монета, ½ кодранта, 1/128 динария, Мк 12:42).",
+    "realia:Quadrans": "Кодрант (римская медная монета, равная 2 лептам или 1/64 динария, Мк 12:42).",
+    "realia:Assarion": "Ассарий (римская медная монета, равная 4 кодрантам или 1/16 динария, Мф 10:29).",
+    "realia:Denarius": "Динарий (римская серебряная монета весом ≈ 3,85 г, обычный дневной заработок работника, Мф 20:2).",
+    "realia:Drachma": "Драхма (греческая серебряная монета весом ≈ 3,4 г, близкая по стоимости к римскому динарию, Лк 15:8).",
+    "realia:Two-drachmaPiece": "Дидрахма (греческая серебряная монета в 2 драхмы ≈ 6,8 г, сумма ежегодного храмового сбора, Мф 17:24).",
+    "realia:Stater": "Статер (греческая серебряная монета в 4 драхмы / тетрадрахма ≈ 13,6 г, покрывавшая храмовый сбор за двоих, Мф 17:27).",
 }
 
 # 2. Прямой словарь русских названий для сущностей без прямого номера Стронга
@@ -148,7 +199,7 @@ EXPLICIT_RU_NAMES: dict[str, str] = {
     "realia:Room": "Комната (горница)",
     "realia:SacredCakes": "Священные лепёшки",
     "realia:SecondStory": "Второй этаж (верхняя горница)",
-    "realia:Shaker": "Сиistr (трещотка)",
+    "realia:Shaker": "Систр (трещотка)",
     "realia:TheHolyPlace": "Святое (отделение скинии/храма)",
     "realia:Two-drachmaPiece": "Дидрахма (монета в две драхмы)",
     # Понятия (keyterm)
@@ -751,6 +802,8 @@ def generate_ru_short_description(
     структурированных полей ACAI (`roles`, `relationships`, `type`, `key_references`)
     и открытых статей `Door43 ru_tw` / `Aquifer Russian`.
     """
+    if eid in MEASURE_METRIC_RU:
+        return MEASURE_METRIC_RU[eid]
     # 1. Если есть готовое определение из открытой статьи Door43 ru_tw (для понятий, реалий, основных героев)
     if tw_short and typ in ("concept", "object", "plant", "creature", "group"):
         return tw_short
@@ -1132,6 +1185,19 @@ def main() -> None:
     tw_by_slug, tw_by_strong = load_door43_tw_full()
     rob_names = collect_rob_capitalized_names()
 
+    # Загружаем выверенные в ОЗУ русские значения имён (`meaning_ru`), ударения (`accent_ru`)
+    # и именительные формы (`nom_ru`), а также английские значения имён из TIPNR (`lex-name.json`).
+    etym_acc_path = DATA / "work" / "strongs" / "knowledge" / "ru_etym_and_accents.json"
+    etym_acc_map: dict[str, dict] = (
+        json.loads(etym_acc_path.read_text(encoding="utf-8")) if etym_acc_path.exists() else {}
+    )
+    tipnr_gloss_by_eid: dict[str, str] = {}
+    lex_name_path = DATA / "work" / "strongs" / "lex-name.json"
+    if lex_name_path.exists():
+        for _k, v in json.loads(lex_name_path.read_text(encoding="utf-8")).items():
+            if v.get("gloss") and v.get("name") and v.get("ref"):
+                tipnr_gloss_by_eid[f"{v['name'].lower()}@{v['ref']}"] = v["gloss"]
+
     # 3. Исправляем косвенные падежи в существующих русских именах `entity_names`
     cur_ru_rows = db.execute(
         "SELECT rowid, entity_id, name, lang, kind FROM entity_names WHERE lang IN ('ru', 'rus')"
@@ -1167,9 +1233,15 @@ def main() -> None:
         if slug not in base_ru_by_slug:
             base_ru_by_slug[slug] = nm
 
-    # 5. Доводим покрытие русских имён до 100 % всех 5 700 сущностей
+    # 5. Доводим покрытие русских имён до 100 % всех 5 700 сущностей и добавляем эталонные именительные формы
     added_names: list[tuple[str, str, str, str]] = []
     for eid, typ, en_name, strongs in db.execute("SELECT id, type, name, strongs FROM entities"):
+        ea_rec = etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {}
+        nom_ru = ea_rec.get("nom_ru")
+        if nom_ru and nom_ru.lower() not in [x.lower() for x in ru_by_id.get(eid, [])]:
+            added_names.append((eid, nom_ru, "ru", "canonical"))
+            ru_by_id[eid].insert(0, nom_ru)
+
         # Дополнительная форма из 66-книжного ru_rob-strongs.sb
         codes = re.findall(r"[HG]\d+[A-Za-z]?", strongs)
         rob_ctr: collections.Counter = collections.Counter()
@@ -1259,12 +1331,28 @@ def main() -> None:
 
     tw_joined = 0
     ru_desc_count = 0
+    meaning_ru_count = 0
+    accent_ru_count = 0
     ent_updates: list[tuple[str, str, str]] = []
 
     for eid, typ, sub, en_name, strongs, en_desc, art, meta_s in db.execute(
         "SELECT id, type, subtype, name, strongs, short_description, article, metadata FROM entities"
     ):
         meta = json.loads(meta_s) if meta_s else {}
+        ea_rec = etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {}
+        if ea_rec.get("meaning_ru"):
+            meta["name_meaning_ru"] = ea_rec["meaning_ru"]
+            meaning_ru_count += 1
+        if ea_rec.get("accent_ru"):
+            meta["name_accented_ru"] = ea_rec["accent_ru"]
+            accent_ru_count += 1
+        # Английское значение имени из TIPNR
+        for t_eid in (meta.get("alternate_sources") or {}).get("tipnr") or []:
+            base_te = t_eid.split("|")[-1].split("-")[0].lower()
+            if base_te in tipnr_gloss_by_eid:
+                meta["name_meaning_en"] = tipnr_gloss_by_eid[base_te]
+                break
+
         slug = eid.split(":")[-1].split(".")[0].lower().replace("-", "").replace("_", "")
         en_slug = en_name.lower().split("(")[0].strip().replace(" ", "").replace("-", "")
         tw_rec = tw_by_slug.get(slug) or tw_by_slug.get(en_slug)
@@ -1360,6 +1448,32 @@ def main() -> None:
         BOOK_CHRONOLOGY_ROWS,
     )
     va_rows = build_curated_visual_aids()
+    existing_va_codes = {r[0] for r in va_rows}
+    charts_66_path = DATA / "work" / "strongs" / "knowledge" / "book_charts_66.json"
+    if charts_66_path.exists():
+        charts_66 = json.loads(charts_66_path.read_text(encoding="utf-8"))
+        for b_code, b_num, *_rest in BOOK_CHRONOLOGY_ROWS:
+            va_code = f"{b_num}B"
+            if va_code not in existing_va_codes and b_code in charts_66 and charts_66[b_code]:
+                va_rows.append(
+                    (
+                        va_code,
+                        b_num,
+                        "B",
+                        "chart",
+                        f"Connections Between {b_code} and Other Books of the Bible",
+                        f"Связь книги {b_code} с другими книгами Библии",
+                        "Quotations, Prophecies, and Parallels Across the Canon",
+                        "Цитаты, пророчества и параллели в каноне",
+                        json.dumps({"rows": charts_66[b_code]}, ensure_ascii=False),
+                        "",
+                        b_code,
+                        1,
+                        1,
+                        "OpenCrossRefs+STEPBible",
+                        "CC BY-SA 4.0",
+                    )
+                )
     db.executemany("INSERT INTO visual_aids VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", va_rows)
 
     # 9. Заполняем таблицу `media` (OpenBible Geocoding + UBS Illustrations)
@@ -1368,7 +1482,7 @@ def main() -> None:
     # 10. Обновляем метаданные модуля `knowledge.sb`
     all_ids = [r[0] for r in db.execute("SELECT id FROM entities ORDER BY id").fetchall()]
     digest = hashlib.sha256(json.dumps(all_ids, ensure_ascii=False).encode("utf-8")).hexdigest()
-    db.execute("UPDATE meta SET value='0.3.0' WHERE key='version'")
+    db.execute("UPDATE meta SET value='0.4.0' WHERE key='version'")
     db.execute("UPDATE meta SET value=? WHERE key='content_hash'", (digest,))
     db.commit()
     db.execute("ANALYZE")
@@ -1403,6 +1517,8 @@ def main() -> None:
         "entity_names_total": total_names,
         "fixed_oblique_forms": fixed_oblique,
         "added_ru_names": len(added_names),
+        "entities_with_name_meaning_ru": meaning_ru_count,
+        "entities_with_name_accented_ru": accent_ru_count,
         "door43_ru_tw_joined": tw_joined,
         "short_description_ru_generated": ru_desc_count,
         "relationships_total": total_rels,
