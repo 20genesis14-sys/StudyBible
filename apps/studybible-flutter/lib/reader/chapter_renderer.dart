@@ -321,14 +321,20 @@ extension _ChapterRenderer on _ReadingScreenState {
     }
     final t = s as TextSpanDoc;
     final strong = t.strong;
+    final isDisputed = t.conf >= 5 && t.conf <= 7;
+    final isAux = t.flags.split(',').contains('aux');
     final style = TextStyle(
       color: t.style == 'wj' ? p.jesus : p.ink,
       fontStyle: t.style == 'add' ? FontStyle.italic : null,
       decoration: _study && settings.layerStrongs && strong != null
           ? TextDecoration.underline
           : null,
-      decorationStyle: TextDecorationStyle.dotted,
-      decorationColor: p.muted,
+      decorationStyle: isDisputed
+          ? TextDecorationStyle.wavy
+          : TextDecorationStyle.dotted,
+      decorationColor: isDisputed
+          ? p.accent
+          : (isAux ? p.muted.withValues(alpha: 0.45) : p.muted),
       // Фон стиха: целостишовое выделение — цвет записи; иначе фон
       // читаемого вслух стиха (null!=null-защита: без TTS не красим).
       backgroundColor: vCtx != null && inChapter && _wholeHl(vCtx) != null
@@ -340,7 +346,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     // Стронг — по долгому нажатию: тап у выделенных кусков занят
     // меню фрагмента (решение пользователя, 14.10.2026).
     final recognizer = _study && settings.layerStrongs && strong != null
-        ? _longPress(() => _showStrong(strong, t.text))
+        ? _longPress(() => _showStrong(strong, t.text, t.attrs))
         : null;
     // Сырой сдвиг по текстовым спанам стиха — под него размечены
     // диапазоны частичных выделений (_hlFrags, frag-селекторы).
@@ -465,9 +471,15 @@ extension _ChapterRenderer on _ReadingScreenState {
     _applyLocation(loc);
   }
 
-  void _showStrong(String strong, String word) {
+  void _showStrong(String strong, String word, [String attrs = '']) {
     history.touchDict(strong, word);
-    showStrongCard(context, strong, word);
+    showStrongCard(
+      context,
+      strong,
+      word,
+      attrs: attrs,
+      modulePath: modulePathOf(_moduleId),
+    );
   }
 
   // ---------- сноски ----------
@@ -1017,10 +1029,29 @@ extension _ChapterRenderer on _ReadingScreenState {
     // режимах рисуется колонками «перевод над оригиналом».
     if (_hasPairs(ch)) return _buildPairsChapter(ch, p, peek: peek);
     // «Изучение» — всегда стих на строку (ADR 0015).
-    if (_study || settings.layoutMode == LayoutMode.versePerLine) {
-      return _buildVerseLines(ch, p, peek);
-    }
-    return _buildBlocks(ch, p, peek);
+    final body = (_study || settings.layoutMode == LayoutMode.versePerLine)
+        ? _buildVerseLines(ch, p, peek)
+        : _buildBlocks(ch, p, peek);
+    if (!ch.layerMismatch) return body;
+    return [
+      Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: p.accent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: p.accent.withValues(alpha: 0.4)),
+        ),
+        child: Text(
+          tr(
+            'Слой Стронга не применён: версия текста модуля не совпадает с target_hash слоя.',
+            'Strong’s layer not applied: module text hash does not match layer target_hash.',
+          ),
+          style: TextStyle(fontSize: 12, color: p.ink),
+        ),
+      ),
+      ...body,
+    ];
   }
 
   /// Глава содержит пары подстрочника (спаны w с attrs gr="…").
@@ -1041,6 +1072,36 @@ extension _ChapterRenderer on _ReadingScreenState {
     return found;
   }
 
+  void _ensureDictGlosses(ChapterDoc ch, int chNum) {
+    if (ch.dictGlosses != null || ch.dictLoading) return;
+    final path = modulePathOf(_moduleId);
+    if (path == null || path.isEmpty) return;
+    ch.dictLoading = true;
+    bridgeChapterDoc(path, '@dict_glosses:$_code', chNum).then((raw) {
+      ch.dictLoading = false;
+      if (raw == null || !mounted) return;
+      try {
+        final j = jsonDecode(raw) as Map<String, dynamic>;
+        final gm = <String, String>{};
+        final gObj = j['glosses'] as Map<String, dynamic>? ?? const {};
+        for (final e in gObj.entries) {
+          final v = e.value as Map<String, dynamic>;
+          final g = v['g'] as String? ?? '';
+          if (g.isNotEmpty) gm[e.key] = g;
+        }
+        final mm = <String, String>{};
+        final mObj = j['morphs'] as Map<String, dynamic>? ?? const {};
+        for (final e in mObj.entries) {
+          mm[e.key] = e.value as String? ?? '';
+        }
+        ch.dictGlosses = gm;
+        ch.dictMorphs = mm;
+        _lineCache.clear();
+        _rebuild(() {});
+      } catch (_) {}
+    });
+  }
+
   /// Лента подстрочника на всю главу: номер стиха + колонки пар.
   /// [chapterNum] — внутри ленты книги: якоря на _bookVerseKeys.
   List<Widget> _buildPairsChapter(
@@ -1049,9 +1110,52 @@ extension _ChapterRenderer on _ReadingScreenState {
     bool peek = false,
     int? chapterNum,
   }) {
+    if (settings.interlinearMode == InterlinearMode.dictionary) {
+      _ensureDictGlosses(ch, chapterNum ?? _ch);
+    }
     final words = _wordSpans(ch);
     _syncLineCache(p, const []);
-    final out = <Widget>[];
+    final out = <Widget>[
+      if (chapterNum == null || chapterNum == _ch)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Text(
+                tr('Подстрочник:', 'Interlinear:'),
+                style: TextStyle(fontSize: 12, color: p.muted),
+              ),
+              const SizedBox(width: 8),
+              SegmentedButton<InterlinearMode>(
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                segments: [
+                  ButtonSegment(
+                    value: InterlinearMode.contextual,
+                    label: Text(
+                      tr('Контекстный', 'Contextual'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  ButtonSegment(
+                    value: InterlinearMode.dictionary,
+                    label: Text(
+                      tr('Словарный', 'Dictionary'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+                selected: {settings.interlinearMode},
+                onSelectionChanged: (s) {
+                  settings.update(() => settings.interlinearMode = s.first);
+                },
+              ),
+            ],
+          ),
+        ),
+    ];
     for (final b in ch.blocks) {
       if (b.kind == BlockKind.heading) {
         out.add(
@@ -1121,8 +1225,8 @@ extension _ChapterRenderer on _ReadingScreenState {
                     // В ленте книги ключ главы в сигнатуре один —
                     // главу несёт chapterNum.
                     child: _cachedLine(
-                      'P:${chapterNum ?? _ch}:$v',
-                      () => _interlinearLine(words[v] ?? const [], p),
+                      'P:${chapterNum ?? _ch}:$v:${settings.interlinearMode.index}:${ch.dictGlosses != null}',
+                      () => _interlinearLine(words[v] ?? const [], p, null, null, ch),
                     ),
                   ),
                 ],
@@ -1698,47 +1802,60 @@ extension _ChapterRenderer on _ReadingScreenState {
     Palette p, [
     String? lang,
     String? label,
+    ChapterDoc? chDoc,
   ]) {
     lang ??= '';
     final rtl = lang == 'he' || lang == 'hbo' || lang == 'arc';
-    final font = switch (lang) {
-      'he' || 'hbo' || 'arc' => 'NotoSerifHebrew',
-      'grc' || 'el' => 'GentiumBookPlus',
-      _ => readingFontFamily(settings.readingFont),
-    };
     final wrap = Wrap(
       spacing: 10,
-      runSpacing: 6,
+      runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.end,
       children: [
         for (final w in words)
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                w.text.trim().replaceAll('/', ''),
-                style: TextStyle(
-                  fontFamily: font,
-                  fontSize: 15 * settings.fontScale,
-                  fontWeight: w.attrs.contains('gr=') ? FontWeight.w600 : null,
-                  color: p.ink,
-                  height: 1.3,
-                ),
+          InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: (w.strong != null || w.eid != null)
+                ? () => _showStrong(w.strong ?? '', w.text, w.attrs)
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    _topLineOf(w, chDoc),
+                    style: TextStyle(
+                      fontFamily: readingFontFamily(settings.readingFont),
+                      fontSize: 14 * settings.fontScale,
+                      fontWeight: w.eid != null ? FontWeight.w700 : FontWeight.w500,
+                      color: w.eid != null ? p.accent : p.ink,
+                      height: 1.25,
+                    ),
+                  ),
+                  Text(
+                    _bottomLineOf(w),
+                    style: TextStyle(
+                      fontFamily: (w.strong ?? '').startsWith('H')
+                          ? 'NotoSerifHebrew'
+                          : 'GentiumBookPlus',
+                      fontSize: 13 * settings.fontScale,
+                      color: p.muted,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (_subTagOf(w, chDoc).isNotEmpty)
+                    Text(
+                      _subTagOf(w, chDoc),
+                      style: TextStyle(
+                        fontSize: 9.5 * settings.fontScale,
+                        color: p.muted.withValues(alpha: 0.75),
+                        height: 1.15,
+                      ),
+                    ),
+                ],
               ),
-              Text(
-                _glossOf(w),
-                style: TextStyle(
-                  fontFamily: w.attrs.contains('gr=')
-                      ? 'GentiumBookPlus'
-                      : null,
-                  fontSize:
-                      (w.attrs.contains('gr=') ? 12 : 10) * settings.fontScale,
-                  color: p.muted,
-                  height: 1.2,
-                ),
-              ),
-            ],
+            ),
           ),
       ],
     );
@@ -1768,6 +1885,33 @@ extension _ChapterRenderer on _ReadingScreenState {
       ),
     ),
   );
+
+  String _topLineOf(TextSpanDoc w, ChapterDoc? chDoc) {
+    if (settings.interlinearMode == InterlinearMode.dictionary &&
+        chDoc?.dictGlosses != null &&
+        w.strong != null) {
+      final g = chDoc!.dictGlosses![w.strong!];
+      if (g != null && g.isNotEmpty) return g;
+    }
+    return w.text.trim().replaceAll('/', '');
+  }
+
+  String _bottomLineOf(TextSpanDoc w) {
+    final g = w.gr;
+    if (g != null && g.isNotEmpty) return g;
+    return _glossOf(w);
+  }
+
+  String _subTagOf(TextSpanDoc w, ChapterDoc? chDoc) {
+    if (w.gr == null) return '';
+    final st = w.strong ?? '';
+    final mc = w.morph ?? '';
+    if (settings.interlinearMode == InterlinearMode.dictionary &&
+        mc.isNotEmpty) {
+      return st.isNotEmpty ? '$st · $mc' : mc;
+    }
+    return st;
+  }
 
   /// Краткая глосса слова: слово оригинала из пары подстрочника
   /// (attrs gr="…"), иначе определение из словаря Стронга, иначе

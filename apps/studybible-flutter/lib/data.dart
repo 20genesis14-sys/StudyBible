@@ -204,6 +204,7 @@ final Map<String, String> kModules = {
   'engbsb': 'Berean Standard Bible',
   'oshb': 'Еврейская Библия (OSHb)',
   'ugnt': 'Греческий НЗ (UGNT)',
+  'step-orig': 'Подстрочник STEPBible (TAHOT/TAGNT)',
 };
 
 /// Имена модулей для en-интерфейса (id → имя; фоллбэк — kModules).
@@ -213,6 +214,7 @@ const Map<String, String> kModulesEn = {
   'kjv2006': 'KJV 2006 (Strong’s)',
   'oshb': 'Hebrew Bible (OSHB)',
   'ugnt': 'Greek NT (UGNT)',
+  'step-orig': 'STEPBible Interlinear (TAHOT/TAGNT)',
 };
 
 /// Имя модуля для UI по языку интерфейса; у модулей, найденных
@@ -265,7 +267,8 @@ String? moduleTag(String id) {
 /// Решение 08.10.2026: списки выбора перевода показывают строго
 /// установленные модули; kModules остаётся справочником имён.
 Map<String, String> get installedModules => {
-  for (final id in _sbPaths.keys) id: moduleName(id),
+  for (final id in _sbPaths.keys)
+    if (id != 'strongs-step' && id != 'knowledge') id: moduleName(id),
 };
 
 /// Основной перевод пользователя: настройка или первый

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -452,91 +454,368 @@ class _NoteDialogState extends State<NoteDialog> {
   }
 }
 
-/// Карточка статьи словаря Стронга — шторка. Используется из
-/// экрана чтения (тап по слову с номером) и из истории.
-void showStrongCard(BuildContext context, String strong, String word) {
+String? _extractAttr(String attrs, String key) {
+  final m = RegExp('$key="([^"]*)"').firstMatch(attrs);
+  final v = m?.group(1);
+  return (v != null && v.isNotEmpty) ? v : null;
+}
+
+Future<Map<String, dynamic>?> _loadExtendedStrong(
+  String? modulePath,
+  String strong,
+  String attrs,
+) async {
+  if (modulePath == null || modulePath.isEmpty) return null;
+  final morph = _extractAttr(attrs, 'morph') ?? '';
+  final eid = _extractAttr(attrs, 'eid') ?? '';
+  final ref = _extractAttr(attrs, 'ref') ?? _extractAttr(attrs, 'wid') ?? '';
+  final sns = _extractAttr(attrs, 'sns') ?? '';
+  final q = [
+    '@lex:${normalizeStrong(strong) ?? strong}',
+    if (morph.isNotEmpty) 'morph=$morph',
+    if (eid.isNotEmpty) 'eid=$eid',
+    if (ref.isNotEmpty) 'ref=$ref',
+    if (sns.isNotEmpty) 'sns=$sns',
+  ].join('|');
+  final raw = await bridgeChapterDoc(modulePath, q, 1);
+  if (raw == null || raw.isEmpty) return null;
+  try {
+    return jsonDecode(raw) as Map<String, dynamic>;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Карточка сущности из `knowledge.sb` (ADR 0024).
+void showEntityCard(BuildContext context, String modulePath, String entityId) {
   final p = context.palette;
   showModalBottomSheet(
     context: context,
-    builder: (_) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: FutureBuilder<Map<String, LexiconEntry>>(
-          future: lexicon(),
-          builder: (_, snap) {
-            final e = snap.data?[normalizeStrong(strong) ?? strong];
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    strong,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: p.accent,
-                    ),
+    isScrollControlled: true,
+    builder: (_) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.65,
+      builder: (_, scrollCtrl) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: FutureBuilder<String?>(
+            future: bridgeChapterDoc(modulePath, '@entity:$entityId', 1),
+            builder: (ctx, snap) {
+              if (!snap.hasData) {
+                return Text(
+                  tr('Загружаю сущность…', 'Loading entity…'),
+                  style: TextStyle(fontSize: 13, color: p.muted),
+                );
+              }
+              final raw = snap.data;
+              if (raw == null) {
+                return Text(
+                  tr('Сущность $entityId не найдена.', 'Entity $entityId not found.'),
+                  style: TextStyle(fontSize: 13, color: p.muted),
+                );
+              }
+              final ent = jsonDecode(raw) as Map<String, dynamic>;
+              return SingleChildScrollView(
+                controller: scrollCtrl,
+                child: _buildEntitySection(ctx, p, ent, modulePath),
+              );
+            },
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildEntitySection(
+  BuildContext context,
+  Palette p,
+  Map<String, dynamic> ent,
+  String? modulePath,
+) {
+  final name = ent['name'] as String? ?? '';
+  final typ = ent['type'] as String? ?? '';
+  final sub = ent['subtype'] as String? ?? '';
+  final orig = ent['name_original'] as String? ?? '';
+  final desc = ent['short_description'] as String? ?? '';
+  final article = ent['article'] as String? ?? '';
+  final namesRu = (ent['names_ru'] as List? ?? const []).cast<String>();
+  final rels = (ent['relations'] as List? ?? const []).cast<Map<String, dynamic>>();
+
+  return Container(
+    margin: const EdgeInsets.only(top: 12),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: p.accent.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: p.accent.withValues(alpha: 0.25)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              typ == 'place' ? Icons.place_outlined : Icons.person_outline,
+              size: 18,
+              color: p.accent,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                [
+                  name,
+                  if (namesRu.isNotEmpty) namesRu.first,
+                ].join(' · '),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: p.ink,
+                ),
+              ),
+            ),
+            Text(
+              [typ, if (sub.isNotEmpty) sub].join(' / '),
+              style: TextStyle(fontSize: 11, color: p.muted),
+            ),
+          ],
+        ),
+        if (orig.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(orig, style: TextStyle(fontSize: 13, color: p.muted)),
+          ),
+        if (desc.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              desc,
+              style: TextStyle(fontSize: 13, color: p.ink, height: 1.35),
+            ),
+          ),
+        if (rels.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              for (final r in rels.take(12))
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    '${r['type']}: ${r['name']}',
+                    style: const TextStyle(fontSize: 11),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '«${word.trim()}»',
-                    style: TextStyle(fontSize: 16, color: p.ink),
-                  ),
-                  const SizedBox(height: 8),
-                  if (e == null)
+                  onPressed: modulePath != null && modulePath.isNotEmpty
+                      ? () => showEntityCard(
+                            context,
+                            modulePath,
+                            r['id'] as String? ?? '',
+                          )
+                      : null,
+                ),
+            ],
+          ),
+        ],
+        if (article.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+              tr('Энциклопедическая статья', 'Encyclopedia article'),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: p.accent,
+              ),
+            ),
+            children: [
+              Text(
+                article,
+                style: TextStyle(fontSize: 12.5, color: p.ink, height: 1.4),
+              ),
+            ],
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// Карточка статьи словаря Стронга — шторка. Используется из
+/// экрана чтения (тап по слову с номером) и из истории.
+void showStrongCard(
+  BuildContext context,
+  String strong,
+  String word, {
+  String attrs = '',
+  String? modulePath,
+}) {
+  final p = context.palette;
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.65,
+      builder: (ctx, scrollCtrl) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: FutureBuilder<(Map<String, dynamic>?, Map<String, LexiconEntry>)>(
+            future: () async {
+              final ext = await _loadExtendedStrong(modulePath, strong, attrs);
+              final dict = await lexicon();
+              return (ext, dict);
+            }(),
+            builder: (_, snap) {
+              final ext = snap.data?.$1;
+              final extEntries =
+                  (ext?['entries'] as List? ?? const []).cast<Map<String, dynamic>>();
+              final extMorphs =
+                  (ext?['morph'] as List? ?? const []).cast<Map<String, dynamic>>();
+              final extEntity = ext?['entity'] as Map<String, dynamic>?;
+              final ctxSense = ext?['context_sense'] as String? ?? '';
+              final dict = snap.data?.$2;
+              final firstCode =
+                  (normalizeStrong(strong) ?? strong).split(' ').first;
+              final e = dict?[firstCode] ??
+                  dict?[firstCode.replaceAll(RegExp(r'[A-Z]$'), '')];
+
+              return SingleChildScrollView(
+                controller: scrollCtrl,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      snap.hasData
-                          ? tr(
-                              'Нет статьи $strong в словаре.',
-                              'No lexicon entry for $strong.',
-                            )
-                          : tr('Загружаю словарь…', 'Loading lexicon…'),
-                      style: TextStyle(fontSize: 13, color: p.muted),
-                    )
-                  else ...[
-                    if (e.lemma.isNotEmpty || e.xlit.isNotEmpty)
-                      Text(
-                        [
-                          e.lemma,
-                          e.xlit,
-                          e.pron,
-                        ].where((s) => s.isNotEmpty).join('  ·  '),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: p.ink,
-                        ),
+                      strong,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: p.accent,
                       ),
-                    if (e.pos.isNotEmpty)
-                      _strongLine(p, tr('Часть речи', 'Part of speech'), e.pos),
-                    if (e.expl.isNotEmpty)
-                      _strongLine(p, tr('Определение', 'Definition'), e.expl),
-                    for (final d in e.defs)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          '• $d',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: p.ink,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                    if (e.deriv.isNotEmpty)
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '«${word.trim()}»',
+                      style: TextStyle(fontSize: 16, color: p.ink),
+                    ),
+                    if (ctxSense.isNotEmpty)
                       _strongLine(
                         p,
-                        tr('Происхождение', 'Derivation'),
-                        e.deriv,
+                        tr('Контекстное значение в стихе', 'Contextual sense in verse'),
+                        ctxSense,
                       ),
-                    if (e.kjv.isNotEmpty)
-                      _strongLine(p, tr('В KJV', 'In KJV'), e.kjv),
+                    if (extMorphs.isNotEmpty)
+                      _strongLine(
+                        p,
+                        tr('Морфология', 'Morphology'),
+                        [
+                          for (final m in extMorphs)
+                            '${m['code']}: ${m['long'] ?? m['short'] ?? ''}',
+                        ].join('\n'),
+                      ),
+                    if (extEntity != null)
+                      _buildEntitySection(ctx, p, extEntity, modulePath),
+                    const SizedBox(height: 8),
+                    if (extEntries.isNotEmpty)
+                      for (final ee in extEntries) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            [
+                              ee['key'] as String? ?? '',
+                              ee['lemma'] as String? ?? '',
+                              ee['xlit'] as String? ?? '',
+                            ].where((s) => s.isNotEmpty).join('  ·  '),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: p.ink,
+                            ),
+                          ),
+                        ),
+                        if ((ee['gloss'] as String? ?? '').isNotEmpty)
+                          _strongLine(
+                            p,
+                            tr('Краткое толкование (STEPBible)', 'STEPBible Gloss'),
+                            ee['gloss'] as String,
+                          ),
+                        if ((ee['sense_label'] as String? ?? '').isNotEmpty)
+                          _strongLine(
+                            p,
+                            tr('Метка значения', 'Sense label'),
+                            ee['sense_label'] as String,
+                          ),
+                        if ((ee['sense_domain'] as String? ?? '').isNotEmpty)
+                          _strongLine(
+                            p,
+                            tr('Семантический домен (UBS, CC BY-SA 4.0)', 'Semantic domain (UBS, CC BY-SA 4.0)'),
+                            ee['sense_domain'] as String,
+                          ),
+                        for (final d
+                            in (ee['defs'] as List? ?? const [])
+                                .cast<Map<String, dynamic>>())
+                          _strongLine(
+                            p,
+                            '${d['src']} (${d['lic']})',
+                            d['def'] as String? ?? '',
+                          ),
+                      ]
+                    else if (e == null)
+                      Text(
+                        snap.hasData
+                            ? tr(
+                                'Нет статьи $strong в словаре.',
+                                'No lexicon entry for $strong.',
+                              )
+                            : tr('Загружаю словарь…', 'Loading lexicon…'),
+                        style: TextStyle(fontSize: 13, color: p.muted),
+                      )
+                    else ...[
+                      if (e.lemma.isNotEmpty || e.xlit.isNotEmpty)
+                        Text(
+                          [
+                            e.lemma,
+                            e.xlit,
+                            e.pron,
+                          ].where((s) => s.isNotEmpty).join('  ·  '),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: p.ink,
+                          ),
+                        ),
+                      if (e.pos.isNotEmpty)
+                        _strongLine(p, tr('Часть речи', 'Part of speech'), e.pos),
+                      if (e.expl.isNotEmpty)
+                        _strongLine(p, tr('Определение', 'Definition'), e.expl),
+                      for (final d in e.defs)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '• $d',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: p.ink,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      if (e.deriv.isNotEmpty)
+                        _strongLine(
+                          p,
+                          tr('Происхождение', 'Derivation'),
+                          e.deriv,
+                        ),
+                      if (e.kjv.isNotEmpty)
+                        _strongLine(p, tr('В KJV', 'In KJV'), e.kjv),
+                    ],
                   ],
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         ),
       ),
     ),

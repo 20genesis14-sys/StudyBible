@@ -28,6 +28,10 @@ enum LayoutMode { paragraphs, versePerLine, book }
 /// параллельных мест и номеров Стронга.
 enum ReaderMode { reading, study }
 
+/// Режим подстрочника (Фаза 4, ADR 0025): контекстный глосс текста
+/// (`step-orig`) или словарный глосс `dStrong` + краткая морфология.
+enum InterlinearMode { contextual, dictionary }
+
 /// Ширина текстовой колонки на десктопе.
 enum ColumnWidth { reading, full }
 
@@ -249,6 +253,9 @@ class Settings extends ChangeNotifier {
   /// Режим «Чтение» / «Изучение» (ADR 0015).
   ReaderMode readerMode = ReaderMode.reading;
 
+  /// Режим подстрочника: контекстный или словарный (ADR 0025, Фаза 4).
+  InterlinearMode interlinearMode = InterlinearMode.contextual;
+
   /// Вид результатов поиска — сейчас перезаписывается экраном
   /// поиска при переключении сегмента; UI-опции в Настройках нет.
   SearchResultsView searchResultsView = SearchResultsView.list;
@@ -379,6 +386,11 @@ class Settings extends ChangeNotifier {
         layoutMode = LayoutMode.values[j['layoutMode'] as int? ?? 0];
         columnWidth = ColumnWidth.values[j['columnWidth'] as int? ?? 1];
         readerMode = ReaderMode.values[j['readerMode'] as int? ?? 0];
+        interlinearMode =
+            InterlinearMode.values[(j['interlinearMode'] as int? ?? 0).clamp(
+              0,
+              InterlinearMode.values.length - 1,
+            )];
         searchResultsView =
             SearchResultsView.values[j['searchResultsView'] as int? ?? 0];
         layerFootnotes = j['layerFootnotes'] as bool? ?? true;
@@ -434,6 +446,7 @@ class Settings extends ChangeNotifier {
       'layoutMode': layoutMode.index,
       'columnWidth': columnWidth.index,
       'readerMode': readerMode.index,
+      'interlinearMode': interlinearMode.index,
       'searchResultsView': searchResultsView.index,
       'layerFootnotes': layerFootnotes,
       'layerXrefs': layerXrefs,

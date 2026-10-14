@@ -124,9 +124,9 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
         }
         if let Ok(m) = open_any(&path) {
             let meta = m.meta();
-            // ADR 0023: модули-слои (параллельные и т. п.) — не переводы,
-            // в списках выбора не показываются.
-            if meta.kind == "layer" {
+            // ADR 0023/0024: модули-слои и граф знаний в списках выбора
+            // переводов не показываются.
+            if meta.kind == "layer" || meta.kind == "knowledge" {
                 continue;
             }
             out.push(ModuleInfo {
@@ -135,6 +135,29 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
                 language: meta.language.clone(),
                 path: path.to_string_lossy().to_string(),
             });
+        }
+    }
+    // Подхватываем собранные модули из соседнего work/strongs/, если их ещё
+    // нет в каталоге modules/ (step-orig и strongs-step).
+    if let Some(parent) = Path::new(&dir).parent() {
+        for rel in [
+            "work/strongs/orig/step-orig.sb",
+            "work/strongs/lexicon/strongs-step.sb",
+        ] {
+            let p = parent.join(rel);
+            if p.exists()
+                && let Ok(m) = open_any(&p)
+            {
+                let meta = m.meta();
+                if !out.iter().any(|x| x.id == meta.id) {
+                    out.push(ModuleInfo {
+                        id: meta.id.clone(),
+                        title: meta.title.clone(),
+                        language: meta.language.clone(),
+                        path: p.to_string_lossy().to_string(),
+                    });
+                }
+            }
         }
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
@@ -189,6 +212,12 @@ pub async fn module_doc(path: String) -> Result<String> {
         }
     }
 
+    let mut features = meta.features.clone();
+    if !features.iter().any(|f| f == "strongs")
+        && find_strongs_layer(Path::new(&path), &meta.id).is_some()
+    {
+        features.push("strongs".into());
+    }
     let doc = json!({
         "id": meta.id,
         "title": meta.title,
@@ -196,7 +225,7 @@ pub async fn module_doc(path: String) -> Result<String> {
         "versification": meta.versification,
         // ADR 0016: тип и возможности модуля (пусто у старых .sb).
         "kind": meta.kind,
-        "features": meta.features,
+        "features": features,
         "rights": meta.rights,
         "books": books,
         "verse_counts": verse_counts,
@@ -205,9 +234,64 @@ pub async fn module_doc(path: String) -> Result<String> {
     Ok(doc.to_string())
 }
 
+/// Найти файл накладного слоя Стронга `{id}-strongs.sb[z]` рядом с модулем
+/// или в `../work/strongs/layers/`.
+fn find_strongs_layer(module_path: &Path, module_id: &str) -> Option<PathBuf> {
+    let dir = module_path.parent()?;
+    for ext in ["sbz", "sb"] {
+        let p = dir.join(format!("{module_id}-strongs.{ext}"));
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    let parent = dir.parent()?;
+    for ext in ["sbz", "sb"] {
+        let p = parent
+            .join("work")
+            .join("strongs")
+            .join("layers")
+            .join(format!("{module_id}-strongs.{ext}"));
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+/// Найти вспомогательный модуль (`strongs-step` или `knowledge`) в `modules/`
+/// или `work/strongs/`.
+fn find_aux_module(base_path: &Path, sub: &str, name: &str) -> Option<PathBuf> {
+    let mut cur = Some(base_path);
+    while let Some(p) = cur {
+        for ext in ["sbz", "sb"] {
+            let cand1 = p.join("modules").join(format!("{name}.{ext}"));
+            if cand1.exists() {
+                return Some(cand1);
+            }
+            let cand2 = p
+                .join("work")
+                .join("strongs")
+                .join(sub)
+                .join(format!("{name}.{ext}"));
+            if cand2.exists() {
+                return Some(cand2);
+            }
+            let cand3 = p.join(format!("{name}.{ext}"));
+            if cand3.exists() {
+                return Some(cand3);
+            }
+        }
+        cur = p.parent();
+    }
+    None
+}
+
 /// Глава в формате export.rs: `{"n":..,"blocks":[..]}`.
 /// `None`, если такой главы в модуле нет.
 pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Option<String>> {
+    if let Some(cmd) = book.strip_prefix('@') {
+        return handle_special_query(Path::new(&path), cmd, chapter);
+    }
     let m = open_cached(Path::new(&path))?;
     let m = lock_module(&m)?;
     let code = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
@@ -224,6 +308,39 @@ pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Opt
     {
         let layer = lock_module(&layer)?;
         let _ = inject_layer_xrefs(&mut ch, &layer, code, number, &m.meta().versification);
+    }
+    // ADR 0025: накладной слой `{id}-strongs.sb[z]` имеет приоритет над
+    // встроенной разметкой модуля (например, в engbsb.sb теги eBible сдвинуты)
+    // и применяется при совпадении target_id + target_hash + w1.
+    let mut layer_mismatch = false;
+    if let Some(lp) = find_strongs_layer(Path::new(&path), &m.meta().id)
+        && let Ok(layer) = open_cached(&lp)
+    {
+        let layer = lock_module(&layer)?;
+        let lmeta = layer.meta();
+        let target_id = lmeta
+            .extra
+            .get("target_id")
+            .map(String::as_str)
+            .unwrap_or("");
+        let target_hash = lmeta
+            .extra
+            .get("target_hash")
+            .map(String::as_str)
+            .unwrap_or("");
+        let tokenizer = lmeta
+            .extra
+            .get("tokenizer")
+            .map(String::as_str)
+            .unwrap_or("");
+        if target_id == m.meta().id
+            && tokenizer == studybible_core::text::WORDS_VERSION
+            && target_hash == m.meta().content_hash
+        {
+            let _ = inject_layer_strongs(&mut ch, &layer, code, number);
+        } else if target_id == m.meta().id && !target_hash.is_empty() {
+            layer_mismatch = true;
+        }
     }
     let blocks: Vec<Value> = ch.blocks.iter().map(block_json).collect();
     // ADR 0016: критический аппарат главы, если таблица есть.
@@ -243,9 +360,11 @@ pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Opt
             })
         })
         .collect();
-    Ok(Some(
-        json!({"n": ch.number, "blocks": blocks, "variants": variants}).to_string(),
-    ))
+    let mut out = json!({"n": ch.number, "blocks": blocks, "variants": variants});
+    if layer_mismatch && let Some(obj) = out.as_object_mut() {
+        obj.insert("layer_mismatch".into(), Value::Bool(true));
+    }
+    Ok(Some(out.to_string()))
 }
 
 /// Подмешать `x`-ссылки слоя в главу модуля без своих параллельных
@@ -281,6 +400,601 @@ fn inject_layer_xrefs(
         inject_verse_note(ch, v, &texts.join("; "));
     }
     Ok(())
+}
+
+/// Наложить записи `links` слоя Стронга (`{id}-strongs.sb`) на текстовые
+/// спаны главы по словам токенизатора `w1` (ADR 0025).
+/// Побайтовая конкатенация текстов спанов стиха остаётся неизменной
+/// (совместимо с TTS и частичными выделениями).
+fn strip_strong_attrs(attrs: &str) -> String {
+    attrs
+        .split_whitespace()
+        .filter(|p| {
+            !p.starts_with("strong=\"")
+                && !p.starts_with("morph=\"")
+                && !p.starts_with("lemma=\"")
+                && !p.starts_with("conf=\"")
+                && !p.starts_with("flags=\"")
+                && !p.starts_with("ref=\"")
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn inject_layer_strongs(
+    ch: &mut studybible_core::text::Chapter,
+    layer: &Module,
+    book: BookCode,
+    chapter: u16,
+) -> Result<()> {
+    let rows = layer.links(book, chapter)?;
+    if rows.is_empty() {
+        return Ok(());
+    }
+    let mut by_vw: HashMap<(u16, u16), studybible_store::Link> = HashMap::with_capacity(rows.len());
+    for l in rows {
+        by_vw.insert((l.verse, l.word), l);
+    }
+    // Сквозной счётчик слов стиха по всем блокам главы (стих в поэзии
+    // может тянуться через несколько блоков `q`).
+    let mut verse_w_idx: HashMap<u16, u16> = HashMap::new();
+    let mut cur_v: Option<u16> = None;
+    for b in &mut ch.blocks {
+        if matches!(
+            b.kind(),
+            BlockKind::Heading | BlockKind::Superscription | BlockKind::Blank
+        ) {
+            continue;
+        }
+        // Шаг 1: снимаем старые встроенные strong-атрибуты и склеиваем
+        // соседние текстовые спаны с одинаковым стилем внутри одного стиха.
+        let raw_spans = std::mem::take(&mut b.spans);
+        let mut merged: Vec<Span> = Vec::with_capacity(raw_spans.len());
+        for s in raw_spans {
+            match s {
+                Span::Text { text, style, attrs } => {
+                    let clean_style = if style == "w" { String::new() } else { style };
+                    let clean_attrs = strip_strong_attrs(&attrs);
+                    if let Some(Span::Text {
+                        text: prev_t,
+                        style: prev_s,
+                        attrs: prev_a,
+                    }) = merged.last_mut()
+                        && *prev_s == clean_style
+                        && *prev_a == clean_attrs
+                    {
+                        prev_t.push_str(&text);
+                        continue;
+                    }
+                    merged.push(Span::Text {
+                        text,
+                        style: clean_style,
+                        attrs: clean_attrs,
+                    });
+                }
+                other => merged.push(other),
+            }
+        }
+
+        // Шаг 2: режем склеенные текстовые спаны по словам токенизатора w1.
+        let mut new_spans = Vec::with_capacity(merged.len() * 2);
+        for s in merged {
+            match s {
+                Span::Verse(v) => {
+                    cur_v = Some(v);
+                    new_spans.push(Span::Verse(v));
+                }
+                Span::Text { text, style, attrs } => {
+                    let Some(v) = cur_v else {
+                        new_spans.push(Span::Text { text, style, attrs });
+                        continue;
+                    };
+                    let w_idx = verse_w_idx.entry(v).or_insert(0);
+                    split_span_by_w1(&text, &style, &attrs, v, w_idx, &by_vw, &mut new_spans);
+                }
+                other => new_spans.push(other),
+            }
+        }
+        b.spans = new_spans;
+    }
+    Ok(())
+}
+
+/// Разрезать один текстовый спан по словам `w1` и обернуть размеченные слова
+/// в спаны с атрибутами `strong`/`conf`/`flags`/`ref`.
+fn split_span_by_w1(
+    text: &str,
+    style: &str,
+    attrs: &str,
+    verse: u16,
+    w_idx: &mut u16,
+    by_vw: &HashMap<(u16, u16), studybible_store::Link>,
+    out: &mut Vec<Span>,
+) {
+    let bytes = text.as_bytes();
+    let n = bytes.len();
+    let mut pos = 0usize;
+    let mut plain_start = 0usize;
+
+    while pos < n {
+        // Пропускаем пробелы
+        while pos < n && text[pos..].chars().next().is_some_and(char::is_whitespace) {
+            pos += text[pos..].chars().next().map_or(1, char::len_utf8);
+        }
+        if pos >= n {
+            break;
+        }
+        let tok_start = pos;
+        while pos < n
+            && text[pos..]
+                .chars()
+                .next()
+                .is_some_and(|c| !c.is_whitespace())
+        {
+            pos += text[pos..].chars().next().map_or(1, char::len_utf8);
+        }
+        let tok = &text[tok_start..pos];
+        let trimmed_left = tok.trim_start_matches(|c: char| !c.is_alphanumeric());
+        let core = trimmed_left.trim_end_matches(|c: char| !c.is_alphanumeric());
+        if core.is_empty() {
+            continue;
+        }
+        let cur_w = *w_idx;
+        *w_idx = w_idx.saturating_add(1);
+        let Some(link) = by_vw.get(&(verse, cur_w)) else {
+            continue;
+        };
+        if link.strong.is_empty() || link.conf < 3 {
+            continue;
+        }
+        let lead_len = tok.len() - trimmed_left.len();
+        let w_start = tok_start + lead_len;
+        let w_end = w_start + core.len();
+        if w_start > plain_start {
+            out.push(Span::Text {
+                text: text[plain_start..w_start].to_string(),
+                style: style.to_string(),
+                attrs: attrs.to_string(),
+            });
+        }
+        let mut w_attrs = attrs.to_string();
+        if !w_attrs.is_empty() {
+            w_attrs.push(' ');
+        }
+        w_attrs.push_str(&format!(
+            "strong=\"{}\" conf=\"{}\" flags=\"{}\" ref=\"{}\"",
+            link.strong.replace('"', "'"),
+            link.conf,
+            link.flags.replace('"', "'"),
+            link.r#ref.replace('"', "'"),
+        ));
+        out.push(Span::Text {
+            text: text[w_start..w_end].to_string(),
+            style: if style.is_empty() {
+                "w".into()
+            } else {
+                style.to_string()
+            },
+            attrs: w_attrs,
+        });
+        plain_start = w_end;
+    }
+    if plain_start < n {
+        out.push(Span::Text {
+            text: text[plain_start..n].to_string(),
+            style: style.to_string(),
+            attrs: attrs.to_string(),
+        });
+    }
+}
+
+/// Обработка служебных запросов `@lex:...`, `@entity:...`, `@dict_glosses:...`
+/// через существующий ABI `chapter_doc` (без изменения `frb_generated`).
+fn handle_special_query(base_path: &Path, cmd: &str, chapter: i64) -> Result<Option<String>> {
+    if let Some(rest) = cmd.strip_prefix("lex:") {
+        return query_lex_and_entity(base_path, rest);
+    }
+    if let Some(entity_id) = cmd.strip_prefix("entity:") {
+        return query_entity_by_id(base_path, entity_id.trim());
+    }
+    if let Some(book_code) = cmd.strip_prefix("dict_glosses:") {
+        return query_dict_glosses(base_path, book_code.trim(), chapter);
+    }
+    Ok(None)
+}
+
+fn extract_attr(attrs: &str, key: &str) -> Option<String> {
+    let needle = format!("{key}=\"");
+    let i = attrs.find(&needle)? + needle.len();
+    let j = attrs[i..].find('"')? + i;
+    Some(attrs[i..j].to_string())
+}
+
+fn norm_eid_key(eid: &str) -> String {
+    let base = eid.rsplit('|').next().unwrap_or(eid);
+    if let Some((name, rng)) = base.split_once('@') {
+        let first_ref = rng.split('-').next().unwrap_or(rng);
+        format!("{name}@{first_ref}")
+    } else {
+        base.to_string()
+    }
+}
+
+fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>> {
+    let mut parts = query.split('|');
+    let strong_raw = parts.next().unwrap_or("").trim();
+    let mut morph_code = String::new();
+    let mut eid_raw = String::new();
+    let mut wid_raw = String::new();
+    let mut sns_raw = String::new();
+    for p in parts {
+        if let Some(v) = p.strip_prefix("morph=") {
+            morph_code = v.trim().to_string();
+        } else if let Some(v) = p.strip_prefix("eid=") {
+            eid_raw = v.trim().to_string();
+        } else if let Some(v) = p.strip_prefix("ref=") {
+            wid_raw = v.trim().to_string();
+        } else if let Some(v) = p.strip_prefix("sns=") {
+            sns_raw = v.trim().to_string();
+        }
+    }
+
+    // Если передан wid (`Gen.1.1#03`), но нет eid/sns — проверим в step-orig.sb
+    let first_wid = wid_raw.split_whitespace().next().unwrap_or("");
+    if !first_wid.is_empty()
+        && (eid_raw.is_empty() || sns_raw.is_empty())
+        && let Some(orig_p) = find_aux_module(base_path, "orig", "step-orig")
+        && let Ok(om) = open_cached(&orig_p)
+        && let Ok(om) = lock_module(&om)
+    {
+        let pat = format!("%wid=\"{first_wid}\"%");
+        if let Ok(mut st) = om
+            .conn()
+            .prepare("SELECT attrs FROM spans WHERE attrs LIKE ?1 LIMIT 5")
+            && let Ok(rows) = st.query_map([&pat], |r| r.get::<_, String>(0))
+        {
+            for a in rows.flatten() {
+                if eid_raw.is_empty()
+                    && let Some(e) = extract_attr(&a, "eid")
+                {
+                    eid_raw = e;
+                }
+                if sns_raw.is_empty()
+                    && let Some(s) = extract_attr(&a, "sns")
+                {
+                    sns_raw = s;
+                }
+                if morph_code.is_empty()
+                    && let Some(mc) = extract_attr(&a, "morph")
+                {
+                    morph_code = mc;
+                }
+            }
+        }
+    }
+
+    let mut entries_json = Vec::new();
+    let mut morph_json = Value::Null;
+    if let Some(lex_p) = find_aux_module(base_path, "lexicon", "strongs-step")
+        && let Ok(lm) = open_cached(&lex_p)
+        && let Ok(lm) = lock_module(&lm)
+    {
+        let conn = lm.conn();
+        for code in strong_raw.split_whitespace() {
+            let mut key = code.to_string();
+            let row_opt = conn
+                .query_row(
+                    "SELECT key, estrong, base, lemma, xlit, pos, gloss, sense_label, sense_domain, relation, related, ustrong, conf
+                     FROM lex WHERE key=?1",
+                    [&key],
+                    |r| {
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, String>(1).unwrap_or_default(),
+                            r.get::<_, String>(2).unwrap_or_default(),
+                            r.get::<_, String>(3).unwrap_or_default(),
+                            r.get::<_, String>(4).unwrap_or_default(),
+                            r.get::<_, String>(5).unwrap_or_default(),
+                            r.get::<_, String>(6).unwrap_or_default(),
+                            r.get::<_, String>(7).unwrap_or_default(),
+                            r.get::<_, String>(8).unwrap_or_default(),
+                            r.get::<_, String>(9).unwrap_or_default(),
+                            r.get::<_, String>(10).unwrap_or_default(),
+                            r.get::<_, String>(11).unwrap_or_default(),
+                            r.get::<_, i64>(12).unwrap_or(10),
+                        ))
+                    },
+                )
+                .ok()
+                .or_else(|| {
+                    // Поиск по базе через lex_base
+                    let base_cand: String = conn
+                        .query_row(
+                            "SELECT key FROM lex_base WHERE base=?1 ORDER BY key LIMIT 1",
+                            [&key],
+                            |r| r.get(0),
+                        )
+                        .ok()?;
+                    key = base_cand;
+                    conn.query_row(
+                        "SELECT key, estrong, base, lemma, xlit, pos, gloss, sense_label, sense_domain, relation, related, ustrong, conf
+                         FROM lex WHERE key=?1",
+                        [&key],
+                        |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1).unwrap_or_default(),
+                                r.get::<_, String>(2).unwrap_or_default(),
+                                r.get::<_, String>(3).unwrap_or_default(),
+                                r.get::<_, String>(4).unwrap_or_default(),
+                                r.get::<_, String>(5).unwrap_or_default(),
+                                r.get::<_, String>(6).unwrap_or_default(),
+                                r.get::<_, String>(7).unwrap_or_default(),
+                                r.get::<_, String>(8).unwrap_or_default(),
+                                r.get::<_, String>(9).unwrap_or_default(),
+                                r.get::<_, String>(10).unwrap_or_default(),
+                                r.get::<_, String>(11).unwrap_or_default(),
+                                r.get::<_, i64>(12).unwrap_or(10),
+                            ))
+                        },
+                    )
+                    .ok()
+                });
+            if let Some((
+                k,
+                estrong,
+                base,
+                lemma,
+                xlit,
+                pos,
+                gloss,
+                sl,
+                sd,
+                rel,
+                related,
+                ust,
+                cf,
+            )) = row_opt
+            {
+                let mut defs = Vec::new();
+                if let Ok(mut st) = conn.prepare(
+                    "SELECT def_source, def_license, def FROM lex_def WHERE key=?1 OR key=?2",
+                ) && let Ok(rows) = st.query_map([&k, &base], |r| {
+                    Ok((
+                        r.get::<_, String>(0).unwrap_or_default(),
+                        r.get::<_, String>(1).unwrap_or_default(),
+                        r.get::<_, String>(2).unwrap_or_default(),
+                    ))
+                }) {
+                    for (src, lic, d) in rows.flatten() {
+                        defs.push(json!({"src": src, "lic": lic, "def": d}));
+                    }
+                }
+                entries_json.push(json!({
+                    "key": k,
+                    "estrong": estrong,
+                    "base": base,
+                    "lemma": lemma,
+                    "xlit": xlit,
+                    "pos": pos,
+                    "gloss": gloss,
+                    "sense_label": sl,
+                    "sense_domain": sd,
+                    "relation": rel,
+                    "related": related,
+                    "ustrong": ust,
+                    "conf": cf,
+                    "defs": defs,
+                }));
+            }
+        }
+        if !morph_code.is_empty() {
+            let mut mlist = Vec::new();
+            for mc in morph_code.split_whitespace() {
+                if let Ok((sh, lg)) =
+                    conn.query_row("SELECT short, long FROM morph WHERE code=?1", [mc], |r| {
+                        Ok((
+                            r.get::<_, String>(0).unwrap_or_default(),
+                            r.get::<_, String>(1).unwrap_or_default(),
+                        ))
+                    })
+                {
+                    mlist.push(json!({"code": mc, "short": sh, "long": lg}));
+                }
+            }
+            if !mlist.is_empty() {
+                morph_json = Value::Array(mlist);
+            }
+        }
+    }
+
+    let entity_json = find_entity_for_card(base_path, &eid_raw, strong_raw).unwrap_or(Value::Null);
+    Ok(Some(
+        json!({
+            "entries": entries_json,
+            "morph": morph_json,
+            "context_sense": sns_raw,
+            "wid": wid_raw,
+            "entity": entity_json,
+        })
+        .to_string(),
+    ))
+}
+
+fn find_entity_for_card(base_path: &Path, eid_raw: &str, strong_raw: &str) -> Result<Value> {
+    let Some(kp) = find_aux_module(base_path, "knowledge", "knowledge") else {
+        return Ok(Value::Null);
+    };
+    let km = open_cached(&kp)?;
+    let km = lock_module(&km)?;
+    let conn = km.conn();
+
+    let mut ent_id: Option<String> = None;
+    if !eid_raw.is_empty() {
+        let ne = norm_eid_key(eid_raw);
+        let pat = format!("%\"{ne}%");
+        ent_id = conn
+            .query_row(
+                "SELECT id FROM entities WHERE metadata LIKE ?1 LIMIT 1",
+                [&pat],
+                |r| r.get(0),
+            )
+            .ok();
+    }
+    if ent_id.is_none() {
+        for code in strong_raw.split_whitespace() {
+            if code.starts_with("H9") || code.starts_with("G9") || code == "G3588" {
+                continue;
+            }
+            let pat = format!("%{code}%");
+            if let Ok(id) = conn.query_row(
+                "SELECT id FROM entities WHERE (' ' || strongs || ' ') LIKE '% ' || ?1 || ' %' LIMIT 1",
+                [code],
+                |r| r.get::<_, String>(0),
+            ) {
+                ent_id = Some(id);
+                break;
+            }
+            let _ = pat;
+        }
+    }
+    let Some(id) = ent_id else {
+        return Ok(Value::Null);
+    };
+    load_entity_json(&km, &id)
+}
+
+fn query_entity_by_id(base_path: &Path, entity_id: &str) -> Result<Option<String>> {
+    let Some(kp) = find_aux_module(base_path, "knowledge", "knowledge") else {
+        return Ok(None);
+    };
+    let km = open_cached(&kp)?;
+    let km = lock_module(&km)?;
+    let v = load_entity_json(&km, entity_id)?;
+    if v.is_null() {
+        Ok(None)
+    } else {
+        Ok(Some(v.to_string()))
+    }
+}
+
+fn load_entity_json(km: &Module, entity_id: &str) -> Result<Value> {
+    let conn = km.conn();
+    let Ok((id, typ, sub, name, name_orig, strongs, desc, article, meta_str)) = conn.query_row(
+        "SELECT id, type, subtype, name, name_original, strongs, short_description, article, metadata
+         FROM entities WHERE id=?1",
+        [entity_id],
+        |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1).unwrap_or_default(),
+                r.get::<_, String>(2).unwrap_or_default(),
+                r.get::<_, String>(3).unwrap_or_default(),
+                r.get::<_, String>(4).unwrap_or_default(),
+                r.get::<_, String>(5).unwrap_or_default(),
+                r.get::<_, String>(6).unwrap_or_default(),
+                r.get::<_, String>(7).unwrap_or_default(),
+                r.get::<_, String>(8).unwrap_or_default(),
+            ))
+        },
+    ) else {
+        return Ok(Value::Null);
+    };
+    let mut names_ru = Vec::new();
+    if let Ok(mut st) = conn.prepare(
+        "SELECT DISTINCT name FROM entity_names WHERE entity_id=?1 AND lang='rus' LIMIT 10",
+    ) && let Ok(rows) = st.query_map([&id], |r| r.get::<_, String>(0))
+    {
+        for n in rows.flatten() {
+            names_ru.push(n);
+        }
+    }
+    let mut rels = Vec::new();
+    if let Ok(mut st) = conn.prepare(
+        "SELECT r.relation_type, r.to_entity_id, e.name
+         FROM relationships r JOIN entities e ON e.id = r.to_entity_id
+         WHERE r.from_entity_id=?1 LIMIT 25",
+    ) && let Ok(rows) = st.query_map([&id], |r| {
+        Ok((
+            r.get::<_, String>(0).unwrap_or_default(),
+            r.get::<_, String>(1).unwrap_or_default(),
+            r.get::<_, String>(2).unwrap_or_default(),
+        ))
+    }) {
+        for (rt, tid, tname) in rows.flatten() {
+            rels.push(json!({"type": rt, "id": tid, "name": tname}));
+        }
+    }
+    let meta_val: Value = serde_json::from_str(&meta_str).unwrap_or(Value::Null);
+    Ok(json!({
+        "id": id,
+        "type": typ,
+        "subtype": sub,
+        "name": name,
+        "name_original": name_orig,
+        "strongs": strongs,
+        "short_description": desc,
+        "article": article,
+        "names_ru": names_ru,
+        "relations": rels,
+        "meta": meta_val,
+    }))
+}
+
+fn query_dict_glosses(base_path: &Path, book: &str, chapter: i64) -> Result<Option<String>> {
+    let m = open_cached(base_path)?;
+    let m = lock_module(&m)?;
+    let code = BookCode::new(book).ok_or_else(|| anyhow!("код книги {book}"))?;
+    let number = u16::try_from(chapter).map_err(|_| anyhow!("глава {chapter}"))?;
+    let Some(ch) = m.chapter(code, number)? else {
+        return Ok(None);
+    };
+    let mut strongs = std::collections::HashSet::new();
+    let mut morphs = std::collections::HashSet::new();
+    for b in &ch.blocks {
+        for s in &b.spans {
+            if let Span::Text { attrs, .. } = s {
+                if let Some(st) = extract_attr(attrs, "strong") {
+                    for p in st.split_whitespace() {
+                        strongs.insert(p.to_string());
+                    }
+                }
+                if let Some(mc) = extract_attr(attrs, "morph") {
+                    for p in mc.split_whitespace() {
+                        morphs.insert(p.to_string());
+                    }
+                }
+            }
+        }
+    }
+    let Some(lex_p) = find_aux_module(base_path, "lexicon", "strongs-step") else {
+        return Ok(None);
+    };
+    let lm = open_cached(&lex_p)?;
+    let lm = lock_module(&lm)?;
+    let conn = lm.conn();
+    let mut gmap = Map::new();
+    for k in strongs {
+        if let Ok((gloss, pos)) =
+            conn.query_row("SELECT gloss, pos FROM lex WHERE key=?1", [&k], |r| {
+                Ok((
+                    r.get::<_, String>(0).unwrap_or_default(),
+                    r.get::<_, String>(1).unwrap_or_default(),
+                ))
+            })
+        {
+            gmap.insert(k, json!({"g": gloss, "p": pos}));
+        }
+    }
+    let mut mmap = Map::new();
+    for mc in morphs {
+        if let Ok(sh) = conn.query_row("SELECT short FROM morph WHERE code=?1", [&mc], |r| {
+            r.get::<_, String>(0)
+        }) {
+            mmap.insert(mc, Value::String(sh));
+        }
+    }
+    Ok(Some(json!({"glosses": gmap, "morphs": mmap}).to_string()))
 }
 
 /// Вставить `x`-спан в конец стиха `v`: перед первым маркером

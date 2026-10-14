@@ -150,12 +150,20 @@ class ChapterDoc {
   /// Варианты критического аппарата главы (ADR 0016).
   final List<VariantDoc> variants;
 
+  /// Несовпадение target_hash накладного слоя Стронга с текстом модуля (ADR 0025).
+  final bool layerMismatch;
+
   // Кэши производных представлений (08.10.2026): разбор спанов —
   // заметная доля времени build на длинных главах (Пс 119), а глава
   // неизменна — считаем один раз на объект.
   Map<int, String>? plainCache;
   Map<int, List<TextSpanDoc>>? wordCache;
   List<({int verse, NoteSpanDoc note})>? notesCache;
+
+  /// Словарные глоссы и морфология главы из `strongs-step.sb` (Фаза 4).
+  Map<String, String>? dictGlosses;
+  Map<String, String>? dictMorphs;
+  bool dictLoading = false;
 
   /// Фоновый прогрев текстов сносок уже запущен (флаг ставит
   /// prefetchChapterNotes — работа идёт один раз на главу).
@@ -167,6 +175,7 @@ class ChapterDoc {
     required this.number,
     required this.blocks,
     this.variants = const [],
+    this.layerMismatch = false,
   });
 
   factory ChapterDoc.fromJson(Map<String, dynamic> j) => ChapterDoc(
@@ -179,6 +188,7 @@ class ChapterDoc {
             ?.map((v) => VariantDoc.fromJson(v as Map<String, dynamic>))
             .toList() ??
         const [],
+    layerMismatch: j['layer_mismatch'] as bool? ?? false,
   );
 }
 
@@ -286,11 +296,48 @@ class TextSpanDoc extends SpanDoc {
     required this.attrs,
   }) : super._();
 
-  /// Номер Стронга вида 'H7225'/'G25', если есть.
-  String? get strong {
-    final m = RegExp(r'strong="([HG]\d+)"').firstMatch(attrs);
-    return m?.group(1);
+  String? _attr(String key) {
+    final m = RegExp('$key="([^"]*)"').firstMatch(attrs);
+    final v = m?.group(1);
+    return (v != null && v.isNotEmpty) ? v : null;
   }
+
+  /// Номера Стронга (классические или dStrong 'H7225G', списки через пробел
+  /// или повторные атрибуты `strong="..."`).
+  String? get strong {
+    final matches = RegExp(r'strong="([^"]+)"').allMatches(attrs);
+    if (matches.isEmpty) return null;
+    final parts = <String>[];
+    for (final m in matches) {
+      final v = m.group(1)?.trim() ?? '';
+      if (v.isNotEmpty) parts.add(v);
+    }
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
+  /// Слово оригинала в подстрочнике (`gr="..."`).
+  String? get gr => _attr('gr');
+
+  /// Код морфологии (`morph="..."`).
+  String? get morph => _attr('morph');
+
+  /// Лемма (`lemma="..."`).
+  String? get lemma => _attr('lemma');
+
+  /// Идентификатор сущности (`eid="Abraham@Gen.11.26-1Pe"`).
+  String? get eid => _attr('eid');
+
+  /// Контекстное значение (`sns="1_beginning"`).
+  String? get sns => _attr('sns');
+
+  /// Ссылка на слово опорного слоя (`ref="Gen.1.1#01"` или `wid="..."`).
+  String? get refAddr => _attr('ref') ?? _attr('wid');
+
+  /// Флаги связи (`flags="grp,head"`).
+  String get flags => _attr('flags') ?? '';
+
+  /// Уверенность связи 0–10 (`conf="10"`, по умолчанию 10).
+  int get conf => int.tryParse(_attr('conf') ?? '') ?? 10;
 }
 
 class NoteSpanDoc extends SpanDoc {

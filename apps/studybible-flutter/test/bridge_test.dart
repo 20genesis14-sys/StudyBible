@@ -188,4 +188,52 @@ void main() {
     await bridgeEntryRemove(jhn.first.id);
     await history.load();
   }, skip: hasSb ? false : 'нет .sb');
+
+  test('Фаза 4: подстрочник step-orig (Быт 1, Пс 23, Ин 1), слой engbsb-strongs и карточки', () async {
+    await rescanModules();
+    final origPath = modulePathOf('step-orig');
+    if (origPath == null) return;
+
+    final orig = await loadModule('step-orig');
+    for (final (bk, chN, wordExpected) in [
+      ('GEN', 1, 'beginning'),
+      ('PSA', 23, 'shepherd'),
+      ('JHN', 1, 'Word'),
+    ]) {
+      final ch = await orig.ensureChapter(bk, chN);
+      expect(ch, isNotNull, reason: 'ожидалась глава $bk $chN в step-orig');
+      expect(_plain(ch!), contains(wordExpected));
+      final dg = await bridgeChapterDoc(origPath, '@dict_glosses:$bk', chN);
+      expect(dg, isNotNull);
+      expect(dg!, contains('"glosses"'));
+    }
+
+    // Проверка наложения слоя engbsb-strongs v0.4.0 на engbsb.sb:
+    // В Быт 1:1 первое слово 'In' обязано получить dStrong 'H9003' (вместо старого eBible 'H8064').
+    final bsb = await loadModule('engbsb');
+    final bsbGen1 = await bsb.ensureChapter('GEN', 1);
+    expect(bsbGen1, isNotNull);
+    final firstW = bsbGen1!.blocks
+        .expand((b) => b.spans)
+        .whereType<TextSpanDoc>()
+        .firstWhere((s) => s.strong != null);
+    expect(firstW.text, 'In');
+    expect(firstW.strong, 'H9003');
+    expect(firstW.flags, contains('aux'));
+
+    // Проверка расширенной карточки лексикона и графа знаний (@lex и @entity).
+    final lexRaw = await bridgeChapterDoc(
+      origPath,
+      '@lex:H0430G|ref=Gen.1.1#03',
+      1,
+    );
+    expect(lexRaw, isNotNull);
+    final lexJson = jsonDecode(lexRaw!) as Map<String, dynamic>;
+    expect((lexJson['entries'] as List), isNotEmpty);
+    expect(lexJson['entity'], isNotNull);
+
+    final entRaw = await bridgeChapterDoc(origPath, '@entity:person:Abraham', 1);
+    expect(entRaw, isNotNull);
+    expect(entRaw!, contains('Abraham'));
+  }, skip: hasSb ? false : 'нет .sb');
 }
