@@ -6,6 +6,21 @@ Format: date, symptom, cause/fix, commit. New entries on top.
 
 ## 2026-10-14
 
+- **Reader mutated shared highlight/TTS cursors on `_ReadingScreenState`
+  during build (Group 2)** — `_hlRaw`, `_ttsInVerse`, `_ttsWordCtx`,
+  `_ttsRaw`, `_ttsLead` and `_ttsLeadDone` lived as mutable fields on
+  the screen state, `_spansOf` lost the active verse across poetry block
+  boundaries when a verse spanned multiple blocks without a repeated
+  verse marker, and `_verseSpans` defaulted `hlWord` to `false` (muting
+  per-word TTS highlight in verse-per-line mode). Fixed: moved the
+  counters into a local `_SpanRenderCursor` passed through block/verse
+  rendering and enabled `hlWord` for main-text lines.
+- **Selection toolbar "Copy" copied raw spacing glyphs without a verse
+  reference (Group 3)** — the stock copy action in `SelectionArea`
+  copied em-spaces (`\u2003`), note dots (`\u00B7`) and inline verse
+  numbers without book/chapter/verse or translation title. Fixed: the
+  copy button in `_selectionMenu` strips service glyphs and formats a
+  clean citation `«Text…» (Gen 1:1–3, Translation)`.
 - **Group 1 bridge and `userdata.db` bottlenecks** — (1) opening a
   chapter or toggling a bookmark/highlight fetched all user records
   across all 66 books via four full-table `entriesList` calls; (2)

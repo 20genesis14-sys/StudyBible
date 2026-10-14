@@ -754,12 +754,22 @@ the screen state (a persisted "remember view" capability exists in code
 but is deliberately not exposed in Settings). The earlier 3-level tree
 (book → chapters → verses) is kept as a concept for a future global
 search across modules/dictionaries, not for the single-module screen.
+Search omnibox and scope chips (1.1.2): if the query matches a Bible
+reference (`Ин 3:16`, `Быт 1`, `1Кор 13:4`, `John 3:16`) or a Strong's
+code (`H1254`, `G3056`, `H0029G`), an instant action card is shown at
+the top ("Go to Jn 3:16" / "Open Strong's G3056"), and pressing Enter
+on an exact reference opens the passage directly. Compact scope chips
+next to "In notes" filter results by **All**, **OT**, **NT**, or
+**Current book** (when search was opened from the reader).
 
 ## Output
 Several translations in columns or lines, alignment through
 versification maps.
 Screen layouts — data.
 Copying a verse: text, reference, short translation name, attribution.
+Copying a text selection from the reader's selection toolbar strips
+service spacing/markers and formats a ready citation with verse range
+and translation title: `«Text…» (Book Ch:V–V, Translation)`.
 
 ## Voice and accessibility
 (a) Screen readers: NVDA, JAWS, Narrator, VoiceOver, TalkBack, Orca.
