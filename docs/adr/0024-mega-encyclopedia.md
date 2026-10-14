@@ -2,11 +2,12 @@
 
 **English** | [Русский](0024-mega-encyclopedia.ru.md)
 
-Status: design accepted (2026-10-12); **stage 1 built 2026-10-13** —
-`knowledge.sb` v0.1.0 with ACAI as the entity backbone (5,700
-entities, 62.5k names, 12.5k relationships, 114k verse_mentions;
-see `work/strongs/knowledge/report-phase3b.md` and DECISIONS
-"ACAI as the entity backbone").
+Status: design accepted (2026-10-12); **stage 1 built 2026-10-13..14** —
+`knowledge.sb` v0.2.0 + Phase 8.4 with ACAI + TIPNR as the entity backbone
+(**14,554 entities**, **51,527 names** incl. 3,488 Synodal & modern Russian
+forms, **26,654 relationships**, **114,046 verse_mentions**, **9,233
+articles**, 89 % `dStrong` coverage; see `work/strongs/knowledge/report-phase3b.md`
+and DECISIONS "ACAI as the entity backbone").
 
 ## Context
 
@@ -203,3 +204,49 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
    (PMTiles / MapLibre, ~5–10 MB with relief) and plot the current
    chapter's places dynamically from `knowledge.sb` coordinates
    (OpenBible Geocoding `lat`/`lon`) with tap-through to entity cards.
+6. **Two-step homonym-safe entity resolution via `links.ref → step-orig.eid`**
+   (implemented in Phase 4): biblical names often share a single Strong's
+   number across many distinct people (e.g. multiple Zechariahs, Herods,
+   Marys). When a user taps a word in any translation with a Strong's
+   layer (`{id}-strongs.sbz`), the reader first resolves `links.ref`
+   (`wid = Psa.3.0#10`) against `step-orig.sb` (indexed by `book_id,
+   chapter`) to obtain the exact disambiguated `eid` (`Absalom@2Sa.3.3`)
+   and looks up that specific entity in `knowledge.sb`, falling back to
+   `entities.strongs` only when `eid` is absent.
+7. **Structured illustrated Profile Cards ("Entity Passport") & Media layer**:
+   instead of a plain wall of text, the entity card uses a structured
+   visual passport layout:
+   - **Header banner**: accent category & role badge (*"PERSON · King of
+     Israel, Psalmist"* / *"PLACE · City in Judah"*), primary localized
+     title (`David · Давид`), original-language name and etymology/meaning.
+   - **Structured key-value rows with dividers**:
+     - *Who / What*: concise 1–2 sentence summary (`short_description`,
+       localized to modern Russian and English);
+     - *Family & Relations*: grouped by relation type (*Father*,
+       *Mother*, *Spouse*, *Siblings*, *Children*, *Tribe/Group*) as
+       interactive navigation chips;
+     - *Era & Geography*: chronological bounds (`year_start..year_end`)
+       and region/coordinates;
+     - *Key Events & Verses*: top ranked Scripture references.
+   - **Bottom-right / header illustration (`media` & `image_path`)**:
+     - **Places (`place`)**: **2,424** geo-linked photographs and
+       thumbnails from `openbible-geocoding/data/image.jsonl` (Wikimedia
+       Commons CC BY-SA / PD, with `thumbnail_url_pattern`, credit, and
+       color placeholders) plus `BiblicaOpenBibleMaps` and `FIAMaps`;
+     - **Plants, animals, objects & realia (`plant`, `creature`,
+       `object`, `custom`)**: **757** illustrations referenced in
+       `UBSFloraLexicon` (202), `UBSFaunaLexicon` (160), and
+       `UBSRealiaLexicon` (395) (`BibleAquifer/UBSImages` `PTZ-*`,
+       `WEB-*`, CC BY-SA 4.0) plus `FIAImages`;
+     - **People (`person`)**: book-style portrait/silhouette illustrations
+       keyed by entity id (for major figures) or role archetype
+       (`metadata.roles`: *King, Prophet, Priest, Warrior, Shepherd,
+       Apostle, Matriarch*).
+8. **Door43 Russian open resources (`door43-ru`, CC BY-SA 4.0) & Open Study Bible integration**:
+   `ru_tw` (**1,018** modern Russian Translation Words articles) and
+   `ru_twl` provide Russian concept/name/realia articles, while `ru_tn`
+   (Russian Translation Notes) + `AquiferOpenStudyNotes` (`aquifer-osn`)
+   + `BiblicaStudyNotes` form the verse-by-verse commentary layer for the
+   Open Study Bible atop `ru_rob.sbz` (modern Russian, 66 books,
+   CC BY-SA 4.0), `russyn.sbz` (Synodal, PD), and `engbsb.sbz` (English,
+   PD).

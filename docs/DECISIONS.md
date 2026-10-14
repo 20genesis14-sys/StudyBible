@@ -1483,7 +1483,43 @@ plan, tasks, data inventory and skill specs —
   `work/strongs/orig/report-phase3.md` (mid 75.5%; gaps are
   documented, not defects).
 
-## `knowledge.sb` v0.1.0 — ACAI as the entity backbone (2026-10-13)
+## Extended Strong's, Interlinears, Russian Lexicon & Mega-Encyclopedia Profile Cards (2026-10-14, ADR 0024 / ADR 0025)
+
+- **Phases 1–8 of ADR 0025 completed**:
+  - Re-ran Phase 1 measurements `A–G` after fixing Groves affix filtering
+    (`0871a`/`1886a`/`2050b` in `macula_classic`) and MT/LXX versification
+    mapping (`verse_map.json`: 2,142 `eng↔mt` and 2,816 `eng↔rsc` shifts).
+  - Rebuilt `strongs-step.sbz` (`v0.2.0`, 22,743 `lex` keys, 55,015
+    `lex_def` entries), `step-orig.sbz` (`v0.2.0`, 31,165 verses, 100 %
+    MACULA `mid` coverage), and `knowledge.sbz` (`v0.2.0` + Phase 8.4:
+    14,554 entities, 51,527 names incl. 3,488 Synodal & modern Russian
+    forms, 26,654 relationships).
+  - Built English `dStrong` layers: `engbsb-strongs.sbz` (`v0.4.0`,
+    728,034 links, 100 % `w1` coverage, intra-group `head`/`aux`/`added`
+    splitting) and `eng-kjv2006-strongs.sbz` (`v0.1.0`, 790,715 links,
+    100 % `w1` coverage). Passed the Phase 7 English quality gate on the
+    9 held-out corpora (`N = 2.0 pp`, OQ 52 closed: BSB Mode A F1 =
+    **97.52 % OT / 96.73 % NT**, KJV Mode B F1 = **100.0 % OT / 99.99 %
+    NT**).
+  - Built modern Russian extended lexicon `strongs-step-ru.sbz` (`v0.1.0`,
+    22,743 modern Russian glosses with `(в Син.: …)` notes for
+    19th-century archaisms, 3,190 Russian `morph` rows, 63,950 `lex_def`
+    entries incl. 1,018 `Door43 ru_tw` articles) and three Russian
+    `dStrong` layers: `russyn-strongs.sbz` (570,826 links, 66 books),
+    `ru_rob-strongs.sbz` (557,946 links, all 66 books of the modern
+    Russian Open Bible `ru_rob.sbz`), and `ru_rlob-strongs.sbz` (202,958
+    links, 31 books).
+  - Full-canon Russian translations stay separate (`russyn` classic PD
+    and `ru_rob` modern literary CC BY-SA 4.0, 66 books); the incomplete
+    31-book literal `ru_rlob` is not mixed into `ru_rob`.
+- **Structured illustrated Profile Cards ("Entity Passport") in `knowledge.sb` (ADR 0024)**:
+  entity cards move from plain text to a structured passport layout
+  (header banner with role badge and localized title, divided key-value
+  rows for summary, family/relations, chronology/geography, key verses,
+  and a bottom-right / header illustration powered by the 2,424
+  `openbible-geocoding` place photos, 757 `UBSImages` flora/fauna/realia
+  illustrations, `FIAImages`/`BiblicaOpenBibleMaps`, and role-based
+  character portraits).
 
 - **Entity id = ACAI `primary_id`** (`person:Abraham`); non-primary
   records contribute `entity_names` aliases only — relations and
