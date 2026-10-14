@@ -390,10 +390,22 @@ impl SearchIndex {
     /// 'f'/'n'/'x' с текстом) — теми же лексемами/операторами, что
     /// и по стихам. Таблица мала, поэтому всегда скан в каноническом
     /// порядке; сниппет — `[` `]` вокруг совпавших слов.
-    pub fn search_notes(
+    /// У сносок к заголовкам (`verse IS NULL`) возвращается стих 1,
+    /// чтобы переход открывал начало главы.
+    pub fn search_notes(&self, query: &str, limit: usize) -> Result<Vec<Hit>, ModuleError> {
+        self.search_notes_with_layer(query, limit, None, "")
+    }
+
+    /// Поиск по сноскам модуля и (если у модуля нет собственных
+    /// `x`-спанов) подключённому внешнему слою параллельных мест
+    /// (`openbible-xrefs`, ADR 0023) с конверсией стихов из `eng`
+    /// в `target_vrs`.
+    pub fn search_notes_with_layer(
         &self,
         query: &str,
         limit: usize,
+        layer: Option<&Module>,
+        target_vrs: &str,
     ) -> Result<Vec<Hit>, ModuleError> {
         let terms = parse_query(query);
         if terms.is_empty() {
@@ -425,11 +437,66 @@ impl SearchIndex {
                     book: BookCode::new(&book)
                         .unwrap_or_else(|| BookCode::new("XXX").expect("код")),
                     chapter: ch,
-                    verse: v.unwrap_or(0),
+                    verse: v.unwrap_or(1).max(1),
                     snippet,
                 });
                 if hits.len() >= limit {
-                    break;
+                    return Ok(hits);
+                }
+            }
+        }
+        // Если у модуля нет собственных `x`-спанов и передан внешний слой —
+        // сканируем также ссылки слоя (координаты eng → target_vrs).
+        let has_own_x: i64 = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM spans WHERE kind='x')",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(1);
+        if has_own_x == 0
+            && let Some(layer_mod) = layer
+        {
+            let eng = studybible_core::Versification::builtin("eng");
+            let dst = studybible_core::Versification::builtin(target_vrs);
+            let mut lst = layer_mod.conn().prepare(
+                "SELECT b.code, s.chapter, s.verse, s.text
+                 FROM spans s JOIN books b ON b.book_id = s.book_id
+                 WHERE s.kind = 'x' AND s.text != ''
+                 ORDER BY b.ord, s.chapter, s.verse, s.seq",
+            )?;
+            let lrows = lst.query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, u16>(1)?,
+                    r.get::<_, Option<u16>>(2)?,
+                    r.get::<_, String>(3)?,
+                ))
+            })?;
+            for lrow in lrows {
+                let (book, ch, v, text) = lrow?;
+                let norm = for_search(&collapse_spaces(&text));
+                if let Some(snippet) = scan_match(&norm, &terms) {
+                    let bcode =
+                        BookCode::new(&book).unwrap_or_else(|| BookCode::new("XXX").expect("код"));
+                    let v_raw = v.unwrap_or(1).max(1);
+                    let (out_book, out_ch, out_v) = match (eng, dst) {
+                        (Some(e), Some(d)) if target_vrs != "eng" && !target_vrs.is_empty() => e
+                            .convert(d, studybible_core::VerseKey::new(bcode, ch, v_raw))
+                            .first()
+                            .map(|k| (k.book, k.chapter, k.verse.max(1)))
+                            .unwrap_or((bcode, ch, v_raw)),
+                        _ => (bcode, ch, v_raw),
+                    };
+                    hits.push(Hit {
+                        book: out_book,
+                        chapter: out_ch,
+                        verse: out_v,
+                        snippet,
+                    });
+                    if hits.len() >= limit {
+                        break;
+                    }
                 }
             }
         }

@@ -268,3 +268,34 @@ fn query_quoting() {
     assert!(idx.search("(небо)", 10).is_ok());
     assert!(idx.search("небо*", 10).is_ok());
 }
+
+#[test]
+fn search_notes_includes_external_layer() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+    let layer_path = dir.path().join("layer.sb");
+    let gen_ = studybible_core::BookCode::new("GEN").unwrap();
+    let mut w = ModuleWriter::create(
+        &layer_path,
+        &Meta {
+            id: "openbible-xrefs".into(),
+            versification: "eng".into(),
+            kind: "layer".into(),
+            ..Meta::default()
+        },
+    )
+    .unwrap();
+    w.add_book(gen_, 1, "Genesis", &Default::default()).unwrap();
+    w.add_xref(gen_, 1, 3, 0, "2Cor 4:6").unwrap();
+    w.finish().unwrap();
+    let layer = Module::open(&layer_path).unwrap();
+
+    let idx = SearchIndex::open(&dir.path().join("a.idx"), &m).unwrap();
+    assert!(idx.search_notes("2cor", 10).unwrap().is_empty());
+    let hits = idx
+        .search_notes_with_layer("2cor", 10, Some(&layer), "rsc")
+        .unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].chapter, 1);
+    assert_eq!(hits[0].verse, 3);
+}

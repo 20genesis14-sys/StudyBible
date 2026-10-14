@@ -75,6 +75,9 @@ pub enum Kind {
     Highlight,
     /// Теги стиха (`text` — имена через запятую; одна запись на стих).
     Tag,
+    /// Элемент сквозной истории переходов/поиска/словаря (`text` — `hist*`).
+    #[serde(rename = "hist")]
+    History,
 }
 
 impl Kind {
@@ -84,6 +87,7 @@ impl Kind {
             Self::Mark => "mark",
             Self::Highlight => "hl",
             Self::Tag => "tag",
+            Self::History => "hist",
         }
     }
 
@@ -93,6 +97,7 @@ impl Kind {
             "mark" => Some(Self::Mark),
             "hl" | "highlight" => Some(Self::Highlight),
             "tag" => Some(Self::Tag),
+            "hist" | "history" => Some(Self::History),
             _ => None,
         }
     }
@@ -330,7 +335,95 @@ impl UserData {
                 d
             }
         };
+        // Автомиграция служебных записей (14.10.2026, Группа 1):
+        // 1) старые записи истории kind='mark' с text LIKE 'hist%' → kind='hist';
+        // 2) настройки из entries(module='settings', book='SET') → meta('settings');
+        // 3) последняя позиция из entries(module='*', text='pos') → meta('last_position').
+        conn.execute(
+            "UPDATE entries SET kind='hist' WHERE kind='mark' AND text LIKE 'hist%'",
+            [],
+        )?;
+        let legacy_settings: Option<String> = conn
+            .query_row(
+                "SELECT context FROM entries
+                 WHERE kind='mark' AND module='settings' AND book='SET' AND deleted=0
+                 ORDER BY updated DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(ctx) = legacy_settings {
+            let has_meta: Option<String> = conn
+                .query_row("SELECT value FROM meta WHERE key='settings'", [], |r| {
+                    r.get(0)
+                })
+                .optional()?;
+            if has_meta.is_none() && !ctx.is_empty() {
+                conn.execute(
+                    "INSERT OR REPLACE INTO meta VALUES('settings', ?1)",
+                    params![ctx],
+                )?;
+            }
+            conn.execute(
+                "UPDATE entries SET deleted=?1 WHERE kind='mark' AND module='settings' AND book='SET' AND deleted=0",
+                params![now()],
+            )?;
+        }
+        let legacy_pos: Option<(String, u16)> = conn
+            .query_row(
+                "SELECT book, chapter FROM entries
+                 WHERE kind='mark' AND module='*' AND text='pos' AND deleted=0
+                 ORDER BY updated DESC LIMIT 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        if let Some((b, ch)) = legacy_pos {
+            let has_pos: Option<String> = conn
+                .query_row(
+                    "SELECT value FROM meta WHERE key='last_position'",
+                    [],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if has_pos.is_none() {
+                conn.execute(
+                    "INSERT OR REPLACE INTO meta VALUES('last_position', ?1)",
+                    params![format!("{b}:{ch}")],
+                )?;
+            }
+            conn.execute(
+                "UPDATE entries SET deleted=?1 WHERE kind='mark' AND module='*' AND text='pos' AND deleted=0",
+                params![now()],
+            )?;
+        }
         Ok(Self { conn, device })
+    }
+
+    /// Прочитать значение из таблицы `meta` (`settings`, `last_position` и др.).
+    pub fn meta_get(&self, key: &str) -> Result<Option<String>> {
+        Ok(self
+            .conn
+            .query_row("SELECT value FROM meta WHERE key=?1", params![key], |r| {
+                r.get(0)
+            })
+            .optional()?)
+    }
+
+    /// Записать значение в таблицу `meta`.
+    pub fn meta_set(&self, key: &str, value: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO meta VALUES(?1, ?2)",
+            params![key, value],
+        )?;
+        Ok(())
+    }
+
+    /// Удалить ключ из таблицы `meta`.
+    pub fn meta_remove(&self, key: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM meta WHERE key=?1", params![key])?;
+        Ok(())
     }
 
     /// Добавить запись; возвращает её id. `text` — текст заметки, подпись или цвет;
@@ -410,6 +503,7 @@ impl UserData {
     }
 
     /// Живые записи вида `kind`; `module` — фильтр по модулю.
+    /// При `module: None` служебные псевдомодули (`*`, `settings`) исключаются.
     pub fn entries(&self, kind: Kind, module: Option<&str>) -> Result<Vec<Entry>> {
         let sql = "SELECT id, module, kind, book, chapter, verse, text, context,
                    created, updated, deleted, device, rev, vrs, module_ver,
@@ -426,11 +520,36 @@ impl UserData {
                 .collect::<rusqlite::Result<_>>()?,
             None => self
                 .conn
-                .prepare(&format!("{sql} ORDER BY module, book, chapter, verse"))?
+                .prepare(&format!(
+                    "{sql} AND module != '*' AND module != 'settings' ORDER BY module, book, chapter, verse"
+                ))?
                 .query_map(params![kind.as_str()], row_to_entry)?
                 .collect::<rusqlite::Result<_>>()?,
         };
         Ok(rows)
+    }
+
+    /// Все живые пользовательские записи (`hl`, `note`, `mark`, `tag`) одной главы
+    /// по индексу `entries_anchor(module, book, chapter, verse)`.
+    pub fn entries_for_chapter(
+        &self,
+        module: &str,
+        book: BookCode,
+        chapter: u16,
+    ) -> Result<Vec<Entry>> {
+        self.conn
+            .prepare(
+                "SELECT id, module, kind, book, chapter, verse, text, context,
+                 created, updated, deleted, device, rev, vrs, module_ver,
+                 canon_book, canon_c1, canon_v1, canon_c2, canon_v2, frag
+                 FROM entries
+                 WHERE module=?1 AND book=?2 AND chapter=?3
+                   AND deleted=0 AND kind IN ('hl','note','mark','tag')
+                 ORDER BY verse, created",
+            )?
+            .query_map(params![module, book.as_str(), chapter], row_to_entry)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(Into::into)
     }
 
     /// Надгробие: запись помечается удалённой и остаётся в базе для слияния.
@@ -490,7 +609,12 @@ impl UserData {
         let mut entries: Vec<Entry> = self
             .all()?
             .into_iter()
-            .filter(|e| e.deleted == 0 && e.module != "*")
+            .filter(|e| {
+                e.deleted == 0
+                    && e.module != "*"
+                    && e.module != "settings"
+                    && e.kind != Kind::History
+            })
             .collect();
         entries.sort_by(|a, b| {
             (&a.module, a.kind.as_str(), &a.book, a.chapter, a.verse).cmp(&(
@@ -696,7 +820,11 @@ impl UserData {
         let mut mods: std::collections::HashMap<String, Option<crate::module::Module>> =
             std::collections::HashMap::new();
         for e in self.all()? {
-            if e.deleted != 0 || e.module == "*" {
+            if e.deleted != 0
+                || e.module == "*"
+                || e.module == "settings"
+                || e.kind == Kind::History
+            {
                 continue;
             }
             let m = match mods.entry(e.module.clone()) {
@@ -873,7 +1001,13 @@ impl UserData {
         }
         let mut out = Vec::new();
         for e in self.all()? {
-            if e.deleted != 0 || e.module == module || e.module == "*" || e.canon_book.is_empty() {
+            if e.deleted != 0
+                || e.module == module
+                || e.module == "*"
+                || e.module == "settings"
+                || e.kind == Kind::History
+                || e.canon_book.is_empty()
+            {
                 continue;
             }
             if !installed(&e.module) {
