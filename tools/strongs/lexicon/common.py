@@ -24,6 +24,8 @@ WORK = DATA / 'work' / 'strongs' / 'lexicon'
 
 BOOKS, USFM, STEPAB, ENGNAME = meas.BOOKS, meas.USFM, meas.STEPAB, meas.ENGNAME
 load_step = meas.load_step
+parse_src_bcv = meas.parse_src_bcv
+step_bcv_maps = meas.step_bcv_maps
 classic = meas.classic
 norm_classic = meas.norm_classic
 is_nt = meas.is_nt

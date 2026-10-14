@@ -76,7 +76,15 @@ def main():
         if len(cand) == 1:
             alias[k] = cand[0]
         elif cand:
-            ambiguous.append((k, cand))
+            # 1) точное совпадение с главным кандидатом (k+'G' или по глоссу)
+            g0 = (core[k].get('glosses') or [''])[0]
+            exact = [c for c in cand if rows[c]['u'] and rows[c]['gloss'] == g0]
+            if len(exact) == 1:
+                alias[k] = exact[0]
+            elif k + 'G' in cand:
+                alias[k] = k + 'G'
+            else:
+                alias[k] = cand[0]
         else:
             missing.append(k)
     extra = sorted(k for k in rows if k not in core)

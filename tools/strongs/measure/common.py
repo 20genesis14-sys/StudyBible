@@ -95,7 +95,42 @@ def norm_classic(raw, prefix):
 
 # ---------- STEPBible TAHOT / TAGNT ----------
 
-REF = re.compile(r'^([1-3]?[A-Z][a-z]{1,2})\.(\d+)\.(\d+)(?:\(([\d.]+)\))?#(\d+)=(\S+)')
+REF = re.compile(
+    r'^([1-3]?[A-Z][a-z]{1,2})\.(\d+)\.(\d+)(?:[\(\[\{]([\d.]+)[\)\]\}])?#(\d+)=(\S+)'
+)
+
+
+def parse_src_bcv(book, ch, vs, heb_ref):
+    """(book, eng_ch, eng_vs, '32.1') -> (book, 32, 1)."""
+    if heb_ref and '.' in heb_ref:
+        hc, hv = heb_ref.split('.', 1)
+        if hc.isdigit() and hv.isdigit():
+            return (book, int(hc), int(hv))
+    return (book, ch, vs)
+
+
+def step_bcv_maps(testament='both'):
+    """Двусторонние карты (eng_bcv -> src_bcv, src_bcv -> eng_bcv) из TAHOT/TAGNT."""
+    eng2src, src2eng = {}, {}
+    files = []
+    if testament in ('both', 'ot'):
+        files += _step_files('TAHOT')
+    if testament in ('both', 'nt'):
+        files += _step_files('TAGNT')
+    for path in files:
+        with open(path, encoding='utf-8-sig') as f:
+            for line in f:
+                m = REF.match(line)
+                if not m:
+                    continue
+                book = STEPAB.get(m.group(1))
+                if not book:
+                    continue
+                ebcv = (book, int(m.group(2)), int(m.group(3)))
+                sbcv = parse_src_bcv(book, ebcv[1], ebcv[2], m.group(4))
+                eng2src[ebcv] = sbcv
+                src2eng.setdefault(sbcv, ebcv)
+    return eng2src, src2eng
 
 
 class Word:
@@ -151,8 +186,8 @@ def load_step(testament='both'):
                 w.text = c[1]
                 if lang == 'H':
                     w.gloss = c[3]
-                    w.tags = re.findall(r'H\d{4}[A-Z]?', c[4].split('\\')[0])
-                    rm = re.search(r'\{(H\d{4}[A-Z]?)\}', c[4])
+                    w.tags = re.findall(r'H\d{4,5}[A-Z]?', c[4].split('\\')[0])
+                    rm = re.search(r'\{(H\d{4,5}[A-Z]?)\}', c[4])
                     w.root = rm.group(1) if rm else (w.tags[0] if w.tags else None)
                     w.grammar = c[5]
                     w.editions = ''

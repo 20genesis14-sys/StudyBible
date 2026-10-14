@@ -20,7 +20,7 @@ import common as C  # noqa: E402
 
 STEP = C.STEP / 'Translators Amalgamated OT+NT'
 
-REF = re.compile(r'^([1-3]?[A-Z][a-z]{1,2})\.(\d+)\.(\d+)(?:\(([\d.]+)\))?#(\d+)=(\S+)')
+REF = C.meas.REF
 # сегмент расширенного тега: CODE=HEB=TRANS (TRANS может нести »label и @entity)
 SEG = re.compile(r'([HG]\d{3,5}[A-Z]?)=([^={}»|]*)=([^{}]*)')
 # 'first:1_beginning' / 'land:2_country;_planet' → '1_beginning'

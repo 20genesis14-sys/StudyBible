@@ -132,9 +132,9 @@ def load_aquifer(zipname, tag):
             txt = strip_html(raw)
             if len(txt) < 30:
                 continue
-            m = re.search(r'class="strongs-number"[^>]*>([\d,–\s-]+)<',
+            m = re.search(r'class="strongs-number"[^>]*>(\d+)',
                           it.get('content', ''))
-            sn = m.group(1).split(',')[0].split('–')[0].strip() if m else ''
+            sn = str(int(m.group(1))) if m else ''
             items[it['content_id']] = dict(
                 title=it.get('title', ''), text=txt, strong=sn,
                 refs=it.get('associations'))
@@ -142,23 +142,24 @@ def load_aquifer(zipname, tag):
 
 
 def tahot_tokens():
-    """BCVWWW → {dStrong}: для связывания aquifer-alignments."""
+    """BCVWWW (в масоретской нумерации) → {dStrong без служебных H9xxx}."""
     import collections
     tok = collections.defaultdict(set)
     step = C.STEP / 'Translators Amalgamated OT+NT'
-    ref = re.compile(r'^([1-3]?[A-Z][a-z]{1,2})\.(\d+)\.(\d+)#(\d+)=')
     for path in step.glob('TAHOT*'):
         for line in open(path, encoding='utf-8-sig'):
-            m = ref.match(line)
+            m = C.meas.REF.match(line)
             if not m or m.group(1) not in C.STEPAB:
                 continue
             c = line.split('\t')
             if len(c) < 5:
                 continue
-            codes = set(re.findall(r'H\d{4,5}[A-Z]?', c[4]))
+            codes = {x for x in re.findall(r'H\d{4,5}[A-Z]?', c[4])
+                     if not re.match(r'^H9\d{3}', x)}
             bnum = C.STEPAB.get(m.group(1), 0)
-            key = '%02d%03d%03d%03d' % (bnum, int(m.group(2)),
-                                        int(m.group(3)), int(m.group(4)))
+            _, sc, sv = C.parse_src_bcv(
+                bnum, int(m.group(2)), int(m.group(3)), m.group(4))
+            key = '%02d%03d%03d%03d' % (bnum, sc, sv, int(m.group(5)))
             tok[key] |= codes
     return tok
 
@@ -267,16 +268,25 @@ def main():
             add(b, 'en', it['text'][:6000], 'bdb-hebrew-aq', 'CC0')
             n_aq += 1
 
-    # 5) aquifer aramaic — alignments → самая частая база слова
+    # 5) aquifer aramaic — явный strongs-number + привязка по заголовкам
+    #    для 4 служебных приставок BDB; голосование — только без strong
     aqa = load_aquifer('bdb-aramaic', 'arc')
     ala = aquifer_alignments('bdb-aramaic', tok)
+    prefix_map = {'בְּ': 'H9003', 'הֲ': 'H9006', 'וְ': 'H9002', 'ל': 'H9005'}
     n_ar = 0
     for cid, it in aqa.items():
-        cnt = collections.Counter(
-            base_of(k) for k in ala.get(cid, ()) if k.startswith('H'))
-        if cnt:
-            add(cnt.most_common(1)[0][0], 'en', it['text'][:6000],
-                'bdb-aramaic', 'CC0')
+        bases = set()
+        if it['strong'].isdigit():
+            bases.add('H' + it['strong'])
+        elif it['title'].strip() in prefix_map:
+            bases.add(prefix_map[it['title'].strip()])
+        elif cid in ala:
+            cnt = collections.Counter(
+                base_of(k) for k in ala.get(cid, ()) if k.startswith('H'))
+            if cnt:
+                bases.add(cnt.most_common(1)[0][0])
+        for b in bases:
+            add(b, 'en', it['text'][:6000], 'bdb-aramaic', 'CC0')
             n_ar += 1
 
     # снимаем служебное поле имени ключа 'def_' → 'def'

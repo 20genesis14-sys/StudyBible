@@ -22,8 +22,7 @@ import common as C  # noqa: E402
 STEP = C.STEP / 'Translators Amalgamated OT+NT'
 WORK = C.DATA / 'work' / 'strongs' / 'orig'
 
-REF = re.compile(
-    r'^([1-3]?[A-Z][a-z]{1,2})\.(\d+)\.(\d+)(?:\([\d.]+\))?#(\d+)=(\S+)')
+REF = C.meas.REF
 # сегмент расширенного тега: CODE=LEMMA=TRANS
 SEG = re.compile(r'([HG]\d{3,5}[A-Z]?)=([^={}»|]*)=([^{}]*)')
 # метка значения: 'first:1_beginning' или 'to do/make|1_do/work'
@@ -68,11 +67,14 @@ def parse_tahot(verses):
                     continue
                 n_lines += 1
                 book = C.STEPAB[m.group(1)]
-                ch, vs, wnum, typ = (int(m.group(2)), int(m.group(3)),
-                                     m.group(4), m.group(5))
+                ch, vs, heb_ref, wnum, typ = (
+                    int(m.group(2)), int(m.group(3)), m.group(4),
+                    m.group(5), m.group(6))
+                sbcv = list(C.parse_src_bcv(book, ch, vs, heb_ref))
                 c = line.rstrip('\n').split('\t')
                 c += [''] * (13 - len(c))
                 wid = '%s.%d.%d#%s' % (m.group(1), ch, vs, wnum)
+                swid = '%s.%d.%d#%s' % (m.group(1), sbcv[1], sbcv[2], wnum)
 
                 # морфемы из expanded-тегов — там и лемма, и глосс морфемы
                 segs = []
@@ -109,7 +111,8 @@ def parse_tahot(verses):
                     w = dict(gr=forms[i] if i < len(forms) else '',
                              gloss=seg['gloss'], strong=dsts[i],
                              morph=morphs[i] if i < len(morphs) else '',
-                             lemma=seg['lemma'], wid=wid, typ=typ,
+                             lemma=seg['lemma'], wid=wid, swid=swid,
+                             sbcv=sbcv, typ=typ,
                              ed='', sns=seg['sns'], eid=seg['eid'],
                              conj=c[10].strip()
                                  if '»' in c[10] or ':' in c[10]
@@ -129,7 +132,7 @@ def parse_tagnt(verses):
                 n_lines += 1
                 book = C.STEPAB[m.group(1)]
                 ch, vs, wnum, typ = (int(m.group(2)), int(m.group(3)),
-                                     m.group(4), m.group(5))
+                                     m.group(5), m.group(6))
                 c = line.rstrip('\n').split('\t')
                 c += [''] * (14 - len(c))
                 wid = '%s.%d.%d#%s' % (m.group(1), ch, vs, wnum)
@@ -142,7 +145,8 @@ def parse_tagnt(verses):
                 w = dict(gr=form, gloss=c[2].strip(),
                          strong=codes[0] if codes else '',
                          morph=ds[1].strip() if len(ds) > 1 else '',
-                         lemma=lemma, wid=wid, typ=typ,
+                         lemma=lemma, wid=wid, swid=wid,
+                         sbcv=[book, ch, vs], typ=typ,
                          ed=c[5].strip(), sns=sense_of(sub),
                          eid=entity_of(sub),
                          conj=c[10].strip()

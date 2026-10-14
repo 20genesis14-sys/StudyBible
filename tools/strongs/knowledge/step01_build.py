@@ -91,21 +91,61 @@ CREATE TABLE media(id INTEGER PRIMARY KEY, entity_id TEXT,
 
 # ---------------- загрузка индексов ----------------
 
-def eid_index():
-    """eid → {'s': {strong}, 'bcv': {(b,c,v)}} из step-orig."""
-    idx = collections.defaultdict(lambda: {'s': set(), 'bcv': set()})
+def orig_indices():
+    """Индексы из step-orig (orig-words.jsonl):
+      eids: eid → {'s': {strong}, 'bcv': {(eng_b,eng_c,eng_v)}}
+      mid2bcv: mid → (eng_b, eng_c, eng_v)
+      swid2bcv: (src_b, src_c, src_v, wnum_int) → (eng_b, eng_c, eng_v)
+      sbcv2bcvs: (src_b, src_c, src_v) → [(eng_b, eng_c, eng_v), ...]
+    """
+    eids = collections.defaultdict(lambda: {'s': set(), 'bcv': set()})
+    mid2bcv = {}
+    swid2bcv = {}
+    sbcv2bcvs = collections.defaultdict(list)
     with open(ORIG / 'orig-words.jsonl', encoding='utf-8') as f:
         for line in f:
             d = json.loads(line)
+            ebcv = (d['b'], d['c'], d['v'])
             for w in d['w']:
+                sbcv = tuple(w.get('sbcv') or ebcv)
+                if ebcv not in sbcv2bcvs[sbcv]:
+                    sbcv2bcvs[sbcv].append(ebcv)
+                if w.get('mid'):
+                    mid2bcv[w['mid']] = ebcv
+                m = re.search(r'#(\d+)$', w.get('swid') or w['wid'])
+                if m:
+                    swid2bcv[(*sbcv, int(m.group(1)))] = ebcv
                 eid = w.get('eid')
-                if not eid:
-                    continue
-                e = idx[norm_eid(eid)]
-                if w['strong']:
-                    e['s'].add(w['strong'])
-                e['bcv'].add((d['b'], d['c'], d['v']))
-    return idx
+                if eid:
+                    e = eids[norm_eid(eid)]
+                    if w['strong']:
+                        e['s'].add(w['strong'])
+                    e['bcv'].add(ebcv)
+    return eids, mid2bcv, swid2bcv, sbcv2bcvs
+
+
+def load_ubs_handbooks():
+    """'fauna:2.2' / 'flora:...' / 'realia:...' → (title, markdown)."""
+    out = {}
+    for d in ('ubs-fauna', 'ubs-flora', 'ubs-realia'):
+        p = C.SRC / d / 'English-md.zip'
+        if not p.exists():
+            continue
+        z = zipfile.ZipFile(p)
+        for n in z.namelist():
+            if not n.endswith('.md'):
+                continue
+            txt = z.read(n).decode('utf-8')
+            parts = re.split(
+                r'(?=^#{1,4}\s+.*?\(id:\s*[A-Za-z]+:[\d.]+\))',
+                txt, flags=re.M)
+            for part in parts:
+                m = re.match(
+                    r'^#{1,4}\s+(.*?)\s*\(id:\s*([A-Za-z]+:[\d.]+)\)', part)
+                if m:
+                    out[m.group(2).lower()] = (
+                        m.group(1).strip(), part.strip()[:20000])
+    return out
 
 
 def lexname_index():
@@ -199,7 +239,8 @@ def mid_bcv(mid):
 
 
 def main():
-    eids = eid_index()
+    eids, mid2bcv, swid2bcv, sbcv2bcvs = orig_indices()
+    ubs_md = load_ubs_handbooks()
     lexnames = lexname_index()
     forms = form_strongs_index()
     aqui = {}
@@ -214,9 +255,21 @@ def main():
             aqui[key][lang] = (bi, bt)
 
     entities, names, rels = {}, set(), []
+    id2prim = {}
     mentions = {}   # (bc,c,v,seg,eid) → [types, ctx, src]
     eid2ent = collections.defaultdict(set)
     stats = collections.Counter()
+
+    def resolve_mid_bcv(mid):
+        """MACULA id → английский (b, c, v)."""
+        if mid in mid2bcv:
+            return mid2bcv[mid]
+        sb, sc, sv = int(mid[1:3]), int(mid[3:6]), int(mid[6:9])
+        wn = int(mid[9:12]) if len(mid) >= 12 and mid[9:12].isdigit() else 0
+        if (sb, sc, sv, wn) in swid2bcv:
+            return swid2bcv[(sb, sc, sv, wn)]
+        cands = sbcv2bcvs.get((sb, sc, sv))
+        return cands[0] if cands else (sb, sc, sv)
 
     def mention(b, c, v, eid, mtype, ctx='', src='ACAI'):
         key = (USFM.get(b, ''), c, v, 0, eid)
@@ -233,6 +286,7 @@ def main():
         acai_type = Path(path).parent.parent.name
         d = json.load(open(path, encoding='utf-8'))
         eid_ent = d.get('primary_id') or d['id']
+        id2prim[d['id']] = eid_ent
         stats['records'] += 1
         if d['id'] != eid_ent:
             # неосновная форма — только имя-алиас
@@ -346,6 +400,22 @@ def main():
         mdp = ACAI / acai_type / 'md' / (d['id'].split(':')[-1] + '.md')
         article = mdp.read_text(encoding='utf-8') if mdp.exists() else ''
 
+        # UBS Handbooks (fauna / flora / realia) — CC BY-SA 4.0
+        for ukey, usrc in (('ubsfauna', 'UBSFauna'),
+                           ('ubsflora', 'UBSFlora'),
+                           ('ubsrealia', 'UBSRealia')):
+            for uid in alt.get(ukey) or []:
+                u_norm = uid.lower()
+                hit = ubs_md.get(u_norm) or ubs_md.get(
+                    '.'.join(u_norm.split('.')[:2]))
+                if hit:
+                    utitle, utxt = hit
+                    articles.setdefault('eng', []).append(
+                        dict(src=usrc, title=utitle, content=utxt))
+                    if not article:
+                        article = utxt
+                    stats['ubs_join'] += 1
+
         desc = ''
         for dd in eng.get('descriptions') or []:
             if dd.get('description'):
@@ -392,9 +462,11 @@ def main():
             for v in vs:
                 rels.append((eid_ent, v, rt))
 
-        for ref8 in d.get('references') or []:
-            b, c, v = bcv_of_ref(ref8)
-            mention(b, c, v, eid_ent, 'reference')
+        resolved_sbcvs = set()
+        for e in ce:
+            if e in eids:
+                for eb, ec, ev in eids[e]['bcv']:
+                    resolved_sbcvs.add((eb, ec, ev))
         for (fk, mt) in (('explicit_instances', 'explicit'),
                          ('pronominal_referents', 'pronoun'),
                          ('subject_referents', 'subject')):
@@ -402,14 +474,23 @@ def main():
                 for grp in mids:
                     for mid in grp:
                         if mid and mid[0] in 'on':
-                            b, c, v = mid_bcv(mid)
+                            resolved_sbcvs.add(mid_bcv(mid))
+                            b, c, v = resolve_mid_bcv(mid)
                             mention(b, c, v, eid_ent, mt, mid)
         for _ed, sp in (d.get('speeches') or {}).items():
             for s in sp:
                 for mid in s.get('words') or []:
                     if mid and mid[0] in 'on':
-                        b, c, v = mid_bcv(mid)
+                        resolved_sbcvs.add(mid_bcv(mid))
+                        b, c, v = resolve_mid_bcv(mid)
                         mention(b, c, v, eid_ent, 'speech')
+        for ref8 in d.get('references') or []:
+            sbcv = bcv_of_ref(ref8)
+            if sbcv in resolved_sbcvs:
+                continue
+            cands = sbcv2bcvs.get(sbcv)
+            b, c, v = cands[0] if cands else sbcv
+            mention(b, c, v, eid_ent, 'reference')
 
     # ---------------- запись модуля ----------------
     WORK.mkdir(parents=True, exist_ok=True)
@@ -430,7 +511,16 @@ def main():
     db.executemany('INSERT INTO entity_names VALUES (?,?,?,?)',
                    sorted(names))
     stats['names'] = len(names)
-    for i, (f_, t_, rt) in enumerate(sorted(set(rels))):
+    norm_rels = set()
+    for f_, raw_t, rt in rels:
+        for part in str(raw_t).split(';'):
+            t_ = part.strip()
+            if not t_:
+                continue
+            t_ = id2prim.get(t_) or id2prim.get(t_.split('.')[0]) or t_
+            if f_ != t_:
+                norm_rels.add((f_, t_, rt))
+    for i, (f_, t_, rt) in enumerate(sorted(norm_rels)):
         if t_ in entities:
             db.execute('INSERT INTO relationships(id,from_entity_id,'
                        'to_entity_id,relation_type,book,chapter,verse,'
@@ -458,11 +548,11 @@ def main():
         'format_version': '1', 'id': 'knowledge',
         'title': 'Biblical knowledge graph (ACAI)',
         'language': 'en', 'direction': 'ltr', 'versification': 'eng',
-        'name_profile': 'en', 'book_order': 'syn', 'version': '0.1.0',
+        'name_profile': 'en', 'book_order': 'syn', 'version': '0.2.0',
         'license': 'CC BY-SA 4.0',
         'attribution': 'ACAI (c) Mission Mutual 2025, CC BY-SA 4.0; '
                        'STEPBible TAHOT/TAGNT eid crosswalk; Aquifer '
-                       'OBD/FIA/Biblica key terms',
+                       'OBD/FIA/Biblica key terms; UBS Fauna/Flora/Realia',
         'source': 'acai',
         'kind': 'knowledge',
         'features': 'knowledge',

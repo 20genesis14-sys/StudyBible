@@ -184,7 +184,7 @@ def build():
         'format_version': '1', 'id': 'step-orig',
         'title': 'STEP original text (TAHOT/TAGNT)',
         'language': 'en', 'direction': 'ltr', 'versification': 'eng',
-        'name_profile': 'en', 'book_order': 'syn', 'version': '0.1.0',
+        'name_profile': 'en', 'book_order': 'syn', 'version': '0.2.0',
         'license': 'CC BY 4.0',
         'attribution': 'STEPBible TAHOT/TAGNT (c) Tyndale House, '
                        'Cambridge; MACULA token ids (Clear Bible)',
