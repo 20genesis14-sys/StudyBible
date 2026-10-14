@@ -1092,9 +1092,16 @@ fn block_text(b: &studybible_core::text::Block) -> String {
 /// Слова стихов модуля (токенизатор `w1`, ADR 0025) — вход для
 /// конвейера разметки: JSONL, первая строка `_meta` с привязкой
 /// (id, content_hash, версия токенизатора), дальше по стиху:
-/// `{"book":"GEN","chapter":1,"verse":1,"words":[…]}`.
+/// `{"book":"GEN","chapter":1,"verse":1,"words":[…]}` (при `--with-spans`
+/// добавляется `"word_spans":[{"style":…,"attrs":…}, …]` той же длины).
 fn tokenize(args: &[String]) -> Result<(), String> {
-    let path = module_arg(args)?;
+    let with_spans = args.iter().any(|a| a == "--with-spans");
+    let rest: Vec<String> = args
+        .iter()
+        .filter(|a| *a != "--with-spans")
+        .cloned()
+        .collect();
+    let path = module_arg(&rest)?;
     let opened = open_any(&path)?;
     let m = &opened.module;
     let meta = m.meta();
@@ -1117,22 +1124,34 @@ fn tokenize(args: &[String]) -> Result<(), String> {
     for (code, _) in m.books().map_err(|e| e.to_string())? {
         let mut ch_n = 1u16;
         while let Some(ch) = m.chapter(code, ch_n).map_err(|e| e.to_string())? {
+            let span_meta = if with_spans {
+                Some(verse_word_spans(&ch))
+            } else {
+                None
+            };
             for (verse, text) in ch.verse_texts() {
                 let ws: Vec<&str> = studybible_core::text::words(&text);
                 if ws.is_empty() {
                     continue;
                 }
-                writeln!(
-                    out,
-                    "{}",
+                let row = if let Some(ref sm) = span_meta {
+                    let wmeta = sm.get(&verse).cloned().unwrap_or_default();
+                    serde_json::json!({
+                        "book": code.to_string(),
+                        "chapter": ch_n,
+                        "verse": verse,
+                        "words": ws,
+                        "word_spans": wmeta,
+                    })
+                } else {
                     serde_json::json!({
                         "book": code.to_string(),
                         "chapter": ch_n,
                         "verse": verse,
                         "words": ws,
                     })
-                )
-                .map_err(|e| e.to_string())?;
+                };
+                writeln!(out, "{row}").map_err(|e| e.to_string())?;
                 verses += 1;
             }
             ch_n += 1;
@@ -1143,6 +1162,47 @@ fn tokenize(args: &[String]) -> Result<(), String> {
         studybible_core::text::WORDS_VERSION
     );
     Ok(())
+}
+
+fn verse_word_spans(
+    ch: &studybible_core::text::Chapter,
+) -> std::collections::HashMap<u16, Vec<serde_json::Value>> {
+    use studybible_core::text::{BlockKind, Span};
+    let mut out: std::collections::HashMap<u16, Vec<serde_json::Value>> =
+        std::collections::HashMap::new();
+    let mut current: Option<u16> = None;
+    for block in &ch.blocks {
+        let kind = block.kind();
+        if kind == BlockKind::Heading || kind == BlockKind::Blank {
+            continue;
+        }
+        if kind == BlockKind::Superscription && current.is_none() {
+            current = Some(0);
+        }
+        for span in &block.spans {
+            match span {
+                Span::Verse(n) => {
+                    current = Some(*n);
+                }
+                Span::Text { text, style, attrs } => {
+                    let Some(v) = current else { continue };
+                    let ws = studybible_core::text::words(text);
+                    if ws.is_empty() {
+                        continue;
+                    }
+                    let entry = out.entry(v).or_default();
+                    for _ in ws {
+                        entry.push(serde_json::json!({
+                            "style": style,
+                            "attrs": attrs,
+                        }));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    out
 }
 
 fn read(args: &[String]) -> Result<(), String> {
