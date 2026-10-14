@@ -304,3 +304,16 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
      tier: 1|2, title, body, refs: [..], entity_id?}]` — 0 KB raster
      size, fully localizable and interactive (tapping an event opens its
      Scripture reference or entity card).
+12. **Inter-Book Connection Charts ("How This Book Connects to the Rest of the Bible")**:
+   each book introduction includes a structured two-column zebra-striped
+   chart (`visual_aids.kind = 'chart'`, tagged with its alphanumeric badge
+   such as `26B`) showing how the book links to other books of the canon:
+   - **Left column (accent color)**: key passage(s) in the current book;
+   - **Right column**: concise explanation + clickable target passages in
+     other books, categorized by connection kind (`quote` — direct
+     quotations in/from other books; `prophecy` — prophecy and its
+     fulfillment; `parallel` — parallel historical accounts; `theme` —
+     shared principles, imagery, and lessons).
+   - Coordinates are stored canonically (`BookCode, ch, v, seg`) so both
+     columns automatically localize book names (`bookShort`) and convert
+     versification (`eng ↔ rsc`) on the fly.

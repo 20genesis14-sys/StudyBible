@@ -1536,6 +1536,11 @@ plan, tasks, data inventory and skill specs —
   piecewise-linear axis with an accordion fold glyph for compressed
   multi-century gaps (e.g. `749–406`) or spans of unknown duration, plus
   two-tier forked callouts (`┴`) for dense event clusters.
+- **Inter-Book Connection Charts (ADR 0024)**: two-column zebra-striped
+  tables (`visual_aids.kind = 'chart'`) in book introductions linking
+  passages of the current book (left accent column) to quotations,
+  prophecy fulfillments, parallel accounts, and shared principles across
+  other books of the Bible (right column).
 
 - **Entity id = ACAI `primary_id`** (`person:Abraham`); non-primary
   records contribute `entity_names` aliases only — relations and
