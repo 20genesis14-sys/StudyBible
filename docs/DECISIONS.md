@@ -1541,6 +1541,12 @@ plan, tasks, data inventory and skill specs —
   passages of the current book (left accent column) to quotations,
   prophecy fulfillments, parallel accounts, and shared principles across
   other books of the Bible (right column).
+- **Illustrated Genealogy Trees (ADR 0024)**: orthogonal family diagrams
+  (`visual_aids.kind = 'genealogy'` and dynamic subtrees from
+  `knowledge.sb` `relationships`) combining portrait-highlighted focal
+  figures, compact pills for collateral relatives, accent marriage
+  brackets (`└─┬─┘`), and dark descent lines (`┌──┴──┐`), with tap-to-open
+  entity navigation on every node.
 
 - **Entity id = ACAI `primary_id`** (`person:Abraham`); non-primary
   records contribute `entity_names` aliases only — relations and

@@ -317,3 +317,24 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
    - Coordinates are stored canonically (`BookCode, ch, v, seg`) so both
      columns automatically localize book names (`bookShort`) and convert
      versification (`eng ↔ rsc`) on the fly.
+13. **Illustrated Genealogy Trees (Two-Color Orthogonal Family Diagrams)**:
+   genealogical trees (`visual_aids.kind = 'genealogy'`, tagged with an
+   alphanumeric badge, plus auto-generated 3-generation family subtrees
+   on `person` cards from the 26,654 `relationships` rows in
+   `knowledge.sb`) visualize kinship across generations:
+   - **Visual hierarchy**: focal biblical figures of the book/passage are
+     highlighted with portrait illustrations and high-contrast dark name
+     plates (e.g. *Terah → Abraham → Isaac → Jacob*), while collateral
+     relatives appear as compact muted name pills so large trees stay
+     clean and readable.
+   - **Two-color orthogonal connector notation**:
+     - **Accent terracotta/cinnabar marriage brackets (`└─┬─┘`)**: link
+       spouses (supporting multiple marriages such as Abraham with Sarah,
+       Hagar, and Keturah, or Jacob with Leah, Rachel, Bilhah, and
+       Zilpah);
+     - **Dark ink descent lines (`┌──┴──┐`)**: drop vertically from a
+       parent or marriage bracket to children and sibling branches.
+   - **Interactive native rendering**: every node (portrait or name pill)
+     stores its `entity_id` in `knowledge.sb`; tapping any node opens
+     that person's Profile Card, and book/entity labels localize
+     automatically (`RU / EN`).
