@@ -486,6 +486,101 @@ Future<Map<String, dynamic>?> _loadExtendedStrong(
   }
 }
 
+/// Разбивает длинную статью или словарное определение на небольшие абзацы
+/// (до [maxChars] символов), чтобы Flutter не держал один гигантский
+/// RenderParagraph и не тормозил при скролле.
+List<String> _splitIntoParagraphs(String text, {int maxChars = 900}) {
+  final out = <String>[];
+  for (final raw in text.split(RegExp(r'\n+'))) {
+    final p = raw.trim();
+    if (p.isEmpty) continue;
+    if (p.length <= maxChars) {
+      out.add(p);
+      continue;
+    }
+    var start = 0;
+    while (start < p.length) {
+      var end = (start + maxChars).clamp(0, p.length);
+      if (end < p.length) {
+        final dot = p.lastIndexOf('. ', end);
+        final sp = p.lastIndexOf(' ', end);
+        if (dot > start + maxChars ~/ 2) {
+          end = dot + 1;
+        } else if (sp > start + maxChars ~/ 2) {
+          end = sp;
+        }
+      }
+      out.add(p.substring(start, end).trim());
+      start = end;
+    }
+  }
+  return out;
+}
+
+/// Порционный показ длинного текста (энциклопедической статьи или BDB/LSJ)
+/// с изолированными `RepaintBoundary` на каждый абзац и кнопкой догрузки.
+class _ChunkedLongText extends StatefulWidget {
+  const _ChunkedLongText({
+    required this.text,
+    required this.style,
+    required this.accentColor,
+  });
+
+  final String text;
+  final TextStyle style;
+  final Color accentColor;
+
+  @override
+  State<_ChunkedLongText> createState() => _ChunkedLongTextState();
+}
+
+class _ChunkedLongTextState extends State<_ChunkedLongText> {
+  late final List<String> _paras = _splitIntoParagraphs(widget.text);
+  int _visible = 6;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = _paras.take(_visible).toList(growable: false);
+    final rem = _paras.length - shown.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < shown.length; i++)
+          RepaintBoundary(
+            child: Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 6),
+              child: Text(shown[i], style: widget.style),
+            ),
+          ),
+        if (rem > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () => setState(() => _visible += 12),
+              icon: Icon(Icons.expand_more, size: 16, color: widget.accentColor),
+              label: Text(
+                tr(
+                  'Показать ещё ($rem абз.)',
+                  'Show more ($rem paragraphs)',
+                ),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: widget.accentColor,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// Карточка сущности из `knowledge.sb` (ADR 0024).
 void showEntityCard(BuildContext context, String modulePath, String entityId) {
   final p = context.palette;
@@ -515,9 +610,13 @@ void showEntityCard(BuildContext context, String modulePath, String entityId) {
                 );
               }
               final ent = jsonDecode(raw) as Map<String, dynamic>;
-              return SingleChildScrollView(
+              return ListView(
                 controller: scrollCtrl,
-                child: _buildEntitySection(ctx, p, ent, modulePath),
+                children: [
+                  RepaintBoundary(
+                    child: _buildEntitySection(ctx, p, ent, modulePath),
+                  ),
+                ],
               );
             },
           ),
@@ -630,9 +729,10 @@ Widget _buildEntitySection(
               ),
             ),
             children: [
-              Text(
-                article,
+              _ChunkedLongText(
+                text: article,
                 style: TextStyle(fontSize: 12.5, color: p.ink, height: 1.4),
+                accentColor: p.accent,
               ),
             ],
           ),
@@ -681,138 +781,137 @@ void showStrongCard(
               final e = dict?[firstCode] ??
                   dict?[firstCode.replaceAll(RegExp(r'[A-Z]$'), '')];
 
-              return SingleChildScrollView(
-                controller: scrollCtrl,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      strong,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: p.accent,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '«${word.trim()}»',
-                      style: TextStyle(fontSize: 16, color: p.ink),
-                    ),
-                    if (ctxSense.isNotEmpty)
-                      _strongLine(
-                        p,
-                        tr('Контекстное значение в стихе', 'Contextual sense in verse'),
-                        ctxSense,
-                      ),
-                    if (extMorphs.isNotEmpty)
-                      _strongLine(
-                        p,
-                        tr('Морфология', 'Morphology'),
-                        [
-                          for (final m in extMorphs)
-                            '${m['code']}: ${m['long'] ?? m['short'] ?? ''}',
-                        ].join('\n'),
-                      ),
-                    if (extEntity != null)
-                      _buildEntitySection(ctx, p, extEntity, modulePath),
-                    const SizedBox(height: 8),
-                    if (extEntries.isNotEmpty)
-                      for (final ee in extEntries) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            [
-                              ee['key'] as String? ?? '',
-                              ee['lemma'] as String? ?? '',
-                              ee['xlit'] as String? ?? '',
-                            ].where((s) => s.isNotEmpty).join('  ·  '),
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: p.ink,
-                            ),
-                          ),
-                        ),
-                        if ((ee['gloss'] as String? ?? '').isNotEmpty)
-                          _strongLine(
-                            p,
-                            tr('Краткое толкование (STEPBible)', 'STEPBible Gloss'),
-                            ee['gloss'] as String,
-                          ),
-                        if ((ee['sense_label'] as String? ?? '').isNotEmpty)
-                          _strongLine(
-                            p,
-                            tr('Метка значения', 'Sense label'),
-                            ee['sense_label'] as String,
-                          ),
-                        if ((ee['sense_domain'] as String? ?? '').isNotEmpty)
-                          _strongLine(
-                            p,
-                            tr('Семантический домен (UBS, CC BY-SA 4.0)', 'Semantic domain (UBS, CC BY-SA 4.0)'),
-                            ee['sense_domain'] as String,
-                          ),
-                        for (final d
-                            in (ee['defs'] as List? ?? const [])
-                                .cast<Map<String, dynamic>>())
-                          _strongLine(
-                            p,
-                            '${d['src']} (${d['lic']})',
-                            d['def'] as String? ?? '',
-                          ),
-                      ]
-                    else if (e == null)
-                      Text(
-                        snap.hasData
-                            ? tr(
-                                'Нет статьи $strong в словаре.',
-                                'No lexicon entry for $strong.',
-                              )
-                            : tr('Загружаю словарь…', 'Loading lexicon…'),
-                        style: TextStyle(fontSize: 13, color: p.muted),
-                      )
-                    else ...[
-                      if (e.lemma.isNotEmpty || e.xlit.isNotEmpty)
-                        Text(
-                          [
-                            e.lemma,
-                            e.xlit,
-                            e.pron,
-                          ].where((s) => s.isNotEmpty).join('  ·  '),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: p.ink,
-                          ),
-                        ),
-                      if (e.pos.isNotEmpty)
-                        _strongLine(p, tr('Часть речи', 'Part of speech'), e.pos),
-                      if (e.expl.isNotEmpty)
-                        _strongLine(p, tr('Определение', 'Definition'), e.expl),
-                      for (final d in e.defs)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            '• $d',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: p.ink,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                      if (e.deriv.isNotEmpty)
-                        _strongLine(
-                          p,
-                          tr('Происхождение', 'Derivation'),
-                          e.deriv,
-                        ),
-                      if (e.kjv.isNotEmpty)
-                        _strongLine(p, tr('В KJV', 'In KJV'), e.kjv),
-                    ],
-                  ],
+              final items = <Widget>[
+                Text(
+                  strong,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: p.accent,
+                  ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  '«${word.trim()}»',
+                  style: TextStyle(fontSize: 16, color: p.ink),
+                ),
+                if (ctxSense.isNotEmpty)
+                  _strongLine(
+                    p,
+                    tr('Контекстное значение в стихе', 'Contextual sense in verse'),
+                    ctxSense,
+                  ),
+                if (extMorphs.isNotEmpty)
+                  _strongLine(
+                    p,
+                    tr('Морфология', 'Morphology'),
+                    [
+                      for (final m in extMorphs)
+                        '${m['code']}: ${m['long'] ?? m['short'] ?? ''}',
+                    ].join('\n'),
+                  ),
+                if (extEntity != null)
+                  _buildEntitySection(ctx, p, extEntity, modulePath),
+                const SizedBox(height: 8),
+                if (extEntries.isNotEmpty)
+                  for (final ee in extEntries) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        [
+                          ee['key'] as String? ?? '',
+                          ee['lemma'] as String? ?? '',
+                          ee['xlit'] as String? ?? '',
+                        ].where((s) => s.isNotEmpty).join('  ·  '),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: p.ink,
+                        ),
+                      ),
+                    ),
+                    if ((ee['gloss'] as String? ?? '').isNotEmpty)
+                      _strongLine(
+                        p,
+                        tr('Краткое толкование (STEPBible)', 'STEPBible Gloss'),
+                        ee['gloss'] as String,
+                      ),
+                    if ((ee['sense_label'] as String? ?? '').isNotEmpty)
+                      _strongLine(
+                        p,
+                        tr('Метка значения', 'Sense label'),
+                        ee['sense_label'] as String,
+                      ),
+                    if ((ee['sense_domain'] as String? ?? '').isNotEmpty)
+                      _strongLine(
+                        p,
+                        tr('Семантический домен (UBS, CC BY-SA 4.0)', 'Semantic domain (UBS, CC BY-SA 4.0)'),
+                        ee['sense_domain'] as String,
+                      ),
+                    for (final d
+                        in (ee['defs'] as List? ?? const [])
+                            .cast<Map<String, dynamic>>())
+                      _strongLine(
+                        p,
+                        '${d['src']} (${d['lic']})',
+                        d['def'] as String? ?? '',
+                      ),
+                  ]
+                else if (e == null)
+                  Text(
+                    snap.hasData
+                        ? tr(
+                            'Нет статьи $strong в словаре.',
+                            'No lexicon entry for $strong.',
+                          )
+                        : tr('Загружаю словарь…', 'Loading lexicon…'),
+                    style: TextStyle(fontSize: 13, color: p.muted),
+                  )
+                else ...[
+                  if (e.lemma.isNotEmpty || e.xlit.isNotEmpty)
+                    Text(
+                      [
+                        e.lemma,
+                        e.xlit,
+                        e.pron,
+                      ].where((s) => s.isNotEmpty).join('  ·  '),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: p.ink,
+                      ),
+                    ),
+                  if (e.pos.isNotEmpty)
+                    _strongLine(p, tr('Часть речи', 'Part of speech'), e.pos),
+                  if (e.expl.isNotEmpty)
+                    _strongLine(p, tr('Определение', 'Definition'), e.expl),
+                  for (final d in e.defs)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '• $d',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: p.ink,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  if (e.deriv.isNotEmpty)
+                    _strongLine(
+                      p,
+                      tr('Происхождение', 'Derivation'),
+                      e.deriv,
+                    ),
+                  if (e.kjv.isNotEmpty)
+                    _strongLine(p, tr('В KJV', 'In KJV'), e.kjv),
+                ],
+              ];
+
+              return ListView.builder(
+                controller: scrollCtrl,
+                itemCount: items.length,
+                itemBuilder: (_, i) => RepaintBoundary(child: items[i]),
               );
             },
           ),
@@ -835,7 +934,14 @@ Widget _strongLine(Palette p, String label, String text) => Padding(
           color: p.muted,
         ),
       ),
-      Text(text, style: TextStyle(fontSize: 13, color: p.ink, height: 1.35)),
+      if (text.length > 900)
+        _ChunkedLongText(
+          text: text,
+          style: TextStyle(fontSize: 13, color: p.ink, height: 1.35),
+          accentColor: p.accent,
+        )
+      else
+        Text(text, style: TextStyle(fontSize: 13, color: p.ink, height: 1.35)),
     ],
   ),
 );
