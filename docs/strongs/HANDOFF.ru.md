@@ -548,7 +548,37 @@ kind='biblical'. Лицензия CC BY-SA 4.0. Отчёт —
 (B) − N; имена ≥ 95 %; калибровка монотонна. **Не прошли — русского
 нет.**
 
-### Фаза 8 — русский (только после порога)
+### Фаза 8 — русский (после порога) — **готово 14.10.2026**
+
+Реализовано в `tools/strongs/pipeline/prep_rlob.py`,
+`tools/strongs/pipeline/build_ru_layers.py`,
+`tools/strongs/lexicon_ru/build_lexicon_ru.py` и
+`tools/strongs/knowledge/step02_ru_names.py`:
+- **8.0 Современные открытые русские корпуса (`door43-ru`, CC BY-SA
+  4.0):** скачаны `ru_rlob` (v13.0, 31 книга), `ru_rsob`, `ru_tw` (1 018
+  русских статей Translation Words), `ru_twl` и `ru_tn`; собран модуль
+  `modules/ru_rlob.sbz` и чисто пересобран `modules/ru_rob.sbz` (с
+  сохранением приставок `\zaln-s` и нормализацией 5-значных кодов uW
+  `G15100 → G1510`).
+- **8.1 `strongs-step-ru.sbz` (`v0.1.0`):** 22 743 записи `dStrong` в
+  `lex` на современном русском языке (архаизмы XIX века вроде *мытарь,
+  выя, чресла, наипаче* заменены современными эквивалентами с пометкой
+  `(в Син.: …)`), 3 190 русских расшифровок `morph` и 63 950 записей
+  `lex_def` (`door43-tw-ru`, `corpus-ru` по RLOB/РОБ/Синодальному и слои
+  UBS SDBH/SDGNT + OSHB).
+- **8.2 Русский словарный подстрочник и карточки в приложении:**
+  Rust-мост (`find_lex_module`) и Flutter автоматически используют
+  `strongs-step-ru.sbz` при `settings.lang == 'ru'`.
+- **8.3 Три русских накладных слоя `dStrong`:**
+  - `russyn-strongs.sbz` (570 826 связей, 100 % слов `w1` модуля
+    `russyn.sb`, сдвиги `rsc ↔ eng` по `verse_map.json`);
+  - `ru_rlob-strongs.sbz` (202 958 связей, 100 % слов `w1` модуля
+    `ru_rlob.sb`);
+  - `ru_rob-strongs.sbz` (557 946 связей, 100 % слов `w1` по всем 66
+    книгам `ru_rob.sb`, включая 43 книги ВЗ без исходного `\zaln`).
+- **8.4 Русские имена в `knowledge.sbz`:** добавлено 3 488 синодальных
+  (`kind='synodal'`) и современных (`kind='biblical'`) русских форм имён
+  в `entity_names`. Все модули проходят `studybible module check`.
 
 - **8.1** `strongs-step-ru.sb` через скилл `lexicon-translate`: краткие
   толкования уточнённых номеров + метки значений, таблица морфологии,

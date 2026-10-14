@@ -369,3 +369,22 @@ can be attached to base-layer words deterministically.
       proper names = **97.04 %**, `conf=10` accuracy = **94.32 %**,
       strictly monotonic calibration (`5.68 % < 26.24 % < 32.96 % <
       64.47 %`). Packed `modules/eng-kjv2006-strongs.sbz` (11 MB).
+- 2026-10-14 — **Phase 8 done (Russian lexicon, interlinear, 3 translation layers & knowledge names)**:
+  - Fetched Door43 Russian open resources (`ru_rlob`, `ru_rsob`,
+    `ru_tw`, `ru_twl`, `ru_tn`, CC BY-SA 4.0); built `ru_rlob.sbz` (31
+    books) and rebuilt `ru_rob.sbz` (66 books, fixing `\zaln-s` remnants
+    and 5-digit uW Greek Strong's `G15100 → G1510`).
+  - Built 3 Russian `dStrong` alignment layers (`build_ru_layers.py`):
+    - `russyn-strongs.sbz` (570,826 links, 100 % `w1` of `russyn.sb`);
+    - `ru_rlob-strongs.sbz` (202,958 links, 100 % `w1` of `ru_rlob.sb`);
+    - `ru_rob-strongs.sbz` (557,946 links, 100 % `w1` of `ru_rob.sb`).
+  - Built modern Russian extended lexicon `strongs-step-ru.sbz`
+    (`build_lexicon_ru.py`): 22,743 `lex` entries (modern Russian glosses
+    with `(в Син.: …)` notes for 19th-century archaisms), 3,190 Russian
+    `morph` rows, 63,950 `lex_def` entries (`door43-tw-ru`, `corpus-ru`,
+    UBS SDBH/SDGNT, OSHB).
+  - Enriched `knowledge.sbz` with 3,488 Synodal & modern Russian entity
+    names (`step02_ru_names.py`). Wired `strongs-step-ru.sbz` into the
+    Rust-Flutter bridge for Russian dictionary interlinear & lexicon
+    cards; `bridge_test.dart`, `flutter analyze`, and `scripts/ci.ps1`
+    all green.

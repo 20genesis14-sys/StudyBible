@@ -528,7 +528,38 @@ tokens by character offsets. Gate (freeze N first, OQ 52):
 F1(content, held-out) ≥ inter-gold agreement (B) − N; names ≥ 95 %;
 calibration monotonic. **Fail → no Russian.**
 
-### Phase 8 — Russian (only after the gate)
+### Phase 8 — Russian (after the gate) — **done 2026-10-14**
+
+Implemented in `tools/strongs/pipeline/prep_rlob.py`,
+`tools/strongs/pipeline/build_ru_layers.py`,
+`tools/strongs/lexicon_ru/build_lexicon_ru.py`, and
+`tools/strongs/knowledge/step02_ru_names.py`:
+- **8.0 Modern Russian open corpora (`door43-ru`, CC BY-SA 4.0):**
+  fetched `ru_rlob` (v13.0, 31 books), `ru_rsob`, `ru_tw` (1,018 Russian
+  Translation Words articles), `ru_twl`, and `ru_tn`; built
+  `modules/ru_rlob.sbz` and rebuilt `modules/ru_rob.sbz` cleanly
+  (preserving nested `\zaln-s` prefixes and normalizing 5-digit uW Greek
+  codes `G15100 → G1510`).
+- **8.1 `strongs-step-ru.sbz` (`v0.1.0`):** 22,743 `dStrong` entries in
+  `lex` with modern Russian glosses (19th-century Synodal archaisms like
+  *мытарь, выя, чресла, наипаче* modernized with `(в Син.: …)` notes),
+  3,190 Russian `morph` descriptions, and 63,950 `lex_def` entries
+  (`door43-tw-ru`, `corpus-ru` usage across RLOB/ROB/Synodal, and UBS
+  SDBH/SDGNT + OSHB layers).
+- **8.2 Russian dictionary interlinear & cards in the app:** Rust bridge
+  (`find_lex_module`) and Flutter UI automatically use
+  `strongs-step-ru.sbz` when `settings.lang == 'ru'`.
+- **8.3 Three Russian `dStrong` layers:**
+  - `russyn-strongs.sbz` (570,826 links, 100 % `w1` coverage of
+    `russyn.sb`, `rsc ↔ eng` mapped via `verse_map.json`);
+  - `ru_rlob-strongs.sbz` (202,958 links, 100 % `w1` coverage of
+    `ru_rlob.sb`);
+  - `ru_rob-strongs.sbz` (557,946 links, 100 % `w1` coverage across all
+    66 books of `ru_rob.sb`, including the 43 OT books lacking `\zaln`).
+- **8.4 `knowledge.sbz` Russian names:** added 3,488 Synodal
+  (`kind='synodal'`) and modern biblical (`kind='biblical'`) Russian
+  entity names to `entity_names`. All modules pass `studybible module
+  check`.
 
 - **8.1** `strongs-step-ru.sb` via skill `lexicon-translate`: dStrong
   glosses + sense labels, morphology table, glossary; names last (from
