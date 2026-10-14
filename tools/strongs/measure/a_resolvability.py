@@ -38,7 +38,10 @@ def measure(name, gold, idx):
     by_t = collections.defaultdict(collections.Counter)
     multi_ex = collections.Counter()
     for key, items in gold.items():
-        m = idx.get(key)
+        m = dict(idx.get(key) or {})
+        if key[0] == 19 and key[2] == 1 and (19, key[1], 0) in idx:
+            for k0, v0 in idx[(19, key[1], 0)].items():
+                m[k0] = set(m.get(k0, set())) | v0
         nums = set()
         for it in items:
             v = it[1]

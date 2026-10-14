@@ -63,19 +63,39 @@ def main():
             org_to_rsc[o].append(r)
     changed = non11 = 0
     examples = []
-    for key in sorted(inv['STEPBible']):
+    eng_to_rsc_map = {}
+    eng_to_mt_map = {}
+    for key, words in sorted(step.items()):
+        sbcvs = []
+        for w in words:
+            sb = C.parse_src_bcv(key[0], key[1], key[2], w.heb_ref)
+            if sb not in sbcvs:
+                sbcvs.append(sb)
+        if sbcvs != [key]:
+            eng_to_mt_map['%s.%d.%d' % (C.BOOKS[key[0] - 1][0], key[1], key[2])] = [
+                '%s.%d.%d' % (C.BOOKS[b - 1][0], c, v) for b, c, v in sbcvs
+            ]
         orgs = eng.get(key, [key])
         targets = []
         for o in orgs:
             targets += org_to_rsc.get(o, [o])
         targets = sorted(set(targets))
         if targets != [key]:
+            eng_to_rsc_map['%s.%d.%d' % (C.BOOKS[key[0] - 1][0], key[1], key[2])] = [
+                '%s.%d.%d' % (C.BOOKS[b - 1][0], c, v) for b, c, v in targets
+            ]
             changed += 1
             if len(targets) != 1 or len(orgs) != 1:
                 non11 += 1
                 if len(examples) < 30:
                     examples.append('%s %d:%d → %s' % (C.BOOKS[key[0] - 1][0], key[1], key[2],
                                                        ', '.join('%d:%d' % (c, v) for _, c, v in targets)))
+    C.WORK.mkdir(parents=True, exist_ok=True)
+    import json
+    (C.WORK / 'verse_map.json').write_text(
+        json.dumps({'eng_to_mt': eng_to_mt_map, 'eng_to_rsc': eng_to_rsc_map},
+                   ensure_ascii=False, indent=1),
+        encoding='utf-8')
     res = {'tahot_verses_with_hebrew_ref': dict(heb_diff), 'verse_inventory_missing': missing,
            'eng_to_rsc': {'verses_changed': changed, 'not_one_to_one': non11, 'examples': examples}}
     lines = ['# Замер C — нумерация стихов', '',

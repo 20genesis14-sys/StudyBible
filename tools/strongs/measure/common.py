@@ -304,6 +304,10 @@ def load_clear(lang, version, source):
             tokens[c[0]] = (c[2], punct)
     js = next((d / 'alignments' / version).glob(f'{source}-{version}-*.json'))
     recs = json.load(open(js, encoding='utf-8'))['records']
+    for r in recs:
+        if 'target' in r:
+            r['target'] = [t[:11] if len(t) == 12 and t[:11] in tokens else t
+                           for t in r['target']]
     return recs, tokens
 
 
@@ -318,9 +322,25 @@ def load_macula(testament):
     return out
 
 
+# Внутренние коды Groves Center в macula-hebrew.tsv для неотделяемых
+# приставок и местоименных суффиксов (в STEPBible это H9xxx, в классическом
+# словаре Стронга номеров не имеют; без фильтра '0871a' превращается в H871
+# «Афарим», '1886a' — в H1886 «Дафан», '2050b' — в H2050 «разрушение»).
+GROVES_AFFIX_CODES = {
+    '0001a', '0001b', '0871a', '0871b', '1886a', '1886b', '1886c', '1886d',
+    '1886f', '1886g', '1886h', '1886i', '1886j', '1886j|2050b', '1896b',
+    '1930a', '1952a', '1958a', '1958b', '2004', '2004a', '2050b', '2050c',
+    '2050d', '2967a', '2967b', '3509a', '3509b', '3509c', '3509d', '3509e',
+    '3561a', '3641b', '3654a', '3807a', '3807b', '3807z', '3963a', '4993b',
+    '4993c', '4996b', '5089a', '5105a', '5105b', '5204a', '5204b', '7578a',
+}
+
+
 def macula_classic(row, testament):
-    raw = row.get('strongnumberx') if testament == 'ot' else row.get('strong')
-    return norm_classic(re.sub(r'[^0-9]', '', raw or ''), 'H' if testament == 'ot' else 'G')
+    raw = (row.get('strongnumberx') if testament == 'ot' else row.get('strong')) or ''
+    if testament == 'ot' and raw.strip() in GROVES_AFFIX_CODES:
+        return None
+    return norm_classic(re.sub(r'[^0-9]', '', raw), 'H' if testament == 'ot' else 'G')
 
 
 # ---------- отчёты ----------

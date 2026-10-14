@@ -47,7 +47,10 @@ def set_stats():
 
 
 def rst_index():
-    db = sqlite3.connect(f"file:{(C.DATA / 'modules' / 'rstplus.sb').as_posix()}?mode=ro", uri=True)
+    p = C.DATA / 'modules' / 'rstplus.sb'
+    if not p.exists():
+        p = C.DATA / 'modules' / 'rsts.sb'
+    db = sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True)
     ords = {b: o for b, o in db.execute('select book_id, ord from books')}
     rst = collections.defaultdict(list)
     for b, ch, v, surf, st in db.execute(

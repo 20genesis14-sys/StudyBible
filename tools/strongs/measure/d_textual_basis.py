@@ -44,7 +44,9 @@ def measure(gold, step, amap, ed):
     absent = collections.Counter()
     other = collections.Counter()
     for key, items in gold.items():
-        words = step.get(key)
+        words = list(step.get(key) or [])
+        if key[0] == 19 and key[2] == 1 and (19, key[1], 0) in step:
+            words = list(step[(19, key[1], 0)]) + words
         if not words:
             continue
         mine, alls = set(), set()
