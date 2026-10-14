@@ -1421,6 +1421,12 @@ versionCode `versionCode * 10 + abiCode`, rustup из Debian) реализова
   шапке на базе **2 424** фото мест `openbible-geocoding`, **757**
   иллюстраций флоры/фауны/реалий `UBSImages`, карт
   `BiblicaOpenBibleMaps`/`FIAMaps` и портретных иллюстраций персонажей).
+- **Матрица хронологии написания канона во введениях к книгам (ADR 0024)**:
+  нативная 4-состоянийная сетка книг (1: Рассматриваемая книга,
+  2: Написание завершено, 3: Написание, возможно, завершено /
+  современник, 4: Написание не завершено), вычисляемая по таблице
+  `book_chronology(book, written_start, written_end, uncertain,
+  events_start, events_end, author, place)` в `knowledge.sb`.
 
 ## `knowledge.sb` v0.1.0 — ACAI как каркас сущностей (2026-10-13)
 

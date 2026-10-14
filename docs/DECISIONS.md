@@ -1520,6 +1520,12 @@ plan, tasks, data inventory and skill specs —
   `openbible-geocoding` place photos, 757 `UBSImages` flora/fauna/realia
   illustrations, `FIAImages`/`BiblicaOpenBibleMaps`, and role-based
   character portraits).
+- **Canon Writing-State Matrix in book introductions (ADR 0024)**:
+  a native 4-state canon grid (1: Current book, 2: Writing completed,
+  3: Writing possibly completed / contemporary, 4: Writing not yet
+  completed) computed from `book_chronology(book, written_start,
+  written_end, uncertain, events_start, events_end, author, place)` in
+  `knowledge.sb`.
 
 - **Entity id = ACAI `primary_id`** (`person:Abraham`); non-primary
   records contribute `entity_names` aliases only — relations and

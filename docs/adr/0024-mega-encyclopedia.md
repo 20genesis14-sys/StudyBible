@@ -250,3 +250,22 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
    Open Study Bible atop `ru_rob.sbz` (modern Russian, 66 books,
    CC BY-SA 4.0), `russyn.sbz` (Synodal, PD), and `engbsb.sbz` (English,
    PD).
+9. **Canon Writing-State Matrix ("Books Written Relative to Current Book")**:
+   in book introductions and book overview cards, a compact visual grid
+   of the canon (e.g. 13×3 for the 39 OT books, 9×3 for the 27 NT books)
+   shows the state of the biblical library at the time the current book
+   was completed. Each cell displays the localized short book code
+   (`bookShort`) in one of four visual states:
+   - **(1) Current book**: accent cinnabar/terracotta fill with white
+     label;
+   - **(2) Writing completed**: dark ink fill with white label
+     (`written_end(K) <= written_start(current)` and certainty high);
+   - **(3) Writing possibly completed / contemporary**: muted fill with a
+     bold dark border (overlapping composition intervals or composite
+     books spanning centuries such as *Psalms*, *Proverbs*, or *Job*);
+   - **(4) Writing not yet completed**: muted flat fill without border
+     (`written_start(K) > written_end(current)`).
+   Driven by a compact `book_chronology(book, written_start,
+   written_end, uncertain, events_start, events_end, author, place)`
+   table in `knowledge.sb`, rendered natively in Flutter (theme- and
+   language-aware, with tap-to-inspect tooltips, 0 KB raster overhead).
