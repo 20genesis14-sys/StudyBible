@@ -1502,3 +1502,32 @@ plan, tasks, data inventory and skill specs —
   Aquifer OBD/FIA/Biblica key-term articles joined by
   `alternate_sources.aquifer` ids into `metadata.articles`; ru titles
   become `entity_names kind='biblical'`.
+
+## UserData and bridge improvements — Group 1 (2026-10-14)
+
+- **Chapter-scoped entry queries**: `UserData::entries_for_chapter`
+  (bridge `entries_chapter`) fetches all live user records (`hl`,
+  `note`, `mark`, `tag`) for `(module, book, chapter)` via the
+  `entries_anchor` index in a single query instead of scanning all 66
+  books in Dart on every chapter load or edit.
+- **Session-cached `UserData` connection**: `api::userdata` caches open
+  `UserData` handles per path in `static USERDATA`, avoiding repeated
+  SQLite connection setup and schema checks on every bridge call.
+- **Separation of settings, position and history from bookmarks**:
+  app settings (`meta.settings`) and the last reading position
+  (`meta.last_position`) live in the `meta` table of `userdata.db`
+  (with automatic one-time migration from legacy `entries` rows on
+  open); navigation/search/lexicon history uses `Kind::History`
+  (`kind='hist'`, migrated from legacy `kind='mark'` rows with
+  `text LIKE 'hist%'`), so `entries(Kind::Mark)` returns only user
+  bookmarks.
+- **Footnote search includes the shared xref layer**: `search_notes_with_layer`
+  scans the active `openbible-xrefs` layer (converting coordinates from
+  `eng` to the module's versification) when the module has no `x` spans
+  of its own; heading notes (`verse IS NULL`) report verse `1` so
+  tapping a hit opens the top of the chapter.
+- **Typed bridge structures (`ModuleDocInfo` / `ChapterDocInfo`)**:
+  native module and chapter loading passes typed structs over
+  `flutter_rust_bridge` (`module_doc_typed`, `chapter_doc_typed`)
+  without intermediate `serde_json` string serialization and
+  `jsonDecode`.

@@ -6,6 +6,21 @@ Format: date, symptom, cause/fix, commit. New entries on top.
 
 ## 2026-10-14
 
+- **Group 1 bridge and `userdata.db` bottlenecks** — (1) opening a
+  chapter or toggling a bookmark/highlight fetched all user records
+  across all 66 books via four full-table `entriesList` calls; (2)
+  every `userdata.db` bridge call opened a new SQLite connection and
+  re-ran schema checks; (3) settings, reading position and navigation
+  history shared `Kind::Mark` with user bookmarks; (4) `search_notes`
+  ignored the external `openbible-xrefs` layer and returned verse `0`
+  for heading notes; (5) native `module_doc`/`chapter_doc` serialized
+  Rust structs to JSON strings only to `jsonDecode` them in Dart.
+  Fixed: added `entries_for_chapter` (`entries_chapter`), cached
+  `UserData` connections in `USERDATA`, moved settings/position to
+  `meta` and history to `Kind::History` (`hist`) with automatic
+  migration, extended `search_notes` to scan the active xref layer and
+  return verse `1` for heading notes, and added typed FRB loaders
+  `module_doc_typed` / `chapter_doc_typed`.
 - **Mojibake in `kFullNameMod` (`lib/data.dart`)** — the 66 full Russian
   book titles for the `modern` name layout were double-encoded
   (UTF-8 bytes read as CP866 and saved back as UTF-8), showing garbled

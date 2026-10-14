@@ -10,15 +10,19 @@ Decisions — ADR 0008 (data on device only), DECISIONS: "Synchronization".
 A separate SQLite (`userdata.db` in the data root, `--db` overrides),
 `journal_mode=WAL`, schema version in `meta` (`schema = 4`) — migrations
 are added, not rewritten (1→3: `vrs`, `module_ver`, `canon_*`; 2→3: only
-`canon_*`; 3→4: `frag`). `meta` also has `device` — a unique database
-id, generated at creation.
+`canon_*`; 3→4: `frag`). `meta` also holds `device` (a unique database
+id generated at creation), `orphans` (last `relink` run), `settings`
+(app settings JSON — migrated automatically from legacy
+`entries(module='settings', book='SET')` rows on open) and
+`last_position` (`BOOK:CHAPTER`). On native platforms the bridge caches
+the open `UserData` connection per path for the session.
 
 ## Table `entries`
 
 ```
 id      TEXT PRIMARY KEY          — hex "milliseconds + counter"
 module  TEXT                      — module meta.id (not the file path)
-kind    TEXT                      — note | mark | hl
+kind    TEXT                      — note | mark | hl | tag | hist
 book, chapter, verse              — verse coordinate (always a fallback anchor)
 text    TEXT                      — note text / bookmark label / highlight color
 context TEXT                      — a text check fragment for re-anchoring
@@ -56,6 +60,17 @@ grouping and one-tap removal. If `frag` isn't found nothing is painted
 `kind='note'` with `frag`: a phrase note — a plain note carrying the
 same selector, with no link to the highlight record: it survives
 recoloring and highlight removal and re-anchors on its own.
+
+`kind='hist'` (`Kind::History`): navigation, search and lexicon history
+items (`text` = `'hist'`, `'hist:search'`, `'hist:dict'`). Existing
+legacy `kind='mark'` rows with `text LIKE 'hist%'` are migrated to
+`kind='hist'` automatically when the database opens, so `entries(Mark)`
+returns only real user bookmarks.
+
+For reading a chapter, `UserData::entries_for_chapter(module, book,
+chapter)` (bridge `entries_chapter`) fetches all live user records
+(`hl`, `note`, `mark`, `tag`) of that single chapter via the
+`entries_anchor(module, book, chapter, verse)` index in one query.
 
 ## Re-anchoring (schema 2, question № 12, stage B)
 
