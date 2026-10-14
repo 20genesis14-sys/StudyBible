@@ -285,3 +285,22 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
      `visual_aids(code PK, section_num, letter, kind, title, subtitle,
      body_json, entity_id, book, chapter, verse, source, license)` where
      `kind` ∈ `{'box', 'chart', 'map', 'timeline', 'diagram'}`.
+11. **Piecewise-Linear Timelines with "Accordion" Time-Breaks & Two-Tier Callouts**:
+   biblical books often cluster many events into a few years separated by
+   centuries without recorded events (e.g. `749` to `406` BCE) or spans
+   of unknown duration. Visual timelines (`visual_aids.kind = 'timeline'`)
+   use a piecewise-linear horizontal axis rendered natively in Flutter:
+   - **Accordion break glyph (`zigzag fold`)**: compresses long empty
+     intervals or periods of uncertain duration into a folded-paper
+     accordion symbol on the axis bar, labeled with the boundary years on
+     either side (`749 ❖ 406`), keeping dense event clusters readable on
+     a single screen without horizontal scrolling.
+   - **Two-tier callouts & multi-dot forks**: single events attach to an
+     accent dot on the axis (`tier 1`), while closely spaced event
+     clusters join multiple axis dots with a forked bracket (`┴`) rising
+     to a second callout tier (`tier 2`) so labels never collide.
+   - **Data model (`body_json`)**: `segments: [{from, to} | {break:
+     "compressed"|"unknown", from?, to?}]` and `events: [{years: [..],
+     tier: 1|2, title, body, refs: [..], entity_id?}]` — 0 KB raster
+     size, fully localizable and interactive (tapping an event opens its
+     Scripture reference or entity card).

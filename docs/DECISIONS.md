@@ -1531,6 +1531,11 @@ plan, tasks, data inventory and skill specs —
   `<SectionOrBookNumber><Letter>` code (`visual_aids.code`), displayed as
   a colored rectangular badge next to its title and used for one-tap
   cross-references and direct lookup across all languages.
+- **Piecewise-Linear Timelines with "Accordion" Time-Breaks (ADR 0024)**:
+  timelines (`visual_aids.kind = 'timeline'`) use a native
+  piecewise-linear axis with an accordion fold glyph for compressed
+  multi-century gaps (e.g. `749–406`) or spans of unknown duration, plus
+  two-tier forked callouts (`┴`) for dense event clusters.
 
 - **Entity id = ACAI `primary_id`** (`person:Abraham`); non-primary
   records contribute `entity_names` aliases only — relations and
