@@ -6,6 +6,27 @@ Format: date, symptom, cause/fix, commit. New entries on top.
 
 ## 2026-10-14
 
+- **Mojibake in `kFullNameMod` (`lib/data.dart`)** — the 66 full Russian
+  book titles for the `modern` name layout were double-encoded
+  (UTF-8 bytes read as CP866 and saved back as UTF-8), showing garbled
+  box-drawing characters on the Bible grid when both `bookFullNames`
+  and `bookNames == 'modern'` were enabled. Restored to clean UTF-8.
+- **`entry_add` re-unpacked `.sbz` on every chapter navigation and note/
+  highlight save** — `api::userdata::resolve_module` called `open_any`
+  instead of the shared `MODULES` cache (`open_cached`) and had no
+  fast-path skip for service pseudo-modules (`""`, `"*"`, `"settings"`)
+  or `hist*` history marks, so every `history.touch` unpacked the
+  entire `.sbz` into memory just to read `meta`. Fixed: service/history
+  records skip module resolution; real modules reuse `open_cached`.
+- **`Settings.load` / `Settings._save` fetched the entire `mark` table
+  and could race** — `bridgeEntriesList('mark')` was called without
+  `module: 'settings'`, pulling all bookmarks and reading history into
+  Dart on every setting change, and concurrent `_save()` calls could
+  insert duplicate settings rows. Fixed: pass `module: 'settings'` and
+  serialize `_save()` calls.
+- **Desktop footnotes toolbar button only opened the side pane** —
+  `_openNotes()` set `_notesOpen = true` on wide screens instead of
+  toggling it. Fixed: `_notesOpen = !_notesOpen`.
 - **Web cold start pulled ~28 MB — every bundled font** — the engine's
   glyph-fallback probe downloaded each of the 22 families declared in
   the manifest plus canvaskit/skwasm from the gstatic CDN. Measured
