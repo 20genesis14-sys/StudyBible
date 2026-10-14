@@ -257,6 +257,11 @@ void main() {
     final entJson = jsonDecode(entRaw) as Map<String, dynamic>;
     expect((entJson['names_ru'] as List), contains('Авраам'));
     expect((entJson['short_description_ru'] as String).isNotEmpty, isTrue);
+    expect((entJson['name_meaning_ru'] as String).isNotEmpty, isTrue);
+
+    final cubitRaw = await bridgeChapterDoc(origPath, '@entity:realia:Cubit', 1);
+    expect(cubitRaw, isNotNull);
+    expect(cubitRaw!, contains('44,5 см'));
 
     final bcRaw = await bridgeChapterDoc(origPath, '@book_chronology:HAB', 1);
     expect(bcRaw, isNotNull);

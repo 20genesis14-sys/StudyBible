@@ -1201,12 +1201,30 @@ fn load_entity_json(km: &Module, entity_id: &str) -> Result<Value> {
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string();
+    let meaning_ru = meta_val
+        .get("name_meaning_ru")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let meaning_en = meta_val
+        .get("name_meaning_en")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let accented_ru = meta_val
+        .get("name_accented_ru")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
     Ok(json!({
         "id": id,
         "type": typ,
         "subtype": sub,
         "name": name,
         "name_original": name_orig,
+        "name_meaning_ru": meaning_ru,
+        "name_meaning_en": meaning_en,
+        "name_accented_ru": accented_ru,
         "strongs": strongs,
         "short_description": desc,
         "short_description_ru": desc_ru,

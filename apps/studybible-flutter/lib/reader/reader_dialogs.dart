@@ -665,6 +665,9 @@ Widget _buildEntitySection(
   final typ = ent['type'] as String? ?? '';
   final sub = ent['subtype'] as String? ?? '';
   final orig = ent['name_original'] as String? ?? '';
+  final meaningRu = ent['name_meaning_ru'] as String? ?? '';
+  final meaningEn = ent['name_meaning_en'] as String? ?? '';
+  final accentedRu = ent['name_accented_ru'] as String? ?? '';
   final descEn = ent['short_description'] as String? ?? '';
   final descRu = ent['short_description_ru'] as String? ?? '';
   final articleEn = ent['article'] as String? ?? '';
@@ -679,6 +682,13 @@ Widget _buildEntitySection(
     articleRu.isNotEmpty ? articleRu : articleEn,
     articleEn.isNotEmpty ? articleEn : articleRu,
   );
+  final meaning = tr(
+    meaningRu.isNotEmpty ? meaningRu : meaningEn,
+    meaningEn.isNotEmpty ? meaningEn : meaningRu,
+  );
+  final headRu = accentedRu.isNotEmpty
+      ? accentedRu
+      : (namesRu.isNotEmpty ? namesRu.first : '');
   final typLabel = tr(_entityTypeRu[typ] ?? typ, typ);
 
   return Container(
@@ -703,7 +713,7 @@ Widget _buildEntitySection(
             Expanded(
               child: Text(
                 [
-                  if (namesRu.isNotEmpty) namesRu.first,
+                  if (headRu.isNotEmpty) headRu,
                   name,
                 ].join(' · '),
                 style: TextStyle(
@@ -719,10 +729,17 @@ Widget _buildEntitySection(
             ),
           ],
         ),
-        if (orig.isNotEmpty)
+        if (orig.isNotEmpty || meaning.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(orig, style: TextStyle(fontSize: 13, color: p.muted)),
+            child: Text(
+              [
+                if (orig.isNotEmpty) orig,
+                if (meaning.isNotEmpty)
+                  tr('Значение: $meaning', 'Meaning: $meaning'),
+              ].join(' · '),
+              style: TextStyle(fontSize: 13, color: p.muted),
+            ),
           ),
         if (desc.isNotEmpty)
           Padding(
