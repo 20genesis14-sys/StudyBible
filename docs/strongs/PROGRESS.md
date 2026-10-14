@@ -54,29 +54,32 @@ Word level, same text (BSB tables ↔ Clear manual BSB):
 
 | Class | words | agree |
 |---|---|---|
-| OT content | 271 539 | 94.9 % |
+| OT content | 271 539 | 95.2 % |
 | NT content | 82 436 | 95.4 % |
-| OT function | 283 671 | 91.1 % |
+| OT function | 283 671 | 92.8 % |
 | NT function | 89 566 | 86.3 % |
 
 Function-word disagreement is mostly convention: BSB tables tag every
 word of a phrase ("the heavens" → H8064 on "the"), Clear tags the head.
-Verse-set level (share of A's numbers found in B's verse): KJV↔ESV
+Verse-set level (share of A's numbers found in B's verse; after filtering
+163,072 Groves affix codes in `macula_classic`): KJV↔ESV
 97.8 / 89.6 %, BSB tables↔ESV 87.9 / 96.8 %, BSB tables↔KJV 80.2 /
-96.6 %, BSB tables↔Clear BSB 93.5 / 79.4 %.
-**Conclusion:** ceiling for content words ≈ **95 %**; the gate's N is
+96.6 %, BSB tables↔Clear BSB 93.5 / **96.2 %** (was 79.4 %),
+Clear BSB↔KJV **82.3 %** / 96.2 %, Clear BSB↔ESV **89.2 %** / 95.6 %.
+**Conclusion:** ceiling for content words ≈ **95.2–95.4 %**; the gate's N is
 applied to this number (N still to be frozen, OQ 52). Function words
 must be scored with a convention-aware rule (head vs whole phrase) or
 reported separately.
 
 ### C. Versification (`c_versification.py`)
 
-- TAHOT: 2 094 verses where the Hebrew numbering differs (Psalms 1 104).
-- Verse inventory (eng): STEPBible lacks 9 verses that others have
-  (Jn 7:53, Rom 16:25–27, 2Co 13:13–14, Php 1:16–17, 3Jn 1:15 —
-  different placement); BSB/KJV have no Psalm titles as v.0 (133/120);
-  ESV lacks 17 NT verses (Mt 17:21…).
-- eng → rsc (via org, `data/versification/*.vrs`): 2 812 verses change
+- TAHOT/TAGNT: 2 142 verses where source numbering differs (Psalms 1 104).
+  Full map exported to `work/strongs/measure/verse_map.json`.
+- Verse inventory (eng): STEPBible lacks only 1 verse (2Co 13:14 — part
+  of 13:13 in TAGNT; Jn 7:53 and Rom 16:25–27 recovered after `REF`
+  bracket fix); BSB/KJV have no Psalm titles as v.0 (134/121);
+  ESV lacks 18 NT verses (Mt 17:21…).
+- eng → rsc (via org, `data/versification/*.vrs`): 2 816 verses change
   number; only 10 mappings are not one-to-one (Neh 7:67, several Psalm
   titles, Ps 87:1, 116:10, 147:12, Isa 63:19).
 **Conclusion:** existing `Versification::convert` covers Synodal; the 10
