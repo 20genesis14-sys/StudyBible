@@ -390,15 +390,28 @@ Strong's. Aquifer articles (OBD/FIA/Biblica) in `metadata.articles`,
 ru names as `kind='biblical'`. Licence CC BY-SA 4.0. Report —
 `work/strongs/knowledge/report-phase3b.md`.
 
-### Phase 4 — English interlinears
+### Phase 4 — English interlinears & layer reader in the app — **done 2026-10-14**
 
-Context interlinear (TAHOT/TAGNT gloss column) and dictionary
-interlinear (dStrong gloss + morphology short form). App: interlinear
-mode with "dictionary/context" switch; tap word → lexicon card; tap
-name → entity card. Acceptance: renders Gen 1, Ps 23, John 1 in the
-app; Flutter analyze clean.
+Implemented in `apps/studybible-flutter/rust/src/api/module.rs` and
+`apps/studybible-flutter/lib/`:
+- Context interlinear (TAHOT/TAGNT gloss column in `step-orig.sb`) and
+  dictionary interlinear (`InterlinearMode.dictionary`: `dStrong` gloss
+  + morphology code via `@dict_glosses:<book>` from `strongs-step.sb`),
+  toggled by a segmented switch on the interlinear screen.
+- Automatic Strong's layer injection (`inject_layer_strongs`) in
+  `chapter_doc`: matches `target_id` + `target_hash` + `tokenizer="w1"`,
+  replaces shifted legacy `strong="..."` attributes with `dStrong`/
+  `conf`/`flags`/`ref` across multi-block poetry, and sets
+  `layer_mismatch: true` when hashes diverge.
+- Word tap/long-press opens the extended card (`@lex:...` +
+  `@entity:...`): `strongs-step.sb` (`lex`, `lex_def` by `dStrong` and
+  `base`, `morph`, `sense_domain` with CC BY-SA notice), contextual
+  `sns` from `step-orig.sb` via `ref`, and `knowledge.sb` entity card
+  with clickable relation chips.
+- Verified end-to-end on Gen 1, Ps 23, John 1 in `test/bridge_test.dart`;
+  `flutter analyze` and `cargo clippy -D warnings` clean.
 
-### Phase 5 — layer format, core tokenizer, app, importer fixes — **done 2026-10-13**
+### Phase 5 — layer format, core tokenizer, app, importer fixes — **done 2026-10-13..14**
 
 Implemented (see DECISIONS «`links` table and the `w1` tokenizer»):
 - `studybible_core::text::words(text) -> Vec<&str>` (`w1`,
@@ -415,8 +428,9 @@ Implemented (see DECISIONS «`links` table and the `w1` tokenizer»):
   space-separated (was: first only — 30,041 rsts spans affected).
 - Flutter `normalizeStrong`: `H0029G` (+canon `H29G`), uW `G15100`,
   space-separated lists; search tries the raw key first.
-- Layer reader application in `chapter_doc` (conf 5–7 → "disputed",
-  mismatch notice) — still open, goes with the app work.
+- Layer reader application in `chapter_doc` (conf 5–7 → wavy accent
+  underline "disputed", `aux` → muted dotted underline, `layer_mismatch`
+  banner on hash mismatch) — done in Phase 4 (2026-10-14).
 - Pilot `engbsb-strongs.sb` via `apps/studybible-cli/src/bin/
   strongs_layer.rs` (bsb_tables.tsv → 706,502 links, `conf=10`;
   misses logged in `bsb-strongs.misses.tsv`; `module check` clean).

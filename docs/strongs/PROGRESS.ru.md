@@ -331,3 +331,23 @@ ru_rob). Возможный эксперимент на потом: перепр
     `diff`**. В `studybible-cli` зарегистрированы фичи
     `lex`/`lex_def`/`lex_base`/`morph`/`knowledge` — все 4 модуля
     проходят `module check` без единого предупреждения.
+- 2026-10-14 — **Фаза 4 завершена (английские подстрочники и чтение слоёв)**:
+  - Rust-мост (`apps/studybible-flutter/rust/src/api/module.rs`) и
+    `studybible-store`: в `Module::links()` добавлен фолбэк по
+    каноническому `BookCatalog`; в `chapter_doc` реализовано побайтово
+    точное наложение слоя `inject_layer_strongs` (проверка
+    `target_id`+`target_hash`+`w1`, снятие старых сдвинутых тегов
+    `strong=`, сквозной счётчик слов `w1` через поэтические блоки,
+    флаг `layer_mismatch`); добавлены запросы `@lex:...`, `@entity:...`,
+    `@dict_glosses:...`, связывающие `strongs-step.sb`, `step-orig.sb`
+    и `knowledge.sb` без изменения `frb_generated`.
+  - Flutter UI (`models.dart`, `state.dart`, `data.dart`,
+    `chapter_renderer.dart`, `reader_dialogs.dart`): добавлен
+    переключатель `InterlinearMode` («Контекстный / Словарный»),
+    различная отрисовка подчёркиваний для `head`, `aux` и спорных связей
+    (`conf 5–7`), баннер `layerMismatch`, а также карточки расширенного
+    лексикона `strongs-step.sb` (`dStrong` + базовые слои `lex_def` +
+    `morph` + `sns`) и сущностей `knowledge.sb` (с кликабельными чипами
+    отношений).
+  - Сквозной тест `bridge_test.dart` на Быт 1, Пс 23, Ин 1 зелёный (8/8);
+    `flutter analyze` и `cargo clippy -D warnings` чисты.

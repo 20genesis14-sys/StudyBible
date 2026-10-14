@@ -319,3 +319,21 @@ can be attached to base-layer words deterministically.
     `lex`/`lex_def`/`lex_base`/`morph`/`knowledge` features in
     `studybible-cli` linter — all 4 modules pass `module check` with 0
     warnings.
+- 2026-10-14 — **Phase 4 done (English interlinears & layer reader)**:
+  - Rust bridge (`apps/studybible-flutter/rust/src/api/module.rs`) &
+    `studybible-store`: added canonical `BookCatalog` fallback in
+    `Module::links()`; implemented byte-preserving `inject_layer_strongs`
+    in `chapter_doc` (verifies `target_id`+`target_hash`+`w1`, strips
+    legacy shifted `strong=` tags, keeps verse-wide `w1` counters across
+    poetry blocks, reports `layer_mismatch`); added ABI-compatible
+    `@lex:...`, `@entity:...`, and `@dict_glosses:...` queries joining
+    `strongs-step.sb`, `step-orig.sb`, and `knowledge.sb`.
+  - Flutter UI (`models.dart`, `state.dart`, `data.dart`,
+    `chapter_renderer.dart`, `reader_dialogs.dart`): added
+    `InterlinearMode` (`contextual` / `dictionary`) segmented switch,
+    head/aux/disputed (`conf 5–7`) underline styling, `layerMismatch`
+    warning banner, and rich bottom-sheet cards for `strongs-step.sb`
+    (`dStrong` + base `lex_def` layers + `morph` + `sns`) and
+    `knowledge.sb` entities (with interactive relation chips).
+  - End-to-end `bridge_test.dart` passes on Gen 1, Ps 23, John 1 (8/8
+    tests green); `flutter analyze` and `cargo clippy -D warnings` clean.
