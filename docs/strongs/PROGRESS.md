@@ -351,3 +351,21 @@ can be attached to base-layer words deterministically.
     100 % `w1` coverage: `conf=10`: 371,421, `conf=9`: 193,667,
     `conf=8`: 211,398, `conf=7`: 14,229; `head`: 395,983, `aux`: 394,732;
     1,174 chapter-reconciled words; `studybible module check` clean).
+- 2026-10-14 — **Phase 7 done (English quality gate passed, OQ 52 closed)**:
+  - Implemented `tools/strongs/pipeline/evaluate_gate.py` evaluating the
+    9 held-out corpora (`RUT`, `JON`, `EZR`, `PSA 1–41`, `ISA 40–55`,
+    `MRK`, `PHP`, `JAS`, `REV 1–5`). Fixed 4-digit classic code
+    normalization in `bsb_tables` comparison and filtered `H9xxx`
+    service prefixes out of lexical `head` word priors.
+  - Results (`work/strongs/report-phase7-en-gate.md`):
+    - **BSB Mode A (`engbsb-strongs.sb` v0.4.0):** content F1 =
+      **97.52 % OT / 96.73 % NT** (exceeds ceiling `B = 95.2 % / 95.4 %`),
+      function F1 = **96.98 % OT / 96.78 % NT**, proper names =
+      **98.90 %** (`n = 2,372`).
+    - **KJV Mode B (`eng-kjv2006-strongs.sb` v0.1.0):** content F1 =
+      **100.0 % OT / 99.99 % NT** (`dStrong` accuracy **99.97 % /
+      99.99 %**), proper names = **99.96 %** (`n = 2,380`).
+    - **Blind Mode C baseline:** content F1 = **82.10 % OT / 80.41 % NT**,
+      proper names = **97.04 %**, `conf=10` accuracy = **94.32 %**,
+      strictly monotonic calibration (`5.68 % < 26.24 % < 32.96 % <
+      64.47 %`). Packed `modules/eng-kjv2006-strongs.sbz` (11 MB).

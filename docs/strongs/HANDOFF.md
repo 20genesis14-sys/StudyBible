@@ -491,7 +491,26 @@ model+version, rules version+hash, date, per-word decisions with
 record exists and whose rules hash matches. Start rules from
 `asv-alignment/config/alignment-instructions-{hebrew,greek}.md`.
 
-### Phase 7 — English evaluation (gate)
+### Phase 7 — English evaluation (gate) — **passed 2026-10-14**
+
+Evaluated on the 9 held-out corpora (`RUT`, `JON`, `EZR`, `PSA 1–41`,
+`ISA 40–55`, `MRK`, `PHP`, `JAS`, `REV 1–5`) via
+`tools/strongs/pipeline/evaluate_gate.py` (report —
+`work/strongs/report-phase7-en-gate.md`, raw JSON —
+`work/strongs/pipeline/gate_phase7.json`, `N = 2.0 pp` frozen, OQ 52
+closed):
+- **BSB Mode A (`engbsb-strongs.sb` v0.4.0 vs `bsb_tables`):** content
+  F1 = **97.52 % OT / 96.73 % NT** (+2.32 pp / +1.33 pp above inter-gold
+  ceiling `B = 95.2 % / 95.4 %`), function F1 = **96.98 % OT / 96.78 %
+  NT**, proper names = **98.90 %** (`n = 2,372`).
+- **KJV Mode B (`eng-kjv2006-strongs.sb` v0.1.0 vs KJV + `step-orig`):**
+  content F1 = **100.0 % OT / 99.99 % NT** (`dStrong` accuracy **99.97 %
+  OT / 99.99 % NT**), proper names = **99.96 %** (`n = 2,380`).
+- **Blind Mode C baseline (no input tags, dev-only priors):** content F1
+  = **82.10 % OT / 80.41 % NT**, proper names = **97.04 %**, `conf=10`
+  slice (63 % of words) accuracy = **94.32 %**, strictly monotonic error
+  rates across `conf = 10 → 9 → 8 → 7` (`5.68 % < 26.24 % < 32.96 % <
+  64.47 %`). **Gate passed — cleared for Phase 8 (Russian).**
 
 | Translation | Gold | Allowed inputs |
 |---|---|---|
