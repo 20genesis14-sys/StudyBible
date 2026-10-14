@@ -1526,6 +1526,11 @@ plan, tasks, data inventory and skill specs —
   completed) computed from `book_chronology(book, written_start,
   written_end, uncertain, events_start, events_end, author, place)` in
   `knowledge.sb`.
+- **Alphanumeric Visual Aids Index (`26A`, `1B` badge system, ADR 0024)**:
+  every study box, chart, map, timeline, or diagram carries a permanent
+  `<SectionOrBookNumber><Letter>` code (`visual_aids.code`), displayed as
+  a colored rectangular badge next to its title and used for one-tap
+  cross-references and direct lookup across all languages.
 
 - **Entity id = ACAI `primary_id`** (`person:Abraham`); non-primary
   records contribute `entity_names` aliases only — relations and

@@ -269,3 +269,19 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
    written_end, uncertain, events_start, events_end, author, place)`
    table in `knowledge.sb`, rendered natively in Flutter (theme- and
    language-aware, with tap-to-inspect tooltips, 0 KB raster overhead).
+10. **Alphanumeric Visual Aids Index (`26A`, `1B` badge system for charts, maps, timelines & study boxes)**:
+   every study box, chart, map, genealogy diagram, or comparison table
+   carries a short, permanent alphanumeric reference code of the form
+   `<SectionOrBookNumber><Letter>` (e.g. `1A`, `1B`, `26A`), rendered as
+   a colored rectangular badge next to the visual aid's title:
+   - **Stable canonical ordering**: codes are assigned by canonical
+     topic/book order rather than transient screen position, remaining
+     identical across languages and layouts.
+   - **One-tap cross-referencing & search**: study notes, lexicon
+     entries, and entity cards reference any chart, map, or table via a
+     compact clickable badge chip (`[26A]`), and typing `26A` in search
+     opens the visual aid directly.
+   - **Schema support (`visual_aids` / `media.code`)**: stored as
+     `visual_aids(code PK, section_num, letter, kind, title, subtitle,
+     body_json, entity_id, book, chapter, verse, source, license)` where
+     `kind` ∈ `{'box', 'chart', 'map', 'timeline', 'diagram'}`.
