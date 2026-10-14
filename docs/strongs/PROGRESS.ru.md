@@ -351,3 +351,17 @@ ru_rob). Возможный эксперимент на потом: перепр
     отношений).
   - Сквозной тест `bridge_test.dart` на Быт 1, Пс 23, Ин 1 зелёный (8/8);
     `flutter analyze` и `cargo clippy -D warnings` чисты.
+- 2026-10-14 — **Фаза 6 завершена (конвейер разметки и слой KJV)**:
+  - CLI (`apps/studybible-cli/src/main.rs`): добавлен флаг `--with-spans`
+    в `studybible tokenize` (100 % совпадение длин по 31 218 стихам KJV).
+  - Конвейер (`tools/strongs/pipeline/priors.py`, `contour1.py`,
+    `contour2.py`, `build_layer.py`) и скиллы (`strongs-verse-align`,
+    `strongs-review`, `strongs-chapter-reconcile`): построены приоры
+    строго на рабочих книгах (`priors_en.json`, без отложенной выборки
+    §4.2), реализованы Контур 1 (режимы `assisted` и `blind`) и Контур 2
+    (разрешение полисемии, калибровка `conf`, сверка по главе, квитанции
+    глав `runs/<target>/<BOOK>.<ch>.json`).
+  - Собран слой `work/strongs/layers/eng-kjv2006-strongs.sb` (790 715
+    связей, 100 % слов `w1`: `conf=10`: 371 421, `conf=9`: 193 667,
+    `conf=8`: 211 398, `conf=7`: 14 229; `head`: 395 983, `aux`: 394 732;
+    1 174 уточнений сверки по главе; `studybible module check` чист).

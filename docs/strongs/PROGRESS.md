@@ -337,3 +337,17 @@ can be attached to base-layer words deterministically.
     `knowledge.sb` entities (with interactive relation chips).
   - End-to-end `bridge_test.dart` passes on Gen 1, Ps 23, John 1 (8/8
     tests green); `flutter analyze` and `cargo clippy -D warnings` clean.
+- 2026-10-14 — **Phase 6 done (Strong's alignment pipeline & KJV layer)**:
+  - CLI (`apps/studybible-cli/src/main.rs`): added `--with-spans` to
+    `studybible tokenize` (100 % length parity across 31,218 KJV verses).
+  - Pipeline (`tools/strongs/pipeline/priors.py`, `contour1.py`,
+    `contour2.py`, `build_layer.py`) & skills (`strongs-verse-align`,
+    `strongs-review`, `strongs-chapter-reconcile`): built dev-only
+    priors (`priors_en.json`, excluding all held-out books of §4.2),
+    implemented Contour 1 (`assisted` & `blind` modes) and Contour 2
+    (polysemy resolution, confidence calibration, chapter reconciliation,
+    chapter receipts `runs/<target>/<BOOK>.<ch>.json`).
+  - Built `work/strongs/layers/eng-kjv2006-strongs.sb` (790,715 links,
+    100 % `w1` coverage: `conf=10`: 371,421, `conf=9`: 193,667,
+    `conf=8`: 211,398, `conf=7`: 14,229; `head`: 395,983, `aux`: 394,732;
+    1,174 chapter-reconciled words; `studybible module check` clean).

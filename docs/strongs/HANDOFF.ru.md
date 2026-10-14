@@ -466,7 +466,25 @@ kind='biblical'. Лицензия CC BY-SA 4.0. Отчёт —
 Приёмка выполнена: clippy `-D warnings` чист, тесты зелёные,
 регрессионные тесты на оба исправления.
 
-### Фаза 6 — конвейер разметки (`tools/strongs/`)
+### Фаза 6 — конвейер разметки (`tools/strongs/pipeline/`) — **готово 14.10.2026**
+
+Реализовано в `tools/strongs/pipeline/` (`priors.py`, `contour1.py`,
+`contour2.py`, `build_layer.py`) + скиллы в `.devin/skills/` и
+`tools/strongs/skills/` (`strongs-verse-align`, `strongs-review`,
+`strongs-chapter-reconcile`):
+- `studybible tokenize --with-spans <module.sb>` выгружает пословные
+  стили и атрибуты `w1` как из `spans`, так и из `span_pack`.
+- `priors.py` строит `work/strongs/pipeline/priors_en.json` строго на
+  **рабочих книгах** (без отложенных книг §4.2): 359 замен `form_alias`,
+  19 570 связей `classic -> dStrong` и 23 217 словарных приоров.
+- `contour1.py` + `contour2.py` + `build_layer.py` поддерживают режимы
+  `--mode assisted` (подъём классических номеров + `\add` + `form_alias`
+  + служебные морфемы `H9xxx`/`G3588`) и `--mode blind` (выравнивание
+  «голых» слов `w1` по глоссам `step-orig`/`strongs-step` и приорам
+  рабочих книг), разрешают полисемию, проводят сверку по главе,
+  сохраняют квитанции глав `runs/<target>/<BOOK>.<ch>.json` с `--resume`
+  и собирают `.sb`-слои (`eng-kjv2006-strongs.sb`: 790 715 связей,
+  100 % слов `w1`, `module check` чист).
 
 | Шаг | Что делает | Модель |
 |---|---|---|

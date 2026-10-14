@@ -451,7 +451,25 @@ Implemented (see DECISIONS «`links` table and the `w1` tokenizer»):
 Acceptance met: clippy `-D warnings` clean, suite green, regression
 tests for both importer/reader fixes.
 
-### Phase 6 — tagging pipeline (`tools/strongs/`)
+### Phase 6 — tagging pipeline (`tools/strongs/pipeline/`) — **done 2026-10-14**
+
+Implemented in `tools/strongs/pipeline/` (`priors.py`, `contour1.py`,
+`contour2.py`, `build_layer.py`) + skills in `.devin/skills/` and
+`tools/strongs/skills/` (`strongs-verse-align`, `strongs-review`,
+`strongs-chapter-reconcile`):
+- `studybible tokenize --with-spans <module.sb>` exports per-word `w1`
+  styles and embedded attributes across both `spans` and `span_pack`.
+- `priors.py` builds `work/strongs/pipeline/priors_en.json` strictly on
+  **dev books** (excluding all held-out books of §4.2): 359 `form_alias`
+  entries, 19,570 `classic -> dStrong` mappings, and 23,217 word priors.
+- `contour1.py` + `contour2.py` + `build_layer.py` support both
+  `--mode assisted` (lifts classic Strong's + `\add` + `form_alias` +
+  `H9xxx`/`G3588` function morphs) and `--mode blind` (aligns untagged
+  `w1` words using `step-orig` glosses, `strongs-step` definitions, and
+  dev-book priors), resolves intra-verse polysemy, reconciles chapters,
+  writes chapter receipts `runs/<target>/<BOOK>.<ch>.json` with
+  `--resume`, and builds `.sb` layers (`eng-kjv2006-strongs.sb`:
+  790,715 links, 100 % `w1` coverage, `module check` clean).
 
 | Step | Action | Model |
 |---|---|---|
