@@ -54,7 +54,13 @@ def norm_classic(s: str) -> str | None:
     m = re.match(r"^([HG])0*(\d+)", s.strip())
     if not m:
         return None
-    return f"{m.group(1)}{int(m.group(2)):04d}"
+    pref = m.group(1)
+    digits = m.group(2)
+    val = int(digits)
+    # unfoldingWord UGNT 5-digit Greek Strong's (e.g. G15100 -> G1510, G30560 -> G3056)
+    if pref == "G" and val > 5624 and digits.endswith("0"):
+        val = val // 10
+    return f"{pref}{val:04d}"
 
 
 def norm_dstrong(s: str) -> str | None:

@@ -142,7 +142,13 @@ _ATTR_RE = re.compile(r'(\w+)="([^"]*)"')
 
 
 def parse_attrs(attrs: str) -> dict[str, str]:
-    return dict(_ATTR_RE.findall(attrs))
+    out: dict[str, str] = {}
+    for k, v in _ATTR_RE.findall(attrs):
+        if k in out and v:
+            out[k] = f"{out[k]} {v}"
+        else:
+            out[k] = v
+    return out
 
 
 def load_orig_Index() -> dict[tuple[int, int, int], list[OrigCand]]:
