@@ -1343,7 +1343,12 @@ impl Module {
         if !self.has_links {
             return Ok(vec![]);
         }
-        let Some(bid) = self.bid(book) else {
+        let Some(bid) = self.bid(book).or_else(|| {
+            studybible_core::BookCatalog::builtin()
+                .by_code(book)
+                .and_then(|b| b.order_list)
+                .map(i64::from)
+        }) else {
             return Ok(vec![]);
         };
         let mut st = self.conn.prepare(
