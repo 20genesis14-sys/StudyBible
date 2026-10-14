@@ -41,6 +41,125 @@ def norm(s):
 
 PUNCT_STRONG = {'H9014', 'H9015', 'H9016', 'H9017', 'H9018'}
 
+FUNC_MAP = {
+    'H9001': {'and', 'then', 'so', 'now', 'but', 'when', 'that'},
+    'H9002': {'and', 'also', 'but', 'or', 'nor', 'so', 'then', 'now', 'yet',
+              'for', 'both', 'even'},
+    'H9003': {'in', 'on', 'with', 'by', 'at', 'among', 'into', 'through',
+              'for', 'when', 'while', 'against', 'upon', 'within', 'over',
+              'during', 'as', 'of', 'from', 'to'},
+    'H9004': {'as', 'like', 'according', 'when', 'about', 'so', 'than'},
+    'H9005': {'to', 'for', 'of', 'at', 'into', 'by', 'in', 'as', 'toward',
+              'on', 'about', 'against', 'from', 'with', 'until', 'before'},
+    'H9006': {'from', 'out', 'than', 'of', 'since', 'above', 'more',
+              'because', 'without', 'away', 'by', 'at', 'on', 'after',
+              'among'},
+    'H9007': {'which', 'that', 'who', 'whom', 'whose', 'what', 'where',
+              'when', 'because', 'for'},
+    'H9008': {'whether', 'if'},
+    'H9009': {'the', 'this', 'that', 'these', 'those', 'who', 'which', 'a',
+              'an', 'each', 'every', 'o'},
+    'H9010': {'the', 'this', 'that'},
+    'H9011': {'to', 'toward', 'into', 'ward', 'at', 'on', 'in'},
+    'H9020': {'my', 'me', 'i', 'mine', 'myself', 's'},
+    'H9021': {'your', 'you', 'yours', 'yourself'},
+    'H9022': {'your', 'you', 'yours', 'yourself'},
+    'H9023': {'his', 'him', 'he', 'himself', 'its', 'it', 'itself', 's'},
+    'H9024': {'her', 'hers', 'she', 'herself', 'its', 'it', 's'},
+    'H9025': {'our', 'us', 'we', 'ours', 'ourselves'},
+    'H9026': {'your', 'you', 'yours', 'yourselves'},
+    'H9027': {'your', 'you', 'yours', 'yourselves'},
+    'H9028': {'their', 'them', 'they', 'theirs', 'themselves'},
+    'H9029': {'their', 'them', 'they', 'theirs', 'themselves'},
+    'H9030': {'me', 'my', 'i', 'myself'},
+    'H9031': {'you', 'your', 'yourself'},
+    'H9032': {'you', 'your', 'yourself'},
+    'H9033': {'him', 'his', 'he', 'it', 'its', 'himself', 'there'},
+    'H9034': {'her', 'she', 'it', 'its', 'herself'},
+    'H9035': {'us', 'our', 'we', 'ourselves'},
+    'H9036': {'you', 'your', 'yourselves'},
+    'H9037': {'you', 'your', 'yourselves'},
+    'H9038': {'them', 'their', 'they', 'themselves', 'those'},
+    'H9039': {'them', 'their', 'they', 'themselves'},
+    'H9040': {'i', 'me', 'my'},
+    'H9041': {'you', 'your'},
+    'H9042': {'you', 'your'},
+    'H9043': {'he', 'him', 'his', 'it'},
+    'H9044': {'she', 'her', 'it'},
+    'H9045': {'we', 'us', 'our'},
+    'H9046': {'you', 'your'},
+    'H9047': {'you', 'your'},
+    'H9048': {'they', 'them', 'their'},
+    'H9049': {'they', 'them', 'their'},
+    'G3588': {'the', 'who', 'which', 'that', 'what', 'he', 'she', 'those',
+              'his', 'your', 'our', 'their', 'my', 'o'},
+}
+
+AUX_ENG = {
+    'the', 'a', 'an', 'of', 'to', 'in', 'for', 'with', 'on', 'by', 'from',
+    'at', 'into', 'unto', 'upon', 'out', 'up', 'about', 'over', 'and', 'or',
+    'but', 'now', 'so', 'then', 'was', 'were', 'is', 'are', 'be', 'been',
+    'am', 'has', 'have', 'had', 'will', 'shall', 'would', 'should', 'may',
+    'might', 'can', 'could', 'did', 'do', 'does', 'let', 'there', 'it',
+    'he', 'she', 'they', 'we', 'you', 'i', 'his', 'her', 'their', 'our',
+    'your', 'my', 'its', 'o', 's',
+}
+
+
+def split_group(strongs, w_list, words):
+    """Распределить strongs внутри фразовой группы по словам w_list
+    и назначить каждому слову роль ('head' или 'aux').
+    Возвращает {w_idx: ([strongs], role)}."""
+    if not w_list:
+        return {}
+    wnorms = {w: norm(words[w]) for w in w_list}
+    if len(w_list) == 1:
+        w = w_list[0]
+        all_func = bool(strongs) and all(
+            s in FUNC_MAP or s == 'H0853' for s in strongs)
+        role = 'aux' if (all_func or (wnorms[w] in AUX_ENG and not strongs)) \
+            else 'head'
+        return {w: (list(strongs), role)}
+
+    matched_s = set()
+    w_affix = {w: [] for w in w_list}
+    for s in strongs:
+        allowed = FUNC_MAP.get(s)
+        if not allowed:
+            continue
+        for w in w_list:
+            if wnorms[w] in allowed and s not in w_affix[w]:
+                w_affix[w].append(s)
+                matched_s.add(s)
+    lex_s = [s for s in strongs if s not in matched_s]
+    if not lex_s or lex_s == ['H0853']:
+        lex_s = list(strongs)
+        w_affix = {w: [] for w in w_list}
+    else:
+        unmatched_func = [s for s in strongs
+                          if s in FUNC_MAP and s not in matched_s]
+        if unmatched_func:
+            lex_s = [s for s in strongs if s not in matched_s]
+
+    non_affix_w = [w for w in w_list if not w_affix[w]]
+    if not non_affix_w:
+        non_affix_w = [w_list[-1]]
+        w_affix[w_list[-1]] = []
+    head_w = [w for w in non_affix_w if wnorms[w] not in AUX_ENG]
+    if not head_w:
+        head_w = [non_affix_w[-1]]
+    head_set = set(head_w)
+
+    out = {}
+    for w in w_list:
+        if w in head_set:
+            out[w] = (list(lex_s), 'head')
+        elif w_affix[w]:
+            out[w] = (list(w_affix[w]), 'aux')
+        else:
+            out[w] = (list(lex_s), 'aux')
+    return out
+
 
 def load_mid_index():
     """mid → (wid, strong); масоретский word-ключ (sb,sc,sv,NN) →
@@ -171,10 +290,10 @@ def fallback_unaligned_verse(bcv, words, bsb_tab, orig_v):
     # Надписания псалмов: в bsb_tables они лежат в начале стиха 1
     rows = bsb_tab.get((bcv[0], bcv[1], 1 if bcv[2] == 0 else bcv[2]), [])
     tab_tokens = []
-    for phrase, cl_num, _ in rows:
+    for ri, (phrase, cl_num, _) in enumerate(rows):
         pw = [norm(x) for x in phrase.split() if norm(x)]
         for x in pw:
-            tab_tokens.append((x, cl_num, len(pw) > 1))
+            tab_tokens.append((x, cl_num, ri))
         if len(tab_tokens) >= len(words) + 8:
             break
     t_norms = [x for x, _, _ in tab_tokens]
@@ -189,10 +308,13 @@ def fallback_unaligned_verse(bcv, words, bsb_tab, orig_v):
         for k in range(n):
             t2w[i1 + k] = j1 + k
         pi, pj = i1 + n, j1 + n
-    for ti, wi in t2w.items():
-        _, cl, is_grp = tab_tokens[ti]
+    row_groups = collections.OrderedDict()
+    for ti, wi in sorted(t2w.items()):
+        _, cl, ri = tab_tokens[ti]
+        row_groups.setdefault(ri, (cl, []))[1].append(wi)
+    for _ri, (cl, w_list) in row_groups.items():
         wids = by_base.get(cl, []) if cl else []
-        if not wids and norm(words[wi]) == 'him':
+        if not wids and any(norm(words[w]) == 'him' for w in w_list):
             wids = [u for u, ss in wid_sts.items() if 'H9023' in ss]
         ss = []
         for u in wids:
@@ -200,10 +322,12 @@ def fallback_unaligned_verse(bcv, words, bsb_tab, orig_v):
                 if s not in ss:
                     ss.append(s)
         if ss:
-            ff = {'bsb-fb'}
-            if is_grp:
-                ff.add('grp')
-            out[wi] = (ss, wids, ff, 'bsb-tables+step-orig')
+            alloc = split_group(ss, w_list, words)
+            for wi, (w_ss, role) in alloc.items():
+                ff = {'bsb-fb', role}
+                if len(w_list) > 1:
+                    ff.add('grp')
+                out[wi] = (w_ss, wids, ff, 'bsb-tables+step-orig')
     return out
 
 
@@ -220,8 +344,7 @@ def load_w1():
 
 
 def map_tokens(tgts, w1_words):
-    """token_id → w1-индекс через SequenceMatcher по норм. тексту."""
-    # порядок = порядок id (BBBCCCVVVWWW)
+    """token_id → [w1-индексы] через SequenceMatcher по норм. тексту."""
     ids = sorted(tgts)
     ctexts = [norm(tgts[i]) for i in ids]
     wtexts = [norm(w) for w in w1_words]
@@ -234,7 +357,7 @@ def map_tokens(tgts, w1_words):
         ci, wj = prev_i, prev_j
         while ci < i1 and wj < j1:
             if ctexts[ci] == wtexts[wj]:
-                out[ids[ci]] = wj
+                out[ids[ci]] = [wj]
                 ci += 1
                 wj += 1
                 continue
@@ -244,26 +367,26 @@ def map_tokens(tgts, w1_words):
             w3 = w2 + (wtexts[wj + 2] if wj + 2 < j1 else '')
             if ci + 2 <= i1 and c2 == wtexts[wj]:
                 for k in (ci, ci + 1):
-                    out[ids[k]] = wj
+                    out[ids[k]] = [wj]
                 ci += 2
                 wj += 1
             elif ci + 3 <= i1 and c3 == wtexts[wj]:
                 for k in range(ci, ci + 3):
-                    out[ids[k]] = wj
+                    out[ids[k]] = [wj]
                 ci += 3
                 wj += 1
             elif wj + 2 <= j1 and ctexts[ci] == w2:
-                out[ids[ci]] = wj
+                out[ids[ci]] = [wj, wj + 1]
                 ci += 1
                 wj += 2
             elif wj + 3 <= j1 and ctexts[ci] == w3:
-                out[ids[ci]] = wj
+                out[ids[ci]] = [wj, wj + 1, wj + 2]
                 ci += 1
                 wj += 3
             else:
                 ci += 1
         for k in range(n):
-            out[ids[i1 + k]] = j1 + k
+            out[ids[i1 + k]] = [j1 + k]
         prev_i, prev_j = i1 + n, j1 + n
     return out
 
@@ -294,10 +417,15 @@ def main():
             fb_links = fallback_unaligned_verse(bcv, words, bsb_tab, orig_v)
             if fb_links:
                 stats['verse_bsb_fb'] += 1
-                for wi, (ss, rr, ff, src_lab) in fb_links.items():
-                    links[(bcv[0], bcv[1], bcv[2], wi)] = [
-                        ss, rr, ff, {src_lab}]
-                    stats['link_bsb_fb'] += 1
+                for wi in range(len(words)):
+                    key = (bcv[0], bcv[1], bcv[2], wi)
+                    if wi in fb_links:
+                        ss, rr, ff, src_lab = fb_links[wi]
+                        links[key] = [ss, rr, set(ff), {src_lab}]
+                        stats['link_bsb_fb'] += 1
+                    else:
+                        links[key] = [[], [], {'added', 'aux'}, {'w1-added'}]
+                        stats['link_added'] += 1
             else:
                 stats['verse_no_align'] += 1
             continue
@@ -334,30 +462,68 @@ def main():
                                 refs.append(u)
                     else:
                         stats['mid_unresolved'] += 1
-            multi = len(tgt_ids) > 1
+            w_list = []
             for tid in tgt_ids:
                 if tid in excl:
                     continue
-                w = t2w.get(tid)
-                if w is None:
+                ws_mapped = t2w.get(tid)
+                if not ws_mapped:
                     stats['tgt_no_word'] += 1
                     continue
+                for w in ws_mapped:
+                    if w not in w_list:
+                        w_list.append(w)
+            multi = len(w_list) > 1
+            alloc = split_group(strongs, w_list, words)
+            for w, (w_strongs, role) in alloc.items():
                 key = (bcv[0], bcv[1], bcv[2], w)
                 L = links.setdefault(key, [[], [], set(), set()])
-                for s in strongs:
+                for s in w_strongs:
                     if s not in L[0]:
                         L[0].append(s)
                 for r_ in refs:
                     if r_ not in L[1]:
                         L[1].append(r_)
+                if role == 'head':
+                    L[2].discard('aux')
+                    L[2].add('head')
+                elif 'head' not in L[2]:
+                    L[2].add('aux')
                 if multi:
                     L[2].add('grp')
                 if fb:
                     L[2].add('wid')
-                if not strongs:
+                if not w_strongs:
                     L[2].add('unresolved')
                 L[3].add(src_lab)
                 stats['link'] += 1
+
+        # Добор слов w1 стиха, не попавших в Clear (редакционные отличия или added)
+        ow = orig_v.get(bcv, [])
+        for wi in range(len(words)):
+            key = (bcv[0], bcv[1], bcv[2], wi)
+            if key in links:
+                continue
+            os_ = old.get(key)
+            ss, rr = [], []
+            if os_:
+                for cl in os_.split():
+                    for w_orig in ow:
+                        st = (w_orig['strong']
+                              if w_orig['strong'] not in PUNCT_STRONG else '')
+                        if st and C.classic(st) == C.classic(cl):
+                            if st not in ss:
+                                ss.append(st)
+                            if w_orig['wid'] not in rr:
+                                rr.append(w_orig['wid'])
+            role = 'aux' if norm(words[wi]) in AUX_ENG else 'head'
+            if ss:
+                links[key] = [ss, rr, {'bsb-fb', role},
+                              {'bsb-tables+step-orig'}]
+                stats['link_bsb_fb_word'] += 1
+            else:
+                links[key] = [[], [], {'added', 'aux'}, {'w1-added'}]
+                stats['link_added'] += 1
 
     # Сверка со старым слоем: разделяем сдвиг внутри стиха (diff-shift)
     # и настоящее лексическое расхождение (diff)
@@ -471,7 +637,7 @@ CREATE TABLE links(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
     for (b, c, v, w), (ss, rr, ff, srcs) in links.items():
         conf = (4 if 'unresolved' in ff else
                 8 if 'wid' in ff else
-                9 if 'bsb-fb' in ff else 10)
+                9 if ('bsb-fb' in ff or 'added' in ff) else 10)
         db.execute('INSERT INTO links VALUES (?,?,?,?,?,?,?,?,?)',
                    (b, c, v, w, ' '.join(rr), ' '.join(ss), conf,
                     ','.join(sorted(ff)), '+'.join(sorted(srcs))))
@@ -479,7 +645,7 @@ CREATE TABLE links(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
         'format_version': '1', 'id': 'engbsb-strongs',
         'title': 'BSB Strong layer (dStrong, Clear manual)',
         'language': 'en', 'direction': 'ltr', 'versification': 'eng',
-        'name_profile': 'en', 'book_order': 'syn', 'version': '0.3.0',
+        'name_profile': 'en', 'book_order': 'syn', 'version': '0.4.0',
         'license': 'CC BY 4.0',
         'attribution': 'Clear Bible WLCM/SBLGNT-BSB manual alignments '
                        '(CC BY 4.0); dStrong via step-orig (STEPBible '
