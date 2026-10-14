@@ -1,5 +1,19 @@
 part of '../screens/reading_screen.dart';
 
+/// Локальный курсор сборки спанов главы или стиха: изолирует
+/// текущий стих и смещения частичных выделений (`_hlFrags`) /
+/// пословной подсветки TTS (ADR 0017) внутри одного прохода
+/// рендера, не мутируя поля `_ReadingScreenState`.
+class _SpanRenderCursor {
+  int? curVerse;
+  bool inVerse = false;
+  bool wordCtx = false;
+  int hlRaw = 0;
+  int ttsRaw = 0;
+  int ttsLead = 0;
+  bool ttsLeadDone = false;
+}
+
 /// Построение текста главы: спаны, вёрстки, подстрочник и сравнение.
 extension _ChapterRenderer on _ReadingScreenState {
   // ---------- спаны ----------
@@ -111,19 +125,20 @@ extension _ChapterRenderer on _ReadingScreenState {
     int? chCtx,
     Set<int>? anchorVerses,
     int? hideVerse,
+    _SpanRenderCursor? cursor,
   ]) {
-    int? cur;
+    final c = cursor ?? _SpanRenderCursor();
     var noteIdx = 0;
     final took = <int>{};
     final out = <InlineSpan>[];
     // _spansOf строит только основной текст главы — словесная
     // подсветка здесь разрешена (сравнение идёт через _verseSpans
     // с hlWord=false и контекст выключает).
-    _ttsWordCtx = true;
+    c.wordCtx = true;
     for (final s in b.spans) {
       var anchor = false;
       if (s is VerseSpanDoc) {
-        cur = s.verse;
+        c.curVerse = s.verse;
         noteIdx = 0;
         anchor =
             anchorVerses != null &&
@@ -131,15 +146,16 @@ extension _ChapterRenderer on _ReadingScreenState {
             took.add(s.verse);
       }
       if (s is NoteSpanDoc) {
-        out.add(_spanOf(s, p, chCtx, cur, anchor, noteIdx++));
+        out.add(_spanOf(s, p, c, chCtx, c.curVerse, anchor, noteIdx++));
         continue;
       }
       out.add(
         _spanOf(
           s,
           p,
+          c,
           chCtx,
-          cur,
+          c.curVerse,
           anchor,
           0,
           s is VerseSpanDoc && s.verse == hideVerse,
@@ -157,8 +173,6 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// приходит в смещениях «плоского» текста стиха (трим по краям);
   /// при построении спанов считаем сырой сдвиг по конкатенации
   /// текстов стиха и ведущие пробелы, чтобы красить точные символы.
-  /// Поля курсора живут в _ReadingScreenState (в extension им
-  /// не место): _ttsInVerse/_ttsRaw/_ttsLead/_ttsLeadDone.
 
   /// Текущее слово — только если включена настройка подсветки слов.
   WordMark? get _ttsWord => settings.voiceWords ? _ttsService.word : null;
@@ -166,27 +180,24 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// Спаны одного стиха (versePerLine / строчное сравнение):
   /// сноски нумеруются буквами a, b, c… внутри стиха.
   /// [hlWord] — этот стих принадлежит основному тексту главы
-  /// (для колонки сравнения — false: чужие смещения слов к чужому
-  /// тексту неприменимы).
+  /// (для соседней peek-главы или чужого текста — false).
   List<InlineSpan> _verseSpans(
     List<SpanDoc> spans,
     Palette p,
     int v, {
-    bool hlWord = false,
+    bool hlWord = true,
   }) {
     var ni = 0;
-    _hlRaw = 0; // спаны стиха строятся с начала — курсор кусков с нуля
-    _ttsWordCtx = hlWord && v == _ttsVerse && _ttsWord != null;
-    if (_ttsWordCtx) {
-      _ttsInVerse = true;
-      _ttsRaw = 0;
-      _ttsLead = 0;
-      _ttsLeadDone = false;
+    final c = _SpanRenderCursor()
+      ..curVerse = v
+      ..wordCtx = hlWord && v == _ttsVerse && _ttsWord != null;
+    if (c.wordCtx) {
+      c.inVerse = true;
     }
     return [
       for (final s in spans)
         if (s is! VerseSpanDoc)
-          _spanOf(s, p, null, v, false, s is NoteSpanDoc ? ni++ : 0),
+          _spanOf(s, p, c, null, v, false, s is NoteSpanDoc ? ni++ : 0),
     ];
   }
 
@@ -194,7 +205,8 @@ extension _ChapterRenderer on _ReadingScreenState {
   /// остаются, номер скрыт за буквицей главы.
   InlineSpan _spanOf(
     SpanDoc s,
-    Palette p, [
+    Palette p,
+    _SpanRenderCursor c, [
     int? chCtx,
     int? vCtx,
     bool anchor = false,
@@ -206,18 +218,18 @@ extension _ChapterRenderer on _ReadingScreenState {
       // Курсор пословной подсветки: внутри читаемого стиха считаем
       // сырой сдвиг текстовых спанов (стих может тянуться через
       // несколько блоков — счётчик не сбрасывается по границе блока).
-      _ttsInVerse = inChapter && _ttsVerse == s.verse;
-      if (_ttsInVerse) {
-        _ttsRaw = 0;
-        _ttsLead = 0;
-        _ttsLeadDone = false;
+      c.inVerse = inChapter && _ttsVerse == s.verse;
+      if (c.inVerse) {
+        c.ttsRaw = 0;
+        c.ttsLead = 0;
+        c.ttsLeadDone = false;
       }
       // Пробелы внутри спана — мишень тапа шире самой цифры.
       // Маркеры: выделение — янтарный фон номера, заметка — точка-маркер,
       // TTS — акцентный фон читаемого стиха.
       // В режиме «книга» маркеры показываются только для текущей главы.
       final hlEntry = inChapter ? _wholeHl(s.verse) : null;
-      _hlRaw = 0; // новый стих — новый курсор частичных выделений
+      c.hlRaw = 0; // новый стих — новый курсор частичных выделений
       // Якорь стиха: ключ на невидимом виджете на позиции номера —
       // ensureVisible ставит к верху сам стих, а не начало абзаца.
       final vkey = anchor
@@ -350,8 +362,8 @@ extension _ChapterRenderer on _ReadingScreenState {
         : null;
     // Сырой сдвиг по текстовым спанам стиха — под него размечены
     // диапазоны частичных выделений (_hlFrags, frag-селекторы).
-    final raw0 = _hlRaw;
-    _hlRaw += t.text.length;
+    final raw0 = c.hlRaw;
+    c.hlRaw += t.text.length;
     final cuts = <({int s, int e, Color c, UserEntry? rec})>[
       if (vCtx != null && inChapter)
         for (final r
@@ -368,22 +380,22 @@ extension _ChapterRenderer on _ReadingScreenState {
     // Пословная подсветка: смещения движка — в «плоском» тексте стиха
     // (без краевых пробелов); переводим в сырой сдвиг по спанам и
     // красим участок сильнее фона стиха.
-    if (_ttsWordCtx &&
-        _ttsInVerse &&
+    if (c.wordCtx &&
+        c.inVerse &&
         inChapter &&
         vCtx == _ttsVerse &&
         t.text.isNotEmpty) {
-      if (!_ttsLeadDone) {
+      if (!c.ttsLeadDone) {
         final lead = t.text.length - t.text.trimLeft().length;
-        _ttsLead += lead;
-        if (lead < t.text.length) _ttsLeadDone = true;
+        c.ttsLead += lead;
+        if (lead < t.text.length) c.ttsLeadDone = true;
       }
-      final raw = _ttsRaw;
-      _ttsRaw += t.text.length;
+      final raw = c.ttsRaw;
+      c.ttsRaw += t.text.length;
       final w = _ttsWord;
       if (w != null) {
-        final ws = (w.start + _ttsLead - raw).clamp(0, t.text.length);
-        final we = (w.end + _ttsLead - raw).clamp(0, t.text.length);
+        final ws = (w.start + c.ttsLead - raw).clamp(0, t.text.length);
+        final we = (w.end + c.ttsLead - raw).clamp(0, t.text.length);
         if (we > ws) {
           cuts.add((
             s: ws,
@@ -393,10 +405,10 @@ extension _ChapterRenderer on _ReadingScreenState {
           ));
         }
       }
-    } else if (_ttsInVerse && _ttsWordCtx) {
+    } else if (c.inVerse && c.wordCtx) {
       // Счётчик идёт по спанам читаемого стиха и без подсветки —
       // иначе позиция слова собьётся у следующих спанов.
-      _ttsRaw += t.text.length;
+      c.ttsRaw += t.text.length;
     }
     if (cuts.isEmpty) {
       return TextSpan(text: t.text, style: style, recognizer: recognizer);
@@ -596,6 +608,8 @@ extension _ChapterRenderer on _ReadingScreenState {
     return null;
   }
 
+  static final _selVerseMarkerRe = RegExp(r'[\s\u00B7](\d{1,3})[\s\u2003]+');
+
   /// Диапазон стихов выделения: номера попавшие в фрагмент
   /// (идут в тексте как « N »); если номеров нет — стих находим
   /// по содержимому ([_verseContaining]), иначе под тапом.
@@ -604,7 +618,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     if (t == null || t.isEmpty) return null;
     final maxV = _module?.verseCount(_code, _ch) ?? 0;
     final padded = ' $t ';
-    final matches = RegExp(r' (\d{1,3}) ').allMatches(padded).toList();
+    final matches = _selVerseMarkerRe.allMatches(padded).toList();
     final verses = <int>{
       for (final m in matches) int.parse(m.group(1)!),
       // Головной кусок до первого маркера — хвост стиха на
@@ -630,7 +644,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     final r = _selRange(t);
     if (t == null || r == null) return const {};
     final padded = ' $t ';
-    final matches = RegExp(r' (\d{1,3}) ').allMatches(padded).toList();
+    final matches = _selVerseMarkerRe.allMatches(padded).toList();
     if (matches.isEmpty) {
       final v = _selAnchorVerse ?? _verseContaining(t) ?? r.lo;
       return {v: t};
@@ -649,6 +663,46 @@ extension _ChapterRenderer on _ReadingScreenState {
       out[num] = padded.substring(matches[i].end, to);
     }
     return out;
+  }
+
+  /// Чистое копирование выделенного фрагмента со ссылкой на стихи
+  /// и названием перевода (без служебных отступов `\u2003` и точек
+  /// заметок `\u00B7`).
+  Future<void> _copySelection(String? selText, VoidCallback? fallback) async {
+    final r = _selRange(selText);
+    if (selText == null || r == null) {
+      fallback?.call();
+      return;
+    }
+    final chunks = _selChunks(selText);
+    final parts = <String>[
+      for (final e in chunks.entries)
+        e.value
+            .replaceAll('\u2003', ' ')
+            .replaceAll('\u00B7', '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim(),
+    ]..removeWhere((s) => s.isEmpty);
+    final clean = parts.join(' ').trim();
+    if (clean.isEmpty) {
+      fallback?.call();
+      return;
+    }
+    final ref = r.lo == r.hi
+        ? '${_titleOf(_code)} $_ch:${r.lo}'
+        : '${_titleOf(_code)} $_ch:${r.lo}–${r.hi}';
+    final mod = moduleName(_moduleId);
+    final quote = tr('«$clean» ($ref, $mod)', '“$clean” ($ref, $mod)');
+    await Clipboard.setData(ClipboardData(text: quote));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Скопировано со ссылкой', 'Copied with reference'),
+          ),
+        ),
+      );
+    }
   }
 
   /// Дополнительные пункты контекстного меню выделения.
@@ -700,6 +754,19 @@ extension _ChapterRenderer on _ReadingScreenState {
       );
     }
 
+    // Свои действия: сначала закрыть тулбар, само действие — в конце
+    // кадра. Иначе OverlayEntry тулбара и route диалога перестраиваются
+    // одним проходом и движок редко падает с assert
+    // '_dependents.isEmpty' (та же семья, что у _NoteDialog ниже).
+    void act(VoidCallback? f) {
+      state.hideToolbar();
+      if (f == null) return;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) f();
+      });
+    }
+
+    final selText = _selectedText;
     Widget iconFor(ContextMenuButtonItem it) => switch (it.type) {
       ContextMenuButtonType.cut => iconBtn(
         Icons.content_cut,
@@ -709,7 +776,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       ContextMenuButtonType.copy => iconBtn(
         Icons.copy_outlined,
         tr('Копировать', 'Copy'),
-        it.onPressed,
+        () => act(() => _copySelection(selText, it.onPressed)),
       ),
       ContextMenuButtonType.paste => iconBtn(
         Icons.content_paste,
@@ -733,20 +800,9 @@ extension _ChapterRenderer on _ReadingScreenState {
       ),
       _ => stockFallback(it),
     };
-    // Свои действия: сначала закрыть тулбар, само действие — в конце
-    // кадра. Иначе OverlayEntry тулбара и route диалога перестраиваются
-    // одним проходом и движок редко падает с assert
-    // '_dependents.isEmpty' (та же семья, что у _NoteDialog ниже).
-    void act(VoidCallback? f) {
-      state.hideToolbar();
-      if (f == null) return;
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) f();
-      });
-    }
 
     final ours = _selectionMenuItems();
-    final range = _selRange(_selectedText);
+    final range = _selRange(selText);
     final stock = state.contextMenuButtonItems;
     final copy = stock.where((i) => i.type == ContextMenuButtonType.copy);
     final rest = stock.where((i) => i.type != ContextMenuButtonType.copy);
@@ -1344,6 +1400,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       }
     }
     final out = <Widget>[];
+    final cursor = _SpanRenderCursor();
     for (var i = 0; i < ch.blocks.length; i++) {
       final b = ch.blocks[i];
       // Стихи, чей первый маркер в этом блоке, — несут якорь-ключ
@@ -1398,7 +1455,7 @@ extension _ChapterRenderer on _ReadingScreenState {
               child: Text.rich(
                 TextSpan(
                   style: _baseStyle(p),
-                  children: _spansOf(b, p, chapterNum, anchorVerses),
+                  children: _spansOf(b, p, chapterNum, anchorVerses, null, cursor),
                 ),
               ),
             ),
@@ -1412,7 +1469,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                   style: _baseStyle(p),
                   children: [
                     const TextSpan(text: '\u2003'),
-                    ..._spansOf(b, p, chapterNum, anchorVerses),
+                    ..._spansOf(b, p, chapterNum, anchorVerses, null, cursor),
                   ],
                 ),
               ),
@@ -1449,6 +1506,7 @@ extension _ChapterRenderer on _ReadingScreenState {
       }
     }
     final out = <Widget>[];
+    final cursor = _SpanRenderCursor();
     for (var i = 0; i < ch.blocks.length; i++) {
       final b = ch.blocks[i];
       // Стихи, чей первый маркер в этом блоке, — несут якорь-ключ
@@ -1508,9 +1566,10 @@ extension _ChapterRenderer on _ReadingScreenState {
                     ..._spansOf(
                       b,
                       p,
-                      null,
+                      peek ? 0 : null,
                       anchorVerses,
                       i == capAt ? 1 : null,
+                      cursor,
                     ),
                   ],
                 ),
@@ -1534,9 +1593,10 @@ extension _ChapterRenderer on _ReadingScreenState {
                     ..._spansOf(
                       b,
                       p,
-                      null,
+                      peek ? 0 : null,
                       anchorVerses,
                       i == capAt ? 1 : null,
+                      cursor,
                     ),
                   ],
                 ),
@@ -1691,7 +1751,7 @@ extension _ChapterRenderer on _ReadingScreenState {
                   child: Text.rich(
                     TextSpan(
                       style: _baseStyle(p),
-                      children: _verseSpans(verses[v]!, p, v),
+                      children: _verseSpans(verses[v]!, p, v, hlWord: !peek),
                     ),
                   ),
                 ),

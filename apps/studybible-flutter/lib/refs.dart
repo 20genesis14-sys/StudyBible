@@ -416,6 +416,42 @@ String localizeRefs(String text, String Function(String code) bookName) {
   return buf.toString();
 }
 
+/// Паттерн одиночного запроса-ссылки для омнибокса поиска:
+/// регистронезависимо распознаёт «Ин 3:16», «ин 3 16», «Быт 1»,
+/// «1Кор 13:4-7», «John 3:16». Если стих не указан («Быт 1»),
+/// возвращает стих 1.
+final RegExp _queryRefPattern = RegExp(
+  r'^\s*((?:[1-4]\s*)?[A-Za-zА-Яа-яЁё\.]+(?:\s+[A-Za-zА-Яа-яЁё\.]+){0,2})\s+(\d{1,3})(?:\s*[:：,\.\s]\s*(\d{1,3}[a-e]?)(?:\s*[-–—]\s*(\d{1,3}[a-e]?))?)?\s*$',
+  unicode: true,
+);
+
+/// Распознать библейскую ссылку, введённую в строку поиска целиком.
+Ref? parseQueryRef(String query) {
+  final m = _queryRefPattern.firstMatch(query);
+  if (m != null) {
+    final book = _bookOf(m.group(1)!);
+    final ch = int.tryParse(m.group(2)!) ?? 0;
+    if (book != null && ch > 0) {
+      final rawVs = m.group(3);
+      final vs = rawVs == null
+          ? 1
+          : (int.tryParse(rawVs.replaceAll(RegExp('[a-e]\$'), '')) ?? 0);
+      final rawVe = m.group(4);
+      final ve = rawVe != null
+          ? int.tryParse(rawVe.replaceAll(RegExp('[a-e]\$'), ''))
+          : null;
+      if (vs > 0) return Ref(book, ch, vs, ve);
+    }
+  }
+  final refs = findRefs(query.trim());
+  if (refs.length == 1 &&
+      refs.first.start == 0 &&
+      refs.first.end == query.trim().length) {
+    return refs.first.ref;
+  }
+  return null;
+}
+
 String? _bookOf(String raw) {
   var s = raw.trim().toLowerCase().replaceAll(RegExp(r'\.$'), '');
   s = s.replaceAll(RegExp(r'\s+'), ' ');

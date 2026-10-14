@@ -152,10 +152,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// verse -> записи. Связь с выделением — по совпадению frag.
   final Map<int, List<UserEntry>> _fragNotes = {};
 
-  /// Курсор сырого сдвига по текстовым спанам стиха при построении —
-  /// для покраски кусков `_hlFrags` (как _ttsRaw для пословной).
-  int _hlRaw = 0;
-
   /// Стих под pointer-down в начале выделения — основная привязка
   /// для внутристишовых кусков без маркеров « N » (Listener на
   /// SelectionArea, `_verseAtPoint` по ключам _blockKeys).
@@ -178,17 +174,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   /// Позиция ползунка плеера во время перетаскивания (null — не тащат).
   int? _ttsDrag;
-
-  /// Курсор пословной подсветки (ADR 0017): при построении спанов
-  /// читаемого стиха считается сырой сдвиг по тексту и ведущие
-  /// пробелы — смещения движка относятся к обрезанному тексту.
-  /// _ttsWordCtx разрешает подсветку только в основном тексте
-  /// (в колонке сравнения чужие смещения неприменимы).
-  bool _ttsInVerse = false;
-  bool _ttsWordCtx = false;
-  int _ttsRaw = 0;
-  int _ttsLead = 0;
-  bool _ttsLeadDone = false;
 
   /// «Жидкое стекло» панелей: минимальный блюр (текст сквозь панель
   /// читается), лёгкая заливка и светлый блик по краю, обращённому
@@ -741,6 +726,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       'history' => HistoryScreen(onBack: _stackBack, onOpenVerse: openVerse),
       'search' => SearchScreen(
         moduleId: loc.pane['module'] as String? ?? _moduleId,
+        initialBook: loc.pane['book'] as String? ?? _code,
         initialQuery: loc.pane['q'] as String?,
         onBack: _stackBack,
         onOpenVerse: openVerse,

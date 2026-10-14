@@ -108,7 +108,8 @@ extension _ReaderChrome on _ReadingScreenState {
         IconButton(
           tooltip: tr('Поиск', 'Search'),
           icon: Icon(Icons.search, size: sz, color: p.muted),
-          onPressed: () => _openScreen('search', {'module': _moduleId}),
+          onPressed: () =>
+              _openScreen('search', {'module': _moduleId, 'book': _code}),
         ),
       IconButton(
         tooltip: tr('История чтения', 'Reading history'),
@@ -409,7 +410,11 @@ extension _ReaderChrome on _ReadingScreenState {
   void _openSearch() {
     final q = _searchCtrl.text.trim();
     _rebuild(() => _searchOpen = false);
-    _openScreen('search', {'module': _moduleId, if (q.isNotEmpty) 'q': q});
+    _openScreen('search', {
+      'module': _moduleId,
+      'book': _code,
+      if (q.isNotEmpty) 'q': q,
+    });
   }
 
   /// Полоса прокрутки главы (была в AppBar).

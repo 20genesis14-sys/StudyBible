@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../l10n.dart';
 import '../data.dart';
+import '../lexicon.dart';
 import '../native_bridge.dart' show SearchHit;
 import '../native_bridge_stub.dart'
     if (dart.library.io) '../native_bridge_io.dart'
     if (dart.library.js_interop) '../native_bridge_web.dart';
+import '../reader/reader_dialogs.dart';
+import '../refs.dart';
 import '../state.dart';
 import '../theme.dart';
 import 'reading_screen.dart';
 import '../routes.dart';
+
+/// Раздел Библии для быстрой фильтрации выдачи поиска.
+enum _SearchScope { all, ot, nt, book }
 
 /// Поиск по тексту модуля (FTS5-индекс ядра; на web — LIKE-фоллбэк).
 /// Тап по результату — переход к стиху в текущем переводе.
@@ -17,6 +23,7 @@ class SearchScreen extends StatefulWidget {
   const SearchScreen({
     super.key,
     this.moduleId,
+    this.initialBook,
     this.initialQuery,
     this.onBack,
     this.onOpenVerse,
@@ -24,6 +31,9 @@ class SearchScreen extends StatefulWidget {
 
   /// Модуль, из которого открыли поиск (предвыбор в дрopdown).
   final String? moduleId;
+
+  /// Текущая книга, из которой открыли поиск (для чипа «Эта книга»).
+  final String? initialBook;
 
   /// Запрос из истории — подставляется в поле и сразу выполняется.
   final String? initialQuery;
@@ -43,7 +53,8 @@ class _SearchScreenState extends State<SearchScreen> {
   // выбор перевода внутри поиска убран по решению UX.
   late final String _moduleId = widget.moduleId ?? mainModuleId();
   static const _searchLimit = 100;
-  List<SearchHit> _hits = const [];
+  static const _fetchLimit = 500;
+  List<SearchHit> _allHits = const [];
   bool _busy = false;
   String? _notice;
 
@@ -58,6 +69,31 @@ class _SearchScreenState extends State<SearchScreen> {
   /// Область поиска: текст стихов или сноски/параллельные места.
   bool _notes = false;
 
+  /// Фильтр по разделу канона или текущей книге.
+  _SearchScope _scope = _SearchScope.all;
+
+  bool _matchesScope(SearchHit h) => switch (_scope) {
+    _SearchScope.all => true,
+    _SearchScope.ot =>
+      bookIndexOf(h.book) >= 0 && bookIndexOf(h.book) < kNtFirstIndex,
+    _SearchScope.nt => bookIndexOf(h.book) >= kNtFirstIndex,
+    _SearchScope.book => h.book == widget.initialBook,
+  };
+
+  List<SearchHit> get _hits =>
+      _allHits.where(_matchesScope).take(_searchLimit).toList();
+
+  bool get _isTruncated =>
+      _allHits.where(_matchesScope).length >= _searchLimit;
+
+  Ref? get _directRef => parseQueryRef(_query.text);
+
+  String? get _directStrong {
+    final s = _query.text.trim();
+    if (s.isEmpty || s.contains(' ')) return null;
+    return normalizeStrong(s);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -68,9 +104,42 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
-  Future<void> _run() async {
+  void _openRef(Ref r) {
+    history.touchSearch(_query.text.trim());
+    if (widget.onOpenVerse != null) {
+      widget.onOpenVerse!(_moduleId, r.book, r.chapter, r.verse);
+    } else {
+      Navigator.of(context).push(
+        fastRoute(
+          ReadingScreen(
+            bookCode: r.book,
+            chapter: r.chapter,
+            verse: r.verse,
+            moduleId: _moduleId,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _openStrong(String strong) {
+    history.touchDict(strong, strong);
+    showStrongCard(
+      context,
+      strong,
+      strong,
+      modulePath: modulePathOf(_moduleId),
+    );
+  }
+
+  Future<void> _run({bool fromSubmit = false}) async {
     final q = _query.text.trim();
     if (q.isEmpty) return;
+    final ref = parseQueryRef(q);
+    if (fromSubmit && ref != null) {
+      _openRef(ref);
+      return;
+    }
     history.touchSearch(q);
     setState(() {
       _busy = true;
@@ -80,7 +149,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (path == null) {
       setState(() {
         _busy = false;
-        _hits = const [];
+        _allHits = const [];
         _notice = tr(
           'Для этого модуля нет .sb — поиск недоступен.',
           'No .sb for this module — search unavailable.',
@@ -89,13 +158,15 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
     final hits = _notes
-        ? await bridgeNotesSearch(path, q, limit: _searchLimit)
-        : await bridgeModuleSearch(path, q, limit: _searchLimit);
+        ? await bridgeNotesSearch(path, q, limit: _fetchLimit)
+        : await bridgeModuleSearch(path, q, limit: _fetchLimit);
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _hits = hits;
-      if (hits.isEmpty) _notice = tr('Ничего не найдено.', 'Nothing found.');
+      _allHits = hits;
+      if (_hits.isEmpty && _directRef == null && _directStrong == null) {
+        _notice = tr('Ничего не найдено.', 'Nothing found.');
+      }
     });
   }
 
@@ -105,9 +176,81 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
+  Widget _scopeChip(String label, _SearchScope scope) => ChoiceChip(
+    selected: _scope == scope,
+    visualDensity: VisualDensity.compact,
+    label: Text(label),
+    onSelected: (_) => setState(() {
+      _scope = scope;
+      if (_allHits.isNotEmpty) {
+        _notice = _hits.isEmpty && _directRef == null && _directStrong == null
+            ? tr('Ничего не найдено.', 'Nothing found.')
+            : null;
+      }
+    }),
+  );
+
+  Widget _omniboxCard(Palette p) {
+    final ref = _directRef;
+    if (ref != null) {
+      final label = '${bookShort(ref.book)} ${ref.chapter}:${ref.verse}';
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        child: Card(
+          margin: EdgeInsets.zero,
+          color: p.accent.withValues(alpha: 0.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: p.accent.withValues(alpha: 0.35)),
+          ),
+          child: ListTile(
+            dense: true,
+            leading: Icon(Icons.menu_book_outlined, color: p.accent, size: 20),
+            title: Text(
+              tr('Перейти к $label', 'Go to $label'),
+              style: TextStyle(fontWeight: FontWeight.w600, color: p.ink),
+            ),
+            trailing: Icon(Icons.arrow_forward, color: p.accent, size: 18),
+            onTap: () => _openRef(ref),
+          ),
+        ),
+      );
+    }
+    final strong = _directStrong;
+    if (strong != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        child: Card(
+          margin: EdgeInsets.zero,
+          color: p.accent.withValues(alpha: 0.1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: p.accent.withValues(alpha: 0.35)),
+          ),
+          child: ListTile(
+            dense: true,
+            leading: Icon(Icons.translate, color: p.accent, size: 20),
+            title: Text(
+              tr(
+                'Открыть статью Стронга $strong',
+                'Open Strong’s entry $strong',
+              ),
+              style: TextStyle(fontWeight: FontWeight.w600, color: p.ink),
+            ),
+            trailing: Icon(Icons.arrow_forward, color: p.accent, size: 18),
+            onTap: () => _openStrong(strong),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final hasBook =
+        widget.initialBook != null && widget.initialBook!.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
         leading: widget.onBack == null
@@ -131,12 +274,16 @@ class _SearchScreenState extends State<SearchScreen> {
                         controller: _query,
                         autofocus: true,
                         textInputAction: TextInputAction.search,
-                        onSubmitted: (_) => _run(),
+                        onChanged: (_) => setState(() {}),
+                        onSubmitted: (_) => _run(fromSubmit: true),
                         decoration: InputDecoration(
-                          hintText: tr('Слово или фраза…', 'Word or phrase…'),
-                          border: OutlineInputBorder(),
+                          hintText: tr(
+                            'Слово, ссылка (Ин 3:16) или Стронг (G3056)…',
+                            'Word, ref (Jn 3:16) or Strong’s (G3056)…',
+                          ),
+                          border: const OutlineInputBorder(),
                           isDense: true,
-                          prefixIcon: Icon(Icons.search, size: 18),
+                          prefixIcon: const Icon(Icons.search, size: 18),
                         ),
                       ),
                     ),
@@ -147,21 +294,35 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ],
                 ),
-                // Область: стихи или сноски/параллельные (те же
-                // операторы запроса в обоих режимах).
+                // Фильтры разделов Библии + чип «В сносках».
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: FilterChip(
-                      selected: _notes,
-                      visualDensity: VisualDensity.compact,
-                      avatar: const Icon(Icons.notes, size: 16),
-                      label: Text(tr('В сносках', 'In notes')),
-                      onSelected: (v) => setState(() {
-                        _notes = v;
-                        if (_hits.isNotEmpty) _run();
-                      }),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _scopeChip(tr('Все', 'All'), _SearchScope.all),
+                        _scopeChip(tr('ВЗ', 'OT'), _SearchScope.ot),
+                        _scopeChip(tr('НЗ', 'NT'), _SearchScope.nt),
+                        if (hasBook)
+                          _scopeChip(
+                            '${tr('Эта книга', 'This book')} (${bookShort(widget.initialBook!)})',
+                            _SearchScope.book,
+                          ),
+                        FilterChip(
+                          selected: _notes,
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(Icons.notes, size: 16),
+                          label: Text(tr('В сносках', 'In notes')),
+                          onSelected: (v) => setState(() {
+                            _notes = v;
+                            if (_allHits.isNotEmpty) _run();
+                          }),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -196,6 +357,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
+          _omniboxCard(p),
           if (_busy) const LinearProgressIndicator(minHeight: 2),
           // Счётчик результатов: «Найдено: N», а при усечении лимитом —
           // «100+» (запрос отдаёт не больше _searchLimit).
@@ -205,7 +367,7 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
-                  _hits.length >= _searchLimit
+                  _isTruncated
                       ? tr(
                           'Найдено: $_searchLimit+ (показаны первые)',
                           'Found: $_searchLimit+ (first shown)',
