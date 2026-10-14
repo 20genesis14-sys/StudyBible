@@ -24,8 +24,8 @@ are written together with the test fixture of their stage.
 | 04 | Data model and coordinates | DECISIONS: "Data and modules"; ADR 0004, 0005, 0006 | implemented |
 | 05 | Module format | [spec/05-module-format-v1.md](spec/05-module-format-v1.md) ([English](spec/en/05-module-format-v1.md)); DECISIONS: "Module format v1"; ADR 0003, 0007, 0016 | v1 schema implemented; compact revision (`book_id`, single verse text, span slices); semantics C-1…C-20 fixed 2026-10-12 |
 | 06 | User data | [spec/06-user-data.md](spec/06-user-data.md); DECISIONS: "Synchronization"; ADR 0008 | v1 implemented |
-| 07 | Search | DECISIONS: "Search"; ADR 0003, 0006 | exact form in FTS5 cache; stemming and phrases — later |
-| 08 | Originals and interlinear | DECISIONS: "Data for reading and study", "Extended Strong's lexicon…"; ADR 0025; [strongs/HANDOFF.md](strongs/HANDOFF.md) | decisions recorded; extended Strong's / interlinear / tagging plan approved 2026-10-13 |
+| 07 | Search | DECISIONS: "Search", "Own study Bible…"; ADR 0003, 0006, 0025 | exact form + query operators in FTS5; two-tier lemmatized search (target lemma + original `dStrong` via tagging layer) — post-1.0 |
+| 08 | Originals and interlinear | DECISIONS: "Data for reading and study", "Extended Strong's lexicon…", "Own study Bible…"; ADR 0024, 0025; [strongs/HANDOFF.md](strongs/HANDOFF.md) | decisions recorded; extended Strong's / interlinear / tagging / `knowledge.sb` v0.1.0 (ACAI) plan approved 2026-10-13..14 |
 | 09 | Extensions | DECISIONS: "Extensions"; ADR 0009 | normative form by 1.0 |
 | 10 | Network, repositories, AI | DECISIONS: "Network, repositories, AI" | post-1.0 |
 | 11 | Converter | DECISIONS: "Converter"; ADR 0016 | inputs USFM, OSIS, Zefania, MyBible, BibleQuote, TSV |
@@ -54,11 +54,11 @@ are written together with the test fixture of their stage.
 | [0015](adr/0015-visual-language-reading-study.md) | Visual language "book and vermilion", "Reading" and "Study" modes |
 | [0016](adr/0016-module-format-extensions.md) | Optional module format extensions |
 | [0017](adr/0017-voice-engine.md) | Voice engine: backends, sherpa-onnx neural synthesis, voice packages |
-| [0018](adr/0018-module-format-v2.md) | Module format v2 — post-1.0 roadmap; extensibility beyond the Bible |
+| [0018](adr/0018-module-format-v2.md) | Module format v2 — strategic reserve for super-heavy modules after v1 lazy reading; extensibility beyond the Bible |
 | [0019](adr/0019-navigation-workspace.md) | Navigation: unified workspace, position stack, panes without duplicated logic |
 | [0020](adr/0020-contributions.md) | Contribution registry and extension engine (data/ui/web) |
-| [0021](adr/0021-gpui-ui-track.md) | Custom text system `studybible-text` (post-1.0 track) |
-| [0022](adr/0022-packed-span-storage.md) | Packed varint storage of spans/tokens/alignment (`required="pack"`) |
+| [0021](adr/0021-gpui-ui-track.md) | Custom text system `studybible-text` (post-1.0 track; stage 2b `CustomPainter` gate) |
+| [0022](adr/0022-packed-span-storage.md) | Packed varint storage of spans/tokens/alignment (`required="pack"`) and lazy-reading candidates A/C |
 | [0023](adr/0023-xrefs-layer.md) | Cross-references as a shared `kind="layer"` module |
-| [0024](adr/0024-mega-encyclopedia.md) | Biblical mega-encyclopedia — `knowledge.sb` module (design, deferred) |
+| [0024](adr/0024-mega-encyclopedia.md) | Biblical mega-encyclopedia — `knowledge.sb` module (stage 1 v0.1.0 built on ACAI; stage 2+ refinements) |
 | [0025](adr/0025-extended-strongs-interlinear.md) | Extended Strong's lexicon, original-language base layer, interlinears and tagging layers |

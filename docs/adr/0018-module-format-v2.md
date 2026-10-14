@@ -204,3 +204,21 @@ exports.
   synthesized locally. Precedent already shipped in v1: `xrefs_pack`
   keeps `openbible-xrefs` targets as `(BookCode, chapter, verse,
   segment)` plus a range end, one varint blob per verse.
+
+## Addendum 2026-10-14 — Strategic reserve role (heavy modules vs v1 lazy reading)
+
+For regular translation modules, the compact v1 schema (ADR 0016 §15),
+blob packing (`span_pack`/`token_pack`/`xrefs_pack`, ADR 0022) and the
+lazy-reading candidates A/C (block zstd VFS or per-chapter `text_pack`
+with HTTP Range on the web, OQ 47) already address the day-to-day size,
+RAM and web-streaming bottlenecks while keeping SQLite and FTS5 intact.
+
+Format v2 is therefore kept strictly as a **far-horizon strategic
+reserve** rather than an immediate post-1.0 rewrite. Its trigger is the
+growth of **heavy encyclopedic and lexical modules** — the Biblical
+mega-encyclopedia (`knowledge.sb` with tens of thousands of multilingual
+articles, relations, word-level mentions and media), full unabridged
+lexicons (`strongs-step`, `lsj`, UBS/BDB dictionaries) and full
+critical-apparatus corpora — if and when their combined weight and
+index overhead outgrow SQLite even with ADR 0022 packing and lazy
+reading.

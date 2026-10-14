@@ -1349,6 +1349,44 @@ plan, tasks, data inventory and skill specs —
 - Licence handling: CC BY-SA attribution (Biblica Inc. / Mission
   Mutual), derived modules under CC BY-SA, entries in
   MODULE-LICENSES.
+- **Refinements (2026-10-14)**:
+  - **Verse ranges (`verse_end`) in `kind="commentary"`**: pericope/range
+    notes (e.g. `1:1–5`) store `verse_end` (or range index rows) so
+    lookup on any verse in `1..=5` surfaces the note, not only verse 1.
+  - **Reader study notes vs translator notes (`meta.subtype`)**:
+    `BiblicaStudyNotes` and `AquiferOpenStudyNotes` (Tyndale) are tagged
+    `meta.subtype="study"` (default in Study Bible mode);
+    `UWTranslationNotes` and `SILOpenTranslatorsNotes` are tagged
+    `meta.subtype="translator"` (separate toggleable layer).
+  - **Clickable book outlines and thematic profiles**: converter parses
+    scripture references in `BookIntros` outlines into internal links
+    (`sb://...`); `AquiferOpenStudyNotesThemes` and `Profiles` map to
+    thematic/biographical articles in `knowledge.sb` / book headers.
+  - **Cross-linking notes ↔ mega-encyclopedia**: inline Aquifer links
+    inside study notes resolve to `entity_id` in `knowledge.sb`, turning
+    verse notes + entity cards + realia/maps into one hypertext layer.
+  - **Mega-encyclopedia stage 2+ refinements (ADR 0024)**: multi-source
+    articles move from JSON `metadata.articles` into an optional
+    `entity_articles(entity_id, source, lang, title, body_md, license,
+    ord)` table (FTS5 + lazy load); Synodal word forms from
+    `russyn-strongs` are lemmatized into `entity_names` (`lang='ru'`,
+    `kind='biblical'`); chronology (`year_start`/`year_end`) is fed from
+    **Theographic Bible Metadata** (CC BY-SA); verse entity chips rank
+    by `IDF(entity) × weight(mention_type)`; the map layer plans a
+    compact offline vector basemap (PMTiles / MapLibre) plotting chapter
+    places from `knowledge.sb` coordinates.
+  - **Two-tier lemmatized search**: pairing a target-language
+    morphological dictionary (for Russian — a compact `dawgdic`/
+    OpenCorpora automaton) with the `<target>-strongs` tagging layer
+    (ADR 0025) gives both target-lemma search and "find all occurrences
+    of the underlying Hebrew/Greek lemma (`dStrong`) from a selected
+    translation word".
+  - **Format v2 (ADR 0018) and `studybible-text` (ADR 0021) gates**:
+    format v2 stays as a far-horizon strategic reserve for super-heavy
+    modules (`knowledge.sb`, full multi-source lexicons) once ADR 0022
+    lazy reading is exhausted; `studybible-text` adds verification stage
+    2b (Rust tier layout → Flutter `CustomPainter`/Impeller) before
+    investing in a custom GPU texture.
 
 ## Tagging layer `links` table and the `w1` tokenizer (2026-10-13, ADR 0025 impl.)
 

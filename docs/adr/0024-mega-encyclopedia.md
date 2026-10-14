@@ -164,3 +164,42 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
   `AquiferOpenStudyNotes` (Tyndale notes, adapted) + BookIntros +
   dictionaries are the content base of the future "own study Bible"
   — see ROADMAP (local).
+
+## Addendum 2026-10-14 — Stage 2+ refinements (articles, naming, chronology, ranking, atlas)
+
+1. **Separate `entity_articles` table instead of JSON `metadata.articles`**:
+   as multiple dictionaries join the module (Aquifer OBD, FIA, Biblica
+   KeyTerms, UBS Realia/Flora/Fauna, user-imported lexicons), each
+   entity accumulates several articles across sources and languages.
+   Storing them in `entity_articles(entity_id, source, lang, title,
+   body_md, license, ord)` (optional table) enables FTS5 over article
+   bodies, avoids parsing large JSON blobs when opening a card, and
+   lets the UI switch sources/languages via tabs. `entities.article`
+   stays as the default summary fallback.
+2. **Synodal and traditional name forms in `entity_names`**: modern
+   Russian translations of Aquifer/ACAI resources often use
+   contemporary transliterations (*Синахериб*, *Бет-Эль*) that diverge
+   from the Synodal tradition (*Сеннахирим*, *Вефиль*, *Иисус Навин /
+   Осия*). Once the Synodal tagging layer (`russyn-strongs`, ADR 0025)
+   is built, Russian word forms grouped by `eid`/`dStrong` are
+   lemmatized to nominative singular and injected into `entity_names`
+   (`lang='ru'`, `kind='biblical'`, `source='russyn-layer'`) so search
+   and card headers match the text the user is reading.
+3. **Chronology and timeline (`event` and dates)**: `entities`
+   (primarily `event`, `person`, rulers' reigns) gains optional date
+   bounds (`year_start`, `year_end` as signed astronomical years with
+   an approximation flag, in `metadata` or columns). Primary open
+   source: **Theographic Bible Metadata** (CC BY-SA), which links
+   events, people, periods and verses to a chronological axis.
+4. **IDF × `mention_type` ranking for verse chips**: with ~114k
+   `verse_mentions` (including pronouns and subjects), verses can list
+   many entities at once. Queries and the UI sort mentions by
+   `IDF(entity) × weight(mention_type)` so rare, specific entities in
+   the verse (e.g. *Melchizedek*) always precede ultra-frequent
+   background entities (*God*, *Israel*, *Jerusalem*).
+5. **Interactive offline atlas**: alongside static map images
+   (`BiblicaOpenBibleMaps`, `FIAMaps`), the map layer can ship a
+   compact offline vector basemap of the Near East / Mediterranean
+   (PMTiles / MapLibre, ~5–10 MB with relief) and plot the current
+   chapter's places dynamically from `knowledge.sb` coordinates
+   (OpenBible Geocoding `lat`/`lon`) with tap-through to entity cards.

@@ -107,6 +107,16 @@ shell is Flutter, these cost items are not ours.
    here.
 2. **Tier composer** on top of ready runs: interlinear first, then
    columns and apparatus.
+2b. **Verification gate before GPU texture (2026-10-14): Rust layout →
+   Flutter `CustomPainter` / `Canvas.drawParagraph`**. Before building
+   our own rasterizer, GPU compositor and external texture (stages 3–4),
+   feed the positioned word/tier boxes computed in Rust (stages 0–2)
+   directly to a Flutter `CustomPainter` (rendered by Impeller/Skia)
+   with hit-testing back to token IDs. This keeps native Flutter scroll
+   physics, gestures, selection handles, dark-mode vector rendering and
+   the screen-reader tree intact. Proceed to stages 3–4 (custom GPU
+   texture) only if `CustomPainter` hits a measurable frame-rate or
+   glyph-positioning ceiling on target devices.
 3. **Compositor**: draws runs, returns a "point → token" hit test.
 4. **Embedding into Flutter as a texture**; extensions call the
    library. This is the stage of real complexity: scroll physics,

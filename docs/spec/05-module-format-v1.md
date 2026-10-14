@@ -243,11 +243,13 @@ existing fields must not change even if the column type stays the same.
   dictionary.
 - **C-8.** `meta.kind` — a composition contract: `bible` — text with
   verses; `interlinear` — the same + `alignment`/`tokens`;
-  `commentary` — blocks bound to verses, no verse text; `dictionary`
-  and `layer` — `books` may be empty (content in `entries`/apparatus);
-  `critical` — carries `variants`; `knowledge` — the mega-encyclopedia
-  module (entities, relations, verse mentions; ADR 0024, implementation
-  deferred). An unknown `kind` reads as `bible` (soft).
+  `commentary` — blocks bound to verses, no verse text (optional
+  `meta.subtype="study" | "translator"` and range end `verse_end` for
+  pericope notes); `dictionary` and `layer` — `books` may be empty
+  (content in `entries`/apparatus); `critical` — carries `variants`;
+  `knowledge` — the mega-encyclopedia module (entities, `entity_names`,
+  `entity_articles`, relations, verse mentions; ADR 0024). An unknown
+  `kind` reads as `bible` (soft).
 - **C-9.** `meta.features` — an **open** list. Known values
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,
   `fts`, `marks`, `xrefs`) enable UI layers. `x-`-prefixed values are
