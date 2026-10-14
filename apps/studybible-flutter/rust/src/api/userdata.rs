@@ -60,21 +60,31 @@ fn module_path_map(dir: &Path) -> std::collections::HashMap<String, std::path::P
     };
     for e in rd.flatten() {
         let p = e.path();
-        if !matches!(p.extension().and_then(|x| x.to_str()), Some("sb" | "sbz")) {
+        let ext = p.extension().and_then(|x| x.to_str());
+        if !matches!(ext, Some("sb" | "sbz")) {
             continue;
         }
-        if let Ok(m) = crate::api::module::open_any(&p) {
-            map.insert(m.meta().id.clone(), p);
+        if ext == Some("sbz") && p.with_extension("sb").exists() {
+            continue;
+        }
+        if let Ok(m) = crate::api::module::open_cached(&p)
+            && let Ok(g) = crate::api::module::lock_module(&m)
+        {
+            map.insert(g.meta().id.clone(), p);
         }
     }
     map
 }
 
-/// Открыть модуль по `meta.id` в `modules/` рядом с userdata.db.
-/// None — модуль не установлен.
-fn resolve_module(ud_path: &str, id: &str) -> Option<Module> {
+/// Открыть модуль по `meta.id` в `modules/` рядом с userdata.db
+/// через общий кэш `MODULES` (без повторной распаковки `.sbz`).
+/// None — служебный псевдомодуль или модуль не установлен.
+fn resolve_module(ud_path: &str, id: &str) -> Option<std::sync::Arc<std::sync::Mutex<Module>>> {
+    if id.is_empty() || id == PROGRESS_MODULE || id == "settings" {
+        return None;
+    }
     let dir = Path::new(ud_path).parent()?.join("modules");
-    crate::api::module::open_any(&module_path(&dir, id)?).ok()
+    crate::api::module::open_cached(&module_path(&dir, id)?).ok()
 }
 
 /// Снять состояние прогресса одним JSON:
@@ -251,40 +261,49 @@ pub async fn entry_add(
 ) -> Result<String> {
     let anchor = anchor_at(&module, &book, chapter, verse)?;
     let ud = open(&path)?;
-    // Метаполя привязки (в.12) берём из установленного модуля сами —
+    let k = kind_of(&kind)?;
+    // Записи истории ('hist*') и служебные псевдомодули ('*', 'settings', '')
+    // не привязываются к тексту стиха — модуль для них не открываем.
+    let skip_bind = k == Kind::Mark && text.starts_with("hist");
+    // Метаполя привязки (в.12) берём из кэшированного модуля сами —
     // Dart-стороне их передавать не нужно; у служебного `*` модуля нет,
     // его записи остаются с пустой метой (add() по-прежнему).
-    let (bind, ctx) = resolve_module(&path, &module)
-        .map(|m| {
-            let meta = m.meta();
-            let ver = if meta.content_hash.is_empty() {
-                meta.version.clone()
-            } else {
-                meta.content_hash.clone()
-            };
-            let c = if context.is_empty() {
-                m.verse_text(anchor.book, anchor.chapter, anchor.verse)
-                    .ok()
-                    .flatten()
-                    .map(|t| t.chars().take(40).collect::<String>())
-                    .unwrap_or_default()
-            } else {
-                context.clone()
-            };
-            let canon = Versification::builtin(&meta.versification).and_then(|v| {
-                canon_range(v, VerseKey::new(anchor.book, anchor.chapter, anchor.verse))
-            });
-            let (from, to) = canon.map(|(f, t)| (Some(f), Some(t))).unwrap_or_default();
-            let b = Bind {
-                vrs: meta.versification.clone(),
-                module_ver: ver,
-                canon_from: from,
-                canon_to: to,
-            };
-            (b, c)
-        })
-        .unwrap_or_else(|| (Bind::default(), context));
-    Ok(ud.add_frag(kind_of(&kind)?, anchor, &text, &ctx, &frag, &bind, created)?)
+    let (bind, ctx) = if skip_bind {
+        (Bind::default(), context)
+    } else {
+        resolve_module(&path, &module)
+            .and_then(|arc| {
+                let m = crate::api::module::lock_module(&arc).ok()?;
+                let meta = m.meta();
+                let ver = if meta.content_hash.is_empty() {
+                    meta.version.clone()
+                } else {
+                    meta.content_hash.clone()
+                };
+                let c = if context.is_empty() {
+                    m.verse_text(anchor.book, anchor.chapter, anchor.verse)
+                        .ok()
+                        .flatten()
+                        .map(|t| t.chars().take(40).collect::<String>())
+                        .unwrap_or_default()
+                } else {
+                    context.clone()
+                };
+                let canon = Versification::builtin(&meta.versification).and_then(|v| {
+                    canon_range(v, VerseKey::new(anchor.book, anchor.chapter, anchor.verse))
+                });
+                let (from, to) = canon.map(|(f, t)| (Some(f), Some(t))).unwrap_or_default();
+                let b = Bind {
+                    vrs: meta.versification.clone(),
+                    module_ver: ver,
+                    canon_from: from,
+                    canon_to: to,
+                };
+                Some((b, c))
+            })
+            .unwrap_or_else(|| (Bind::default(), context))
+    };
+    Ok(ud.add_frag(k, anchor, &text, &ctx, &frag, &bind, created)?)
 }
 
 /// Чужие записи к стиху (в.12, этап А): записи других модулей, чья
@@ -298,11 +317,15 @@ pub async fn entries_foreign_list(
     chapter: i64,
     verse: i64,
 ) -> Result<Vec<UserEntryInfo>> {
-    let Some(m) = resolve_module(&path, &module) else {
+    let Some(arc) = resolve_module(&path, &module) else {
         return Ok(vec![]);
     };
-    let vrs = Versification::builtin(&m.meta().versification)
-        .ok_or_else(|| anyhow!("версификация «{}»", m.meta().versification))?;
+    let vrs_name = {
+        let m = crate::api::module::lock_module(&arc)?;
+        m.meta().versification.clone()
+    };
+    let vrs =
+        Versification::builtin(&vrs_name).ok_or_else(|| anyhow!("версификация «{vrs_name}»"))?;
     let book_c = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
     let org = vrs.to_org(VerseKey::new(
         book_c,
@@ -402,4 +425,16 @@ pub async fn entry_update(path: String, id: String, text: String) -> Result<bool
 pub async fn entry_remove(path: String, id: String) -> Result<bool> {
     let ud = open(&path)?;
     Ok(ud.remove(&id)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn service_modules_skip_resolution() {
+        assert!(resolve_module("/nonexistent/userdata.db", "").is_none());
+        assert!(resolve_module("/nonexistent/userdata.db", "*").is_none());
+        assert!(resolve_module("/nonexistent/userdata.db", "settings").is_none());
+    }
 }

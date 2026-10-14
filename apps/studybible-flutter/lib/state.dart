@@ -350,11 +350,15 @@ class Settings extends ChangeNotifier {
   /// иначе дефолты затёрли бы сохранённые значения.
   bool _loaded = false;
 
+  /// Очередь сохранения настроек — сериализует параллельные вызовы
+  /// `_save()`, чтобы быстрые переключения не плодили дубликаты строки.
+  Future<void> _saveQueue = Future.value();
+
   /// Загрузить настройки из UserData (kind=mark, module='settings',
   /// book='SET', context — JSON со всеми полями).
   Future<void> load() async {
     try {
-      final all = await bridgeEntriesList('mark');
+      final all = await bridgeEntriesList('mark', module: 'settings');
       final e = all
           .where((e) => e.module == 'settings' && e.book == 'SET')
           .firstOrNull;
@@ -455,7 +459,7 @@ class Settings extends ChangeNotifier {
       'defaultModule': defaultModule,
     });
     try {
-      final all = await bridgeEntriesList('mark');
+      final all = await bridgeEntriesList('mark', module: 'settings');
       for (final e in all.where(
         (e) => e.module == 'settings' && e.book == 'SET',
       )) {
@@ -475,11 +479,15 @@ class Settings extends ChangeNotifier {
     }
   }
 
+  void _enqueueSave() {
+    _saveQueue = _saveQueue.then((_) => _save());
+  }
+
   void update(void Function() fn) {
     fn();
     _syncNightTimer();
     notifyListeners();
-    if (_loaded) _save();
+    if (_loaded) _enqueueSave();
   }
 
   /// Изменение без записи — живой предпросмотр (pinch-zoom шлёт
@@ -492,7 +500,7 @@ class Settings extends ChangeNotifier {
 
   /// Записать текущие настройки (как в конце [update]).
   void save() {
-    if (_loaded) _save();
+    if (_loaded) _enqueueSave();
   }
 
   /// Модули для экрана «стих во всех переводах»: явный список или,

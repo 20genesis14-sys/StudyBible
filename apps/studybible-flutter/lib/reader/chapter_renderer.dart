@@ -519,7 +519,7 @@ extension _ChapterRenderer on _ReadingScreenState {
     final notes = _notesOf(ch);
     final wide = MediaQuery.of(context).size.width >= 700;
     if (wide) {
-      _rebuild(() => _notesOpen = true);
+      _rebuild(() => _notesOpen = !_notesOpen);
     } else {
       showModalBottomSheet(
         context: context,

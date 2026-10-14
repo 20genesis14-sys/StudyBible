@@ -54,7 +54,7 @@ fn xref_layer_path() -> Option<PathBuf> {
 
 /// Модуль из кэша соединений; при первом обращении — обычное открытие.
 /// Блокировка модуля сериализует запросы к нему (запросы короткие).
-fn open_cached(path: &Path) -> Result<Arc<Mutex<Module>>> {
+pub(crate) fn open_cached(path: &Path) -> Result<Arc<Mutex<Module>>> {
     let key = path.to_path_buf();
     {
         let map = MODULES
@@ -73,7 +73,7 @@ fn open_cached(path: &Path) -> Result<Arc<Mutex<Module>>> {
 }
 
 /// Блокировка кэшированного модуля на время запроса.
-fn lock_module(m: &Mutex<Module>) -> Result<std::sync::MutexGuard<'_, Module>> {
+pub(crate) fn lock_module(m: &Mutex<Module>) -> Result<std::sync::MutexGuard<'_, Module>> {
     m.lock().map_err(|_| anyhow!("module cache poisoned"))
 }
 

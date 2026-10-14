@@ -367,10 +367,13 @@ extension _ReaderController on _ReadingScreenState {
 
   /// Перечитать выделения и заметки текущей главы из userdata.db.
   Future<void> _loadVerseEntries() async {
-    final hl = await bridgeEntriesList('hl', module: _moduleId);
-    final nt = await bridgeEntriesList('note', module: _moduleId);
-    final mk = await bridgeEntriesList('mark', module: _moduleId);
-    final tg = await bridgeEntriesList('tag', module: _moduleId);
+    final res = await Future.wait([
+      bridgeEntriesList('hl', module: _moduleId),
+      bridgeEntriesList('note', module: _moduleId),
+      bridgeEntriesList('mark', module: _moduleId),
+      bridgeEntriesList('tag', module: _moduleId),
+    ]);
+    final hl = res[0], nt = res[1], mk = res[2], tg = res[3];
     if (!mounted) return;
     _rebuild(() {
       _highlights.clear();
