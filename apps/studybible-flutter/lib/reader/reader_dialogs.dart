@@ -472,6 +472,7 @@ Future<Map<String, dynamic>?> _loadExtendedStrong(
   final sns = _extractAttr(attrs, 'sns') ?? '';
   final q = [
     '@lex:${normalizeStrong(strong) ?? strong}',
+    'lang=${isEn ? "en" : "ru"}',
     if (morph.isNotEmpty) 'morph=$morph',
     if (eid.isNotEmpty) 'eid=$eid',
     if (ref.isNotEmpty) 'ref=$ref',

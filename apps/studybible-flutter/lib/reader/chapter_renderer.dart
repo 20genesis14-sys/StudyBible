@@ -1077,7 +1077,11 @@ extension _ChapterRenderer on _ReadingScreenState {
     final path = modulePathOf(_moduleId);
     if (path == null || path.isEmpty) return;
     ch.dictLoading = true;
-    bridgeChapterDoc(path, '@dict_glosses:$_code', chNum).then((raw) {
+    bridgeChapterDoc(
+      path,
+      '@dict_glosses:$_code|lang=${settings.lang}',
+      chNum,
+    ).then((raw) {
       ch.dictLoading = false;
       if (raw == null || !mounted) return;
       try {

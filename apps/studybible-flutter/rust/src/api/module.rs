@@ -843,6 +843,16 @@ fn parse_wid_book_ch(wid: &str) -> Option<(u16, i64)> {
     Some((bid, ch))
 }
 
+fn find_lex_module(base_path: &Path, lang: &str) -> Option<PathBuf> {
+    if lang != "en"
+        && let Some(p) = find_aux_module(base_path, "lexicon", "strongs-step-ru")
+    {
+        return Some(p);
+    }
+    find_aux_module(base_path, "lexicon", "strongs-step")
+        .or_else(|| find_aux_module(base_path, "lexicon", "strongs-step-ru"))
+}
+
 fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>> {
     let mut parts = query.split('|');
     let strong_raw = parts.next().unwrap_or("").trim();
@@ -850,6 +860,7 @@ fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>>
     let mut eid_raw = String::new();
     let mut wid_raw = String::new();
     let mut sns_raw = String::new();
+    let mut lang = String::new();
     for p in parts {
         if let Some(v) = p.strip_prefix("morph=") {
             morph_code = v.trim().to_string();
@@ -859,6 +870,8 @@ fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>>
             wid_raw = v.trim().to_string();
         } else if let Some(v) = p.strip_prefix("sns=") {
             sns_raw = v.trim().to_string();
+        } else if let Some(v) = p.strip_prefix("lang=") {
+            lang = v.trim().to_string();
         }
     }
 
@@ -911,7 +924,7 @@ fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>>
 
     let mut entries_json = Vec::new();
     let mut morph_json = Value::Null;
-    if let Some(lex_p) = find_aux_module(base_path, "lexicon", "strongs-step")
+    if let Some(lex_p) = find_lex_module(base_path, &lang)
         && let Ok(lm) = open_cached(&lex_p)
         && let Ok(lm) = lock_module(&lm)
     {
@@ -1138,7 +1151,7 @@ fn load_entity_json(km: &Module, entity_id: &str) -> Result<Value> {
     };
     let mut names_ru = Vec::new();
     if let Ok(mut st) = conn.prepare(
-        "SELECT DISTINCT name FROM entity_names WHERE entity_id=?1 AND lang='rus' LIMIT 10",
+        "SELECT DISTINCT name FROM entity_names WHERE entity_id=?1 AND lang IN ('ru', 'rus') LIMIT 10",
     ) && let Ok(rows) = st.query_map([&id], |r| r.get::<_, String>(0))
     {
         for n in rows.flatten() {
@@ -1177,7 +1190,19 @@ fn load_entity_json(km: &Module, entity_id: &str) -> Result<Value> {
     }))
 }
 
-fn query_dict_glosses(base_path: &Path, book: &str, chapter: i64) -> Result<Option<String>> {
+fn query_dict_glosses(
+    base_path: &Path,
+    book_and_opts: &str,
+    chapter: i64,
+) -> Result<Option<String>> {
+    let mut parts = book_and_opts.split('|');
+    let book = parts.next().unwrap_or("").trim();
+    let mut lang = String::new();
+    for p in parts {
+        if let Some(v) = p.strip_prefix("lang=") {
+            lang = v.trim().to_string();
+        }
+    }
     let m = open_cached(base_path)?;
     let m = lock_module(&m)?;
     let code = BookCode::new(book).ok_or_else(|| anyhow!("код книги {book}"))?;
@@ -1203,7 +1228,7 @@ fn query_dict_glosses(base_path: &Path, book: &str, chapter: i64) -> Result<Opti
             }
         }
     }
-    let Some(lex_p) = find_aux_module(base_path, "lexicon", "strongs-step") else {
+    let Some(lex_p) = find_lex_module(base_path, &lang) else {
         return Ok(None);
     };
     let lm = open_cached(&lex_p)?;

@@ -198,6 +198,7 @@ int bookIndexOf(String code) => kCatalog.indexWhere((e) => e.$1 == code);
 final Map<String, String> kModules = {
   'russyn': 'Синодальный перевод',
   'ru_rob': 'Русская открытая Библия',
+  'ru_rlob': 'Русская дословная открытая Библия (RLOB)',
   'engwebp': 'World English Bible',
   'kjv2006': 'KJV 2006 (Стронг)',
   'englsv': 'Literal Standard Version',
@@ -211,6 +212,7 @@ final Map<String, String> kModules = {
 const Map<String, String> kModulesEn = {
   'russyn': 'Synodal Translation',
   'ru_rob': 'Russian Open Bible',
+  'ru_rlob': 'Russian Literal Open Bible (RLOB)',
   'kjv2006': 'KJV 2006 (Strong’s)',
   'oshb': 'Hebrew Bible (OSHB)',
   'ugnt': 'Greek NT (UGNT)',
@@ -268,7 +270,8 @@ String? moduleTag(String id) {
 /// установленные модули; kModules остаётся справочником имён.
 Map<String, String> get installedModules => {
   for (final id in _sbPaths.keys)
-    if (id != 'strongs-step' && id != 'knowledge') id: moduleName(id),
+    if (id != 'strongs-step' && id != 'strongs-step-ru' && id != 'knowledge')
+      id: moduleName(id),
 };
 
 /// Основной перевод пользователя: настройка или первый

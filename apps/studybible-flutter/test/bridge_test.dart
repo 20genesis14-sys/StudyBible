@@ -254,5 +254,29 @@ void main() {
     final entRaw = await bridgeChapterDoc(origPath, '@entity:person:Abraham', 1);
     expect(entRaw, isNotNull);
     expect(entRaw!, contains('Abraham'));
+
+    // Фаза 8: проверка русского словаря strongs-step-ru, русского словарного
+    // подстрочника и наложения слоёв russyn-strongs и ru_rlob-strongs.
+    final dgRu = await bridgeChapterDoc(origPath, '@dict_glosses:GEN|lang=ru', 1);
+    expect(dgRu, isNotNull);
+    expect(dgRu!.toLowerCase(), contains('начал'));
+
+    final lexRu = await bridgeChapterDoc(origPath, '@lex:G5057|lang=ru', 1);
+    expect(lexRu, isNotNull);
+    expect(lexRu!, contains('сборщик налогов'));
+    expect(lexRu, contains('мытарь'));
+
+    final syn = await loadModule('russyn');
+    final synGen1 = await syn.ensureChapter('GEN', 1);
+    expect(synGen1, isNotNull);
+    final synWords = synGen1!.blocks
+        .expand((b) => b.spans)
+        .whereType<TextSpanDoc>()
+        .where((s) => s.strong != null)
+        .toList();
+    expect(synWords.first.text, 'В');
+    expect(synWords.first.strong, 'H9003');
+    expect(synWords[1].text, 'начале');
+    expect(synWords[1].strong, 'H7225G');
   }, skip: hasSb ? false : 'нет .sb');
 }
