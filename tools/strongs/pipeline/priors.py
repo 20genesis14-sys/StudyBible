@@ -102,16 +102,37 @@ def build_form_alias() -> dict[str, str]:
     return amap
 
 
+def stem_en(w: str) -> str:
+    wl = w.lower()
+    if len(wl) <= 3:
+        return wl
+    if wl.endswith("eth") and len(wl) > 5:
+        wl = wl[:-3]
+    elif wl.endswith("est") and len(wl) > 5:
+        wl = wl[:-3]
+    if wl.endswith("ies") and len(wl) > 4:
+        return wl[:-3] + "y"
+    if wl.endswith("ing") and len(wl) > 5:
+        return wl[:-3]
+    if wl.endswith("ed") and len(wl) > 4:
+        return wl[:-2]
+    if wl.endswith("es") and len(wl) > 4:
+        return wl[:-2]
+    if wl.endswith("s") and not wl.endswith("ss") and len(wl) > 3:
+        return wl[:-1]
+    return wl
+
+
 def build_lex_indexes() -> tuple[dict[str, list[str]], dict[str, str]]:
     """Из strongs-step.sb строит:
     - classic_to_dstrongs: {H7225: [H7225G, H7225H, ...]}
-    - dstrong_gloss: {H7225G: 'beginning'}
+    - dstrong_gloss: {H7225G: 'beginning | 1_beginning'}
     """
     db = sqlite3.connect(DATA / "work" / "strongs" / "lexicon" / "strongs-step.sb")
     classic_to_ds: dict[str, list[str]] = collections.defaultdict(list)
     dstrong_gloss: dict[str, str] = {}
-    for key, base, gloss in db.execute("SELECT key, base, gloss FROM lex ORDER BY key"):
-        dstrong_gloss[key] = gloss or ""
+    for key, base, gloss, sl in db.execute("SELECT key, base, gloss, sense_label FROM lex ORDER BY key"):
+        dstrong_gloss[key] = f"{gloss or ''} {sl or ''}".strip()
         cl = norm_classic(key)
         if cl and key not in classic_to_ds[cl]:
             classic_to_ds[cl].append(key)
@@ -126,14 +147,32 @@ def build_lex_indexes() -> tuple[dict[str, list[str]], dict[str, str]]:
     return dict(classic_to_ds), dstrong_gloss
 
 
-def build_word_priors() -> dict[str, dict[str, list[tuple[str, int]]]]:
-    """Строит счётчики (testament -> word_lower -> [(dStrong, count), ...])
-    строго на РАБОЧИХ книгах из engbsb-strongs.sb + engbsb.sb и глоссов strongs-step.sb.
+def build_word_priors() -> tuple[dict[str, dict[str, list[tuple[str, int]]]], dict[str, dict[str, list[tuple[str, int]]]]]:
+    """Строит счётчики:
+      - word_priors: (testament -> word_or_stem -> [(dStrong, count), ...])
+      - classic_priors: (testament -> word_or_stem -> [(classic, count), ...])
+    строго на РАБОЧИХ книгах (все отложенные книги §4.2 исключены!).
     """
     counts: dict[str, dict[str, collections.Counter]] = {
         "OT": collections.defaultdict(collections.Counter),
         "NT": collections.defaultdict(collections.Counter),
     }
+    cl_counts: dict[str, dict[str, collections.Counter]] = {
+        "OT": collections.defaultdict(collections.Counter),
+        "NT": collections.defaultdict(collections.Counter),
+    }
+
+    def add_obs(t: str, word: str, dcode: str, weight: int) -> None:
+        wl = word.lower()
+        st = stem_en(wl)
+        counts[t][wl][dcode] += weight
+        if st != wl and len(st) >= 3:
+            counts[t][f"#{st}"][dcode] += max(1, weight // 2)
+        cl = norm_classic(dcode)
+        if cl:
+            cl_counts[t][wl][cl] += weight
+            if st != wl and len(st) >= 3:
+                cl_counts[t][f"#{st}"][cl] += max(1, weight // 2)
 
     # 1. Из engbsb.sb + engbsb-strongs.sb (только рабочие книги!)
     cli = REPO / "target" / "debug" / "studybible.exe"
@@ -177,39 +216,95 @@ def build_word_priors() -> dict[str, dict[str, list[tuple[str, int]]]]:
             if not info:
                 continue
             st, fl = info
-            wl = w.lower()
-            for code in st.split():
-                # Даём больший вес знаменательным связям (head)
-                weight = 3 if "head" in fl else 1
-                counts[t][wl][code] += weight
+            codes = st.split()
+            if "head" in fl:
+                lex_codes = [c for c in codes if not c.startswith("H9") and c not in ("H0853", "G3588")]
+                if lex_codes:
+                    codes = lex_codes
+            for code in codes:
+                weight = 4 if "head" in fl else 1
+                add_obs(t, w, code, weight)
     proc.wait()
 
-    # 2. Добавляем словарные глоссы из strongs-step.sb (не зависят от книг)
-    lex_db = sqlite3.connect(DATA / "work" / "strongs" / "lexicon" / "strongs-step.sb")
-    for key, gloss in lex_db.execute("SELECT key, gloss FROM lex WHERE gloss != ''"):
-        t = "OT" if key.startswith("H") else "NT"
-        for tok in re.findall(r"[A-Za-z]+", gloss.lower()):
-            if len(tok) >= 2:
-                counts[t][tok][key] += 2
+    # 2. Из KJV (только рабочие книги!)
+    kjv_sb = DATA / "modules" / "eng-kjv2006.sb"
+    proc_k = subprocess.Popen(
+        [str(cli), "tokenize", "--with-spans", str(kjv_sb)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    assert proc_k.stdout is not None
+    for line in proc_k.stdout:
+        d = json.loads(line)
+        if "_meta" in d:
+            continue
+        bk = d["book"]
+        ch = int(d["chapter"])
+        if is_held_out(bk, ch):
+            continue
+        bid = BOOK_ID[bk]
+        t = "OT" if bid < 40 else "NT"
+        for w, sp in zip(d["words"], d.get("word_spans", [])):
+            m = re.findall(r'strong="([^"]+)"', sp.get("attrs", ""))
+            for raw in m:
+                for tok in raw.split():
+                    cl = norm_classic(tok)
+                    if cl:
+                        wl = w.lower()
+                        cl_counts[t][wl][cl] += 2
+    proc_k.wait()
 
-    out: dict[str, dict[str, list[tuple[str, int]]]] = {"OT": {}, "NT": {}}
+    # 3. Из step-orig.sb (контекстные глоссы ТОЛЬКО на рабочих книгах!)
+    orig_db = sqlite3.connect(DATA / "work" / "strongs" / "orig" / "step-orig.sb")
+    for bid, ch, attrs in orig_db.execute("SELECT book_id, chapter, attrs FROM spans WHERE style='w'"):
+        bk = ID_BOOK.get(bid, "")
+        if is_held_out(bk, ch):
+            continue
+        t = "OT" if bid < 40 else "NT"
+        m_st = re.search(r'strong="([^"]+)"', attrs)
+        m_gr = re.search(r'gr="([^"]+)"', attrs)
+        if not m_st or not m_gr:
+            continue
+        codes = [c for c in m_st.group(1).split() if not c.startswith("H9") and c not in ("H0853", "G3588")]
+        if not codes:
+            codes = m_st.group(1).split()[:1]
+        for gtok in re.findall(r"[A-Za-z]+", m_gr.group(1)):
+            if len(gtok) >= 2:
+                for code in codes:
+                    add_obs(t, gtok, code, 2)
+
+    # 4. Словарные глоссы из strongs-step.sb (не зависят от книг)
+    lex_db = sqlite3.connect(DATA / "work" / "strongs" / "lexicon" / "strongs-step.sb")
+    for key, gloss, sl in lex_db.execute("SELECT key, gloss, sense_label FROM lex"):
+        t = "OT" if key.startswith("H") else "NT"
+        for tok in re.findall(r"[A-Za-z]+", f"{gloss or ''} {sl or ''}"):
+            if len(tok) >= 2:
+                add_obs(t, tok, key, 2)
+
+    out_ds: dict[str, dict[str, list[tuple[str, int]]]] = {"OT": {}, "NT": {}}
+    out_cl: dict[str, dict[str, list[tuple[str, int]]]] = {"OT": {}, "NT": {}}
     for t in ("OT", "NT"):
         for wl, ctr in counts[t].items():
-            out[t][wl] = ctr.most_common(8)
-    return out
+            out_ds[t][wl] = ctr.most_common(25)
+        for wl, ctr in cl_counts[t].items():
+            out_cl[t][wl] = ctr.most_common(25)
+    return out_ds, out_cl
 
 
 def main() -> None:
     WORK_PIPE.mkdir(parents=True, exist_ok=True)
     amap = build_form_alias()
     classic_to_ds, dstrong_gloss = build_lex_indexes()
-    word_priors = build_word_priors()
+    word_priors, classic_priors = build_word_priors()
 
     payload = {
         "form_alias": amap,
         "classic_to_dstrongs": classic_to_ds,
         "dstrong_gloss": dstrong_gloss,
         "word_priors": word_priors,
+        "classic_priors": classic_priors,
     }
     out_path = WORK_PIPE / "priors_en.json"
     with open(out_path, "w", encoding="utf-8") as f:

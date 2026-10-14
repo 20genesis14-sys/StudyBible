@@ -357,8 +357,11 @@ def _fill_untagged_words(
     links: list[WordLink | None],
     cands: list[OrigCand],
     priors: dict,
+    used_cands: set[int] | None = None,
 ) -> None:
     """Привязывает неразмеченные служебные и аналитические слова стиха."""
+    if used_cands is None:
+        used_cands = set()
     N = max(len(words), 1)
     M = max(len(cands), 1)
     testament = "OT" if bid < 40 else "NT"
@@ -404,7 +407,11 @@ def _fill_untagged_words(
             if wl in c.gloss_tokens or (len(wstem) >= 3 and wstem in c.gloss_stems):
                 gloss_hits.append(c)
         if gloss_hits:
-            best_c = min(gloss_hits, key=lambda c: abs((i / N) - (c.pos_idx / M)))
+            best_c = min(
+                gloss_hits,
+                key=lambda c: (1 if c.pos_idx in used_cands else 0, abs((i / N) - (c.pos_idx / M))),
+            )
+            used_cands.add(best_c.pos_idx)
             ds = lexical_dstrongs(best_c.dstrongs) if wl not in AUX_ENG_WORDS else best_c.dstrongs[:1]
             role = "aux" if wl in AUX_ENG_WORDS else "head"
             links[i] = WordLink(
@@ -423,16 +430,21 @@ def _fill_untagged_words(
         prior_list = wpriors.get(wl, [])
         if prior_list and cands:
             prior_map = {code: cnt for code, cnt in prior_list}
-            cand_matches: list[tuple[int, OrigCand, str]] = []
+            cand_matches: list[tuple[int, int, OrigCand, str]] = []
             for c in cands:
-                for d in c.dstrongs:
+                if wl not in AUX_ENG_WORDS and c.pos_idx in used_cands:
+                    continue
+                check_ds = lexical_dstrongs(c.dstrongs) if wl not in AUX_ENG_WORDS else c.dstrongs
+                for d in check_ds:
                     if d in prior_map:
-                        cand_matches.append((prior_map[d], c, d))
+                        free_bonus = 1 if c.pos_idx not in used_cands else 0
+                        cand_matches.append((free_bonus, prior_map[d], c, d))
             if cand_matches:
-                _, best_c, best_d = max(
+                _, _, best_c, best_d = max(
                     cand_matches,
-                    key=lambda item: (item[0], -abs((i / N) - (item[1].pos_idx / M))),
+                    key=lambda item: (item[0], item[1], -abs((i / N) - (item[2].pos_idx / M))),
                 )
+                used_cands.add(best_c.pos_idx)
                 role = "aux" if wl in AUX_ENG_WORDS else "head"
                 links[i] = WordLink(
                     word_idx=i,
@@ -493,6 +505,7 @@ def align_verse_blind(
     M = max(len(cands), 1)
     testament = "OT" if bid < 40 else "NT"
     wpriors = priors["word_priors"].get(testament, {})
+    clpriors = priors.get("classic_priors", {}).get(testament, {})
     dstrong_gloss: dict[str, str] = priors["dstrong_gloss"]
 
     links: list[WordLink | None] = [None] * len(words)
@@ -518,10 +531,19 @@ def align_verse_blind(
         if wl in AUX_ENG_WORDS:
             continue
         wstem = stem_en(wl)
-        prior_map = dict(wpriors.get(wl, []))
-        if not prior_map and wstem != wl:
-            prior_map = dict(wpriors.get(wstem, []))
+        prior_map: dict[str, int] = {}
+        for k, v in wpriors.get(f"#{wstem}", []):
+            prior_map[k] = prior_map.get(k, 0) + v
+        for k, v in wpriors.get(wl, []):
+            prior_map[k] = prior_map.get(k, 0) + v * 2
         prior_total = sum(prior_map.values()) or 1
+
+        cl_map: dict[str, int] = {}
+        for k, v in clpriors.get(f"#{wstem}", []):
+            cl_map[k] = cl_map.get(k, 0) + v
+        for k, v in clpriors.get(wl, []):
+            cl_map[k] = cl_map.get(k, 0) + v * 2
+        cl_total = sum(cl_map.values()) or 1
 
         for j, c in enumerate(cands):
             lex_ds = lexical_dstrongs(c.dstrongs)
@@ -532,30 +554,46 @@ def align_verse_blind(
             src_tag = "blind-gloss"
             # Сигнал 1: точное совпадение со словом контекстного глосса step-orig
             if wl in c.gloss_tokens:
-                score += 6.0
+                score += 6.5
             elif len(wstem) >= 3 and wstem in c.gloss_stems:
-                score += 4.5
+                score += 5.0
+            elif len(wl) >= 4 and any(t.startswith(wl[:4]) or wl.startswith(t[:4]) for t in c.gloss_tokens if len(t) >= 4):
+                score += 3.5
             # Сигнал 2: совпадение со словарным глоссом strongs-step
             if wl in cand_lex_tokens[j]:
-                score += 4.0
+                score += 4.5
             elif len(wstem) >= 3 and wstem in cand_lex_stems[j]:
-                score += 3.0
-            # Сигнал 3: приор с рабочих книг
+                score += 3.2
+            # Сигнал 3: приор dStrong и classic с рабочих книг (только знаменательные корни lex_ds!)
             best_p = 0
-            for d in c.dstrongs:
+            for d in lex_ds:
                 if d in prior_map and prior_map[d] > best_p:
                     best_p = prior_map[d]
                     best_d = d
             if best_p > 0:
-                score += 5.0 * (best_p / prior_total) + min(best_p / 20.0, 2.5)
+                score += 6.0 * (best_p / prior_total) + min(best_p / 15.0, 3.5)
                 src_tag = "blind-prior"
-            # Сигнал 4: совпадение имени собственного по eid
-            if c.eid and w[0].isupper() and wl in c.eid.lower():
-                score += 7.0
-                src_tag = "blind-eid"
+            best_clp = 0
+            for d in lex_ds:
+                cl_code = norm_classic(d)
+                if cl_code and cl_code in cl_map and cl_map[cl_code] > best_clp:
+                    best_clp = cl_map[cl_code]
+                    best_d = d
+            if best_clp > 0:
+                score += 4.5 * (best_clp / cl_total) + min(best_clp / 20.0, 2.5)
+                if src_tag == "blind-gloss":
+                    src_tag = "blind-cl-prior"
+            # Сигнал 4: совпадение имени собственного по eid или заглавной букве
+            if c.eid and w[0].isupper():
+                eid_low = c.eid.lower()
+                if wl in eid_low or (len(wl) >= 4 and wl[:4] in eid_low):
+                    score += 8.0
+                    src_tag = "blind-eid"
+                elif i > 0:
+                    score += 2.5
 
-            if score >= 2.2:
-                pos_pen = 1.5 * abs((i / N) - (c.pos_idx / M))
+            if score >= 1.4:
+                pos_pen = 1.4 * abs((i / N) - (c.pos_idx / M))
                 scored_pairs.append((score - pos_pen, i, j, best_d, src_tag))
 
     scored_pairs.sort(key=lambda x: x[0], reverse=True)
@@ -563,11 +601,10 @@ def align_verse_blind(
         if links[i] is not None:
             continue
         c = cands[j]
-        # Разрешаем одному кандидату оригинала привязываться ко второму слову только если это фразовый глосс
-        if j in used_cands and sc < 6.0:
+        if j in used_cands and sc < 7.5:
             continue
         used_cands.add(j)
-        conf = 10 if sc >= 8.0 else (9 if sc >= 4.5 else 8)
+        conf = 10 if sc >= 8.5 else (9 if sc >= 4.8 else 8)
         links[i] = WordLink(
             word_idx=i,
             word=words[i],
@@ -579,6 +616,36 @@ def align_verse_blind(
             source=src_tag,
         )
 
-    # Шаг 2: Заполняем служебные и оставшиеся слова
-    _fill_untagged_words(bid, words, links, cands, priors)
+    # Шаг 2: Остаточное монотонное сопоставление оставшихся знаменательных слов
+    # со свободными знаменательными кандидатами стиха (по позиции и части речи)
+    rem_words = [i for i, w in enumerate(words) if links[i] is None and w.lower() not in AUX_ENG_WORDS]
+    rem_cands = [
+        j
+        for j, c in enumerate(cands)
+        if j not in used_cands
+        and any(not d.startswith("H9") and d not in ("H0853", "G3588") for d in c.dstrongs)
+    ]
+    for i in rem_words:
+        if not rem_cands:
+            break
+        best_j = min(rem_cands, key=lambda j: abs((i / N) - (cands[j].pos_idx / M)))
+        if abs((i / N) - (cands[best_j].pos_idx / M)) <= 0.32:
+            rem_cands.remove(best_j)
+            used_cands.add(best_j)
+            c = cands[best_j]
+            lex_ds = lexical_dstrongs(c.dstrongs)
+            best_d = lex_ds[0] if lex_ds else c.dstrongs[0]
+            links[i] = WordLink(
+                word_idx=i,
+                word=words[i],
+                refs=[c.wid] if c.wid else [],
+                dstrongs=[best_d],
+                role="head",
+                conf=7,
+                flags=["head"],
+                source="blind-pos",
+            )
+
+    # Шаг 3: Заполняем служебные и оставшиеся слова
+    _fill_untagged_words(bid, words, links, cands, priors, used_cands)
     return [l for l in links if l is not None]
