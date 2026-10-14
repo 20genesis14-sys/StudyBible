@@ -304,13 +304,18 @@ can be attached to base-layer words deterministically.
     shift across 2,094 OT verses, e.g. `PSA 3:0` vs `PSA 3:1`), joined
     559 UBS Fauna/Flora/Realia articles, and reduced `rel_dangling`
     from 64 to **1** (12,568 relationships, 112,610 mentions).
-  - **Phase 5 (`engbsb-strongs.sb` v0.3.0)**: keyed `wid` fallback by
-    Masoretic `(src_b, src_c, src_v, word_num)`, added `BGNT-BSB-manual`
-    for Rom 16:25–27 and `bsb_tables`+`step-orig` fallback for 134
-    unaligned verses (`PSA *:0`, `NEH 7:68`), and split `diff-shift`
-    (29,724) from true lexical `diff` (8,551). Result: **724,445 links
-    (99.51 % of w1 words); `conf=10`: 721,754 (99.63 %), `conf=9`:
-    1,090, `conf=8`: 1,594, `conf=4` (`unresolved`): 7 words; 0
-    unlinked verses**. Registered `lex`/`lex_def`/`lex_base`/`morph`/
-    `knowledge` features in `studybible-cli` linter — all 4 modules pass
-    `module check` with 0 warnings.
+  - **Phase 5 & 5b (`engbsb-strongs.sb` v0.4.0)**: keyed `wid` fallback
+    by Masoretic `(src_b, src_c, src_v, word_num)`, added
+    `BGNT-BSB-manual` for Rom 16:25–27 and `bsb_tables`+`step-orig`
+    fallback for 134 unaligned verses (`PSA *:0`, `NEH 7:68`) plus
+    1,006 edition-diff words, mapped both `w1` tokens on possessives
+    (`man's` ↔ `man` + `s`), and added intra-group splitting
+    (`split_group` into `head`/`aux`/`added`), raising single-dStrong
+    words from 49.0 % (354,534) to **80.0 % (582,515)**. Result:
+    **728,034 links (100.00 % of w1 words; `head`: 430,650, `aux`:
+    296,186, `added`: 1,198); `conf=10`: 723,139 (99.33 %), `conf=9`:
+    3,294, `conf=8`: 1,594, `conf=4` (`unresolved`): 7 words; 0
+    unlinked verses; 8,475 lexical `diff`**. Registered
+    `lex`/`lex_def`/`lex_base`/`morph`/`knowledge` features in
+    `studybible-cli` linter — all 4 modules pass `module check` with 0
+    warnings.

@@ -435,17 +435,19 @@ kind='biblical'. Лицензия CC BY-SA 4.0. Отчёт —
 - Пилот `engbsb-strongs.sb` через `apps/studybible-cli/src/bin/
   strongs_layer.rs` (bsb_tables.tsv → 706 502 связи, `conf=10`;
   пропуски в `bsb-strongs.misses.tsv`; `module check` чист).
-- **v0.3.0 (заменяет пилот и v2):**
+- **v0.4.0 (Фаза 5b — заменяет пилот, v2 и v0.3.0):**
   `work/strongs/layers/engbsb-strongs.sb` через
   `tools/strongs/layers/step_clear_bsb.py` — настоящий dStrong из
   ручных выравниваний Clear (`WLCM-BSB`, `SBLGNT-BSB`, `BGNT-BSB` для
   Рим 16:25–27) через `step-orig.mid` (606 231 прямой `mid` в
-  `step-orig` v0.2.0), масоретский запасной `wid` и фолбэк
-  `bsb_tables`+`step-orig` для 134 стихов без выравнивания (`PSA *:0`,
-  `NEH 7:68`). **724 445 связей (99,51 % слов `w1`)**; `conf=10`:
-  721 754 (99,63 %), `conf=9`: 1 090, `conf=8`: 1 594, `conf=4`
-  (`unresolved`): 7 слов; 0 стихов без связей; канал разбора `diff`
-  (`engbsb-strongs.diffs.tsv`, 8 551 лексическое расхождение).
+  `step-orig` v0.2.0), масоретский запасной `wid`, фолбэк
+  `bsb_tables`+`step-orig` (`PSA *:0`, `NEH 7:68` и 1 006 слов с
+  редакционными отличиями) и внутригрупповое расщепление (`split_group`
+  на `head` / `aux` / `added`). **728 034 связи (100,00 % слов `w1`)**;
+  `conf=10`: 723 139 (99,33 %), `conf=9`: 3 294, `conf=8`: 1 594,
+  `conf=4` (`unresolved`): 7 слов; слов с 1 номером `dStrong`: 582 515
+  (80,0 %); канал разбора `diff` (`engbsb-strongs.diffs.tsv`, 8 475
+  лексических расхождений).
   NB: `bsb_tables.tsv` несёт классические номера, не dStrong.
 Приёмка выполнена: clippy `-D warnings` чист, тесты зелёные,
 регрессионные тесты на оба исправления.

@@ -1429,26 +1429,32 @@ plan, tasks, data inventory and skill specs —
   0.65 %) are psalm superscriptions (table verse 1 vs module verse 0)
   and edition diffs between the two BSB exports — all logged in
   `bsb-strongs.misses.tsv`. `module check` passes.
-- **v2 / v0.3.0: `bsb-strongs` upgraded to real dStrong and audited**
-  (2026-10-14). The first pilot carried *classic* numbers (`7225`,
-  one per Hebrew word — morphemes lost). Rebuilt from Clear manual
-  alignments (`WLCM-BSB-manual`, `SBLGNT-BSB-manual`, plus
-  `BGNT-BSB-manual` for Rom 16:25–27; CC BY 4.0): target token →
-  MACULA id → `step-orig.mid` → dStrong. Audit uncovered and fixed a
-  Masoretic-vs-English versification mismatch in `step-orig` (2,094
-  shifted OT verses) and maqef stripping in `norm_heb`, raising
-  `step-orig` direct `mid` coverage from 512,853 (75.5 %) to 606,231
-  (99.75 % of WLCM tokens). Word-position fallback (`wid`) now keys
-  by Masoretic `(src_b, src_c, src_v, word_num)`; 134 verses
-  unaligned in Clear (`PSA *:0` superscriptions and `NEH 7:68`) are
-  resolved via `bsb_tables.tsv` + `step-orig` morphemes (`flag=bsb-fb`,
-  `conf=9`). Result (`engbsb-strongs.sb` v0.3.0): **724,445 links
-  (99.51 % of w1 words)**; **`conf=10` for 721,754 (99.63 %)**,
-  `conf=9` for 1,090, `conf=8` for 1,594, and **`conf=4`
-  (`unresolved`) for only 7 words** across the entire Bible (down
-  from 10,989). Cross-check against classic `bsb_tables` separates
-  phrase shifts (`diff-shift`: 29,724) from true lexical differences
-  (`diff`: 8,551 in `engbsb-strongs.diffs.tsv`). Builder:
+- **v2 / v0.3.0 / v0.4.0 (Phase 5b): `bsb-strongs` upgraded to real
+  dStrong, audited, and group-split** (2026-10-14). The first pilot
+  carried *classic* numbers (`7225`, one per Hebrew word — morphemes
+  lost). Rebuilt from Clear manual alignments (`WLCM-BSB-manual`,
+  `SBLGNT-BSB-manual`, plus `BGNT-BSB-manual` for Rom 16:25–27; CC BY
+  4.0): target token → MACULA id → `step-orig.mid` → dStrong. Audit
+  uncovered and fixed a Masoretic-vs-English versification mismatch in
+  `step-orig` (2,094 shifted OT verses) and maqef stripping in
+  `norm_heb`, raising `step-orig` direct `mid` coverage from 512,853
+  (75.5 %) to 606,231 (99.75 % of WLCM tokens). Word-position fallback
+  (`wid`) keys by Masoretic `(src_b, src_c, src_v, word_num)`; 134
+  verses unaligned in Clear (`PSA *:0` superscriptions and `NEH 7:68`)
+  and 1,006 edition-diff words are resolved via `bsb_tables.tsv` +
+  `step-orig` morphemes (`flag=bsb-fb`, `conf=9`). Phase 5b (`v0.4.0`)
+  adds deterministic intra-group splitting (`split_group`): function
+  morphemes (`H9001..H9049`, `G3588`) attach to matching English
+  function words (`role=aux`), while content words receive only the
+  lexical root (`role=head`), raising single-dStrong words from 49.0 %
+  (354,534) to **80.0 % (582,515)**. Multi-token possessives (`man's`
+  ↔ `man` + `s`) map both `w1` indices, and unaligned English helper
+  words receive `flag=added,aux` (`conf=9`). Final result
+  (`engbsb-strongs.sb` v0.4.0): **728,034 links = 100.00 % of w1
+  words** (`head`: 430,650, `aux`: 296,186, `added`: 1,198);
+  **`conf=10`: 723,139 (99.33 %)**, `conf=9`: 3,294, `conf=8`: 1,594,
+  **`conf=4` (`unresolved`): 7 words**; `diff`: 8,475 in
+  `engbsb-strongs.diffs.tsv`. Builder:
   `tools/strongs/layers/step_clear_bsb.py`.
 
 ## Base layer `step-orig` — morpheme-level spans (2026-10-13..14, ADR 0025 impl.)

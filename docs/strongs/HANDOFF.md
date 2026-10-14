@@ -420,17 +420,19 @@ Implemented (see DECISIONS «`links` table and the `w1` tokenizer»):
 - Pilot `engbsb-strongs.sb` via `apps/studybible-cli/src/bin/
   strongs_layer.rs` (bsb_tables.tsv → 706,502 links, `conf=10`;
   misses logged in `bsb-strongs.misses.tsv`; `module check` clean).
-- **v0.3.0 (supersedes the pilot and v2):**
+- **v0.4.0 (Phase 5b — supersedes pilot, v2, v0.3.0):**
   `work/strongs/layers/engbsb-strongs.sb` via
   `tools/strongs/layers/step_clear_bsb.py` — real dStrong from Clear
   manual alignments (`WLCM-BSB`, `SBLGNT-BSB`, `BGNT-BSB` for Rom
   16:25–27) through `step-orig.mid` (606,231 direct `mid` in
-  `step-orig` v0.2.0), Masoretic `wid` fallback, and
-  `bsb_tables`+`step-orig` fallback for the 134 unaligned verses
-  (`PSA *:0`, `NEH 7:68`). **724,445 links (99.51 % of w1 words)**;
-  `conf=10`: 721,754 (99.63 %), `conf=9`: 1,090, `conf=8`: 1,594,
-  `conf=4` (`unresolved`): 7 words; 0 unlinked verses; `diff` review
-  channel (`engbsb-strongs.diffs.tsv`, 8,551 lexical diffs).
+  `step-orig` v0.2.0), Masoretic `wid` fallback,
+  `bsb_tables`+`step-orig` fallback (`PSA *:0`, `NEH 7:68`, and 1,006
+  edition-diff words), and intra-group splitting (`split_group` into
+  `head` / `aux` / `added`). **728,034 links (100.00 % of w1 words)**;
+  `conf=10`: 723,139 (99.33 %), `conf=9`: 3,294, `conf=8`: 1,594,
+  `conf=4` (`unresolved`): 7 words; single-dStrong words: 582,515
+  (80.0 %); `diff` review channel (`engbsb-strongs.diffs.tsv`, 8,475
+  lexical diffs).
   Note: `bsb_tables.tsv` carries classic numbers, not dStrong.
 Acceptance met: clippy `-D warnings` clean, suite green, regression
 tests for both importer/reader fixes.
