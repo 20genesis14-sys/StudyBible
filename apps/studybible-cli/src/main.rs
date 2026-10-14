@@ -719,12 +719,17 @@ fn lint(m: &Module) -> Vec<String> {
             "morph" => count("tokens")
                 .max(count("token_pack"))
                 .max(attr_count("morph"))
-                .max(pack_attr("morph")),
+                .max(pack_attr("morph"))
+                .max(count("morph")),
             "tokens" => count("tokens").max(count("token_pack")),
             "alignment" => count("alignment").max(count("align_pack")),
             "variants" => count("variants"),
             "entries" => count("entries"),
             "marks" => count("marks"),
+            "lex" => count("lex"),
+            "lex_def" => count("lex_def"),
+            "lex_base" => count("lex_base"),
+            "knowledge" => count("entities"),
             // ADR 0023: слой перекрёстных ссылок — `x`-спаны.
             "xrefs" => conn
                 .query_row("SELECT count(*) FROM spans WHERE kind='x'", [], |r| {
