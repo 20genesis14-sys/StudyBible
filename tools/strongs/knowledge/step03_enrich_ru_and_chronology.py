@@ -202,6 +202,37 @@ EXPLICIT_RU_NAMES: dict[str, str] = {
     "realia:Shaker": "Систр (трещотка)",
     "realia:TheHolyPlace": "Святое (отделение скинии/храма)",
     "realia:Two-drachmaPiece": "Дидрахма (монета в две драхмы)",
+    "realia:Talent": "Талант (мера веса и денег)",
+    "realia:Shekel": "Шекель (сикль)",
+    "realia:AHalfShekel": "Полшекеля (бека)",
+    "realia:Gerah": "Гера (мера веса)",
+    "realia:Mina": "Мина (мера веса и денег)",
+    "realia:Pound": "Литра (римский фунт)",
+    "realia:Daric": "Дарик (золотая монета)",
+    "realia:Denarius": "Динарий (серебряная монета)",
+    "realia:Drachma": "Драхма (серебряная монета)",
+    "realia:Stater": "Статер (тетрадрахма)",
+    "realia:Assarion": "Ассарий (медная монета)",
+    "realia:Quadrans": "Кодрант (медная монета)",
+    "realia:Lepton": "Лепта (мелкая монета)",
+    "realia:Ephah": "Ефа (мера сыпучих тел)",
+    "realia:Saton": "Сата (сеа, мера муки)",
+    "realia:Seah": "Сеа (сата, мера сыпучих тел)",
+    "realia:Omer": "Гомор (омер, мера сыпучих тел)",
+    "realia:Kab": "Кав (мера сыпучих тел)",
+    "realia:Homer": "Хомер (крупная мера объёма)",
+    "realia:Kor.2": "Кор (мера объёма)",
+    "realia:Hin": "Гин (мера жидкостей)",
+    "realia:Log": "Лог (малая мера жидкостей)",
+    "realia:Quart": "Хиникс (дневная мера зерна)",
+    "realia:Span": "Пядь (мера длины)",
+    "realia:Handbreadth": "Ладонь (мера длины)",
+    "realia:Finger": "Палец (перст, мера длины)",
+    "realia:Gomed": "Гомед (короткий локоть)",
+    "realia:MeasuringReed": "Измерительная трость",
+    "realia:Fathom": "Сажень (оргия, мера глубины)",
+    "realia:Stade": "Стадий (мера расстояния)",
+    "realia:Acre": "Цемед (участок воловьей упряжки)",
     # Понятия (keyterm)
     "keyterm:AbominationOfDesolation": "Мерзость запустения",
     "keyterm:Agitation": "Волнение (смятение)",
@@ -1233,13 +1264,20 @@ def main() -> None:
         if slug not in base_ru_by_slug:
             base_ru_by_slug[slug] = nm
 
-    # 5. Доводим покрытие русских имён до 100 % всех 5 700 сущностей и добавляем эталонные именительные формы
+    # 5. Доводим покрытие русских имён до 100 % всех 5 700 сущностей и ставим именительную форму первой (`kind='canonical'`)
     added_names: list[tuple[str, str, str, str]] = []
+    canon_existing = set(
+        db.execute("SELECT entity_id, LOWER(name) FROM entity_names WHERE lang='ru' AND kind='canonical'").fetchall()
+    )
     for eid, typ, en_name, strongs in db.execute("SELECT id, type, name, strongs FROM entities"):
         ea_rec = etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {}
-        nom_ru = ea_rec.get("nom_ru")
-        if nom_ru and nom_ru.lower() not in [x.lower() for x in ru_by_id.get(eid, [])]:
-            added_names.append((eid, nom_ru, "ru", "canonical"))
+        nom_ru = EXPLICIT_RU_NAMES.get(eid) or ea_rec.get("nom_ru")
+        if nom_ru:
+            if (eid, nom_ru.lower()) not in canon_existing:
+                added_names.append((eid, nom_ru, "ru", "canonical"))
+                canon_existing.add((eid, nom_ru.lower()))
+            if nom_ru in ru_by_id[eid]:
+                ru_by_id[eid].remove(nom_ru)
             ru_by_id[eid].insert(0, nom_ru)
 
         # Дополнительная форма из 66-книжного ru_rob-strongs.sb
