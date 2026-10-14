@@ -221,6 +221,25 @@ void main() {
     expect(firstW.strong, 'H9003');
     expect(firstW.flags, contains('aux'));
 
+    // Проверка надписания Псалма 3 (BlockKind.superscription, verse 0):
+    // слово 'Absalom' должно иметь dStrong 'H0053' и открывать карточку сущности Absalom.
+    final bsbPsa3 = await bsb.ensureChapter('PSA', 3);
+    expect(bsbPsa3, isNotNull);
+    final supBlock = bsbPsa3!.blocks.firstWhere(
+      (b) => b.kind == BlockKind.superscription,
+    );
+    final absalomSpan = supBlock.spans
+        .whereType<TextSpanDoc>()
+        .firstWhere((s) => s.text == 'Absalom');
+    expect(absalomSpan.strong, 'H0053');
+    final absalomCard = await bridgeChapterDoc(
+      origPath,
+      '@lex:${absalomSpan.strong}|ref=${absalomSpan.refAddr ?? ""}',
+      1,
+    );
+    expect(absalomCard, isNotNull);
+    expect(absalomCard!, contains('Absalom'));
+
     // Проверка расширенной карточки лексикона и графа знаний (@lex и @entity).
     final lexRaw = await bridgeChapterDoc(
       origPath,

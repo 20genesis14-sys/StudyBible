@@ -440,11 +440,11 @@ fn inject_layer_strongs(
     let mut verse_w_idx: HashMap<u16, u16> = HashMap::new();
     let mut cur_v: Option<u16> = None;
     for b in &mut ch.blocks {
-        if matches!(
-            b.kind(),
-            BlockKind::Heading | BlockKind::Superscription | BlockKind::Blank
-        ) {
+        if matches!(b.kind(), BlockKind::Heading | BlockKind::Blank) {
             continue;
+        }
+        if b.kind() == BlockKind::Superscription && cur_v.is_none() {
+            cur_v = Some(0);
         }
         // Шаг 1: снимаем старые встроенные strong-атрибуты и склеиваем
         // соседние текстовые спаны с одинаковым стилем внутри одного стиха.
@@ -620,6 +620,18 @@ fn norm_eid_key(eid: &str) -> String {
     }
 }
 
+fn parse_wid_book_ch(wid: &str) -> Option<(u16, i64)> {
+    let mut parts = wid.split('.');
+    let bk_str = parts.next()?;
+    let ch_str = parts.next()?;
+    let code = BookCode::new(&bk_str.to_ascii_uppercase())?;
+    let bid = studybible_core::BookCatalog::builtin()
+        .by_code(code)?
+        .order_list?;
+    let ch = ch_str.parse::<i64>().ok()?;
+    Some((bid, ch))
+}
+
 fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>> {
     let mut parts = query.split('|');
     let strong_raw = parts.next().unwrap_or("").trim();
@@ -648,27 +660,40 @@ fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>>
         && let Ok(om) = lock_module(&om)
     {
         let pat = format!("%wid=\"{first_wid}\"%");
-        if let Ok(mut st) = om
-            .conn()
-            .prepare("SELECT attrs FROM spans WHERE attrs LIKE ?1 LIMIT 5")
-            && let Ok(rows) = st.query_map([&pat], |r| r.get::<_, String>(0))
-        {
-            for a in rows.flatten() {
-                if eid_raw.is_empty()
-                    && let Some(e) = extract_attr(&a, "eid")
-                {
-                    eid_raw = e;
-                }
-                if sns_raw.is_empty()
-                    && let Some(s) = extract_attr(&a, "sns")
-                {
-                    sns_raw = s;
-                }
-                if morph_code.is_empty()
-                    && let Some(mc) = extract_attr(&a, "morph")
-                {
-                    morph_code = mc;
-                }
+        let rows_vec: Vec<String> = if let Some((bid, ch_n)) = parse_wid_book_ch(first_wid) {
+            let bid_s = bid.to_string();
+            let ch_s = ch_n.to_string();
+            om.conn()
+                .prepare("SELECT attrs FROM spans WHERE book_id=CAST(?1 AS INTEGER) AND chapter=CAST(?2 AS INTEGER) AND attrs LIKE ?3 LIMIT 5")
+                .and_then(|mut st| {
+                    st.query_map([&bid_s, &ch_s, &pat], |r| r.get::<_, String>(0))
+                        .map(|it| it.flatten().collect())
+                })
+                .unwrap_or_default()
+        } else {
+            om.conn()
+                .prepare("SELECT attrs FROM spans WHERE attrs LIKE ?1 LIMIT 5")
+                .and_then(|mut st| {
+                    st.query_map([&pat], |r| r.get::<_, String>(0))
+                        .map(|it| it.flatten().collect())
+                })
+                .unwrap_or_default()
+        };
+        for a in rows_vec {
+            if eid_raw.is_empty()
+                && let Some(e) = extract_attr(&a, "eid")
+            {
+                eid_raw = e;
+            }
+            if sns_raw.is_empty()
+                && let Some(s) = extract_attr(&a, "sns")
+            {
+                sns_raw = s;
+            }
+            if morph_code.is_empty()
+                && let Some(mc) = extract_attr(&a, "morph")
+            {
+                morph_code = mc;
             }
         }
     }

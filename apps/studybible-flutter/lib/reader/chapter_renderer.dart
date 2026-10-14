@@ -1371,13 +1371,15 @@ extension _ChapterRenderer on _ReadingScreenState {
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  _plainText(b),
-                  style: TextStyle(
-                    fontFamily: readingFontFamily(settings.readingFont),
-                    fontSize: 13 * settings.fontScale,
-                    fontStyle: FontStyle.italic,
-                    color: p.muted,
+                child: Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: readingFontFamily(settings.readingFont),
+                      fontSize: 13 * settings.fontScale,
+                      fontStyle: FontStyle.italic,
+                      color: p.muted,
+                    ),
+                    children: _spansOf(b, p, 0, const {}),
                   ),
                 ),
               ),
@@ -1474,13 +1476,15 @@ extension _ChapterRenderer on _ReadingScreenState {
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  _plainText(b),
-                  style: TextStyle(
-                    fontFamily: readingFontFamily(settings.readingFont),
-                    fontSize: 13 * settings.fontScale,
-                    fontStyle: FontStyle.italic,
-                    color: p.muted,
+                child: Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: readingFontFamily(settings.readingFont),
+                      fontSize: 13 * settings.fontScale,
+                      fontStyle: FontStyle.italic,
+                      color: p.muted,
+                    ),
+                    children: _spansOf(b, p, 0, const {}),
                   ),
                 ),
               ),
@@ -1598,13 +1602,15 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (b.kind == BlockKind.superscription) {
         out.add(
           Center(
-            child: Text(
-              _plainText(b),
-              style: TextStyle(
-                fontFamily: readingFontFamily(settings.readingFont),
-                fontSize: 13 * settings.fontScale,
-                fontStyle: FontStyle.italic,
-                color: p.muted,
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(
+                  fontFamily: readingFontFamily(settings.readingFont),
+                  fontSize: 13 * settings.fontScale,
+                  fontStyle: FontStyle.italic,
+                  color: p.muted,
+                ),
+                children: _spansOf(b, p, 0, const {}),
               ),
             ),
           ),
@@ -2083,13 +2089,15 @@ extension _ChapterRenderer on _ReadingScreenState {
       if (b.kind == BlockKind.superscription) {
         out.add(
           Center(
-            child: Text(
-              _plainText(b),
-              style: TextStyle(
-                fontFamily: readingFontFamily(settings.readingFont),
-                fontSize: 13 * settings.fontScale,
-                fontStyle: FontStyle.italic,
-                color: p.muted,
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(
+                  fontFamily: readingFontFamily(settings.readingFont),
+                  fontSize: 13 * settings.fontScale,
+                  fontStyle: FontStyle.italic,
+                  color: p.muted,
+                ),
+                children: _spansOf(b, p, 0, const {}),
               ),
             ),
           ),
