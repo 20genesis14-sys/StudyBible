@@ -16,6 +16,18 @@ Usability and intuitiveness — fixing visual rough edges.
   corner.
 - The header now shows the full book and chapter name, plus the
   translation and mode.
+- Faster chapter turns, bookmarking and highlighting: the app now
+  loads only the current chapter's notes and highlights instead of
+  re-reading your entire notebook every time.
+- Search "In footnotes" now also finds cross-references from the
+  built-in parallel-passages set, and tapping a note in a chapter
+  heading opens the start of that chapter cleanly.
+- Fixed broken Russian book titles when "Full book names" and the
+  "Modern" book-name style were turned on together.
+- On wide screens (desktop/tablet), tapping the Footnotes button a
+  second time now closes the side panel.
+- Settings and reading history are saved more reliably and no longer
+  slow down when you have many bookmarks and notes.
 - Various fixes of visual rough edges across the app.
 - Miscellaneous fixes.
 
