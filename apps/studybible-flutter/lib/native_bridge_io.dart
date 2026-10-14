@@ -18,6 +18,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
 import 'package:path_provider/path_provider.dart';
 
 import 'frag.dart';
+import 'models.dart';
 import 'native_bridge.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/rust/api/module.dart' as api_module;
@@ -219,6 +220,101 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) =>
       () => api_module.chapterDoc(path: path, book: book, chapter: chapter),
     );
 
+SpanDoc _spanFromInfo(api_module.SpanDocInfo s) {
+  if (s.kind == 'v') return VerseSpanDoc(s.verse.toInt());
+  if (s.kind == 'f' || s.kind == 'x') {
+    return NoteSpanDoc(
+      kind: s.kind,
+      caller: s.caller,
+      text: s.text,
+      attrs: s.attrs,
+    );
+  }
+  return TextSpanDoc(text: s.text, style: s.style, attrs: s.attrs);
+}
+
+BlockDoc _blockFromInfo(api_module.BlockDocInfo b) => BlockDoc(
+  kind: switch (b.kind) {
+    'q' => BlockKind.poetry,
+    'h' => BlockKind.heading,
+    'd' => BlockKind.superscription,
+    'b' => BlockKind.blank,
+    _ => BlockKind.paragraph,
+  },
+  marker: b.marker,
+  spans: [for (final s in b.spans) _spanFromInfo(s)],
+);
+
+/// Прямая типизированная загрузка главы из `.sb` без JSON-строки.
+Future<ChapterDoc?> bridgeLoadChapterDoc(
+  String path,
+  String book,
+  int chapter,
+) async {
+  final info = await _guard(
+    'chapterDocTyped',
+    () => api_module.chapterDocTyped(path: path, book: book, chapter: chapter),
+  );
+  if (info == null) return null;
+  return ChapterDoc(
+    number: info.number.toInt(),
+    blocks: [for (final b in info.blocks) _blockFromInfo(b)],
+    variants: [
+      for (final v in info.variants)
+        VariantDoc(
+          verse: v.verse.toInt(),
+          tokenFrom: v.tokenFrom.toInt(),
+          tokenTo: v.tokenTo.toInt(),
+          readings: [
+            for (final r in v.readings)
+              ReadingDoc(
+                text: r.text,
+                isBase: r.isBase,
+                witnesses: r.witnesses,
+              ),
+          ],
+        ),
+    ],
+    layerMismatch: info.layerMismatch,
+  );
+}
+
+/// Прямая типизированная загрузка документа модуля из `.sb` без JSON-строки.
+Future<ModuleDoc?> bridgeLoadModuleDoc(String id, String path) async {
+  final info = await _guard(
+    'moduleDocTyped',
+    () => api_module.moduleDocTyped(path: path),
+  );
+  if (info == null) return null;
+  return ModuleDoc(
+    id: info.id.isEmpty ? id : info.id,
+    title: info.title,
+    language: info.language,
+    kind: info.kind.isEmpty ? 'bible' : info.kind,
+    features: info.features,
+    rights: info.rights,
+    versification: info.versification,
+    books: [
+      for (final b in info.books)
+        BookDoc(code: b.code, title: b.title, chapters: b.chapters.toInt()),
+    ],
+    chapters: {},
+    verseCounts: {for (final vc in info.verseCounts) vc.key: vc.count.toInt()},
+    chapterLoader: (code, n) => bridgeChapterDoc(path, code, n),
+    typedChapterLoader: (code, n) => bridgeLoadChapterDoc(path, code, n),
+  );
+}
+
+Future<String?> bridgeSettingsLoad() => _guard(
+  'settingsLoad',
+  () => api_userdata.settingsLoad(path: _userdataPath()),
+);
+
+Future<void> bridgeSettingsSave(String json) => _guard(
+  'settingsSave',
+  () => api_userdata.settingsSave(path: _userdataPath(), json: json),
+);
+
 Future<String?> bridgeProgressLoad() => _guard(
   'progressLoad',
   () => api_userdata.progressLoad(path: _userdataPath()),
@@ -284,6 +380,26 @@ Future<List<UserEntry>> bridgeEntriesList(String kind, {String? module}) async {
       path: _userdataPath(),
       kind: kind,
       module: module,
+    ),
+  );
+  return [
+    for (final e in list ?? const <api_userdata.UserEntryInfo>[]) _entry(e),
+  ];
+}
+
+/// Все живые записи пользователя (`hl`, `note`, `mark`, `tag`) одной главы.
+Future<List<UserEntry>> bridgeEntriesChapter(
+  String module,
+  String book,
+  int chapter,
+) async {
+  final list = await _guard(
+    'entriesChapter',
+    () => api_userdata.entriesChapter(
+      path: _userdataPath(),
+      module: module,
+      book: book,
+      chapter: chapter,
     ),
   );
   return [

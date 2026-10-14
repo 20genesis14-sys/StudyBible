@@ -361,16 +361,20 @@ class Settings extends ChangeNotifier {
   /// `_save()`, чтобы быстрые переключения не плодили дубликаты строки.
   Future<void> _saveQueue = Future.value();
 
-  /// Загрузить настройки из UserData (kind=mark, module='settings',
-  /// book='SET', context — JSON со всеми полями).
+  /// Загрузить настройки из `meta('settings')` в UserData
+  /// (с прозрачной миграцией из старой записи `entries`, если была).
   Future<void> load() async {
     try {
-      final all = await bridgeEntriesList('mark', module: 'settings');
-      final e = all
-          .where((e) => e.module == 'settings' && e.book == 'SET')
-          .firstOrNull;
-      if (e != null && e.context.isNotEmpty) {
-        final j = jsonDecode(e.context) as Map<String, dynamic>;
+      var raw = await bridgeSettingsLoad();
+      if (raw == null || raw.isEmpty) {
+        final all = await bridgeEntriesList('mark', module: 'settings');
+        raw = all
+            .where((e) => e.module == 'settings' && e.book == 'SET')
+            .firstOrNull
+            ?.context;
+      }
+      if (raw != null && raw.isNotEmpty) {
+        final j = jsonDecode(raw) as Map<String, dynamic>;
         theme = AppTheme.values[j['theme'] as int? ?? 0];
         autoNight = j['autoNight'] as bool? ?? false;
         nightStart = j['nightStart'] as int? ?? 22 * 60;
@@ -472,21 +476,7 @@ class Settings extends ChangeNotifier {
       'defaultModule': defaultModule,
     });
     try {
-      final all = await bridgeEntriesList('mark', module: 'settings');
-      for (final e in all.where(
-        (e) => e.module == 'settings' && e.book == 'SET',
-      )) {
-        await bridgeEntryRemove(e.id);
-      }
-      await bridgeEntryAdd(
-        kind: 'mark',
-        module: 'settings',
-        book: 'SET',
-        chapter: 0,
-        verse: 0,
-        text: 'settings',
-        context: j,
-      );
+      await bridgeSettingsSave(j);
     } catch (_) {
       // Не сохранилось — следующий запуск вернёт старые значения.
     }
@@ -734,8 +724,8 @@ class Notes extends ChangeNotifier {
 
 final Notes notes = Notes();
 
-/// Сквозная история навигации — записи kind=mark с текстом
-/// 'hist*' в UserData (userdata.db / localStorage на web).
+/// Сквозная история навигации — записи kind='hist' в UserData
+/// (userdata.db / localStorage на web).
 /// 'hist' — глава/стих, 'hist:dict' — словарь Стронга,
 /// 'hist:search' — поисковый запрос. Без ограничения по времени.
 class ReadingHistory extends ChangeNotifier {
@@ -744,7 +734,7 @@ class ReadingHistory extends ChangeNotifier {
   bool _loaded = false;
 
   Future<void> load() async {
-    final all = await bridgeEntriesList('mark');
+    final all = await bridgeEntriesList('hist');
     items
       ..clear()
       ..addAll(all.where((e) => e.text.startsWith('hist')));
@@ -770,7 +760,7 @@ class ReadingHistory extends ChangeNotifier {
     }
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = await bridgeEntryAdd(
-      kind: 'mark',
+      kind: 'hist',
       module: module,
       book: book,
       chapter: chapter,
@@ -783,7 +773,7 @@ class ReadingHistory extends ChangeNotifier {
       UserEntry(
         id: id ?? 'local-$now',
         module: module,
-        kind: 'mark',
+        kind: 'hist',
         book: book,
         chapter: chapter,
         verse: verse,

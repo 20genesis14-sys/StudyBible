@@ -365,57 +365,35 @@ extension _ReaderController on _ReadingScreenState {
         .whenComplete(() => _syncingScroll = false);
   }
 
-  /// Перечитать выделения и заметки текущей главы из userdata.db.
+  /// Перечитать выделения и заметки текущей главы из userdata.db
+  /// одним индексным запросом `entries_chapter`.
   Future<void> _loadVerseEntries() async {
-    final res = await Future.wait([
-      bridgeEntriesList('hl', module: _moduleId),
-      bridgeEntriesList('note', module: _moduleId),
-      bridgeEntriesList('mark', module: _moduleId),
-      bridgeEntriesList('tag', module: _moduleId),
-    ]);
-    final hl = res[0], nt = res[1], mk = res[2], tg = res[3];
+    final all = await bridgeEntriesChapter(_moduleId, _code, _ch);
     if (!mounted) return;
     _rebuild(() {
       _highlights.clear();
-      for (final e in hl.where((e) => e.book == _code && e.chapter == _ch)) {
-        _highlights.putIfAbsent(e.verse, () => []).add(e);
-      }
-      _verseNotes
-        ..clear()
-        ..addEntries(
-          nt
-              .where(
-                (e) => e.book == _code && e.chapter == _ch && e.frag.isEmpty,
-              )
-              .map((e) => MapEntry(e.verse, e)),
-        );
+      _verseNotes.clear();
       _fragNotes.clear();
-      for (final e in nt.where(
-        (e) => e.book == _code && e.chapter == _ch && e.frag.isNotEmpty,
-      )) {
-        _fragNotes.putIfAbsent(e.verse, () => []).add(e);
+      _verseMarks.clear();
+      _tagEntries.clear();
+      for (final e in all) {
+        switch (e.kind) {
+          case 'hl':
+            _highlights.putIfAbsent(e.verse, () => []).add(e);
+          case 'note':
+            if (e.frag.isEmpty) {
+              _verseNotes[e.verse] = e;
+            } else {
+              _fragNotes.putIfAbsent(e.verse, () => []).add(e);
+            }
+          case 'mark':
+            if (!e.text.startsWith('hist')) {
+              _verseMarks[e.verse] = e;
+            }
+          case 'tag':
+            _tagEntries[e.verse] = e;
+        }
       }
-      _verseMarks
-        ..clear()
-        ..addEntries(
-          mk
-              // Записи истории (text 'hist*') — не закладки, маркеры
-              // на стихи по ним не ставим.
-              .where(
-                (e) =>
-                    e.book == _code &&
-                    e.chapter == _ch &&
-                    !e.text.startsWith('hist'),
-              )
-              .map((e) => MapEntry(e.verse, e)),
-        );
-      _tagEntries
-        ..clear()
-        ..addEntries(
-          tg
-              .where((e) => e.book == _code && e.chapter == _ch)
-              .map((e) => MapEntry(e.verse, e)),
-        );
     });
     // Частичные выделения: разрешаем frag-селекторы в смещения
     // плоского текста стиха (ядро, find_frag); смещения — в

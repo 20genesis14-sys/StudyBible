@@ -22,6 +22,7 @@ import 'package:typed_data/typed_buffers.dart';
 import 'package:web/web.dart' as web;
 
 import 'frag.dart';
+import 'models.dart';
 import 'native_bridge.dart';
 import 'search_norm.dart'
     show ftsQuery, normForIndex, normVersion, parseSearchQuery, scanMatch;
@@ -301,6 +302,36 @@ Future<String?> bridgeModuleDoc(String path) async {
     debugPrint('[bridge] module_doc $path: $e');
     return null;
   }
+}
+
+/// Загрузить документ модуля (на web — поверх `bridgeModuleDoc`).
+Future<ModuleDoc?> bridgeLoadModuleDoc(String id, String path) async {
+  final raw = await bridgeModuleDoc(path);
+  if (raw == null) return null;
+  final doc = ModuleDoc.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  return ModuleDoc(
+    id: doc.id.isEmpty ? id : doc.id,
+    title: doc.title,
+    language: doc.language,
+    books: doc.books,
+    chapters: doc.chapters,
+    verseCounts: doc.verseCounts,
+    chapterLoader: (code, n) => bridgeChapterDoc(path, code, n),
+    kind: doc.kind,
+    features: doc.features,
+    rights: doc.rights,
+    versification: doc.versification,
+  );
+}
+
+Future<ChapterDoc?> bridgeLoadChapterDoc(
+  String path,
+  String book,
+  int chapter,
+) async {
+  final raw = await bridgeChapterDoc(path, book, chapter);
+  if (raw == null) return null;
+  return ChapterDoc.fromJson(jsonDecode(raw) as Map<String, dynamic>);
 }
 
 /// Тип блока по маркеру — зеркало studybible_core::text::Block::kind().
@@ -673,8 +704,31 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) async {
 const _kRead = 'sb.read';
 const _kLastVerse = 'sb.lastVerse';
 const _kPosition = 'sb.position';
+const _kSettings = 'sb.settings';
 
 final _storage = web.window.localStorage;
+
+Future<String?> bridgeSettingsLoad() async {
+  final direct = _storage.getItem(_kSettings);
+  if (direct != null && direct.isNotEmpty) return direct;
+  // Миграция со старой записи в sb.entries, если была.
+  for (final m in _entries()) {
+    if (m['kind'] == 'mark' &&
+        m['module'] == 'settings' &&
+        m['book'] == 'SET') {
+      final ctx = '${m['context'] ?? ''}';
+      if (ctx.isNotEmpty) {
+        _storage.setItem(_kSettings, ctx);
+        return ctx;
+      }
+    }
+  }
+  return null;
+}
+
+Future<void> bridgeSettingsSave(String json) async {
+  _storage.setItem(_kSettings, json);
+}
 
 List<String> _readList() =>
     (jsonDecode(_storage.getItem(_kRead) ?? '[]') as List)
@@ -755,7 +809,26 @@ Future<List<UserEntry>> bridgeEntriesList(
   String? module,
 }) async => [
   for (final m in _entries())
-    if (m['kind'] == kind && (module == null || m['module'] == module))
+    if ((m['kind'] == kind ||
+            (kind == 'hist' &&
+                m['kind'] == 'mark' &&
+                '${m['text'] ?? ''}'.startsWith('hist'))) &&
+        (module == null || m['module'] == module))
+      _toEntry(m),
+];
+
+/// Все живые записи пользователя (`hl`, `note`, `mark`, `tag`) одной главы.
+Future<List<UserEntry>> bridgeEntriesChapter(
+  String module,
+  String book,
+  int chapter,
+) async => [
+  for (final m in _entries())
+    if (m['module'] == module &&
+        m['book'] == book &&
+        (m['chapter'] as num).toInt() == chapter &&
+        const {'hl', 'note', 'mark', 'tag'}.contains(m['kind']) &&
+        !'${m['text'] ?? ''}'.startsWith('hist'))
       _toEntry(m),
 ];
 

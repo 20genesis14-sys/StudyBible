@@ -8,7 +8,9 @@
 //!   * highlight `text="lv"`, verse=N — последний открытый стих главы;
 //!   * mark `text="pos"` — последняя позиция чтения (всегда одна запись).
 
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use anyhow::{Result, anyhow};
 use serde_json::{Map, Value, json};
@@ -21,6 +23,10 @@ const PROGRESS_MODULE: &str = "*";
 const TAG_READ: &str = "read";
 const TAG_LAST_VERSE: &str = "lv";
 const TAG_POSITION: &str = "pos";
+
+/// Кэш открытых соединений `userdata.db` (один раз на путь в сессии).
+static USERDATA: LazyLock<Mutex<HashMap<PathBuf, Arc<Mutex<UserData>>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 fn anchor<'a>(book: &str, chapter: i64, verse: i64) -> Result<Anchor<'a>> {
     anchor_at(PROGRESS_MODULE, book, chapter, verse)
@@ -35,8 +41,26 @@ fn anchor_at<'a>(module: &'a str, book: &str, chapter: i64, verse: i64) -> Resul
     })
 }
 
-fn open(path: &str) -> Result<UserData> {
-    Ok(UserData::open(Path::new(path))?)
+fn open_cached(path: &str) -> Result<Arc<Mutex<UserData>>> {
+    let key = PathBuf::from(path);
+    {
+        let map = USERDATA
+            .lock()
+            .map_err(|_| anyhow!("userdata cache poisoned"))?;
+        if let Some(u) = map.get(&key) {
+            return Ok(u.clone());
+        }
+    }
+    let u = Arc::new(Mutex::new(UserData::open(&key)?));
+    USERDATA
+        .lock()
+        .map_err(|_| anyhow!("userdata cache poisoned"))?
+        .insert(key, u.clone());
+    Ok(u)
+}
+
+fn lock_ud(u: &Mutex<UserData>) -> Result<std::sync::MutexGuard<'_, UserData>> {
+    u.lock().map_err(|_| anyhow!("userdata cache poisoned"))
 }
 
 /// Путь модуля по `meta.id`: быстрая ветка — файл `<id>.sb`/`.sbz`;
@@ -90,10 +114,10 @@ fn resolve_module(ud_path: &str, id: &str) -> Option<std::sync::Arc<std::sync::M
 /// Снять состояние прогресса одним JSON:
 /// `{"read":["GEN:1",...], "last_position":"GEN:1"|null, "last_verse":{"GEN:1":5}}`.
 pub async fn progress_load(path: String) -> Result<String> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     let mut read = Vec::new();
     let mut last_verse = Map::new();
-    let mut last_position = Value::Null;
 
     for e in ud.entries(Kind::Highlight, Some(PROGRESS_MODULE))? {
         if e.verse == 0 && e.text == TAG_READ {
@@ -102,16 +126,18 @@ pub async fn progress_load(path: String) -> Result<String> {
             last_verse.insert(format!("{}:{}", e.book, e.chapter), Value::from(e.verse));
         }
     }
-    // Позиция одна — берём самую свежую запись, если их несколько.
-    let mut pos: Option<(i64, String)> = None;
-    for e in ud.entries(Kind::Mark, Some(PROGRESS_MODULE))? {
-        if e.text == TAG_POSITION && pos.as_ref().is_none_or(|(u, _)| e.updated >= *u) {
-            pos = Some((e.updated, format!("{}:{}", e.book, e.chapter)));
+    let last_position = if let Some(p) = ud.meta_get("last_position")? {
+        Value::from(p)
+    } else {
+        // Фоллбэк на старую запись, если есть.
+        let mut pos: Option<(i64, String)> = None;
+        for e in ud.entries(Kind::Mark, Some(PROGRESS_MODULE))? {
+            if e.text == TAG_POSITION && pos.as_ref().is_none_or(|(u, _)| e.updated >= *u) {
+                pos = Some((e.updated, format!("{}:{}", e.book, e.chapter)));
+            }
         }
-    }
-    if let Some((_, p)) = pos {
-        last_position = Value::from(p);
-    }
+        pos.map(|(_, p)| Value::from(p)).unwrap_or(Value::Null)
+    };
 
     Ok(json!({
         "read": read,
@@ -123,7 +149,8 @@ pub async fn progress_load(path: String) -> Result<String> {
 
 /// Отметить главу прочитанной (повторная отметка — не дубль).
 pub async fn progress_mark_read(path: String, book: String, chapter: i64) -> Result<()> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     let exists = ud
         .entries(Kind::Highlight, Some(PROGRESS_MODULE))?
         .iter()
@@ -136,20 +163,29 @@ pub async fn progress_mark_read(path: String, book: String, chapter: i64) -> Res
     Ok(())
 }
 
-/// «Продолжить отсюда»: одна запись-позиция на всю базу.
+/// «Продолжить отсюда»: позиция хранится в `meta('last_position')`.
 pub async fn progress_set_position(
     path: String,
     book: String,
     chapter: i64,
     verse: i64,
 ) -> Result<()> {
-    let ud = open(&path)?;
-    for e in ud.entries(Kind::Mark, Some(PROGRESS_MODULE))? {
-        if e.text == TAG_POSITION {
-            ud.remove(&e.id)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    ud.meta_set("last_position", &format!("{book}:{chapter}"))?;
+    if verse > 0 {
+        for e in ud.entries(Kind::Highlight, Some(PROGRESS_MODULE))? {
+            if e.text == TAG_LAST_VERSE && e.book == book && e.chapter == chapter as u16 {
+                ud.remove(&e.id)?;
+            }
         }
+        ud.add(
+            Kind::Highlight,
+            anchor(&book, chapter, verse)?,
+            TAG_LAST_VERSE,
+            "",
+        )?;
     }
-    ud.add(Kind::Mark, anchor(&book, chapter, verse)?, TAG_POSITION, "")?;
     Ok(())
 }
 
@@ -160,7 +196,8 @@ pub async fn progress_set_verse(
     chapter: i64,
     verse: i64,
 ) -> Result<()> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     for e in ud.entries(Kind::Highlight, Some(PROGRESS_MODULE))? {
         if e.text == TAG_LAST_VERSE && e.book == book && e.chapter == chapter as u16 {
             ud.remove(&e.id)?;
@@ -176,14 +213,31 @@ pub async fn progress_set_verse(
 }
 
 /// Сбросить весь прогресс (кнопка «Сбросить» в настройках).
-/// Трогает только служебные записи псевдо-модуля — пользовательские не затрагиваются.
+/// Трогает только служебные записи псевдо-модуля и `meta.last_position`.
 pub async fn progress_reset(path: String) -> Result<()> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    ud.meta_remove("last_position")?;
     for kind in [Kind::Highlight, Kind::Mark, Kind::Note] {
         for e in ud.entries(kind, Some(PROGRESS_MODULE))? {
             ud.remove(&e.id)?;
         }
     }
+    Ok(())
+}
+
+/// Прочитать JSON настроек приложения из `meta('settings')`.
+pub async fn settings_load(path: String) -> Result<Option<String>> {
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    Ok(ud.meta_get("settings")?)
+}
+
+/// Записать JSON настроек приложения в `meta('settings')`.
+pub async fn settings_save(path: String, json: String) -> Result<()> {
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    ud.meta_set("settings", &json)?;
     Ok(())
 }
 
@@ -237,9 +291,28 @@ pub async fn entries_list(
     kind: String,
     module: Option<String>,
 ) -> Result<Vec<UserEntryInfo>> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     Ok(ud
         .entries(kind_of(&kind)?, module.as_deref())?
+        .iter()
+        .map(entry_info)
+        .collect())
+}
+
+/// Все живые записи пользователя (`hl`, `note`, `mark`, `tag`) одной главы.
+pub async fn entries_chapter(
+    path: String,
+    module: String,
+    book: String,
+    chapter: i64,
+) -> Result<Vec<UserEntryInfo>> {
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    let b = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
+    let ch = u16::try_from(chapter).map_err(|_| anyhow!("глава {chapter}"))?;
+    Ok(ud
+        .entries_for_chapter(&module, b, ch)?
         .iter()
         .map(entry_info)
         .collect())
@@ -260,11 +333,12 @@ pub async fn entry_add(
     created: Option<i64>,
 ) -> Result<String> {
     let anchor = anchor_at(&module, &book, chapter, verse)?;
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     let k = kind_of(&kind)?;
     // Записи истории ('hist*') и служебные псевдомодули ('*', 'settings', '')
     // не привязываются к тексту стиха — модуль для них не открываем.
-    let skip_bind = k == Kind::Mark && text.starts_with("hist");
+    let skip_bind = k == Kind::History || (k == Kind::Mark && text.starts_with("hist"));
     // Метаполя привязки (в.12) берём из кэшированного модуля сами —
     // Dart-стороне их передавать не нужно; у служебного `*` модуля нет,
     // его записи остаются с пустой метой (add() по-прежнему).
@@ -335,7 +409,8 @@ pub async fn entries_foreign_list(
     // Установленность — по карте meta.id каталога: одно сканирование.
     let dir = Path::new(&path).parent().map(|p| p.join("modules"));
     let installed = dir.map(|d| module_path_map(&d)).unwrap_or_default();
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     Ok(ud
         .entries_foreign(&module, &org, |id| installed.contains_key(id))?
         .iter()
@@ -368,7 +443,8 @@ pub fn frag_ranges(text: String, frag: String) -> Vec<i64> {
 /// (`UserData::relink`, в.12); возвращает строку-итог для лога/UI.
 #[flutter_rust_bridge::frb(sync)]
 pub fn entries_relink(path: String) -> Result<String> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     let dir = Path::new(&path).parent().map(|p| p.join("modules"));
     let paths = dir.map(|d| module_path_map(&d)).unwrap_or_default();
     let s = ud.relink(|id| {
@@ -393,22 +469,30 @@ pub fn entries_relink(path: String) -> Result<String> {
 /// для секции «Потерянные» на экране записей.
 #[flutter_rust_bridge::frb(sync)]
 pub fn orphan_ids(path: String) -> Result<Vec<String>> {
-    Ok(open(&path)?.orphan_ids()?)
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    Ok(ud.orphan_ids()?)
 }
 
 /// Экспорт всех записей в zip (`userdata.json` внутри, spec/06).
 pub async fn entries_export(path: String, file: String) -> Result<i64> {
-    Ok(open(&path)?.export_zip(Path::new(&file))? as i64)
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    Ok(ud.export_zip(Path::new(&file))? as i64)
 }
 
 /// Экспорт всех записей в Markdown-файл `file` (только экспорт).
 pub async fn entries_export_md(path: String, file: String) -> Result<i64> {
-    Ok(open(&path)?.export_markdown(Path::new(&file))? as i64)
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    Ok(ud.export_markdown(Path::new(&file))? as i64)
 }
 
 /// Импорт записей из zip («свежее updated побеждает»); строка-итог.
 pub async fn entries_import(path: String, file: String) -> Result<String> {
-    let s = open(&path)?.import_zip(Path::new(&file))?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
+    let s = ud.import_zip(Path::new(&file))?;
     Ok(format!(
         "добавлено {}, обновлено {}, пропущено {}",
         s.added, s.updated, s.skipped
@@ -417,13 +501,15 @@ pub async fn entries_import(path: String, file: String) -> Result<String> {
 
 /// Обновить текст записи по id (`false` — записи нет).
 pub async fn entry_update(path: String, id: String, text: String) -> Result<bool> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     Ok(ud.update(&id, &text)?)
 }
 
 /// Удалить запись по id (`false` — записи нет).
 pub async fn entry_remove(path: String, id: String) -> Result<bool> {
-    let ud = open(&path)?;
+    let ud = open_cached(&path)?;
+    let ud = lock_ud(&ud)?;
     Ok(ud.remove(&id)?)
 }
 

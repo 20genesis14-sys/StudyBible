@@ -344,26 +344,14 @@ Future<ModuleDoc> loadModule(String id) async {
 }
 
 /// Документ из настоящего .sb: каталог сразу, главы — по требованию
-/// через chapterLoader (тот же JSON, что выдаёт export.rs).
+/// через типизированный загрузчик моста (или JSON на web).
 Future<ModuleDoc?> _loadSbModule(String id, String path) async {
   // ADR 0023: при открытии модуля синхронизируем общий слой
   // параллельных с настройкой (подмешивается только модулям без
   // собственных x-спанов).
   await bridgeSetXrefLayer(settings.externalXrefs);
-  final raw = await bridgeModuleDoc(path);
-  if (raw == null) return null;
-  final doc = ModuleDoc.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  final doc = await bridgeLoadModuleDoc(id, path);
+  if (doc == null) return null;
   if (doc.title.isNotEmpty) kModules[id] = doc.title;
-  return ModuleDoc(
-    id: doc.id.isEmpty ? id : doc.id,
-    title: doc.title,
-    language: doc.language,
-    books: doc.books,
-    chapters: doc.chapters,
-    verseCounts: doc.verseCounts,
-    chapterLoader: (code, n) => bridgeChapterDoc(path, code, n),
-    kind: doc.kind,
-    features: doc.features,
-    versification: doc.versification,
-  );
+  return doc;
 }

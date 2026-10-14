@@ -15,6 +15,9 @@ import 'dart:convert';
 /// Возвращает JSON-кусок формата export.rs `{"n":..,"blocks":[..]}` или null.
 typedef ChapterJsonLoader = Future<String?> Function(String code, int n);
 
+/// Прямой типизированный загрузчик главы без JSON-декодирования (нативный FRB).
+typedef ChapterTypedLoader = Future<ChapterDoc?> Function(String code, int n);
+
 class ModuleDoc {
   final String id;
   final String title;
@@ -45,6 +48,9 @@ class ModuleDoc {
   /// У предвыгруженных JSON-документов null — все главы уже в [chapters].
   final ChapterJsonLoader? chapterLoader;
 
+  /// Прямой типизированный загрузчик главы (нативный FRB без JSON).
+  final ChapterTypedLoader? typedChapterLoader;
+
   /// 'code:n' -> идущий запрос (чтобы не грузить одну главу дважды).
   final Map<String, Future<ChapterDoc?>> _pending = {};
 
@@ -60,6 +66,7 @@ class ModuleDoc {
     required this.chapters,
     required this.verseCounts,
     this.chapterLoader,
+    this.typedChapterLoader,
   });
 
   /// true, если модуль объявляет возможность [f] (или у старого
@@ -105,6 +112,16 @@ class ModuleDoc {
     final cached = chapters[key];
     if (cached != null) return Future.value(cached);
     if (_pending.containsKey(key)) return _pending[key]!;
+    final typed = typedChapterLoader;
+    if (typed != null) {
+      final fut = typed(code, n).then((ch) {
+        _pending.remove(key);
+        if (ch != null) chapters[key] = ch;
+        return ch;
+      });
+      _pending[key] = fut;
+      return fut;
+    }
     final loader = chapterLoader;
     if (loader == null) return Future.value(null);
     final fut = loader(code, n).then((raw) {

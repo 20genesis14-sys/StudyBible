@@ -32,13 +32,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  BlockDocInfo dco_decode_block_doc_info(dynamic raw);
+
+  @protected
+  BookDocInfo dco_decode_book_doc_info(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  ChapterDocInfo dco_decode_box_autoadd_chapter_doc_info(dynamic raw);
 
   @protected
   DictArticle dco_decode_box_autoadd_dict_article(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  ChapterDocInfo dco_decode_chapter_doc_info(dynamic raw);
 
   @protected
   CvPoint dco_decode_cv_point(dynamic raw);
@@ -54,6 +66,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<BlockDocInfo> dco_decode_list_block_doc_info(dynamic raw);
+
+  @protected
+  List<BookDocInfo> dco_decode_list_book_doc_info(dynamic raw);
 
   @protected
   List<CvPoint> dco_decode_list_cv_point(dynamic raw);
@@ -74,10 +92,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<ReadingDocInfo> dco_decode_list_reading_doc_info(dynamic raw);
+
+  @protected
   List<SearchHitInfo> dco_decode_list_search_hit_info(dynamic raw);
 
   @protected
+  List<SpanDocInfo> dco_decode_list_span_doc_info(dynamic raw);
+
+  @protected
   List<UserEntryInfo> dco_decode_list_user_entry_info(dynamic raw);
+
+  @protected
+  List<VariantDocInfo> dco_decode_list_variant_doc_info(dynamic raw);
+
+  @protected
+  List<VerseCountInfo> dco_decode_list_verse_count_info(dynamic raw);
+
+  @protected
+  ModuleDocInfo dco_decode_module_doc_info(dynamic raw);
 
   @protected
   ModuleInfo dco_decode_module_info(dynamic raw);
@@ -86,13 +119,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  ChapterDocInfo? dco_decode_opt_box_autoadd_chapter_doc_info(dynamic raw);
+
+  @protected
   DictArticle? dco_decode_opt_box_autoadd_dict_article(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  ReadingDocInfo dco_decode_reading_doc_info(dynamic raw);
+
+  @protected
   SearchHitInfo dco_decode_search_hit_info(dynamic raw);
+
+  @protected
+  SpanDocInfo dco_decode_span_doc_info(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -104,19 +146,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UserEntryInfo dco_decode_user_entry_info(dynamic raw);
 
   @protected
+  VariantDocInfo dco_decode_variant_doc_info(dynamic raw);
+
+  @protected
+  VerseCountInfo dco_decode_verse_count_info(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  BlockDocInfo sse_decode_block_doc_info(SseDeserializer deserializer);
+
+  @protected
+  BookDocInfo sse_decode_book_doc_info(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  ChapterDocInfo sse_decode_box_autoadd_chapter_doc_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DictArticle sse_decode_box_autoadd_dict_article(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  ChapterDocInfo sse_decode_chapter_doc_info(SseDeserializer deserializer);
 
   @protected
   CvPoint sse_decode_cv_point(SseDeserializer deserializer);
@@ -132,6 +194,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<BlockDocInfo> sse_decode_list_block_doc_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BookDocInfo> sse_decode_list_book_doc_info(SseDeserializer deserializer);
 
   @protected
   List<CvPoint> sse_decode_list_cv_point(SseDeserializer deserializer);
@@ -152,9 +222,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<ReadingDocInfo> sse_decode_list_reading_doc_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SearchHitInfo> sse_decode_list_search_hit_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<SpanDocInfo> sse_decode_list_span_doc_info(SseDeserializer deserializer);
 
   @protected
   List<UserEntryInfo> sse_decode_list_user_entry_info(
@@ -162,10 +240,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<VariantDocInfo> sse_decode_list_variant_doc_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<VerseCountInfo> sse_decode_list_verse_count_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ModuleDocInfo sse_decode_module_doc_info(SseDeserializer deserializer);
+
+  @protected
   ModuleInfo sse_decode_module_info(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  ChapterDocInfo? sse_decode_opt_box_autoadd_chapter_doc_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DictArticle? sse_decode_opt_box_autoadd_dict_article(
@@ -176,7 +272,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  ReadingDocInfo sse_decode_reading_doc_info(SseDeserializer deserializer);
+
+  @protected
   SearchHitInfo sse_decode_search_hit_info(SseDeserializer deserializer);
+
+  @protected
+  SpanDocInfo sse_decode_span_doc_info(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -186,6 +288,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UserEntryInfo sse_decode_user_entry_info(SseDeserializer deserializer);
+
+  @protected
+  VariantDocInfo sse_decode_variant_doc_info(SseDeserializer deserializer);
+
+  @protected
+  VerseCountInfo sse_decode_verse_count_info(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -200,7 +308,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_block_doc_info(BlockDocInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_book_doc_info(BookDocInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_chapter_doc_info(
+    ChapterDocInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_dict_article(
@@ -211,6 +331,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_chapter_doc_info(
+    ChapterDocInfo self,
     SseSerializer serializer,
   );
 
@@ -228,6 +354,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_block_doc_info(
+    List<BlockDocInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_book_doc_info(
+    List<BookDocInfo> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_cv_point(List<CvPoint> self, SseSerializer serializer);
@@ -260,8 +398,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_reading_doc_info(
+    List<ReadingDocInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_search_hit_info(
     List<SearchHitInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_span_doc_info(
+    List<SpanDocInfo> self,
     SseSerializer serializer,
   );
 
@@ -272,10 +422,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_variant_doc_info(
+    List<VariantDocInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_verse_count_info(
+    List<VerseCountInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_module_doc_info(ModuleDocInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_module_info(ModuleInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_chapter_doc_info(
+    ChapterDocInfo? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_dict_article(
@@ -290,7 +461,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_reading_doc_info(
+    ReadingDocInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_search_hit_info(SearchHitInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_span_doc_info(SpanDocInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
@@ -300,6 +480,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_user_entry_info(UserEntryInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_variant_doc_info(
+    VariantDocInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_verse_count_info(
+    VerseCountInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);

@@ -164,6 +164,140 @@ pub async fn list_modules(dir: String) -> Result<Vec<ModuleInfo>> {
     Ok(out)
 }
 
+/// Книга в каталоге модуля (прямая передача через FRB без JSON).
+pub struct BookDocInfo {
+    pub code: String,
+    pub title: String,
+    pub chapters: i64,
+}
+
+/// Число стихов главы (`key` = `"GEN:1"`, `count` = 31).
+pub struct VerseCountInfo {
+    pub key: String,
+    pub count: i64,
+}
+
+/// Типизированный документ модуля без глав (прямая передача через FRB).
+pub struct ModuleDocInfo {
+    pub id: String,
+    pub title: String,
+    pub language: String,
+    pub versification: String,
+    pub kind: String,
+    pub features: Vec<String>,
+    pub rights: Vec<String>,
+    pub books: Vec<BookDocInfo>,
+    pub verse_counts: Vec<VerseCountInfo>,
+}
+
+/// Спан главы (прямая передача через FRB без JSON).
+pub struct SpanDocInfo {
+    /// `"v"` (стих), `"t"` (текст), `"f"` / `"x"` (сноска/параллельное).
+    pub kind: String,
+    pub verse: i64,
+    pub text: String,
+    pub style: String,
+    pub attrs: String,
+    pub caller: String,
+}
+
+/// Блок главы (`kind` = `"p" | "q" | "h" | "d" | "b"`).
+pub struct BlockDocInfo {
+    pub kind: String,
+    pub marker: String,
+    pub spans: Vec<SpanDocInfo>,
+}
+
+/// Чтение варианта критического аппарата.
+pub struct ReadingDocInfo {
+    pub text: String,
+    pub is_base: bool,
+    pub witnesses: Vec<String>,
+}
+
+/// Вариант критического аппарата главы.
+pub struct VariantDocInfo {
+    pub verse: i64,
+    pub token_from: i64,
+    pub token_to: i64,
+    pub readings: Vec<ReadingDocInfo>,
+}
+
+/// Типизированная глава модуля (прямая передача через FRB без JSON).
+pub struct ChapterDocInfo {
+    pub number: i64,
+    pub blocks: Vec<BlockDocInfo>,
+    pub variants: Vec<VariantDocInfo>,
+    pub layer_mismatch: bool,
+}
+
+/// Типизированный документ модуля (без `serde_json` → `String` → `jsonDecode`).
+pub async fn module_doc_typed(path: String) -> Result<ModuleDocInfo> {
+    let m = open_cached(Path::new(&path))?;
+    let m = lock_module(&m)?;
+    let meta = m.meta();
+
+    let mut chapter_counts: BTreeMap<String, i64> = BTreeMap::new();
+    {
+        let mut st = m
+            .conn()
+            .prepare("SELECT b.code, MAX(v.chapter) FROM verses v JOIN books b ON b.book_id=v.book_id GROUP BY v.book_id")?;
+        let rows = st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+        for r in rows {
+            let (b, c) = r?;
+            chapter_counts.insert(b, c);
+        }
+    }
+
+    let mut books = Vec::new();
+    for (code, title) in m.books()? {
+        books.push(BookDocInfo {
+            code: code.as_str().to_string(),
+            title,
+            chapters: chapter_counts.get(code.as_str()).copied().unwrap_or(0),
+        });
+    }
+
+    let mut verse_counts = Vec::new();
+    {
+        let mut st = m
+            .conn()
+            .prepare("SELECT b.code, v.chapter, MAX(v.verse) FROM verses v JOIN books b ON b.book_id=v.book_id GROUP BY v.book_id, v.chapter")?;
+        let rows = st.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })?;
+        for r in rows {
+            let (b, c, v) = r?;
+            verse_counts.push(VerseCountInfo {
+                key: format!("{b}:{c}"),
+                count: v,
+            });
+        }
+    }
+
+    let mut features = meta.features.clone();
+    if !features.iter().any(|f| f == "strongs")
+        && find_strongs_layer(Path::new(&path), &meta.id).is_some()
+    {
+        features.push("strongs".into());
+    }
+    Ok(ModuleDocInfo {
+        id: meta.id.clone(),
+        title: meta.title.clone(),
+        language: meta.language.clone(),
+        versification: meta.versification.clone(),
+        kind: meta.kind.clone(),
+        features,
+        rights: meta.rights.clone(),
+        books,
+        verse_counts,
+    })
+}
+
 /// Документ модуля в формате export.rs, но без глав: `chapters` пуст —
 /// их UI подтягивает лениво через [`chapter_doc`].
 pub async fn module_doc(path: String) -> Result<String> {
@@ -365,6 +499,83 @@ pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Opt
         obj.insert("layer_mismatch".into(), Value::Bool(true));
     }
     Ok(Some(out.to_string()))
+}
+
+/// Типизированная глава модуля (прямая передача через FRB без JSON).
+pub async fn chapter_doc_typed(
+    path: String,
+    book: String,
+    chapter: i64,
+) -> Result<Option<ChapterDocInfo>> {
+    let m = open_cached(Path::new(&path))?;
+    let m = lock_module(&m)?;
+    let code = BookCode::new(&book).ok_or_else(|| anyhow!("код книги {book}"))?;
+    let number = u16::try_from(chapter).map_err(|_| anyhow!("глава {chapter}"))?;
+    let Some(mut ch) = m.chapter(code, number)? else {
+        return Ok(None);
+    };
+    if !m.has_xrefs()
+        && let Some(lp) = xref_layer_path()
+        && let Ok(layer) = open_cached(&lp)
+    {
+        let layer = lock_module(&layer)?;
+        let _ = inject_layer_xrefs(&mut ch, &layer, code, number, &m.meta().versification);
+    }
+    let mut layer_mismatch = false;
+    if let Some(lp) = find_strongs_layer(Path::new(&path), &m.meta().id)
+        && let Ok(layer) = open_cached(&lp)
+    {
+        let layer = lock_module(&layer)?;
+        let lmeta = layer.meta();
+        let target_id = lmeta
+            .extra
+            .get("target_id")
+            .map(String::as_str)
+            .unwrap_or("");
+        let target_hash = lmeta
+            .extra
+            .get("target_hash")
+            .map(String::as_str)
+            .unwrap_or("");
+        let tokenizer = lmeta
+            .extra
+            .get("tokenizer")
+            .map(String::as_str)
+            .unwrap_or("");
+        if target_id == m.meta().id
+            && tokenizer == studybible_core::text::WORDS_VERSION
+            && target_hash == m.meta().content_hash
+        {
+            let _ = inject_layer_strongs(&mut ch, &layer, code, number);
+        } else if target_id == m.meta().id && !target_hash.is_empty() {
+            layer_mismatch = true;
+        }
+    }
+    let blocks = ch.blocks.iter().map(block_info).collect();
+    let variants = m
+        .variants(code, number)?
+        .iter()
+        .map(|v| VariantDocInfo {
+            verse: i64::from(v.verse),
+            token_from: i64::from(v.token_from),
+            token_to: i64::from(v.token_to),
+            readings: v
+                .readings
+                .iter()
+                .map(|r| ReadingDocInfo {
+                    text: r.text.clone(),
+                    is_base: r.is_base,
+                    witnesses: r.witnesses.clone(),
+                })
+                .collect(),
+        })
+        .collect();
+    Ok(Some(ChapterDocInfo {
+        number: i64::from(ch.number),
+        blocks,
+        variants,
+        layer_mismatch,
+    }))
 }
 
 /// Подмешать `x`-ссылки слоя в главу модуля без своих параллельных
@@ -1089,6 +1300,55 @@ fn block_json(b: &Block) -> Value {
     })
 }
 
+fn span_info(s: &Span) -> SpanDocInfo {
+    match s {
+        Span::Verse(n) => SpanDocInfo {
+            kind: "v".into(),
+            verse: i64::from(*n),
+            text: String::new(),
+            style: String::new(),
+            attrs: String::new(),
+            caller: String::new(),
+        },
+        Span::Text { text, style, attrs } => SpanDocInfo {
+            kind: "t".into(),
+            verse: 0,
+            text: text.clone(),
+            style: style.clone(),
+            attrs: attrs.clone(),
+            caller: String::new(),
+        },
+        Span::Note {
+            kind,
+            caller,
+            text,
+            attrs,
+        } => SpanDocInfo {
+            kind: kind.to_string(),
+            verse: 0,
+            text: text.clone(),
+            style: String::new(),
+            attrs: attrs.clone(),
+            caller: caller.clone(),
+        },
+    }
+}
+
+fn block_info(b: &Block) -> BlockDocInfo {
+    let kind = match b.kind() {
+        BlockKind::Paragraph => "p",
+        BlockKind::Poetry => "q",
+        BlockKind::Heading => "h",
+        BlockKind::Superscription => "d",
+        BlockKind::Blank => "b",
+    };
+    BlockDocInfo {
+        kind: kind.into(),
+        marker: b.marker.clone(),
+        spans: b.spans.iter().map(span_info).collect(),
+    }
+}
+
 // --- словарь (таблица entries, ADR 0016) ---
 
 /// Заголовок словарной статьи для списка.
@@ -1227,6 +1487,8 @@ pub async fn module_search(
 
 /// Искать по сноскам и параллельным местам модуля — те же
 /// операторы запроса, что и `module_search` (фраза «…», `w*`, `?`).
+/// Если у модуля нет собственных `x`-спанов и включён общий слой
+/// `openbible-xrefs` (ADR 0023), поиск захватывает и ссылки слоя.
 pub async fn module_notes_search(
     module_path: String,
     cache_path: String,
@@ -1236,7 +1498,16 @@ pub async fn module_notes_search(
     let m = open_cached(Path::new(&module_path))?;
     let m = lock_module(&m)?;
     let idx = studybible_store::SearchIndex::open(Path::new(&cache_path), &m)?;
-    let hits = idx.search_notes(&query, usize::try_from(limit).unwrap_or(usize::MAX))?;
+    let lim = usize::try_from(limit).unwrap_or(usize::MAX);
+    let hits = if !m.has_xrefs()
+        && let Some(lp) = xref_layer_path()
+        && let Ok(layer_arc) = open_cached(&lp)
+        && let Ok(layer) = lock_module(&layer_arc)
+    {
+        idx.search_notes_with_layer(&query, lim, Some(&layer), &m.meta().versification)?
+    } else {
+        idx.search_notes(&query, lim)?
+    };
     Ok(hits
         .iter()
         .map(|h| SearchHitInfo {

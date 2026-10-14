@@ -4,6 +4,7 @@
 /// JSON-ассеты (см. data.dart), а прогресс живёт только в памяти.
 library;
 
+import 'models.dart';
 import 'native_bridge.dart';
 
 /// Каталог данных — в среде без файловой системы нет.
@@ -18,6 +19,20 @@ Future<String?> bridgeModuleDoc(String path) => Future.value(null);
 /// Глава из .sb — на web недоступно.
 Future<String?> bridgeChapterDoc(String path, String book, int chapter) =>
     Future.value(null);
+
+Future<ModuleDoc?> bridgeLoadModuleDoc(String id, String path) =>
+    Future.value(null);
+Future<ChapterDoc?> bridgeLoadChapterDoc(
+  String path,
+  String book,
+  int chapter,
+) => Future.value(null);
+
+String? _stubSettings;
+Future<String?> bridgeSettingsLoad() => Future.value(_stubSettings);
+Future<void> bridgeSettingsSave(String json) async {
+  _stubSettings = json;
+}
 
 /// Общий слой параллельных (ADR 0023) — в стабе нет.
 Future<void> bridgeSetXrefLayer(bool enabled) async {}
@@ -47,7 +62,26 @@ Future<List<UserEntry>> bridgeEntriesList(
   String? module,
 }) async => [
   for (final e in _stubEntries)
-    if (e.kind == kind && (module == null || e.module == module)) e,
+    if ((e.kind == kind ||
+            (kind == 'hist' &&
+                e.kind == 'mark' &&
+                e.text.startsWith('hist'))) &&
+        (module == null || e.module == module))
+      e,
+];
+
+Future<List<UserEntry>> bridgeEntriesChapter(
+  String module,
+  String book,
+  int chapter,
+) async => [
+  for (final e in _stubEntries)
+    if (e.module == module &&
+        e.book == book &&
+        e.chapter == chapter &&
+        const {'hl', 'note', 'mark', 'tag'}.contains(e.kind) &&
+        !e.text.startsWith('hist'))
+      e,
 ];
 
 Future<String?> bridgeEntryAdd({

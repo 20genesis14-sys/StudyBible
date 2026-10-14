@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `block_json`, `inject_layer_xrefs`, `inject_verse_note`, `lock_module`, `open_any`, `open_cached`, `span_json`, `xref_layer_path`
+// These functions are ignored because they are not marked as `pub`: `block_info`, `block_json`, `extract_attr`, `find_aux_module`, `find_entity_for_card`, `find_strongs_layer`, `handle_special_query`, `inject_layer_strongs`, `inject_layer_xrefs`, `inject_verse_note`, `load_entity_json`, `lock_module`, `norm_eid_key`, `open_any`, `open_cached`, `parse_wid_book_ch`, `query_dict_glosses`, `query_entity_by_id`, `query_lex_and_entity`, `span_info`, `span_json`, `split_span_by_w1`, `strip_strong_attrs`, `xref_layer_path`
 
 /// Включить/выключить общий слой параллельных мест (ADR 0023):
 /// `path` — `.sb`/`.sbz` слоя; пустая строка — слой отключён.
@@ -18,6 +18,10 @@ Future<void> xrefLayerSet({required String path}) =>
 /// Битые и посторонние файлы пропускаются — они не должны ронять UI.
 Future<List<ModuleInfo>> listModules({required String dir}) =>
     RustLib.instance.api.crateApiModuleListModules(dir: dir);
+
+/// Типизированный документ модуля (без `serde_json` → `String` → `jsonDecode`).
+Future<ModuleDocInfo> moduleDocTyped({required String path}) =>
+    RustLib.instance.api.crateApiModuleModuleDocTyped(path: path);
 
 /// Документ модуля в формате export.rs, но без глав: `chapters` пуст —
 /// их UI подтягивает лениво через [`chapter_doc`].
@@ -31,6 +35,17 @@ Future<String?> chapterDoc({
   required String book,
   required PlatformInt64 chapter,
 }) => RustLib.instance.api.crateApiModuleChapterDoc(
+  path: path,
+  book: book,
+  chapter: chapter,
+);
+
+/// Типизированная глава модуля (прямая передача через FRB без JSON).
+Future<ChapterDocInfo?> chapterDocTyped({
+  required String path,
+  required String book,
+  required PlatformInt64 chapter,
+}) => RustLib.instance.api.crateApiModuleChapterDocTyped(
   path: path,
   book: book,
   chapter: chapter,
@@ -91,6 +106,8 @@ Future<List<SearchHitInfo>> moduleSearch({
 
 /// Искать по сноскам и параллельным местам модуля — те же
 /// операторы запроса, что и `module_search` (фраза «…», `w*`, `?`).
+/// Если у модуля нет собственных `x`-спанов и включён общий слой
+/// `openbible-xrefs` (ADR 0023), поиск захватывает и ссылки слоя.
 Future<List<SearchHitInfo>> moduleNotesSearch({
   required String modulePath,
   required String cachePath,
@@ -102,6 +119,88 @@ Future<List<SearchHitInfo>> moduleNotesSearch({
   query: query,
   limit: limit,
 );
+
+/// Блок главы (`kind` = `"p" | "q" | "h" | "d" | "b"`).
+class BlockDocInfo {
+  final String kind;
+  final String marker;
+  final List<SpanDocInfo> spans;
+
+  const BlockDocInfo({
+    required this.kind,
+    required this.marker,
+    required this.spans,
+  });
+
+  @override
+  int get hashCode => kind.hashCode ^ marker.hashCode ^ spans.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BlockDocInfo &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          marker == other.marker &&
+          spans == other.spans;
+}
+
+/// Книга в каталоге модуля (прямая передача через FRB без JSON).
+class BookDocInfo {
+  final String code;
+  final String title;
+  final PlatformInt64 chapters;
+
+  const BookDocInfo({
+    required this.code,
+    required this.title,
+    required this.chapters,
+  });
+
+  @override
+  int get hashCode => code.hashCode ^ title.hashCode ^ chapters.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BookDocInfo &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          title == other.title &&
+          chapters == other.chapters;
+}
+
+/// Типизированная глава модуля (прямая передача через FRB без JSON).
+class ChapterDocInfo {
+  final PlatformInt64 number;
+  final List<BlockDocInfo> blocks;
+  final List<VariantDocInfo> variants;
+  final bool layerMismatch;
+
+  const ChapterDocInfo({
+    required this.number,
+    required this.blocks,
+    required this.variants,
+    required this.layerMismatch,
+  });
+
+  @override
+  int get hashCode =>
+      number.hashCode ^
+      blocks.hashCode ^
+      variants.hashCode ^
+      layerMismatch.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChapterDocInfo &&
+          runtimeType == other.runtimeType &&
+          number == other.number &&
+          blocks == other.blocks &&
+          variants == other.variants &&
+          layerMismatch == other.layerMismatch;
+}
 
 /// Координата стиха — результат конверсии между версификациями.
 /// Книга возвращается тоже: часть отображений `.vrs` меняет её
@@ -175,6 +274,58 @@ class DictEntry {
           headword == other.headword;
 }
 
+/// Типизированный документ модуля без глав (прямая передача через FRB).
+class ModuleDocInfo {
+  final String id;
+  final String title;
+  final String language;
+  final String versification;
+  final String kind;
+  final List<String> features;
+  final List<String> rights;
+  final List<BookDocInfo> books;
+  final List<VerseCountInfo> verseCounts;
+
+  const ModuleDocInfo({
+    required this.id,
+    required this.title,
+    required this.language,
+    required this.versification,
+    required this.kind,
+    required this.features,
+    required this.rights,
+    required this.books,
+    required this.verseCounts,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      language.hashCode ^
+      versification.hashCode ^
+      kind.hashCode ^
+      features.hashCode ^
+      rights.hashCode ^
+      books.hashCode ^
+      verseCounts.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ModuleDocInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          language == other.language &&
+          versification == other.versification &&
+          kind == other.kind &&
+          features == other.features &&
+          rights == other.rights &&
+          books == other.books &&
+          verseCounts == other.verseCounts;
+}
+
 /// Модуль .sb, найденный в каталоге данных.
 class ModuleInfo {
   /// `meta.id` модуля — ключ выбора в UI (`russyn`, `engwebp`…).
@@ -209,6 +360,31 @@ class ModuleInfo {
           path == other.path;
 }
 
+/// Чтение варианта критического аппарата.
+class ReadingDocInfo {
+  final String text;
+  final bool isBase;
+  final List<String> witnesses;
+
+  const ReadingDocInfo({
+    required this.text,
+    required this.isBase,
+    required this.witnesses,
+  });
+
+  @override
+  int get hashCode => text.hashCode ^ isBase.hashCode ^ witnesses.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReadingDocInfo &&
+          runtimeType == other.runtimeType &&
+          text == other.text &&
+          isBase == other.isBase &&
+          witnesses == other.witnesses;
+}
+
 /// Результат поиска для UI (зеркало `store::search::Hit`).
 class SearchHitInfo {
   final String book;
@@ -238,4 +414,96 @@ class SearchHitInfo {
           chapter == other.chapter &&
           verse == other.verse &&
           snippet == other.snippet;
+}
+
+/// Спан главы (прямая передача через FRB без JSON).
+class SpanDocInfo {
+  /// `"v"` (стих), `"t"` (текст), `"f"` / `"x"` (сноска/параллельное).
+  final String kind;
+  final PlatformInt64 verse;
+  final String text;
+  final String style;
+  final String attrs;
+  final String caller;
+
+  const SpanDocInfo({
+    required this.kind,
+    required this.verse,
+    required this.text,
+    required this.style,
+    required this.attrs,
+    required this.caller,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      verse.hashCode ^
+      text.hashCode ^
+      style.hashCode ^
+      attrs.hashCode ^
+      caller.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SpanDocInfo &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          verse == other.verse &&
+          text == other.text &&
+          style == other.style &&
+          attrs == other.attrs &&
+          caller == other.caller;
+}
+
+/// Вариант критического аппарата главы.
+class VariantDocInfo {
+  final PlatformInt64 verse;
+  final PlatformInt64 tokenFrom;
+  final PlatformInt64 tokenTo;
+  final List<ReadingDocInfo> readings;
+
+  const VariantDocInfo({
+    required this.verse,
+    required this.tokenFrom,
+    required this.tokenTo,
+    required this.readings,
+  });
+
+  @override
+  int get hashCode =>
+      verse.hashCode ^
+      tokenFrom.hashCode ^
+      tokenTo.hashCode ^
+      readings.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VariantDocInfo &&
+          runtimeType == other.runtimeType &&
+          verse == other.verse &&
+          tokenFrom == other.tokenFrom &&
+          tokenTo == other.tokenTo &&
+          readings == other.readings;
+}
+
+/// Число стихов главы (`key` = `"GEN:1"`, `count` = 31).
+class VerseCountInfo {
+  final String key;
+  final PlatformInt64 count;
+
+  const VerseCountInfo({required this.key, required this.count});
+
+  @override
+  int get hashCode => key.hashCode ^ count.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VerseCountInfo &&
+          runtimeType == other.runtimeType &&
+          key == other.key &&
+          count == other.count;
 }
