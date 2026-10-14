@@ -811,6 +811,12 @@ fn handle_special_query(base_path: &Path, cmd: &str, chapter: i64) -> Result<Opt
     if let Some(book_code) = cmd.strip_prefix("dict_glosses:") {
         return query_dict_glosses(base_path, book_code.trim(), chapter);
     }
+    if let Some(book_code) = cmd.strip_prefix("book_chronology:") {
+        return query_book_chronology(base_path, book_code.trim());
+    }
+    if let Some(code) = cmd.strip_prefix("visual_aid:") {
+        return query_visual_aid(base_path, code.trim());
+    }
     Ok(None)
 }
 
@@ -1129,38 +1135,47 @@ fn query_entity_by_id(base_path: &Path, entity_id: &str) -> Result<Option<String
 
 fn load_entity_json(km: &Module, entity_id: &str) -> Result<Value> {
     let conn = km.conn();
-    let Ok((id, typ, sub, name, name_orig, strongs, desc, article, meta_str)) = conn.query_row(
-        "SELECT id, type, subtype, name, name_original, strongs, short_description, article, metadata
-         FROM entities WHERE id=?1",
-        [entity_id],
-        |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1).unwrap_or_default(),
-                r.get::<_, String>(2).unwrap_or_default(),
-                r.get::<_, String>(3).unwrap_or_default(),
-                r.get::<_, String>(4).unwrap_or_default(),
-                r.get::<_, String>(5).unwrap_or_default(),
-                r.get::<_, String>(6).unwrap_or_default(),
-                r.get::<_, String>(7).unwrap_or_default(),
-                r.get::<_, String>(8).unwrap_or_default(),
-            ))
-        },
-    ) else {
+    let Ok((id, typ, sub, name, name_orig, strongs, desc, article, meta_str, img_path)) = conn
+        .query_row(
+            "SELECT id, type, subtype, name, name_original, strongs, short_description, article, metadata, image_path
+             FROM entities WHERE id=?1",
+            [entity_id],
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1).unwrap_or_default(),
+                    r.get::<_, String>(2).unwrap_or_default(),
+                    r.get::<_, String>(3).unwrap_or_default(),
+                    r.get::<_, String>(4).unwrap_or_default(),
+                    r.get::<_, String>(5).unwrap_or_default(),
+                    r.get::<_, String>(6).unwrap_or_default(),
+                    r.get::<_, String>(7).unwrap_or_default(),
+                    r.get::<_, String>(8).unwrap_or_default(),
+                    r.get::<_, String>(9).unwrap_or_default(),
+                ))
+            },
+        )
+    else {
         return Ok(Value::Null);
     };
     let mut names_ru = Vec::new();
     if let Ok(mut st) = conn.prepare(
-        "SELECT DISTINCT name FROM entity_names WHERE entity_id=?1 AND lang IN ('ru', 'rus') LIMIT 10",
+        "SELECT name FROM entity_names WHERE entity_id=?1 AND lang IN ('ru', 'rus')
+         ORDER BY CASE kind WHEN 'canonical' THEN 0 WHEN 'biblical' THEN 1 WHEN 'synodal' THEN 2 ELSE 3 END
+         LIMIT 12",
     ) && let Ok(rows) = st.query_map([&id], |r| r.get::<_, String>(0))
     {
         for n in rows.flatten() {
-            names_ru.push(n);
+            if !names_ru.contains(&n) {
+                names_ru.push(n);
+            }
         }
     }
     let mut rels = Vec::new();
     if let Ok(mut st) = conn.prepare(
-        "SELECT r.relation_type, r.to_entity_id, e.name
+        "SELECT r.relation_type, r.to_entity_id, e.name,
+                COALESCE((SELECT n.name FROM entity_names n WHERE n.entity_id = e.id AND n.lang IN ('ru', 'rus')
+                          ORDER BY CASE n.kind WHEN 'canonical' THEN 0 WHEN 'biblical' THEN 1 WHEN 'synodal' THEN 2 ELSE 3 END LIMIT 1), '')
          FROM relationships r JOIN entities e ON e.id = r.to_entity_id
          WHERE r.from_entity_id=?1 LIMIT 25",
     ) && let Ok(rows) = st.query_map([&id], |r| {
@@ -1168,13 +1183,24 @@ fn load_entity_json(km: &Module, entity_id: &str) -> Result<Value> {
             r.get::<_, String>(0).unwrap_or_default(),
             r.get::<_, String>(1).unwrap_or_default(),
             r.get::<_, String>(2).unwrap_or_default(),
+            r.get::<_, String>(3).unwrap_or_default(),
         ))
     }) {
-        for (rt, tid, tname) in rows.flatten() {
-            rels.push(json!({"type": rt, "id": tid, "name": tname}));
+        for (rt, tid, tname, tname_ru) in rows.flatten() {
+            rels.push(json!({"type": rt, "id": tid, "name": tname, "name_ru": tname_ru}));
         }
     }
     let meta_val: Value = serde_json::from_str(&meta_str).unwrap_or(Value::Null);
+    let desc_ru = meta_val
+        .get("short_description_ru")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let article_ru = meta_val
+        .get("article_ru")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
     Ok(json!({
         "id": id,
         "type": typ,
@@ -1183,11 +1209,150 @@ fn load_entity_json(km: &Module, entity_id: &str) -> Result<Value> {
         "name_original": name_orig,
         "strongs": strongs,
         "short_description": desc,
+        "short_description_ru": desc_ru,
         "article": article,
+        "article_ru": article_ru,
+        "image_path": img_path,
         "names_ru": names_ru,
         "relations": rels,
         "meta": meta_val,
     }))
+}
+
+/// Запрос матрицы хронологии написания канона (ADR 0024 §9) по выбранной книге `target_book`.
+/// Для каждой из 66 книг вычисляет состояние 1..4 относительно `target_book`:
+///   1 — рассматриваемая книга (`book == target_book`),
+///   2 — написание завершено (`written_end <= target_start` и не многовековой сборник),
+///   3 — написание, возможно, завершено / современник (пересечение или сборник),
+///   4 — написание не завершено (`written_start > target_end`).
+fn query_book_chronology(base_path: &Path, target_book: &str) -> Result<Option<String>> {
+    let Some(kp) = find_aux_module(base_path, "knowledge", "knowledge") else {
+        return Ok(None);
+    };
+    let km = open_cached(&kp)?;
+    let km = lock_module(&km)?;
+    let conn = km.conn();
+    let target = target_book.to_ascii_uppercase();
+    let Ok((t_start, t_end)) = conn.query_row(
+        "SELECT written_start, written_end FROM book_chronology WHERE book=?1",
+        [&target],
+        |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
+    ) else {
+        return Ok(None);
+    };
+    let mut st = conn.prepare(
+        "SELECT book, book_num, written_start, written_end, uncertain, events_start, events_end,
+                author_en, author_ru, place_en, place_ru, period_en, period_ru
+         FROM book_chronology ORDER BY book_num",
+    )?;
+    let rows = st.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, i64>(1)?,
+            r.get::<_, i64>(2)?,
+            r.get::<_, i64>(3)?,
+            r.get::<_, i64>(4)?,
+            r.get::<_, Option<i64>>(5)?,
+            r.get::<_, Option<i64>>(6)?,
+            r.get::<_, String>(7).unwrap_or_default(),
+            r.get::<_, String>(8).unwrap_or_default(),
+            r.get::<_, String>(9).unwrap_or_default(),
+            r.get::<_, String>(10).unwrap_or_default(),
+            r.get::<_, String>(11).unwrap_or_default(),
+            r.get::<_, String>(12).unwrap_or_default(),
+        ))
+    })?;
+    let mut books_json = Vec::new();
+    for row in rows.flatten() {
+        let (bk, bnum, ws, we, unc, es, ee, auth_en, auth_ru, pl_en, pl_ru, per_en, per_ru) = row;
+        let state = if bk == target {
+            1
+        } else if ws > t_end {
+            4
+        } else if we < t_start && (we - ws) < 100 {
+            2
+        } else {
+            3
+        };
+        books_json.push(json!({
+            "book": bk,
+            "book_num": bnum,
+            "state": state,
+            "written_start": ws,
+            "written_end": we,
+            "uncertain": unc != 0,
+            "events_start": es,
+            "events_end": ee,
+            "author_en": auth_en,
+            "author_ru": auth_ru,
+            "place_en": pl_en,
+            "place_ru": pl_ru,
+            "period_en": per_en,
+            "period_ru": per_ru,
+        }));
+    }
+    Ok(Some(
+        json!({
+            "target_book": target,
+            "books": books_json,
+        })
+        .to_string(),
+    ))
+}
+
+fn query_visual_aid(base_path: &Path, code: &str) -> Result<Option<String>> {
+    let Some(kp) = find_aux_module(base_path, "knowledge", "knowledge") else {
+        return Ok(None);
+    };
+    let km = open_cached(&kp)?;
+    let km = lock_module(&km)?;
+    let conn = km.conn();
+    let Ok((c, snum, let_s, kind, t_en, t_ru, sub_en, sub_ru, body_s, eid, bk, ch, v)) = conn
+        .query_row(
+            "SELECT code, section_num, letter, kind, title_en, title_ru, subtitle_en, subtitle_ru,
+                    body_json, entity_id, book, chapter, verse
+             FROM visual_aids WHERE code=?1",
+            [code],
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, String>(2).unwrap_or_default(),
+                    r.get::<_, String>(3).unwrap_or_default(),
+                    r.get::<_, String>(4).unwrap_or_default(),
+                    r.get::<_, String>(5).unwrap_or_default(),
+                    r.get::<_, String>(6).unwrap_or_default(),
+                    r.get::<_, String>(7).unwrap_or_default(),
+                    r.get::<_, String>(8).unwrap_or_default(),
+                    r.get::<_, String>(9).unwrap_or_default(),
+                    r.get::<_, String>(10).unwrap_or_default(),
+                    r.get::<_, Option<i64>>(11)?,
+                    r.get::<_, Option<i64>>(12)?,
+                ))
+            },
+        )
+    else {
+        return Ok(None);
+    };
+    let body_val: Value = serde_json::from_str(&body_s).unwrap_or(Value::Null);
+    Ok(Some(
+        json!({
+            "code": c,
+            "section_num": snum,
+            "letter": let_s,
+            "kind": kind,
+            "title_en": t_en,
+            "title_ru": t_ru,
+            "subtitle_en": sub_en,
+            "subtitle_ru": sub_ru,
+            "body": body_val,
+            "entity_id": eid,
+            "book": bk,
+            "chapter": ch,
+            "verse": v,
+        })
+        .to_string(),
+    ))
 }
 
 fn query_dict_glosses(

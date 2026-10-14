@@ -627,6 +627,34 @@ void showEntityCard(BuildContext context, String modulePath, String entityId) {
   );
 }
 
+const _entityTypeRu = <String, String>{
+  'person': 'человек',
+  'place': 'место',
+  'group': 'группа / народ',
+  'deity': 'божество / дух',
+  'creature': 'животное',
+  'plant': 'растение',
+  'object': 'предмет',
+  'concept': 'понятие',
+};
+
+const _relationTypeRu = <String, String>{
+  'father': 'отец',
+  'mother': 'мать',
+  'partner': 'супруг(а)',
+  'offspring': 'ребёнок',
+  'sibling': 'брат/сестра',
+  'member_of': 'колено/группа',
+  'subregion_of': 'область',
+  'tribal_area': 'удел',
+  'nearby': 'рядом',
+  'associated': 'связано с',
+  'born_in': 'место рождения',
+  'died_in': 'место смерти',
+  'origin_person': 'родоначальник',
+  'possibly_same': 'возможно, тождественен',
+};
+
 Widget _buildEntitySection(
   BuildContext context,
   Palette p,
@@ -637,10 +665,21 @@ Widget _buildEntitySection(
   final typ = ent['type'] as String? ?? '';
   final sub = ent['subtype'] as String? ?? '';
   final orig = ent['name_original'] as String? ?? '';
-  final desc = ent['short_description'] as String? ?? '';
-  final article = ent['article'] as String? ?? '';
+  final descEn = ent['short_description'] as String? ?? '';
+  final descRu = ent['short_description_ru'] as String? ?? '';
+  final articleEn = ent['article'] as String? ?? '';
+  final articleRu = ent['article_ru'] as String? ?? '';
   final namesRu = (ent['names_ru'] as List? ?? const []).cast<String>();
   final rels = (ent['relations'] as List? ?? const []).cast<Map<String, dynamic>>();
+  final desc = tr(
+    descRu.isNotEmpty ? descRu : descEn,
+    descEn.isNotEmpty ? descEn : descRu,
+  );
+  final article = tr(
+    articleRu.isNotEmpty ? articleRu : articleEn,
+    articleEn.isNotEmpty ? articleEn : articleRu,
+  );
+  final typLabel = tr(_entityTypeRu[typ] ?? typ, typ);
 
   return Container(
     margin: const EdgeInsets.only(top: 12),
@@ -664,8 +703,8 @@ Widget _buildEntitySection(
             Expanded(
               child: Text(
                 [
-                  name,
                   if (namesRu.isNotEmpty) namesRu.first,
+                  name,
                 ].join(' · '),
                 style: TextStyle(
                   fontSize: 16,
@@ -675,7 +714,7 @@ Widget _buildEntitySection(
               ),
             ),
             Text(
-              [typ, if (sub.isNotEmpty) sub].join(' / '),
+              [typLabel, if (sub.isNotEmpty) sub].join(' / '),
               style: TextStyle(fontSize: 11, color: p.muted),
             ),
           ],
@@ -703,7 +742,17 @@ Widget _buildEntitySection(
                 ActionChip(
                   visualDensity: VisualDensity.compact,
                   label: Text(
-                    '${r['type']}: ${r['name']}',
+                    () {
+                      final rt = r['type'] as String? ?? '';
+                      final rtLabel = tr(_relationTypeRu[rt] ?? rt, rt);
+                      final nRu = r['name_ru'] as String? ?? '';
+                      final nEn = r['name'] as String? ?? '';
+                      final targetLabel = tr(
+                        nRu.isNotEmpty ? nRu : nEn,
+                        nEn,
+                      );
+                      return '$rtLabel: $targetLabel';
+                    }(),
                     style: const TextStyle(fontSize: 11),
                   ),
                   onPressed: modulePath != null && modulePath.isNotEmpty

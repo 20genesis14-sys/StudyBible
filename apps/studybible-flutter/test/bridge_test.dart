@@ -254,6 +254,23 @@ void main() {
     final entRaw = await bridgeChapterDoc(origPath, '@entity:person:Abraham', 1);
     expect(entRaw, isNotNull);
     expect(entRaw!, contains('Abraham'));
+    final entJson = jsonDecode(entRaw) as Map<String, dynamic>;
+    expect((entJson['names_ru'] as List), contains('Авраам'));
+    expect((entJson['short_description_ru'] as String).isNotEmpty, isTrue);
+
+    final bcRaw = await bridgeChapterDoc(origPath, '@book_chronology:HAB', 1);
+    expect(bcRaw, isNotNull);
+    final bcJson = jsonDecode(bcRaw!) as Map<String, dynamic>;
+    final bcBooks = (bcJson['books'] as List).cast<Map<String, dynamic>>();
+    expect(bcBooks.length, 66);
+    expect(bcBooks.firstWhere((b) => b['book'] == 'HAB')['state'], 1);
+    expect(bcBooks.firstWhere((b) => b['book'] == 'GEN')['state'], 2);
+    expect(bcBooks.firstWhere((b) => b['book'] == 'PSA')['state'], 3);
+    expect(bcBooks.firstWhere((b) => b['book'] == 'MAL')['state'], 4);
+
+    final vaRaw = await bridgeChapterDoc(origPath, '@visual_aid:35B', 1);
+    expect(vaRaw, isNotNull);
+    expect(vaRaw!, contains('HAB.2.4'));
 
     // Фаза 8: проверка русского словаря strongs-step-ru, русского словарного
     // подстрочника и наложения слоёв russyn-strongs и ru_rlob-strongs.
