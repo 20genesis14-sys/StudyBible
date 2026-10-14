@@ -1391,22 +1391,29 @@ plan, tasks, data inventory and skill specs —
   0.65 %) are psalm superscriptions (table verse 1 vs module verse 0)
   and edition diffs between the two BSB exports — all logged in
   `bsb-strongs.misses.tsv`. `module check` passes.
-- **v2: `bsb-strongs` upgraded to real dStrong** (2026-10-13). The
-  first pilot carried *classic* numbers (`7225`, one per Hebrew
-  word — morphemes lost). Rebuilt from Clear manual alignments
-  (`WLCM-BSB-manual`, `SBLGNT-BSB-manual`, CC BY 4.0): target token
-  → MACULA id → `step-orig.mid` → dStrong. Token↔`w1` index via
-  `SequenceMatcher` + gap resolution for tokenizer asymmetry
-  (`man's`↔`man s`). Word-position fallback (`wid`) covers maqef
-  splits and textual diffs (`flag=wid`, `conf=8`); leftovers are
-  `flag=unresolved,conf=4`. Result: 722,961 links, 99.3 % of w1
-  words; 1.52 % empty-strong flagged; `conf=10` for 85 %. Old
-  classic layer is the cross-check channel — 66,418 `diff` flags
-  logged to `engbsb-strongs.diffs.tsv` for review. 137 verses
-  unaligned at source (psalm superscriptions, Neh 7:68 — Clear never
-  aligned them). Builder: `tools/strongs/layers/step_clear_bsb.py`.
+- **v2 / v0.3.0: `bsb-strongs` upgraded to real dStrong and audited**
+  (2026-10-14). The first pilot carried *classic* numbers (`7225`,
+  one per Hebrew word — morphemes lost). Rebuilt from Clear manual
+  alignments (`WLCM-BSB-manual`, `SBLGNT-BSB-manual`, plus
+  `BGNT-BSB-manual` for Rom 16:25–27; CC BY 4.0): target token →
+  MACULA id → `step-orig.mid` → dStrong. Audit uncovered and fixed a
+  Masoretic-vs-English versification mismatch in `step-orig` (2,094
+  shifted OT verses) and maqef stripping in `norm_heb`, raising
+  `step-orig` direct `mid` coverage from 512,853 (75.5 %) to 606,231
+  (99.75 % of WLCM tokens). Word-position fallback (`wid`) now keys
+  by Masoretic `(src_b, src_c, src_v, word_num)`; 134 verses
+  unaligned in Clear (`PSA *:0` superscriptions and `NEH 7:68`) are
+  resolved via `bsb_tables.tsv` + `step-orig` morphemes (`flag=bsb-fb`,
+  `conf=9`). Result (`engbsb-strongs.sb` v0.3.0): **724,445 links
+  (99.51 % of w1 words)**; **`conf=10` for 721,754 (99.63 %)**,
+  `conf=9` for 1,090, `conf=8` for 1,594, and **`conf=4`
+  (`unresolved`) for only 7 words** across the entire Bible (down
+  from 10,989). Cross-check against classic `bsb_tables` separates
+  phrase shifts (`diff-shift`: 29,724) from true lexical differences
+  (`diff`: 8,551 in `engbsb-strongs.diffs.tsv`). Builder:
+  `tools/strongs/layers/step_clear_bsb.py`.
 
-## Base layer `step-orig` — morpheme-level spans (2026-10-13, ADR 0025 impl.)
+## Base layer `step-orig` — morpheme-level spans (2026-10-13..14, ADR 0025 impl.)
 
 - **One `w` span per morpheme** (not per word). TAHOT morphemes
   (`/` and `\` separators; `\` = postposed punctuation) become
@@ -1414,11 +1421,15 @@ plan, tasks, data inventory and skill specs —
   original word order and each morpheme keeps its own
   `gr`/`strong`/`morph`/`lemma`. Punctuation morphemes (`H9016` ׃)
   carry the character itself, glued to the previous word.
-- **`wid`** (`Gen.1.1#03`) is word-level and shared by a word's
-  morphemes; **`mid`** is the MACULA token id (`o…WWWP` OT,
-  `n…WWW` NT) — assigned per morpheme where verse word count and
-  ordered forms match WLCM/SBLGNT; punctuation morphemes are skipped
-  for part matching (they are absent from WLCM).
+- **`wid`** (`Gen.1.1#03`) is word-level in English versification;
+  **`swid`/`sbcv`** hold the Masoretic/source coordinate from
+  `TAHOT`/`TAGNT` brackets (`(...)`, `[...]`, `{...}`); **`mid`** is
+  the MACULA token id (`o…WWWP` OT, `n…WWW` NT) — matched per
+  Masoretic verse via `SequenceMatcher` on consonant forms (ignoring
+  maqef `־` and punctuation spans), with `BGNT.tsv` fallback for NT
+  verses absent from SBLGNT (Rom 16:25–27). Direct `mid` count in
+  v0.2.0: **606,231** (468,305 OT = 99.75 % of WLCM; 137,926 NT)
+  across **31,219 verses / 679,505 spans**.
 - **`typ`** keeps the source letters verbatim (`L|R|X|Q|Q(K)|N|K|O`
   combos); **`ed`** the TAGNT edition list; **`sns`** the numeric
   sense label; **`eid`** the raw `Name@Range` entity id;

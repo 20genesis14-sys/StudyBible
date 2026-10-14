@@ -283,3 +283,31 @@ can be attached to base-layer words deterministically.
   review channel. Spot checks: Gen 1:1 (`H9003 H7225G` on "In the
   beginning" — full morpheme coverage), John 1:1, 1Jn 5:7 clean.
   `module check` clean, 55.8 MB.
+- 2026-10-14 — **Full cross-phase audit & rebuild (Phases 1–5)**:
+  - **Phase 1/2 (`strongs-step.sb` v0.2.1)**: fixed `REF` regex to
+    parse `[]`/`{}` bracketed refs in TAGNT (+350 NT rows, 0 missed
+    lines across TAHOT/TAGNT); fixed `bdb-aramaic` attachment in
+    `step04_lexdef_heb.py` (removed 90+ false articles from `H90xx`
+    function morphemes); resolved all 12 `ambiguous-base` keys (`0`
+    review rows remaining).
+  - **Phase 3 (`step-orig.sb` v0.2.0)**: preserved Masoretic/source
+    coordinates `sbcv`/`swid` from TAHOT brackets, matched WLCM by
+    Masoretic verse via `SequenceMatcher` (ignoring maqef `־` and
+    punctuation spans), and added `BGNT.tsv` fallback for Rom 16:25–27.
+    Result: **31,219 verses, 679,505 spans, 606,231 direct `mid`
+    (99.75 % of WLCM tokens; +93,378 `mid`)**.
+  - **Phase 3b (`knowledge.sb` v0.2.0)**: mapped MACULA `mid` and ACAI
+    `references` from Masoretic to `eng` versification (fixed ±1 verse
+    shift across 2,094 OT verses, e.g. `PSA 3:0` vs `PSA 3:1`), joined
+    559 UBS Fauna/Flora/Realia articles, and reduced `rel_dangling`
+    from 64 to **1** (12,568 relationships, 112,610 mentions).
+  - **Phase 5 (`engbsb-strongs.sb` v0.3.0)**: keyed `wid` fallback by
+    Masoretic `(src_b, src_c, src_v, word_num)`, added `BGNT-BSB-manual`
+    for Rom 16:25–27 and `bsb_tables`+`step-orig` fallback for 134
+    unaligned verses (`PSA *:0`, `NEH 7:68`), and split `diff-shift`
+    (29,724) from true lexical `diff` (8,551). Result: **724,445 links
+    (99.51 % of w1 words); `conf=10`: 721,754 (99.63 %), `conf=9`:
+    1,090, `conf=8`: 1,594, `conf=4` (`unresolved`): 7 words; 0
+    unlinked verses**. Registered `lex`/`lex_def`/`lex_base`/`morph`/
+    `knowledge` features in `studybible-cli` linter — all 4 modules pass
+    `module check` with 0 warnings.
