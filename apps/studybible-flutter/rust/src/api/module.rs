@@ -1103,7 +1103,7 @@ fn find_entity_for_card(base_path: &Path, eid_raw: &str, strong_raw: &str) -> Re
             }
             let pat = format!("%{code}%");
             if let Ok(id) = conn.query_row(
-                "SELECT id FROM entities WHERE (' ' || strongs || ' ') LIKE '% ' || ?1 || ' %' LIMIT 1",
+                "SELECT id FROM entities WHERE (' ' || strongs || ' ') LIKE '% ' || ?1 || ' %' ORDER BY id LIMIT 1",
                 [code],
                 |r| r.get::<_, String>(0),
             ) {

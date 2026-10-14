@@ -572,6 +572,176 @@ EXPLICIT_RU_NAMES: dict[str, str] = {
     "place:WestGate": "Западные ворота",
     "place:WildernessOfMaon": "Пустыня Маон",
     "place:WildernessOfParan": "Пустыня Фаран",
+    # Сущности, у которых автоматика оставила только косвенные формы (баг-фикс v0.4.1)
+    "deity:Asherah": "Ашера",
+    "deity:Destiny": "Мени (божество судьбы)",
+    "deity:Fortune": "Гад (божество удачи)",
+    "deity:Lucifer": "Денница",
+    "deity:Nehushtan": "Нехуштан (медный змей)",
+    "deity:Succoth-benoth": "Суккот-Беноф",
+    "fauna:Bull": "Крупный рогатый скот",
+    "fauna:Camel": "Верблюд",
+    "fauna:Cobra": "Аспид (ядовитая змея)",
+    "fauna:Donkey": "Осёл",
+    "fauna:Dugong": "Тахаш (дюгонь)",
+    "fauna:Horse": "Конь",
+    "fauna:Jackal": "Шакал",
+    "fauna:Locust": "Саранча",
+    "fauna:Mule": "Мул",
+    "fauna:Osprey": "Скопа",
+    "fauna:Rooster": "Петух",
+    "fauna:Swallow": "Ласточка",
+    "fauna:WildDonkey": "Дикий осёл",
+    "fauna:Wolf": "Волк",
+    "flora:Aloes": "Алоэ",
+    "flora:AppleTree": "Яблоня",
+    "flora:Bean": "Бобы",
+    "flora:Boxthorn": "Терн (терновник)",
+    "flora:DatePalm": "Финиковая пальма",
+    "flora:Frankincense": "Ладан (фимиам)",
+    "flora:Grain": "Зерно",
+    "flora:Papyrus": "Папирус",
+    "flora:PistachioNuts": "Фисташки",
+    "flora:Soap": "Мыльнянка",
+    "flora:Terebinth": "Теревинф (терпентинное дерево)",
+    "flora:Thistle": "Чертополох",
+    "flora:Vine": "Виноградная лоза",
+    "group:Asia": "Асийцы",
+    "group:Avva": "Иввиты",
+    "group:Buzites": "Вузитяне",
+    "group:Colossae": "Колоссяне",
+    "group:Elam": "Еламиты",
+    "group:Ephesus": "Ефесяне",
+    "group:Eri": "Ерииты",
+    "group:Ethiopia": "Ефиопляне",
+    "group:Freedmen": "Либертинцы",
+    "keyterm:KnowerOfHearts": "Сердцеведец",
+    "keyterm:Letter": "Письмо (документ)",
+    "keyterm:Life": "Жизнь",
+    "keyterm:Majesty": "Величие",
+    "keyterm:Mercy": "Милосердие",
+    "keyterm:Mighty": "Всемогущий",
+    "keyterm:Oath": "Клятва",
+    "keyterm:Offering": "Жертва (жертвоприношение)",
+    "keyterm:Passover": "Пасха",
+    "keyterm:Poor": "Бедные (угнетённые)",
+    "keyterm:PracticeDivination": "Прорицание (ворожба)",
+    "keyterm:Pray": "Молитва",
+    "keyterm:Psalm": "Псалом",
+    "keyterm:Resurrection": "Воскресение",
+    "keyterm:RoundDance": "Хоровод",
+    "keyterm:Savior": "Спаситель",
+    "keyterm:Sin": "Грех",
+    "keyterm:Slaughtering": "Жертва (заклание)",
+    "keyterm:Speak": "Пророчество",
+    "keyterm:Strength": "Сила",
+    "keyterm:TaxCollector": "Сборщик налогов (мытарь)",
+    "keyterm:Terror": "Ужас",
+    "keyterm:TheWay": "Путь",
+    "keyterm:Truth": "Истина",
+    "keyterm:Witness": "Свидетель",
+    "keyterm:Woe": "Горе",
+    "keyterm:Worship": "Поклонение",
+    "person:Baal-hanan": "Ваал-Ханан",
+    "person:Baal-hanan.2": "Ваал-Ханан",
+    "person:Bath-shua": "Вирсавия (Ват-Шуа)",
+    "person:Ben-hur": "Бен-Хур",
+    "person:Hacaliah": "Ахалия",
+    "person:Haggedolim": "Гагедолим",
+    "person:Nero": "Нерон",
+    "place:Aram-zobah": "Сирия-Цова (Арам-Цова)",
+    "place:BeautifulGate": "Красные ворота",
+    "place:Beth-arbel": "Бет-Арбел",
+    "place:Beth-eked": "Беф-Екед",
+    "place:Beth-ezel": "Бет-Ецель",
+    "place:BroadWall": "Широкая стена",
+    "place:BrookOfTheWillows": "Поток Ив (верб)",
+    "place:CityOfSalt": "Город Соли (Ир-Мелах)",
+    "place:Corban": "Сокровищница храма (Корбан)",
+    "place:DragonSpring": "Драконов источник",
+    "place:EbalMount": "Гора Гевал (Евал)",
+    "place:Eden.2": "Едемский сад",
+    "place:En-hazor": "Ен-Гацор",
+    "place:Eth-kazin": "Итта-Кацин",
+    "place:FoundationGate": "Ворота основания",
+    "place:Greece": "Греция (Еллада)",
+    "place:GuardGate": "Ворота стражи",
+    "place:HallOfTheThrone": "Зал престола",
+    "place:Kue": "Кува (Киликия)",
+    "place:MizarMount": "Гора Мицар",
+    "place:Mizpeh.3": "Мицфа",
+    "place:OlivesMount": "Елеонская гора (Масличная)",
+    "place:Parbar": "Парвар",
+    "place:Perez-uzza": "Перец-Узза",
+    "place:PotsherdGate": "Ворота черепков (Харсиф)",
+    "place:RockOfEscape": "Села-Гаммахлекоф",
+    "place:Sheba.2": "Савская (Аравия)",
+    "place:SolomonsPortico": "Притвор Соломона",
+    "place:Tel-abib": "Тель-Авив",
+    "place:ThreeTaverns": "Три гостиницы",
+    "place:TowerOfTheOvens": "Печная башня",
+    "place:Trogyllium": "Трогиллий",
+    "place:ValleyGate": "Ворота долины",
+    "place:WaterGate": "Водяные ворота",
+    "place:WildgoatsRocks": "Скалы серн",
+    "place:YeshanahGate": "Ворота Иешаны",
+    "place:Zeredah.2": "Цареда",
+    "realia:Aloes": "Алоэ (благовоние)",
+    "realia:Altar": "Жертвенник",
+    "realia:Anvil": "Наковальня",
+    "realia:Arrow": "Стрела",
+    "realia:Bag": "Мешок (кошелёк)",
+    "realia:Basket": "Корзина",
+    "realia:Battle-axe": "Боевой топор",
+    "realia:Bowl": "Чаша",
+    "realia:Capital": "Капитель (столб)",
+    "realia:Clothing": "Одежда",
+    "realia:Craftsman": "Ремесленник",
+    "realia:Cross": "Крест (столб казни)",
+    "realia:Crown": "Венец",
+    "realia:Crown.2": "Венец (диадема)",
+    "realia:Curtain": "Завеса",
+    "realia:Doorstep": "Порог",
+    "realia:Entrance": "Вход",
+    "realia:FestivalOfTheTabernacles": "Праздник кущей (Суккот)",
+    "realia:Floor": "Пол",
+    "realia:Fortification": "Укрепление",
+    "realia:Foundation": "Основание",
+    "realia:GravenImage": "Идол (истукан)",
+    "realia:Harpoon": "Гарпун",
+    "realia:HighPlace": "Высота (капище)",
+    "realia:Image": "Изображение (идол)",
+    "realia:Lamp": "Светильник",
+    "realia:Lampstand": "Светильник (менора)",
+    "realia:Loop": "Петля",
+    "realia:Lyre": "Кифара (лира)",
+    "realia:MoltenImage": "Литой истукан",
+    "realia:Myrrh": "Мирра (смирна)",
+    "realia:Pit": "Яма",
+    "realia:Plaster": "Штукатурка",
+    "realia:Prison": "Темница",
+    "realia:ReplicaTemple": "Храм (модель)",
+    "realia:Rope": "Верёвка",
+    "realia:SacredPole": "Священный шест (ашера)",
+    "realia:Seal": "Печать",
+    "realia:Ship": "Корабль",
+    "realia:Siege-works": "Осадные сооружения",
+    "realia:SiegeTower": "Осадная башня",
+    "realia:Sieve": "Решето",
+    "realia:Soap": "Мыло (щёлок)",
+    "realia:StoneAltar": "Каменный жертвенник",
+    "realia:TabernacleAltar": "Жертвенник скинии",
+    "realia:Tablet": "Скрижаль (дощечка)",
+    "realia:Temple": "Храм",
+    "realia:TempleAltar": "Жертвенник храма",
+    "realia:Threshing-sledge": "Молотильная повозка",
+    "realia:ThreshingFloor": "Гумно",
+    "realia:ToSaddle": "Седло",
+    "realia:Torch": "Факел",
+    "realia:Trap": "Ловушка",
+    "realia:Wagon": "Колесница",
+    "realia:Watch-tower": "Сторожевая башня",
+    "realia:Weapons": "Оружие",
 }
 
 # 3. Таблица хронологии написания всех 66 канонических книг Библии (ADR 0024 §9):
@@ -1269,6 +1439,7 @@ def main() -> None:
     canon_existing = set(
         db.execute("SELECT entity_id, LOWER(name) FROM entity_names WHERE lang='ru' AND kind='canonical'").fetchall()
     )
+    canon_eids = {e for e, _n in canon_existing}
     for eid, typ, en_name, strongs in db.execute("SELECT id, type, name, strongs FROM entities"):
         ea_rec = etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {}
         nom_ru = EXPLICIT_RU_NAMES.get(eid) or ea_rec.get("nom_ru")
@@ -1292,7 +1463,7 @@ def main() -> None:
             added_names.append((eid, rob_form, "ru", "biblical"))
             ru_by_id[eid].append(rob_form)
 
-        if ru_by_id.get(eid):
+        if ru_by_id.get(eid) and eid in canon_eids:
             continue
 
         found_ru: str | None = EXPLICIT_RU_NAMES.get(eid)
@@ -1325,6 +1496,8 @@ def main() -> None:
             found_ru = found_ru[0].upper() + found_ru[1:]
 
         added_names.append((eid, found_ru, "ru", "canonical"))
+        canon_eids.add(eid)
+        canon_existing.add((eid, found_ru.lower()))
         ru_by_id[eid].append(found_ru)
         b_id = eid.split(".")[0]
         base_ru_by_id.setdefault(b_id, found_ru)
@@ -1517,6 +1690,53 @@ def main() -> None:
     # 9. Заполняем таблицу `media` (OpenBible Geocoding + UBS Illustrations)
     ent_with_media, total_media_rows = populate_media_table(db)
 
+    # 9a. Чистим данные: дубликаты canonical ru-имён, опечатку «Авесалом»
+    #     в статьях Door43, и битые локальные `image_path` без реального файла.
+    dup_removed = db.execute(
+        """
+        DELETE FROM entity_names WHERE rowid IN (
+            SELECT rowid FROM (
+                SELECT rowid, ROW_NUMBER() OVER (
+                    PARTITION BY entity_id, LOWER(name)
+                    ORDER BY CASE kind WHEN 'canonical' THEN 0 WHEN 'biblical' THEN 1
+                             WHEN 'synodal' THEN 2 ELSE 3 END, rowid
+                ) AS rn
+                FROM entity_names WHERE lang IN ('ru', 'rus')
+            ) WHERE rn > 1
+        )
+        """
+    ).rowcount
+    promoted = db.execute(
+        """
+        INSERT INTO entity_names
+        SELECT e.id, n.name, 'ru', 'canonical'
+        FROM entities e
+        JOIN entity_names n ON n.entity_id = e.id AND n.lang = 'rus' AND n.kind = 'localized'
+        WHERE NOT EXISTS(
+            SELECT 1 FROM entity_names n2
+            WHERE n2.entity_id = e.id AND n2.lang = 'ru' AND n2.kind = 'canonical'
+        )
+        GROUP BY e.id
+        """
+    ).rowcount
+    db.execute(
+        "UPDATE entities SET metadata=REPLACE(metadata, 'Авесалом', 'Авессалом') "
+        "WHERE metadata LIKE '%Авесалом%'"
+    )
+    fixed_img = 0
+    for eid, ipath in db.execute(
+        "SELECT id, image_path FROM entities WHERE image_path != '' AND image_path NOT LIKE 'http%'"
+    ).fetchall():
+        http_media = db.execute(
+            "SELECT rel_path FROM media WHERE entity_id=? AND rel_path LIKE 'http%' LIMIT 1",
+            (eid,),
+        ).fetchone()
+        db.execute(
+            "UPDATE entities SET image_path=? WHERE id=?",
+            (http_media[0] if http_media else "", eid),
+        )
+        fixed_img += 1
+
     # 10. Обновляем метаданные модуля `knowledge.sb`
     all_ids = [r[0] for r in db.execute("SELECT id FROM entities ORDER BY id").fetchall()]
     digest = hashlib.sha256(json.dumps(all_ids, ensure_ascii=False).encode("utf-8")).hexdigest()
@@ -1565,6 +1785,9 @@ def main() -> None:
         "visual_aids_rows": total_va,
         "entities_with_media": ent_with_media,
         "media_rows_total": total_media_rows,
+        "duplicate_ru_names_removed": dup_removed,
+        "rus_names_promoted_to_canonical": promoted,
+        "dead_local_image_paths_fixed": fixed_img,
     }
     (DATA / "work" / "strongs" / "knowledge" / "stats-v0.3.0.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2),
