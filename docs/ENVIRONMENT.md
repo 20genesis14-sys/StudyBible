@@ -47,9 +47,13 @@ inside `~` is physically on `D:` but accessed as native ext4, avoiding the
 - `~/StudyBible` — second checkout of the repo in ext4;
   `origin = file:///mnt/d/StudyBible`, sync via `git fetch` + checkout.
   `D:\StudyBible` stays the master copy for Windows tools.
-- `/home/vagrant/fdroiddata` — **canonical** F-Droid workdir (mirrors the
-  buildserver layout `/home/vagrant/fdroiddata/build/<appid>` so APK paths
-  match for `fdroid verify`). Builds/verifies run here as user `gedeon`.
+- `/home/vagrant/build/dev.studybible` — **canonical** F-Droid `--on-server`
+  checkout path (F-Droid's CI and buildserver run `fdroid build` from
+  `/home/vagrant`, baking `file:///home/vagrant/build/dev.studybible/...`
+  into `libapp.so`); reference APKs for GitHub Releases must be built here
+  with `PUB_CACHE=/home/vagrant/build/dev.studybible/apps/studybible-flutter/.pub-cache`
+  and signed with `apksigner sign --alignment-preserved --v1-signing-enabled false`.
+  `/home/vagrant/fdroiddata` is the local `fdroid` workspace.
 - `~/fdroid-fork` — fdroiddata fork for the upstream MR (GitHub-source
   recipe with `binary:` + `AllowedAPKSigningKeys`).
 - `~/flutter` — Flutter SDK checkout pinned at `5fc346839b` (3.47.6),

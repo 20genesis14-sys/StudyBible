@@ -48,10 +48,14 @@
 - `~/StudyBible` — второй чекаут репо в ext4;
   `origin = file:///mnt/d/StudyBible`, синхронизация через `git fetch`
   + checkout. `D:\StudyBible` остаётся мастер-копией для Windows-инструментов.
-- `/home/vagrant/fdroiddata` — **каноническое** рабочее дерево F-Droid
-  (повторяет раскладку buildserver `/home/vagrant/fdroiddata/build/<appid>`,
-  чтобы пути в APK совпадали для `fdroid verify`). Сборки и проверки
-  запускаются отсюда пользователем `gedeon`.
+- `/home/vagrant/build/dev.studybible` — **канонический** путь чекаута
+  F-Droid `--on-server` (GitLab CI и продакшн-билдсервер F-Droid запускают
+  `fdroid build` из `/home/vagrant`, запекая
+  `file:///home/vagrant/build/dev.studybible/...` в `libapp.so`); эталонные
+  APK для GitHub Releases собираются именно здесь с
+  `PUB_CACHE=/home/vagrant/build/dev.studybible/apps/studybible-flutter/.pub-cache`
+  и подписываются через `apksigner sign --alignment-preserved --v1-signing-enabled false`.
+  `/home/vagrant/fdroiddata` — локальное рабочее дерево `fdroid`.
 - `~/fdroid-fork` — форк fdroiddata для апстрим-MR (рецепт с источником
   GitHub, `binary:` + `AllowedAPKSigningKeys`).
 - `~/flutter` — чекаут Flutter SDK, пин `5fc346839b` (3.47.6);

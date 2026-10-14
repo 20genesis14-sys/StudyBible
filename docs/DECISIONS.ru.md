@@ -1129,13 +1129,26 @@ versionCode `versionCode * 10 + abiCode`, rustup из Debian) реализова
   --target-platform android-arm|android-arm64|android-x64`, rustup
   1.99.0 + три Android-таргета Rust, JDK 17, `AllowedAPKSigningKeys` =
   SHA-256 релизного ключа (`e0e45a73…2f32af8`).
-- **Причина падения `ryanheise`/`AudioServiceActivity`**: `PUB_CACHE`
-  указывал внутрь билд-дира (`$(pwd)/.pub-cache`). С кэшем внутри
-  чекаута `flutter pub get` не пишет `.flutter-plugins-dependencies` —
-  загрузчик плагинов Gradle видит ноль плагинов,
-  `GeneratedPluginRegistrant` пустой. Фикс: `PUB_CACHE=$HOME/.pub-cache`
-  (вне дерева сборки), `.pub-cache` убран из `scandelete`.
-  Воспроизведено в обе стороны.
+- **Причина падения `ryanheise`/`AudioServiceActivity`**: в монорепо,
+  где `pubspec.lock` лежит в `apps/studybible-flutter/pubspec.lock`,
+  при `PUB_CACHE` в корне репо (`$(pwd)/.pub-cache`) сканер
+  `fdroidserver/scanner.py` идёт вверх от
+  `.pub-cache/hosted/.../pubspec.yaml` до `build_dir`, не находит
+  `pubspec.lock`, помечает каждый `pubspec.yaml` плагина как
+  `dependency file without lock` и удаляет его по `scandelete`. Фикс:
+  `PUB_CACHE=$(pwd)/apps/studybible-flutter/.pub-cache` и
+  `scandelete: - apps/studybible-flutter/.pub-cache` (тогда
+  `apps/studybible-flutter/pubspec.lock` — родительский каталог для
+  `.pub-cache`, и сканер не трогает `pubspec.yaml` плагинов).
+- **Канонический путь сборки на билдсервере F-Droid (`--on-server`)**:
+  GitLab CI и продакшн-билдсервер F-Droid запускают `fdroid build` из
+  `/home/vagrant`, поэтому путь чекаута, запекаемый в `libapp.so`
+  (URI `dart_plugin_registrant.dart`), —
+  `/home/vagrant/build/dev.studybible`. Эталонные APK для GitHub
+  Releases собираются в `/home/vagrant/build/dev.studybible` и
+  подписываются через `apksigner sign --alignment-preserved
+  --v1-signing-enabled false` ключом `studybible-release.jks`
+  (`34be45e3…60494`).
 - **fdroid сам вычищает `signingConfigs`** из `build.gradle.kts`
   («Cleaned build.gradle.kts of keysigning configs») — эталонные APK
   надо собирать из дерева, где блок восстановлен (`git checkout --`),

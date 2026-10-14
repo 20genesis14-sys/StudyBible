@@ -1237,13 +1237,24 @@ was implemented and locally verified end-to-end:
   `AllowedAPKSigningKeys` set to the release key's SHA-256
   (`e0e45a73…2f32af8`).
 - **Root cause of the `ryanheise`/`AudioServiceActivity` failure**:
-  `PUB_CACHE` pointed inside the build dir (`$(pwd)/.pub-cache`).
-  With the cache inside the checkout, `flutter pub get` does not write
-  `.flutter-plugins-dependencies`, so the Gradle plugin loader sees
-  zero plugins and `GeneratedPluginRegistrant` is generated empty.
-  Fix: `PUB_CACHE=$HOME/.pub-cache` (outside the build tree) and the
-  `.pub-cache` entry removed from `scandelete`. Reproduced both ways
-  in the fdroid build tree.
+  in a monorepo where `pubspec.lock` lives at
+  `apps/studybible-flutter/pubspec.lock`, placing `PUB_CACHE` at the
+  repo root (`$(pwd)/.pub-cache`) makes `fdroidserver/scanner.py` walk
+  up from `.pub-cache/hosted/.../pubspec.yaml` to `build_dir` without
+  finding a `pubspec.lock`, flag every plugin's `pubspec.yaml` as
+  `dependency file without lock`, and delete it via `scandelete`. Fix:
+  `PUB_CACHE=$(pwd)/apps/studybible-flutter/.pub-cache` and
+  `scandelete: - apps/studybible-flutter/.pub-cache` (so
+  `apps/studybible-flutter/pubspec.lock` is an ancestor directory of
+  `.pub-cache` and `scanner` keeps all plugin `pubspec.yaml` files).
+- **Canonical build path on the F-Droid server (`--on-server`)**:
+  F-Droid's GitLab CI and production buildserver run `fdroid build`
+  from `/home/vagrant`, so the checkout path baked into `libapp.so`
+  (`dart_plugin_registrant.dart` URI) is
+  `/home/vagrant/build/dev.studybible`. Reference APKs for GitHub
+  releases must be built in `/home/vagrant/build/dev.studybible` and
+  signed with `apksigner sign --alignment-preserved --v1-signing-enabled
+  false` using `studybible-release.jks` (`34be45e3…60494`).
 - **fdroid itself strips `signingConfigs`** from `build.gradle.kts`
   ("Cleaned build.gradle.kts of keysigning configs") — reference
   binaries must be built from a tree where the block is restored
