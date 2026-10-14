@@ -16,6 +16,17 @@ Usability and intuitiveness — fixing visual rough edges.
   corner.
 - The header now shows the full book and chapter name, plus the
   translation and mode.
+- Search now understands Bible references (`Jn 3:16`, `Gen 1`) and
+  Strong's numbers (`H1254`, `G3056`): a button appears right above the
+  results so you can jump straight to that passage or dictionary entry.
+- Quick search filters let you narrow results in one tap to the whole
+  Bible, the Old Testament, the New Testament, or the book you are
+  currently reading.
+- Copying selected text now puts a neat quote in your clipboard with
+  the exact verse reference and translation name, without extra spaces
+  or markers.
+- Phrase highlights and read-aloud word highlighting stay accurate in
+  poetic books (Psalms, Proverbs) and in verse-per-line mode.
 - Faster chapter turns, bookmarking and highlighting: the app now
   loads only the current chapter's notes and highlights instead of
   re-reading your entire notebook every time.
