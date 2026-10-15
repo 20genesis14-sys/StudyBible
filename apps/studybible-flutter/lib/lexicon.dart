@@ -130,7 +130,15 @@ String? _normStrongOne(String s) {
   if (m == null) return null;
   final letter = m.group(1)!.toUpperCase();
   final digits = m.group(2)!;
-  final suffix = m.group(3)?.toUpperCase() ?? '';
+  final rawSuffix = m.group(3) ?? '';
+  // В dStrong (ADR 0025) строчные v..z у 4-значных кодов (H2148v, H5838w, H4918y)
+  // обозначают тёзок №22+ и не должны сливаться с заглавными V..Z.
+  final suffix = (digits.length == 4 &&
+          rawSuffix.isNotEmpty &&
+          rawSuffix.codeUnitAt(0) >= 0x76 &&
+          rawSuffix.codeUnitAt(0) <= 0x7a)
+      ? rawSuffix
+      : rawSuffix.toUpperCase();
   if (suffix.isNotEmpty) {
     // dStrong с буквой значения: канон — 4 знака + буква ('H29G' → 'H0029G').
     return '$letter${digits.padLeft(4, '0')}$suffix';

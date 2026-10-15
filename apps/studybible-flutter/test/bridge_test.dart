@@ -251,6 +251,30 @@ void main() {
     expect((lexJson['entries'] as List), isNotEmpty);
     expect(lexJson['entity'], isNotNull);
 
+    // Проверка ORIG-3: на многоморфемном слове Gen.1.1#01 ('בְּרֵאשִׁית')
+    // запрос H7225G возвращает морфологию существительного ('Ncfsa'), а не предлога ('HR').
+    final begRaw = await bridgeChapterDoc(
+      origPath,
+      '@lex:H7225G|ref=Gen.1.1#01',
+      1,
+    );
+    expect(begRaw, isNotNull);
+    final begJson = jsonDecode(begRaw!) as Map<String, dynamic>;
+    expect(begJson['context_sense'], '1_beginning');
+    expect((begJson['morph'] as List).first['code'], 'Ncfsa');
+
+    // Проверка ORIG-1: пророк Захария в Зах 1:1 (Zec.1.1#10) сохраняет строчный суффикс H2148v
+    // и открывает карточку именно пророка Захарии (person:Zechariah.17).
+    final zecRaw = await bridgeChapterDoc(
+      origPath,
+      '@lex:H2148v|ref=Zec.1.1#10',
+      1,
+    );
+    expect(zecRaw, isNotNull);
+    final zecJson = jsonDecode(zecRaw!) as Map<String, dynamic>;
+    expect((zecJson['entries'] as List).first['key'], 'H2148v');
+    expect((zecJson['entity'] as Map<String, dynamic>)['id'], 'person:Zechariah.17');
+
     final entRaw = await bridgeChapterDoc(origPath, '@entity:person:Abraham', 1);
     expect(entRaw, isNotNull);
     expect(entRaw!, contains('Abraham'));

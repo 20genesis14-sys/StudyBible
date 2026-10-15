@@ -1956,11 +1956,26 @@ extension _ChapterRenderer on _ReadingScreenState {
     ),
   );
 
+  String _primaryStrongCode(String s) {
+    final parts = s.trim().split(RegExp(r'\s+'));
+    for (final p in parts) {
+      if (!p.startsWith('H9') &&
+          !p.startsWith('G9') &&
+          p != 'H0853' &&
+          p != 'G3588') {
+        return p;
+      }
+    }
+    return parts.first;
+  }
+
   String _topLineOf(TextSpanDoc w, ChapterDoc? chDoc) {
     if (settings.interlinearMode == InterlinearMode.dictionary &&
         chDoc?.dictGlosses != null &&
         w.strong != null) {
-      final g = chDoc!.dictGlosses![w.strong!];
+      final raw = w.strong!;
+      final g = chDoc!.dictGlosses![raw] ??
+          chDoc.dictGlosses![_primaryStrongCode(raw)];
       if (g != null && g.isNotEmpty) return g;
     }
     return w.text.trim().replaceAll('/', '');
@@ -1978,7 +1993,8 @@ extension _ChapterRenderer on _ReadingScreenState {
     final mc = w.morph ?? '';
     if (settings.interlinearMode == InterlinearMode.dictionary &&
         mc.isNotEmpty) {
-      return st.isNotEmpty ? '$st · $mc' : mc;
+      final mLabel = chDoc?.dictMorphs?[mc] ?? mc;
+      return st.isNotEmpty ? '$st · $mLabel' : mLabel;
     }
     return st;
   }
@@ -1991,7 +2007,10 @@ extension _ChapterRenderer on _ReadingScreenState {
     if (g != null) return g.group(1) ?? '';
     final s = w.strong;
     if (s != null) {
-      final e = _lex?[s];
+      final p = _primaryStrongCode(s);
+      final base = p.replaceAll(RegExp(r'[A-Za-z]$'), '');
+      final normBase = normalizeStrong(base) ?? base;
+      final e = _lex?[s] ?? _lex?[p] ?? _lex?[normBase];
       if (e != null && e.expl.isNotEmpty) {
         final cut = e.expl.indexOf(';');
         return cut > 0 ? e.expl.substring(0, cut) : e.expl;

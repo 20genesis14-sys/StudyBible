@@ -849,6 +849,26 @@ fn parse_wid_book_ch(wid: &str) -> Option<(u16, i64)> {
     Some((bid, ch))
 }
 
+fn pad_strong_4(code: &str) -> Option<String> {
+    let b = code.as_bytes();
+    if b.len() < 2 || (b[0] != b'H' && b[0] != b'G') {
+        return None;
+    }
+    let prefix = b[0] as char;
+    let rest = &code[1..];
+    let digits_len = rest.bytes().take_while(|c| c.is_ascii_digit()).count();
+    if digits_len == 0 || digits_len > 4 {
+        return None;
+    }
+    let num: u32 = rest[..digits_len].parse().ok()?;
+    let suffix = &rest[digits_len..];
+    Some(format!("{prefix}{num:04}{suffix}"))
+}
+
+fn is_service_strong(code: &str) -> bool {
+    code.starts_with("H9") || code.starts_with("G9") || code == "H0853" || code == "G3588"
+}
+
 fn find_lex_module(base_path: &Path, lang: &str) -> Option<PathBuf> {
     if lang != "en"
         && let Some(p) = find_aux_module(base_path, "lexicon", "strongs-step-ru")
@@ -881,49 +901,91 @@ fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>>
         }
     }
 
-    // Если передан wid (`Gen.1.1#03`), но нет eid/sns — проверим в step-orig.sb
-    let first_wid = wid_raw.split_whitespace().next().unwrap_or("");
-    if !first_wid.is_empty()
-        && (eid_raw.is_empty() || sns_raw.is_empty())
+    // Если передан wid (`Gen.1.1#03`), подбираем морфему step-orig.sb, чей strong
+    // совпадает с запрошенным кодом (чтобы не брать морфологию приставки вместо корня
+    // и не привязывать eid имени собственного к предлогу).
+    let wids: Vec<&str> = wid_raw.split_whitespace().take(4).collect();
+    if !wids.is_empty()
+        && (eid_raw.is_empty() || sns_raw.is_empty() || morph_code.is_empty())
         && let Some(orig_p) = find_aux_module(base_path, "orig", "step-orig")
         && let Ok(om) = open_cached(&orig_p)
         && let Ok(om) = lock_module(&om)
     {
-        let pat = format!("%wid=\"{first_wid}\"%");
-        let rows_vec: Vec<String> = if let Some((bid, ch_n)) = parse_wid_book_ch(first_wid) {
-            let bid_s = bid.to_string();
-            let ch_s = ch_n.to_string();
-            om.conn()
-                .prepare("SELECT attrs FROM spans WHERE book_id=CAST(?1 AS INTEGER) AND chapter=CAST(?2 AS INTEGER) AND attrs LIKE ?3 LIMIT 5")
-                .and_then(|mut st| {
-                    st.query_map([&bid_s, &ch_s, &pat], |r| r.get::<_, String>(0))
-                        .map(|it| it.flatten().collect())
-                })
-                .unwrap_or_default()
-        } else {
-            om.conn()
-                .prepare("SELECT attrs FROM spans WHERE attrs LIKE ?1 LIMIT 5")
-                .and_then(|mut st| {
-                    st.query_map([&pat], |r| r.get::<_, String>(0))
-                        .map(|it| it.flatten().collect())
-                })
-                .unwrap_or_default()
-        };
-        for a in rows_vec {
+        let mut q_codes: Vec<String> = Vec::new();
+        for c in strong_raw.split_whitespace() {
+            q_codes.push(c.to_string());
+            if let Some(p4) = pad_strong_4(c)
+                && !q_codes.contains(&p4)
+            {
+                q_codes.push(p4);
+            }
+        }
+        let has_lex_q = q_codes.iter().any(|c| !is_service_strong(c));
+        let mut rows_vec: Vec<String> = Vec::new();
+        for w_one in &wids {
+            let pat = format!("%wid=\"{w_one}\"%");
+            let mut part: Vec<String> = if let Some((bid, ch_n)) = parse_wid_book_ch(w_one) {
+                let bid_s = bid.to_string();
+                let ch_s = ch_n.to_string();
+                om.conn()
+                    .prepare("SELECT attrs FROM spans WHERE book_id=CAST(?1 AS INTEGER) AND chapter=CAST(?2 AS INTEGER) AND attrs LIKE ?3 LIMIT 8")
+                    .and_then(|mut st| {
+                        st.query_map([&bid_s, &ch_s, &pat], |r| r.get::<_, String>(0))
+                            .map(|it| it.flatten().collect())
+                    })
+                    .unwrap_or_default()
+            } else {
+                om.conn()
+                    .prepare("SELECT attrs FROM spans WHERE attrs LIKE ?1 LIMIT 8")
+                    .and_then(|mut st| {
+                        st.query_map([&pat], |r| r.get::<_, String>(0))
+                            .map(|it| it.flatten().collect())
+                    })
+                    .unwrap_or_default()
+            };
+            rows_vec.append(&mut part);
+        }
+        for a in &rows_vec {
+            let sp_st = extract_attr(a, "strong").unwrap_or_default();
+            let matches_q = if q_codes.is_empty() {
+                true
+            } else if has_lex_q {
+                q_codes.iter().any(|c| c == &sp_st && !is_service_strong(c))
+            } else {
+                q_codes.iter().any(|c| c == &sp_st)
+            };
+            if !matches_q {
+                continue;
+            }
             if eid_raw.is_empty()
-                && let Some(e) = extract_attr(&a, "eid")
+                && (q_codes.is_empty() || has_lex_q)
+                && let Some(e) = extract_attr(a, "eid")
             {
                 eid_raw = e;
             }
             if sns_raw.is_empty()
-                && let Some(s) = extract_attr(&a, "sns")
+                && (q_codes.is_empty() || has_lex_q)
+                && let Some(s) = extract_attr(a, "sns")
             {
                 sns_raw = s;
             }
             if morph_code.is_empty()
-                && let Some(mc) = extract_attr(&a, "morph")
+                && let Some(mc) = extract_attr(a, "morph")
             {
                 morph_code = mc;
+            }
+        }
+        // Фолбэк для морфологии, если точный dStrong в стихе отличался суффиксом
+        if morph_code.is_empty() {
+            for a in &rows_vec {
+                let sp_st = extract_attr(a, "strong").unwrap_or_default();
+                if has_lex_q && is_service_strong(&sp_st) {
+                    continue;
+                }
+                if let Some(mc) = extract_attr(a, "morph") {
+                    morph_code = mc;
+                    break;
+                }
             }
         }
     }
@@ -962,11 +1024,45 @@ fn query_lex_and_entity(base_path: &Path, query: &str) -> Result<Option<String>>
                 )
                 .ok()
                 .or_else(|| {
+                    let p4 = pad_strong_4(&key)?;
+                    key = p4;
+                    conn.query_row(
+                        "SELECT key, estrong, base, lemma, xlit, pos, gloss, sense_label, sense_domain, relation, related, ustrong, conf
+                         FROM lex WHERE key=?1",
+                        [&key],
+                        |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1).unwrap_or_default(),
+                                r.get::<_, String>(2).unwrap_or_default(),
+                                r.get::<_, String>(3).unwrap_or_default(),
+                                r.get::<_, String>(4).unwrap_or_default(),
+                                r.get::<_, String>(5).unwrap_or_default(),
+                                r.get::<_, String>(6).unwrap_or_default(),
+                                r.get::<_, String>(7).unwrap_or_default(),
+                                r.get::<_, String>(8).unwrap_or_default(),
+                                r.get::<_, String>(9).unwrap_or_default(),
+                                r.get::<_, String>(10).unwrap_or_default(),
+                                r.get::<_, String>(11).unwrap_or_default(),
+                                r.get::<_, i64>(12).unwrap_or(10),
+                            ))
+                        },
+                    )
+                    .ok()
+                })
+                .or_else(|| {
                     // Поиск по базе через lex_base
+                    let base_key = if let Some(b) = code.strip_prefix('H').or_else(|| code.strip_prefix('G')) {
+                        let prefix = &code[..1];
+                        let digits: String = b.chars().take_while(|c| c.is_ascii_digit()).collect();
+                        digits.parse::<u32>().ok().map(|n| format!("{prefix}{n}")).unwrap_or_else(|| code.to_string())
+                    } else {
+                        code.to_string()
+                    };
                     let base_cand: String = conn
                         .query_row(
                             "SELECT key FROM lex_base WHERE base=?1 ORDER BY key LIMIT 1",
-                            [&key],
+                            [&base_key],
                             |r| r.get(0),
                         )
                         .ok()?;
@@ -1098,19 +1194,29 @@ fn find_entity_for_card(base_path: &Path, eid_raw: &str, strong_raw: &str) -> Re
     }
     if ent_id.is_none() {
         for code in strong_raw.split_whitespace() {
-            if code.starts_with("H9") || code.starts_with("G9") || code == "G3588" {
+            if is_service_strong(code) {
                 continue;
             }
-            let pat = format!("%{code}%");
-            if let Ok(id) = conn.query_row(
-                "SELECT id FROM entities WHERE (' ' || strongs || ' ') LIKE '% ' || ?1 || ' %' ORDER BY id LIMIT 1",
-                [code],
-                |r| r.get::<_, String>(0),
-            ) {
-                ent_id = Some(id);
+            let cands: Vec<String> = if let Some(p4) = pad_strong_4(code)
+                && p4 != code
+            {
+                vec![code.to_string(), p4]
+            } else {
+                vec![code.to_string()]
+            };
+            for c_try in cands {
+                if let Ok(id) = conn.query_row(
+                    "SELECT id FROM entities WHERE (' ' || strongs || ' ') LIKE '% ' || ?1 || ' %' ORDER BY id LIMIT 1",
+                    [&c_try],
+                    |r| r.get::<_, String>(0),
+                ) {
+                    ent_id = Some(id);
+                    break;
+                }
+            }
+            if ent_id.is_some() {
                 break;
             }
-            let _ = pat;
         }
     }
     let Some(id) = ent_id else {
@@ -1419,14 +1525,46 @@ fn query_dict_glosses(
     let conn = lm.conn();
     let mut gmap = Map::new();
     for k in strongs {
-        if let Ok((gloss, pos)) =
-            conn.query_row("SELECT gloss, pos FROM lex WHERE key=?1", [&k], |r| {
+        let row_opt = conn
+            .query_row("SELECT gloss, pos FROM lex WHERE key=?1", [&k], |r| {
                 Ok((
                     r.get::<_, String>(0).unwrap_or_default(),
                     r.get::<_, String>(1).unwrap_or_default(),
                 ))
             })
-        {
+            .ok()
+            .or_else(|| {
+                let p4 = pad_strong_4(&k)?;
+                conn.query_row("SELECT gloss, pos FROM lex WHERE key=?1", [&p4], |r| {
+                    Ok((
+                        r.get::<_, String>(0).unwrap_or_default(),
+                        r.get::<_, String>(1).unwrap_or_default(),
+                    ))
+                })
+                .ok()
+            })
+            .or_else(|| {
+                let base_key = if let Some(b) = k.strip_prefix('H').or_else(|| k.strip_prefix('G')) {
+                    let prefix = &k[..1];
+                    let digits: String = b.chars().take_while(|c| c.is_ascii_digit()).collect();
+                    let n: u32 = digits.parse().ok()?;
+                    format!("{prefix}{n}")
+                } else {
+                    k.clone()
+                };
+                conn.query_row(
+                    "SELECT l.gloss, l.pos FROM lex_base b JOIN lex l ON l.key = b.key WHERE b.base=?1 ORDER BY b.key LIMIT 1",
+                    [&base_key],
+                    |r| {
+                        Ok((
+                            r.get::<_, String>(0).unwrap_or_default(),
+                            r.get::<_, String>(1).unwrap_or_default(),
+                        ))
+                    },
+                )
+                .ok()
+            });
+        if let Some((gloss, pos)) = row_opt {
             gmap.insert(k, json!({"g": gloss, "p": pos}));
         }
     }
