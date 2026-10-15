@@ -1012,6 +1012,12 @@ def main() -> None:
     db.commit()
     db.close()
 
+    # Добор corpus-ru для ключей, отрезанных порогом conf>=9 при сборе приоров
+    # (редкие/низкоуверенные слова): статистика по head-ссылкам conf>=8, conf=8.
+    from extend_corpus_ru import main as extend_corpus_ru_main
+
+    extend_corpus_ru_main()
+
     cli = REPO / "target" / "debug" / "studybible.exe"
     subprocess.run([str(cli), "module", "check", str(out_sb)], check=True)
     subprocess.run([str(cli), "module", "pack", str(out_sb)], check=True)
