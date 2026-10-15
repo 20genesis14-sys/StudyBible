@@ -82,3 +82,8 @@ current is part of adding or updating any bundled module.
   unfoldingWord / UBS, adaptations © Mission Mutual. Derived `.sb`
   modules require attribution in `meta` and stay under CC BY-SA.
   `ACAI` entity data likewise CC BY-SA © Mission Mutual.
+- **Berean Annotated Bible (BAB)** draft (`bab.txt`/`bab.xlsx`,
+  AnnotatedBible.com) — **public domain**: ~52k inline emphasis/
+  originals/variants/literal-translation/cross-reference marks and
+  plural markers for the `engbsb-bab.sbz` layer (DECISIONS
+  2026-10-15).

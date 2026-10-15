@@ -86,3 +86,7 @@
   Mission Mutual. Производные `.sb`-модули требуют атрибуции в `meta`
   и остаются под CC BY-SA. Данные `ACAI` по сущностям — также
   CC BY-SA © Mission Mutual.
+- **Berean Annotated Bible (BAB)**, драфт (`bab.txt`/`bab.xlsx`,
+  AnnotatedBible.com) — **public domain**: ~52 тыс. встроенных
+  пометок эмфазы/оригиналов/вариантов/буквальных переводов/ссылок
+  и маркеров мн. ч. для слоя `engbsb-bab.sbz` (DECISIONS 15.10.2026).

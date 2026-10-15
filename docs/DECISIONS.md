@@ -1625,3 +1625,53 @@ plan, tasks, data inventory and skill specs —
   `flutter_rust_bridge` (`module_doc_typed`, `chapter_doc_typed`)
   without intermediate `serde_json` string serialization and
   `jsonDecode`.
+
+## `engbsb-bab` emphasis layer (Berean Annotated Bible) and Russian lexicon articles (2026-10-15)
+
+- **Received the BAB draft (Berean Annotated Bible, public domain,
+  AnnotatedBible.com)** — the annotated BSB text: ~52,119 inline
+  marks across 31,102 verse rows (all 66 books): `(…)` emphasis and
+  glosses — 31,333, `{…}` Hebrew/Greek originals — 11,647, `[…]`
+  alternate-manuscript readings — 709, `\…/` literal translations —
+  246, `<…>` cross-references/measurements — 1,536, `⁺` second-person
+  plural — 6,648. Comparison with `engbsb.sb` (4,846 `\f` + 29,361
+  `\x` + 630k Strong's-tagged tokens): the layers are orthogonal —
+  BAB adds inline emphasis, originals and plural markers absent from
+  the USFM footnotes.
+- **Decision: a separate `engbsb-bab.sbz` layer** keyed by verse
+  coordinates (the `*-strongs` precedent, ADR 0023/0025): `engbsb`
+  text is not modified; the five mark types map to span kinds and
+  styles; `{Elohim}` links into the lexicon, `<…>` into the
+  cross-reference system, `[…]` into the variant apparatus.
+- **Aquifer inventory (measured)**: `biblica-keyterms` — 551 short
+  Russian articles (318 linked via `acai` → entity → strongs);
+  `aquifer-obd` — 55 long encyclopedic articles; `fia-keyterms` —
+  audio only; `aquifer-osn` — 9,035 Russian per-verse study notes
+  (stays on the post-1.0 BibleAquifer track); `rsb-aquifer` — a
+  translation. `load_aquifer_ru_articles` was a stub.
+- **biblica-keyterms article placement**: canonically on
+  `knowledge.sb` entities (`acai` id = our `entity_id`); `lex_def`
+  receives `short_description` + an `eid` link — no full-text
+  duplication, lexicography stays separate from encyclopedia.
+  Concept articles (`keyterm`, `realia`) may also live in `lex_def`
+  as term definitions — full text only on the entity's primary code.
+- **Doctrinal neutrality criterion**: content derivable from
+  biblical context is acceptable; extra-biblical assertions stated
+  as fact (the Trinity as a given, immortality of the soul, eternal
+  torment) are defects to be flagged at review. Marker scan:
+  `biblica-keyterms` is nearly clean (2 legitimate hits / 551);
+  `aquifer-obd` contains trinitarian framing ("Бог, Его Бытие и
+  Атрибуты", "Крещение") — use only after curation.
+- **door43-tw-ru**: the "Варианты перевода" sections stay for now;
+  a review with examples is scheduled.
+- **`lex_def` plan (D+C)**:
+  a) indexing fix: 13,860 en articles sit on classic keys instead of
+     dStrong — normalize via `lex_base`;
+  b) synthesized `step-ru` articles for all 22,743 keys from
+     validated fields (gloss + sense_label + sense_domain + corpus)
+     — `def_source='step-ru'`;
+  c) LLM translation of English prose ordered by corpus frequency:
+     glossary anchoring (ru_gloss/domain/label in context), template
+     dictionary of recurring clauses (11,528 unique clauses cover
+     ~50 % of occurrences), `review='auto'` → `verified`, en originals
+     retained with a language badge.
