@@ -388,4 +388,9 @@ fn search_strong_native_and_layer() {
     );
     let hits = idx.search_strong("H0776", 10, Some(&layer), &m).unwrap();
     assert_eq!(hits[0].snippet, "[земля] же была безвидна");
+    // Суффиксный запрос без точного совпадения — фолбэк на базовый
+    // номер (слой хранит `H0776`, `H0776B` находит его же).
+    let hits = idx.search_strong("H0776B", 10, Some(&layer), &m).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 2);
 }

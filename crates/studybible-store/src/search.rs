@@ -511,7 +511,9 @@ impl SearchIndex {
     /// токенизатора `w1`). Иначе — по собственной разметке модуля:
     /// `token_pack`/`tokens`, а при их отсутствии — `strong=` в
     /// `attrs` спанов `span_pack`/`spans`. Сниппет — нормализованный
-    /// текст стиха целиком.
+    /// текст стиха целиком. Фолбэки при пустом ответе: uW-добивка
+    /// `G15100`→`G1510`, затем суффиксный ключ → базовый номер
+    /// (`H2300G` → `H2300`, находит и `H2300A`).
     pub fn search_strong(
         &self,
         code: &str,
@@ -536,10 +538,24 @@ impl SearchIndex {
             .filter(|(_, n, _)| *n >= 10000 && *n % 10 == 0)
             .map(|&(p, n, s)| (p, n / 10, s))
             .collect();
-        if alt.is_empty() {
+        if !alt.is_empty() {
+            let hits = self.strong_scan(&alt, limit, layer, module)?;
+            if !hits.is_empty() {
+                return Ok(hits);
+            }
+        }
+        // Суффиксный запрос без совпадений: разметка могла проставить
+        // другую букву того же номера (`H2300G` в запросе, а в слое
+        // только `H2300A`) — показываем, что есть по самому числу.
+        let plain: Vec<_> = keys
+            .iter()
+            .filter(|(_, _, s)| *s != ' ')
+            .map(|&(p, n, _)| (p, n, ' '))
+            .collect();
+        if plain.is_empty() {
             return Ok(hits);
         }
-        self.strong_scan(&alt, limit, layer, module)
+        self.strong_scan(&plain, limit, layer, module)
     }
 
     /// Один проход сканирования по ключам запроса (см. `search_strong`).
