@@ -761,6 +761,16 @@ the top ("Go to Jn 3:16" / "Open Strong's G3056"), and pressing Enter
 on an exact reference opens the passage directly. Compact scope chips
 next to "In notes" filter results by **All**, **OT**, **NT**, or
 **Current book** (when search was opened from the reader).
+A Strong's query also runs the reverse lookup — all verses tagged with
+that number (`SearchIndex::search_strong`): a valid `{id}-strongs`
+layer is scanned first (its `links` table replaces built-in markup at
+read time, so search shows the same tagging the reader paints; matched
+words are wrapped in `[ ]` by `w1` index), otherwise the module's own
+`tokens`/`token_pack` or `spans`/`span_pack` `strong=` attributes are
+scanned. Numbers compare by parsed `(H|G, digits, suffix)` key —
+zero-padding and case do not matter (`H29` ≡ `H0029`, `h29g` ≡
+`H0029G`). A translation without markup yields an explicit
+"no Strong's tagging" notice instead of an empty list.
 
 ## Output
 Several translations in columns or lines, alignment through

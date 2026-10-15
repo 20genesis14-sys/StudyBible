@@ -52,6 +52,7 @@
 | 51 | ~~Greek senses~~ — closed 2026-10-13 (measurement E): TAGNT numbered senses cover only 6.2 % of words (48 lemmas); MACULA Louw–Nida covers 93.1 % — chosen as the Greek sense source, subject to the MARBLE licence (OQ 49) | closed |
 | 52 | ~~Numbers to freeze before the held-out run: N in the quality gate (F1 ≥ inter-gold agreement − N) and the rule combining signals into `conf` 0–10~~ — closed 2026-10-14 (Phase 7): `N = 2.0 pp` (gate threshold: OT ≥ 93.2 %, NT ≥ 93.4 % against ceiling `B = 95.2 % / 95.4 %`). Passed on held-out books: BSB Mode A F1 = **97.52 % OT / 96.73 % NT** (names **98.90 %**), KJV Mode B F1 = **100.0 % OT / 99.99 % NT** (`dStrong` **99.97 % / 99.99 %**, names **99.96 %**), monotonic `conf` calibration verified (`work/strongs/report-phase7-en-gate.md`) | closed |
 | 53 | STEPBible "Datasets coming" (TAGOT, TFBDB, TOTMM/TNTMM, TBCWG) have no published dates; TFBDB would give a full Hebrew lexicon, TOTMM/TNTMM — textual variants. Optionally ask STEPBibleATgmail.com | When needed |
+| 54 | Raw-file scans on packed `.sbz` modules: `SearchIndex::scan` (glob `?`/`*`), `search_notes_with_layer` and the embedded-`fts` fast path in `SearchIndex::open` reopen `module.path()` directly — a compressed `.sbz` is not a SQLite db, so those paths error (the bridge guard turns it into empty results). `search_strong` avoids it via `module.conn()`. Fix — thread the open `Module`/`Connection` through or sniff SBZ1 in store | At the next search pass |
 
 ## Closed
 
