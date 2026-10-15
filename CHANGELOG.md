@@ -19,6 +19,9 @@ Usability and intuitiveness — fixing visual rough edges.
 - Search now understands Bible references (`Jn 3:16`, `Gen 1`) and
   Strong's numbers (`H1254`, `G3056`): a button appears right above the
   results so you can jump straight to that passage or dictionary entry.
+- Typing a Strong's number into search also lists every verse tagged
+  with it in the current translation (when the translation carries
+  Strong's markup) — the tagged words are marked in the snippets.
 - Quick search filters let you narrow results in one tap to the whole
   Bible, the Old Testament, the New Testament, or the book you are
   currently reading.
