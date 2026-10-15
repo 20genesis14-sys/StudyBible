@@ -38,6 +38,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 DATA = pathlib.Path(os.environ.get("STUDYBIBLE_DATA", r"D:\StudyBible-data"))
 
 from ubs_domains_ru import DOMAIN_EN_TO_RU  # noqa: E402
+from sns_labels_ru import SNS_LABELS_RU  # noqa: E402
 
 # Словарь замены церковнославянизмов и архаизмов XIX в. на современный русский язык
 ARCHAISM_TO_MODERN: dict[str, tuple[str, str]] = {
@@ -882,6 +883,12 @@ def main() -> None:
         )
         if key in GLOSS_OVERRIDES_RU:
             ru_gloss = GLOSS_OVERRIDES_RU[key]
+        if en_sense:
+            ru_sense = f"{en_sense} → {SNS_LABELS_RU.get(en_sense, ru_gloss)}"
+        elif en_gloss:
+            ru_sense = f"{en_gloss} → {ru_gloss}"
+        else:
+            ru_sense = ru_gloss
         ru_dom = translate_domain(en_dom)
 
         lex_rows.append((
