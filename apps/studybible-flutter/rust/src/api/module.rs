@@ -392,6 +392,29 @@ fn find_strongs_layer(module_path: &Path, module_id: &str) -> Option<PathBuf> {
     None
 }
 
+/// Слой `{id}-strongs` применим к модулю: совпали `target_id`,
+/// `target_hash` и `tokenizer` (w1) из meta слоя (ADR 0025).
+fn strongs_layer_fits(layer: &Module, m: &Module) -> bool {
+    let x = &layer.meta().extra;
+    x.get("target_id").map(String::as_str).unwrap_or("") == m.meta().id
+        && x.get("tokenizer").map(String::as_str).unwrap_or("")
+            == studybible_core::text::WORDS_VERSION
+        && x.get("target_hash").map(String::as_str).unwrap_or("") == m.meta().content_hash
+}
+
+/// Слой найден, но не применим: адресован этому модулю, а хэш
+/// разошёлся (перевод обновился после сборки слоя) — читатель
+/// показывает пометку `layer_mismatch`.
+fn strongs_layer_mismatch(layer: &Module, m: &Module) -> bool {
+    let x = &layer.meta().extra;
+    x.get("target_id").map(String::as_str).unwrap_or("") == m.meta().id
+        && !x
+            .get("target_hash")
+            .map(String::as_str)
+            .unwrap_or("")
+            .is_empty()
+}
+
 /// Найти вспомогательный модуль (`strongs-step` или `knowledge`) в `modules/`
 /// или `work/strongs/`.
 fn find_aux_module(base_path: &Path, sub: &str, name: &str) -> Option<PathBuf> {
@@ -451,29 +474,10 @@ pub async fn chapter_doc(path: String, book: String, chapter: i64) -> Result<Opt
         && let Ok(layer) = open_cached(&lp)
     {
         let layer = lock_module(&layer)?;
-        let lmeta = layer.meta();
-        let target_id = lmeta
-            .extra
-            .get("target_id")
-            .map(String::as_str)
-            .unwrap_or("");
-        let target_hash = lmeta
-            .extra
-            .get("target_hash")
-            .map(String::as_str)
-            .unwrap_or("");
-        let tokenizer = lmeta
-            .extra
-            .get("tokenizer")
-            .map(String::as_str)
-            .unwrap_or("");
-        if target_id == m.meta().id
-            && tokenizer == studybible_core::text::WORDS_VERSION
-            && target_hash == m.meta().content_hash
-        {
+        if strongs_layer_fits(&layer, &m) {
             let _ = inject_layer_strongs(&mut ch, &layer, code, number);
-        } else if target_id == m.meta().id && !target_hash.is_empty() {
-            layer_mismatch = true;
+        } else {
+            layer_mismatch = strongs_layer_mismatch(&layer, &m);
         }
     }
     let blocks: Vec<Value> = ch.blocks.iter().map(block_json).collect();
@@ -526,29 +530,10 @@ pub async fn chapter_doc_typed(
         && let Ok(layer) = open_cached(&lp)
     {
         let layer = lock_module(&layer)?;
-        let lmeta = layer.meta();
-        let target_id = lmeta
-            .extra
-            .get("target_id")
-            .map(String::as_str)
-            .unwrap_or("");
-        let target_hash = lmeta
-            .extra
-            .get("target_hash")
-            .map(String::as_str)
-            .unwrap_or("");
-        let tokenizer = lmeta
-            .extra
-            .get("tokenizer")
-            .map(String::as_str)
-            .unwrap_or("");
-        if target_id == m.meta().id
-            && tokenizer == studybible_core::text::WORDS_VERSION
-            && target_hash == m.meta().content_hash
-        {
+        if strongs_layer_fits(&layer, &m) {
             let _ = inject_layer_strongs(&mut ch, &layer, code, number);
-        } else if target_id == m.meta().id && !target_hash.is_empty() {
-            layer_mismatch = true;
+        } else {
+            layer_mismatch = strongs_layer_mismatch(&layer, &m);
         }
     }
     let blocks = ch.blocks.iter().map(block_info).collect();
@@ -1853,6 +1838,41 @@ pub async fn module_notes_search(
         idx.search_notes_with_layer(&query, lim, Some(&layer), &m.meta().versification)?
     } else {
         idx.search_notes(&query, lim)?
+    };
+    Ok(hits
+        .iter()
+        .map(|h| SearchHitInfo {
+            book: h.book.to_string(),
+            chapter: h.chapter.into(),
+            verse: h.verse.into(),
+            snippet: h.snippet.clone(),
+        })
+        .collect())
+}
+
+/// Поиск стихов по номеру Стронга (обратная сторона омнибокса):
+/// валидный слой `{id}-strongs` (target_id+hash+w1, ADR 0025) имеет
+/// приоритет над встроенной разметкой — как при чтении
+/// (`inject_layer_strongs`); совпавшие слова помечаются `[` `]`
+/// в сниппете по индексу `w1`.
+pub async fn module_strong_search(
+    module_path: String,
+    cache_path: String,
+    code: String,
+    limit: i64,
+) -> Result<Vec<SearchHitInfo>> {
+    let m = open_cached(Path::new(&module_path))?;
+    let m = lock_module(&m)?;
+    let idx = studybible_store::SearchIndex::open(Path::new(&cache_path), &m)?;
+    let lim = usize::try_from(limit).unwrap_or(usize::MAX);
+    let hits = if let Some(lp) = find_strongs_layer(Path::new(&module_path), &m.meta().id)
+        && let Ok(layer_arc) = open_cached(&lp)
+        && let Ok(layer) = lock_module(&layer_arc)
+        && strongs_layer_fits(&layer, &m)
+    {
+        idx.search_strong(&code, lim, Some(&layer), &m)?
+    } else {
+        idx.search_strong(&code, lim, None, &m)?
     };
     Ok(hits
         .iter()

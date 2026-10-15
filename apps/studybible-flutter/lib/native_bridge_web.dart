@@ -1048,6 +1048,189 @@ Future<List<SearchHit>> bridgeModuleSearch(
   }
 }
 
+/// Поиск стихов по номеру Стронга на web: скан `span_pack`/`spans`
+/// по атрибуту `strong=`. Слои `{id}-strongs` на web не поднимаем
+/// (отдельный файл слоя в OPFS не ищем) — встроенной разметки
+/// модуля достаточно для встроенных переводов.
+Future<List<SearchHit>> bridgeModuleStrongSearch(
+  String modulePath,
+  String code, {
+  int limit = 50,
+}) async {
+  try {
+    final db = await _openDb(modulePath);
+    final keys = _strongKeys(code);
+    if (keys.isEmpty) return const [];
+    var hits = _strongScan(db, keys, limit);
+    if (hits.isEmpty) {
+      // uW-добивка `G15100` → `G1510` — только когда точного ключа нет.
+      final alt = _strongUwAltKeys(keys);
+      if (alt.isNotEmpty) hits = _strongScan(db, alt, limit);
+    }
+    return hits;
+  } catch (e) {
+    debugPrint('[bridge] strong search $modulePath: $e');
+    return const [];
+  }
+}
+
+/// Один проход сканирования разметки модуля по ключам Стронга.
+List<SearchHit> _strongScan(CommonDatabase db, Set<String> keys, int limit) {
+  final coords = <({String book, int chapter, int verse})>[];
+  final seen = <String>{};
+  void push(String book, int ch, int v) {
+    if (seen.add('$book:$ch:$v')) {
+      coords.add((book: book, chapter: ch, verse: v));
+    }
+  }
+
+  final hasPack =
+      (db.select(
+            "SELECT count(*) AS n FROM sqlite_master "
+            "WHERE name='span_pack' AND type='table'",
+          ).first['n']
+          as num) >
+      0;
+  if (hasPack) {
+    final rows = db.select(
+      'SELECT b.code AS c, p.chapter AS ch, p.blob AS blob FROM span_pack p '
+      'JOIN books b ON b.book_id=p.book_id ORDER BY b.ord, p.chapter, p.block',
+    );
+    for (final r in rows) {
+      for (final s in _decodeSpans(r['blob'] as Uint8List)) {
+        final v = s.verse;
+        if (v != null && _strongListHit(_attrAll(s.attrs, 'strong'), keys)) {
+          push('${r['c']}', (r['ch'] as num).toInt(), v);
+        }
+      }
+      if (coords.length >= limit) break;
+    }
+  } else {
+    final rows = db.select(
+      "SELECT b.code AS c, s.chapter AS ch, s.verse AS v, s.attrs AS a "
+      'FROM spans s JOIN books b ON b.book_id=s.book_id '
+      "WHERE s.kind='t' AND s.verse IS NOT NULL AND s.attrs LIKE '%strong=%' "
+      'ORDER BY b.ord, s.chapter, s.verse',
+    );
+    for (final r in rows) {
+      if (_strongListHit(_attrAll('${r['a']}', 'strong'), keys)) {
+        push('${r['c']}', (r['ch'] as num).toInt(), (r['v'] as num).toInt());
+      }
+      if (coords.length >= limit) break;
+    }
+  }
+  // Сниппет — нормализованный текст стиха целиком.
+  return [
+    for (final c in coords.take(limit))
+      SearchHit(
+        book: c.book,
+        chapter: c.chapter,
+        verse: c.verse,
+        snippet: normForIndex(
+          '${db.select(
+                'SELECT v.text AS t FROM verses v JOIN books b ON b.book_id=v.book_id '
+                'WHERE b.code=? AND v.chapter=? AND v.verse=?',
+                [c.book, c.chapter, c.verse],
+              ).firstOrNull?['t'] ?? ''}',
+        ),
+      ),
+  ];
+}
+
+/// Номер Стронга → канонический ключ сравнения `H0029G`: добивка
+/// нулями и регистр не влияют (`H29` ≡ `H0029`); строчные v..z при
+/// 4 знаках — тёзки dStrong, регистр сохраняем. Зеркало `strong_key`
+/// в crates/studybible-store/src/search.rs.
+String? _strongKey(String code) {
+  final s = code.trim();
+  if (s.length < 2) return null;
+  final prefix = s[0].toUpperCase();
+  if (prefix != 'H' && prefix != 'G') return null;
+  final rest = s.substring(1);
+  var dlen = 0;
+  while (dlen < rest.length &&
+      rest.codeUnitAt(dlen) >= 0x30 &&
+      rest.codeUnitAt(dlen) <= 0x39) {
+    dlen++;
+  }
+  if (dlen == 0 || dlen > 5) return null;
+  final num = int.parse(rest.substring(0, dlen));
+  final tail = rest.substring(dlen);
+  if (tail.length > 1) return null;
+  final cu = tail.isEmpty ? 0x20 : tail.codeUnitAt(0);
+  // Строчные v..z у 4-значных кодов — тёзки №22+ (dStrong, ADR 0025);
+  // пустой суффикс хранится пробелом — ключ всегда «буква+цифры+суффикс».
+  final suf = tail.isEmpty
+      ? ' '
+      : (dlen == 4 && cu >= 0x76 && cu <= 0x7a)
+      ? tail
+      : tail.toUpperCase();
+  return '$prefix${num.toString().padLeft(4, '0')}$suf';
+}
+
+/// Ключи сравнения запроса (можно список через пробел).
+Set<String> _strongKeys(String query) => {
+  for (final c in query.trim().split(RegExp(r'\s+'))) ?_strongKey(c),
+};
+
+/// Варианты с uW-добивкой нулём: пятизначный `G15100` → `G1510`.
+/// Применяются только когда точный ключ ничего не дал (подлинный
+/// dStrong вида `G21370` ищется сначала как есть).
+Set<String> _strongUwAltKeys(Set<String> keys) {
+  final out = <String>{};
+  for (final k in keys) {
+    final digits = k.substring(1, k.length - 1);
+    if (digits.length == 5 && digits.endsWith('0')) {
+      out.add(
+        '${k[0]}${(int.parse(digits) ~/ 10).toString().padLeft(4, '0')}'
+        '${k[k.length - 1]}',
+      );
+    }
+  }
+  return out;
+}
+
+/// Список номеров через пробел (`strong` в attrs) содержит хотя бы
+/// один из ключей запроса.
+bool _strongListHit(String list, Set<String> keys) => list
+    .split(RegExp(r'\s+'))
+    .any((c) {
+      final k = _strongKey(c);
+      return k != null && keys.any((q) => _strongEq(q, k));
+    });
+
+/// Совпадение ключа запроса с размеченным номером: prefix+цифры
+/// обязаны совпасть; суффикс запроса `' '` покрывает любые
+/// dStrong-варианты (`H1254` находит и `H1254A`), суффикс-буква —
+/// строгое равенство.
+bool _strongEq(String query, String stored) {
+  if (query.length != stored.length ||
+      query.substring(0, query.length - 1) !=
+          stored.substring(0, stored.length - 1)) {
+    return false;
+  }
+  return query.endsWith(' ') || query == stored;
+}
+
+/// Все значения `key="…"` в строке атрибутов спана через пробел
+/// (зеркало `attr_all` в crates/studybible-store/src/module.rs).
+String _attrAll(String attrs, String key) {
+  final pat = '$key="';
+  final out = StringBuffer();
+  var rest = attrs;
+  for (;;) {
+    final i = rest.indexOf(pat);
+    if (i < 0) break;
+    final v = rest.substring(i + pat.length);
+    final j = v.indexOf('"');
+    if (j < 0) break;
+    if (out.isNotEmpty) out.write(' ');
+    out.write(v.substring(0, j));
+    rest = v.substring(j + 1);
+  }
+  return out.toString();
+}
+
 /// Поиск по сноскам и параллельным местам (`spans` kind
 /// 'f'/'n'/'x' с текстом) — те же операторы, что и по стихам.
 /// Таблица мала — всегда скан в каноническом порядке.

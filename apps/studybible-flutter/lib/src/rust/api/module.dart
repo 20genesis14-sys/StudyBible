@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `block_info`, `block_json`, `extract_attr`, `find_aux_module`, `find_entity_for_card`, `find_strongs_layer`, `handle_special_query`, `inject_layer_strongs`, `inject_layer_xrefs`, `inject_verse_note`, `load_entity_json`, `lock_module`, `norm_eid_key`, `open_any`, `open_cached`, `parse_wid_book_ch`, `query_dict_glosses`, `query_entity_by_id`, `query_lex_and_entity`, `span_info`, `span_json`, `split_span_by_w1`, `strip_strong_attrs`, `xref_layer_path`
+// These functions are ignored because they are not marked as `pub`: `block_info`, `block_json`, `extract_attr`, `find_aux_module`, `find_entity_for_card`, `find_lex_module`, `find_strongs_layer`, `handle_special_query`, `inject_layer_strongs`, `inject_layer_xrefs`, `inject_verse_note`, `is_service_strong`, `load_entity_json`, `lock_module`, `norm_eid_key`, `open_any`, `open_cached`, `pad_strong_4`, `parse_wid_book_ch`, `query_book_chronology`, `query_dict_glosses`, `query_entity_by_id`, `query_lex_and_entity`, `query_visual_aid`, `span_info`, `span_json`, `split_span_by_w1`, `strip_strong_attrs`, `strongs_layer_fits`, `strongs_layer_mismatch`, `xref_layer_path`
 
 /// Включить/выключить общий слой параллельных мест (ADR 0023):
 /// `path` — `.sb`/`.sbz` слоя; пустая строка — слой отключён.
@@ -117,6 +117,23 @@ Future<List<SearchHitInfo>> moduleNotesSearch({
   modulePath: modulePath,
   cachePath: cachePath,
   query: query,
+  limit: limit,
+);
+
+/// Поиск стихов по номеру Стронга (обратная сторона омнибокса):
+/// валидный слой `{id}-strongs` (target_id+hash+w1, ADR 0025) имеет
+/// приоритет над встроенной разметкой — как при чтении
+/// (`inject_layer_strongs`); совпавшие слова помечаются `[` `]`
+/// в сниппете по индексу `w1`.
+Future<List<SearchHitInfo>> moduleStrongSearch({
+  required String modulePath,
+  required String cachePath,
+  required String code,
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiModuleModuleStrongSearch(
+  modulePath: modulePath,
+  cachePath: cachePath,
+  code: code,
   limit: limit,
 );
 

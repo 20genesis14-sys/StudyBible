@@ -661,6 +661,36 @@ Future<List<SearchHit>> bridgeNotesSearch(
   ];
 }
 
+/// Поиск стихов по номеру Стронга (обратная сторона омнибокса):
+/// при валидном слое `{id}-strongs` — по его `links` (совпавшие
+/// слова помечены `[ ]` в сниппете), иначе — по собственной
+/// разметке модуля. `code` — как ввёл пользователь (разбор —
+/// на стороне ядра: добивка нулями и регистр не влияют).
+Future<List<SearchHit>> bridgeModuleStrongSearch(
+  String modulePath,
+  String code, {
+  int limit = 50,
+}) async {
+  final hits = await _guard(
+    'moduleStrongSearch',
+    () => api_module.moduleStrongSearch(
+      modulePath: modulePath,
+      cachePath: '$modulePath.idx',
+      code: code,
+      limit: limit,
+    ),
+  );
+  return [
+    for (final h in hits ?? const <api_module.SearchHitInfo>[])
+      SearchHit(
+        book: h.book,
+        chapter: h.chapter.toInt(),
+        verse: h.verse.toInt(),
+        snippet: h.snippet,
+      ),
+  ];
+}
+
 // ---------- автоударения (RUAccent, нейробэкенд; ADR 0017) ----------
 
 /// Загрузить модель акцентуации из ассетов (один раз на процесс —

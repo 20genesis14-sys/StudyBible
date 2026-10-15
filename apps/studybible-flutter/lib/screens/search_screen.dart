@@ -157,17 +157,33 @@ class _SearchScreenState extends State<SearchScreen> {
       });
       return;
     }
-    final hits = _notes
+    // Номер Стронга — обратный поиск: все стихи с этим номером
+    // (слой `{id}-strongs` или собственная разметка модуля);
+    // чип «В сносках» на него не влияет — в сносках Стронга нет.
+    final hits = _directStrong != null
+        ? await bridgeModuleStrongSearch(path, q, limit: _fetchLimit)
+        : _notes
         ? await bridgeNotesSearch(path, q, limit: _fetchLimit)
         : await bridgeModuleSearch(path, q, limit: _fetchLimit);
     if (!mounted) return;
     setState(() {
       _busy = false;
       _allHits = hits;
-      if (_hits.isEmpty && _directRef == null && _directStrong == null) {
-        _notice = tr('Ничего не найдено.', 'Nothing found.');
-      }
+      _notice = _emptyNotice;
     });
+  }
+
+  /// Пояснение к пустой выдаче: для номера Стронга — отдельное
+  /// (в переводе может просто не быть разметки), для ссылки омнибокса
+  /// пустой список не поясняем — над ним карточка перехода.
+  String? get _emptyNotice {
+    if (_hits.isNotEmpty || _directRef != null) return null;
+    return _directStrong != null
+        ? tr(
+            'Стихов с $_directStrong не найдено — похоже, в этом переводе нет разметки Стронга.',
+            'No verses tagged $_directStrong — this translation may lack Strong’s markup.',
+          )
+        : tr('Ничего не найдено.', 'Nothing found.');
   }
 
   @override
@@ -183,9 +199,7 @@ class _SearchScreenState extends State<SearchScreen> {
     onSelected: (_) => setState(() {
       _scope = scope;
       if (_allHits.isNotEmpty) {
-        _notice = _hits.isEmpty && _directRef == null && _directStrong == null
-            ? tr('Ничего не найдено.', 'Nothing found.')
-            : null;
+        _notice = _emptyNotice;
       }
     }),
   );
@@ -237,6 +251,15 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               style: TextStyle(fontWeight: FontWeight.w600, color: p.ink),
             ),
+            subtitle: _allHits.isEmpty
+                ? null
+                : Text(
+                    tr(
+                      'Стихи с этим номером — в списке ниже',
+                      'Verses with this number are listed below',
+                    ),
+                    style: TextStyle(fontSize: 12, color: p.muted),
+                  ),
             trailing: Icon(Icons.arrow_forward, color: p.accent, size: 18),
             onTap: () => _openStrong(strong),
           ),

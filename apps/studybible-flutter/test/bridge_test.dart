@@ -173,6 +173,39 @@ void main() {
     expect(hits.first.snippet.toLowerCase(), contains('любв'));
   }, skip: hasSb ? false : 'нет .sb');
 
+  test('обратный поиск по номеру Стронга находит стихи', () async {
+    await rescanModules();
+    // russyn + слой russyn-strongs: H1254 («сотворил») — в Быт 1:1.
+    final path = modulePathOf('russyn');
+    if (path == null) return;
+    final hits = await bridgeModuleStrongSearch(path, 'H1254', limit: 20);
+    expect(hits, isNotEmpty, reason: 'слой russyn-strongs должен давать стихи');
+    expect(
+      hits.any((h) => h.book == 'GEN' && h.chapter == 1 && h.verse == 1),
+      isTrue,
+    );
+    // Совпавшее слово помечено [ ] в сниппете (индекс w1 из links).
+    expect(
+      hits
+          .firstWhere(
+            (h) => h.book == 'GEN' && h.chapter == 1 && h.verse == 1,
+          )
+          .snippet,
+      contains('[сотворил]'),
+    );
+    // Добивка нулями и регистр не влияют на ответ.
+    expect(
+      (await bridgeModuleStrongSearch(path, 'h07225', limit: 5))
+          .any((h) => h.book == 'GEN' && h.chapter == 1 && h.verse == 1),
+      isTrue,
+    );
+    // Модуль без разметки — пустой список, без ошибок.
+    final kjv = modulePathOf('engasv') ?? modulePathOf('engrh');
+    if (kjv != null) {
+      expect(await bridgeModuleStrongSearch(kjv, 'H1254', limit: 5), isEmpty);
+    }
+  }, skip: hasSb ? false : 'нет .sb');
+
   test('история чтения: запись и возврат', () async {
     await history.load();
     final before = history.items.length;
