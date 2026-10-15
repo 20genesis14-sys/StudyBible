@@ -769,7 +769,13 @@ words are wrapped in `[ ]` by `w1` index), otherwise the module's own
 `tokens`/`token_pack` or `spans`/`span_pack` `strong=` attributes are
 scanned. Numbers compare by parsed `(H|G, digits, suffix)` key —
 zero-padding and case do not matter (`H29` ≡ `H0029`, `h29g` ≡
-`H0029G`). A translation without markup yields an explicit
+`H0029G`). Fallback order when the exact key hits nothing: uW padding
+`G15100` → `G1510`, then a suffixed query degrades to the bare number
+(`H2300G` → `H2300`, surfacing e.g. `H2300A` rows — same-number
+variants are more useful than an empty list). The verse list is shown
+in full (fetch ceiling 30,000 guards pathological aux numbers like
+`H9003` ≈ 7,500 verses), so "By book" counts and the total are real,
+not the first hundred. A translation without markup yields an explicit
 "no Strong's tagging" notice instead of an empty list.
 
 ## Output
