@@ -1711,3 +1711,19 @@ plan, tasks, data inventory and skill specs —
   OpenBible.info, BibleHub.com) — a ready-made topical index
   "topic → verses + context"; **roadmap only** as a separate layer,
   implementation deferred.
+
+
+## Annotation layers `annotations` (BAB storage format) (2026-10-15)
+
+- Layer table **`annotations`** (ADR 0026): generic word-anchored
+  annotation storage `(book_id, chapter, verse, word, wlen, kind,
+  text, target, conf, flags, source)`; `word` = w1 index, `-1` =
+  verse-level mark; `features='annotations'`, `draft=1` meta flag for
+  draft corpora.
+- `engbsb-bab.sbz` built against the new engbsb (hash b727d032…):
+  52,466 marks (e 31,276 / o 11,632 / a 739 / l 633 / x 1,109 /
+  m 432 / p 6,645); conf 10 — 52,099, near — 267, verse — 100;
+  71 `dup` marks not for display.
+- Renderer binding deferred: options — verse-note injection,
+  strong-attr, `bab=` attr + badge widget (see ADR 0026
+  consequences).

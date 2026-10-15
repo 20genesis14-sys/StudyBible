@@ -1622,3 +1622,18 @@ versionCode `versionCode * 10 + abiCode`, rustup из Debian) реализова
   OpenBible.info, BibleHub.com) — готовый тематический индекс
   «тема → стихи + контекст»; **в roadmap как отдельный слой**,
   реализация отложена.
+
+
+## Слои пометок `annotations` (формат хранения BAB) (2026-10-15)
+
+- Таблица слоя **`annotations`** (ADR 0026): общее хранилище пометок
+  на словах `(book_id, chapter, verse, word, wlen, kind, text,
+  target, conf, flags, source)`; `word` — индекс w1, `-1` —
+  пометка уровня стиха; `features='annotations'`, meta-флаг `draft=1`
+  для черновых корпусов.
+- `engbsb-bab.sbz` собран на новом engbsb (хэш b727d032…): 52 466
+  пометок (e 31 276 / o 11 632 / a 739 / l 633 / x 1 109 / m 432 /
+  p 6 645); conf 10 — 52 099, near — 267, verse — 100; 71 пометок
+  `dup` не для показа.
+- Привязка к рендереру отложена: варианты — инъекция стиховых нот,
+  strong-атрибут, `bab=`-атрибут + бейдж-виджет (см. ADR 0026).
