@@ -22,6 +22,9 @@ Usability and intuitiveness — fixing visual rough edges.
 - Typing a Strong's number into search also lists every verse tagged
   with it in the current translation (when the translation carries
   Strong's markup) — the tagged words are marked in the snippets.
+  Results are shown in full rather than the first hundred, and a
+  suffixed number with no exact match (`H2300G`) falls back to the
+  base number so lettered variants like `H2300A` still surface.
 - Quick search filters let you narrow results in one tap to the whole
   Bible, the Old Testament, the New Testament, or the book you are
   currently reading.
