@@ -57,9 +57,17 @@ def norm_classic(s: str) -> str | None:
     pref = m.group(1)
     digits = m.group(2)
     val = int(digits)
-    # unfoldingWord UGNT 5-digit Greek Strong's (e.g. G15100 -> G1510, G30560 -> G3056)
-    if pref == "G" and val > 5624 and digits.endswith("0"):
+    if val == 0:
+        return None
+    # unfoldingWord UGNT 5-digit Greek Strong's (e.g. G15100 -> G1510, G41775 -> G4177)
+    if pref == "G" and val > 5624:
         val = val // 10
+    # Несуществующие номера греческого словаря Стронга (G3203..G3302 и TVM G5625..G5999)
+    if pref == "G" and ((3203 <= val <= 3302) or (5625 <= val <= 5999)):
+        return None
+    # TVM-коды морфологии иврита (H8675..H8999) не являются номерами лексикона
+    if pref == "H" and 8675 <= val <= 8999:
+        return None
     return f"{pref}{val:04d}"
 
 

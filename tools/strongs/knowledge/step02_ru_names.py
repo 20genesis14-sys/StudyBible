@@ -82,7 +82,10 @@ def main() -> None:
         existing.add((eid, nm.lower()))
 
     new_rows: list[tuple[str, str, str, str]] = []
-    for eid, st_raw in db.execute("SELECT id, strongs FROM entities WHERE strongs != ''"):
+    for eid, typ, st_raw in db.execute("SELECT id, type, strongs FROM entities WHERE strongs != ''"):
+        # Корпусный сбор слов с заглавной буквы применим ТОЛЬКО к именам собственным
+        if typ not in ("person", "place", "deity", "group"):
+            continue
         codes = re.findall(r"[HG]\d+[A-Za-z]?", st_raw)
         syn_ctr: collections.Counter = collections.Counter()
         mod_ctr: collections.Counter = collections.Counter()

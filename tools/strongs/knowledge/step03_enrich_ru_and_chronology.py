@@ -1441,27 +1441,33 @@ def main() -> None:
     )
     canon_eids = {e for e, _n in canon_existing}
     for eid, typ, en_name, strongs in db.execute("SELECT id, type, name, strongs FROM entities"):
-        ea_rec = etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {}
+        ea_rec = (
+            (etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {})
+            if typ in ("person", "place", "deity", "group")
+            else {}
+        )
         nom_ru = EXPLICIT_RU_NAMES.get(eid) or ea_rec.get("nom_ru")
         if nom_ru:
             if (eid, nom_ru.lower()) not in canon_existing:
                 added_names.append((eid, nom_ru, "ru", "canonical"))
                 canon_existing.add((eid, nom_ru.lower()))
+                canon_eids.add(eid)
             if nom_ru in ru_by_id[eid]:
                 ru_by_id[eid].remove(nom_ru)
             ru_by_id[eid].insert(0, nom_ru)
 
-        # Дополнительная форма из 66-книжного ru_rob-strongs.sb
+        # Дополнительная форма из 66-книжного ru_rob-strongs.sb (только для имён собственных!)
         codes = re.findall(r"[HG]\d+[A-Za-z]?", strongs)
-        rob_ctr: collections.Counter = collections.Counter()
-        for c in codes:
-            cl = norm_classic(c) or c
-            rob_ctr.update(rob_names.get(c, {}))
-            rob_ctr.update(rob_names.get(cl, {}))
-        rob_form = pick_nominative_ru(rob_ctr)
-        if rob_form and rob_form.lower() not in [x.lower() for x in ru_by_id.get(eid, [])]:
-            added_names.append((eid, rob_form, "ru", "biblical"))
-            ru_by_id[eid].append(rob_form)
+        if typ in ("person", "place", "deity", "group"):
+            rob_ctr: collections.Counter = collections.Counter()
+            for c in codes:
+                cl = norm_classic(c) or c
+                rob_ctr.update(rob_names.get(c, {}))
+                rob_ctr.update(rob_names.get(cl, {}))
+            rob_form = pick_nominative_ru(rob_ctr)
+            if rob_form and rob_form.lower() not in [x.lower() for x in ru_by_id.get(eid, [])]:
+                added_names.append((eid, rob_form, "ru", "biblical"))
+                ru_by_id[eid].append(rob_form)
 
         if ru_by_id.get(eid) and eid in canon_eids:
             continue
@@ -1550,7 +1556,11 @@ def main() -> None:
         "SELECT id, type, subtype, name, strongs, short_description, article, metadata FROM entities"
     ):
         meta = json.loads(meta_s) if meta_s else {}
-        ea_rec = etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {}
+        ea_rec = (
+            (etym_acc_map.get(eid) or etym_acc_map.get(eid.split(".")[0]) or {})
+            if typ in ("person", "place", "deity", "group")
+            else {}
+        )
         if ea_rec.get("meaning_ru"):
             meta["name_meaning_ru"] = ea_rec["meaning_ru"]
             meaning_ru_count += 1

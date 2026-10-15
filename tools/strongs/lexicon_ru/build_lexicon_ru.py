@@ -334,58 +334,218 @@ MORPH_TERM_MAP: list[tuple[str, str]] = [
 ]
 
 DOMAIN_EN_TO_RU: dict[str, str] = {
+    "Names of People": "Имена людей",
+    "Names of Locations": "Географические названия",
+    "Names of Persons and Places": "Имена людей и названия мест",
+    "Names of Groups": "Названия народов и групп",
+    "Names of Deities": "Имена и титулы Бога / божеств",
+    "Names of Landforms": "Названия гор, долин и форм рельефа",
+    "Names of Constructions": "Названия построек и сооружений",
+    "Names of Waterbodies": "Названия рек, морей и водоёмов",
+    "Names of Months": "Названия месяцев",
+    "Names of Heavenly Bodies": "Названия небесных светил",
+    "Names of Events": "Названия событий и праздников",
+    "Names of Artifacts": "Названия предметов",
+    "Deities": "Бог и божества",
+    "Titles for Deities": "Божественные титулы",
+    "Supernatural Beings": "Духовные существа",
+    "Supernatural Beings and Powers": "Духовные существа и силы",
+    "Persons": "Люди",
+    "People": "Люди и народы",
+    "Places": "Места и территории",
+    "Groups": "Группы и сообщества",
+    "Groups and Classes of Persons and Members of Such Groups and Classes": "Группы и сословия людей",
+    "Socio-Religious": "Религиозно-общественные группы",
+    " Socio-Political": "Общественно-политические группы",
+    "Socio-Political": "Общественно-политические группы",
+    "Relatives": "Родственники",
+    "Kinship": "Родство и семья",
+    "Kinship Terms": "Термины родства",
+    "Leaders": "Вожди и правители",
+    "Professions": "Профессии и занятия",
+    "Prophets": "Пророки",
+    "Priests": "Священники",
+    "Titles": "Титулы и звания",
+    "Status": "Статус и положение",
+    "Role": "Роль и служение",
     "Exist": "Существование",
+    "Non-Exist": "Небытие, исчезновение",
     "Be, Become, Exist, Happen": "Бытие, становление, событие",
     "Happen": "Происходить, случаться",
-    "Communication": "Общение, передача информации",
+    "Communication": "Общение и речь",
+    "Speak": "Речь, высказывание",
     "Speak, Talk": "Говорить, речь",
     "Preach, Proclaim": "Проповедовать, возвещать",
+    "Inform, Announce": "Возвещать, сообщать",
     "Written Language": "Письменная речь",
     "Think": "Мышление",
     "To Think, Thought": "Думать, мысль",
-    "Know": "Знать, познание",
-    "Understand": "Понимать",
-    "Remember": "Помнить, память",
+    "Hold a View, Believe, Trust": "Верить, доверять, считать",
+    "Know": "Знание и познание",
+    "Understand": "Понимание",
+    "Learn": "Учиться, узнавать",
+    "Remember": "Память и воспоминание",
+    "See": "Зрение, видеть",
+    "Sensory Events and States": "Чувственное восприятие",
+    "Sounds": "Звуки и слух",
+    "Attitudes and Emotions": "Чувства и внутренний настрой",
     "Love, Affection, Compassion": "Любовь, привязанность, сострадание",
-    "Joy, Gladness": "Радость, веселье",
-    "Grief, Sorrow": "Скорбь, печаль",
+    "Joy, Gladness": "Радость и веселье",
+    "Happy, Glad, Joyful": "Радость, ликование",
+    "Rejoice": "Радоваться, торжествовать",
+    "Grief, Sorrow": "Скорбь и печаль",
+    "Grieve": "Скорбеть, печалиться",
     "Fear, Terror, Alarm": "Страх, ужас, тревога",
-    "Anger, Wrath": "Гнев, ярость",
+    "Afraid": "Страх, боязнь",
+    "Confident": "Уверенность, упование",
+    "Anger, Wrath": "Гнев и ярость",
+    "Anger, Be Indignant With": "Гнев, негодование",
+    "Angry": "Гнев, разгневанность",
+    "Willing": "Готовность, желание",
+    "Unwilling": "Нежелание, отказ",
     "Move": "Движение",
-    "Linear Movement": "Линейное движение",
+    "Linear Movement": "Перемещение в пространстве",
     "Come, Go": "Приходить, уходить",
     "Carry, Bear": "Нести, носить",
-    "Give": "Давать",
+    "Bear": "Носить, переносить",
+    "Flow": "Течение, поток",
+    "Stance": "Положение тела, поза",
+    "Give": "Давать, дарение",
+    "Possess": "Владение",
+    "Non-Possess": "Лишение, неимение",
     "Possess, Transfer, Exchange": "Владение, передача, обмен",
+    "Hold": "Держать, удерживать",
     "Hold, Keep": "Держать, хранить",
-    "Religious Activities": "Религиозная жизнь и поклонение",
-    "Worship, Reverence": "Поклонение, благоговение",
-    "Pray": "Молиться, молитва",
-    "Sacrifice, Offering": "Жертвоприношение, приношение",
-    "Temple, Sanctuary": "Храм, святилище",
+    "Be Rich, Be Wealthy": "Богатство, изобилие",
+    "Be a Financial Burden": "Финансовое бремя",
+    "Value": "Ценность и стоимость",
+    "Religious Activities": "Религиозная жизнь и богослужение",
+    "Worship, Reverence": "Поклонение и благоговение",
+    "Pray": "Молитва",
+    "Sacrifice, Offering": "Жертвоприношение",
+    "Dedicate, Consecrate": "Посвящение, освящение",
+    "Holy, Pure": "Святость и чистота",
+    "Temple, Sanctuary": "Храм и святилище",
     "Moral and Ethical Qualities and Related Behavior": "Нравственные качества и поведение",
-    "Goodness": "Доброта, благость",
-    "Evil, Wickedness": "Зло, нечестие",
-    "Sin, Wrongdoing": "Грех, проступок",
-    "Justice, Righteousness": "Справедливость, праведность",
-    "Truth, Falsehood": "Истина, ложь",
-    "Power, Force": "Сила, мощь",
+    "Behavior and Related States": "Поведение и образ жизни",
+    "Goodness": "Доброта и благость",
+    "Good": "Добро, благо",
+    "Good, Bad": "Добро и зло",
+    "Evil, Wickedness": "Зло и нечестие",
+    "Sin, Wrongdoing": "Грех и беззаконие",
+    "Justice, Righteousness": "Справедливость и праведность",
+    "Just": "Праведность, справедливость",
+    "Truth, Falsehood": "Истина и ложь",
+    "Faithful": "Верность",
+    "Unfaithful": "Неверность, вероломство",
+    "Power, Force": "Сила и мощь",
+    "Strong": "Сила, крепость",
+    "Weak": "Слабость, немощь",
+    "Control": "Власть и управление",
+    "Control, Rule": "Власть, правление",
+    "Compel, Force": "Принуждение",
     "Rule, Govern": "Править, управлять",
-    "Kinship": "Родство, семья",
-    "People": "Люди, народы",
+    "Serve": "Служение",
+    "Help, Care For": "Помощь и забота",
+    "Chastise": "Наказание и вразумление",
+    "Engage": "Взаимодействие, участие",
+    "Non-Engage": "Невмешательство, покой",
+    "Associate": "Объединение, общение",
+    "Dissociate": "Отделение, разобщение",
+    "Association": "Связь и сообщество",
+    "Marriage, Divorce": "Брак и развод",
+    "Relations": "Отношения",
+    "Conflict": "Конфликт и противостояние",
+    "Hostility, Strife": "Вражда и распри",
+    "Violence, Harm, Destroy, Kill": "Насилие, разрушение, гибель",
+    "Safe": "Безопасность и защита",
+    "Unsafe": "Опасность и бедствие",
+    "Impact": "Воздействие",
+    "Physical Impact": "Физическое воздействие",
+    "Physical Events and States": "Физические явления и состояния",
+    "Physiological Processes and States": "Физиологические процессы и состояния",
+    "Eat, Drink": "Пища и питьё",
     "Body, Body Parts": "Тело и части тела",
-    "Time": "Время",
-    "Space": "Пространство",
-    "Geographical Objects and Features": "Географические объекты",
-    "Plants": "Растения",
-    "Animals": "Животные",
-    "Food and Condiments": "Пища",
-    "Buildings, Constructions": "Здания и постройки",
-    "Weapons, Warfare": "Оружие и военное дело",
-    "Courts and Legal Procedures": "Суд и право",
-    "Supernatural Beings and Powers": "Сверхъестественные существа и силы",
+    "Body, Body Parts, and Body Products": "Тело и части тела",
+    "Parts of the Body": "Части тела",
     "Dead": "Смерть",
     "Live, Die": "Жизнь и смерть",
+    "Time": "Время",
+    "Stage": "Этап, стадия",
+    "End": "Конец, завершение",
+    "Aspect": "Характер протекания действия",
+    "Space": "Пространство",
+    "Existence in Space": "Нахождение в пространстве",
+    "Spatial Referents": "Пространственные ориентиры",
+    "Spacial Positions": "Пространственное положение",
+    "Regions Above the Earth": "Небесные сферы",
+    "Regions Below the Surface of the Earth": "Подземный мир и глубины",
+    "Geographical Objects and Features": "Географические объекты",
+    "Landforms": "Рельеф местности",
+    "Landscapes": "Ландшафт и угодья",
+    "Waterbodies": "Водоёмы, моря и реки",
+    "Natural Substances": "Природные вещества и материалы",
+    "Plants": "Растения",
+    "Trees": "Деревья",
+    "Crops": "Злаки и урожай",
+    "Animals": "Животные",
+    "Domestic Animals": "Домашние животные",
+    "Wild Animals": "Дикие животные",
+    "Birds": "Птицы",
+    "Insects": "Насекомые",
+    "Food": "Пища",
+    "Food and Condiments": "Пища и приправы",
+    "Artifacts": "Предметы и изделия",
+    "Objects": "Предметы",
+    "Features of Objects": "Свойства предметов",
+    "Containers": "Сосуды и вместилища",
+    "Tools": "Орудия труда и инструменты",
+    "Clothing": "Одежда и облачение",
+    "Constructions": "Сооружения и постройки",
+    "Buildings": "Здания",
+    "Buildings, Constructions": "Здания и постройки",
+    "Parts and Areas of Buildings": "Части зданий и помещений",
+    "Weapons": "Оружие",
+    "Weapons, Warfare": "Оружие и военное дело",
+    "Courts and Legal Procedures": "Суд и право",
+    "Quantity": "Количество и мера",
+    "Number": "Число и счёт",
+    "Degree": "Степень и мера",
+    "Great": "Величие, большой размер",
+    "Large": "Большой размер, множество",
+    "Small": "Малый размер",
+    "Intense": "Интенсивность, сила проявления",
+    "Shape": "Форма и очертание",
+    "Color": "Цвет и окраска",
+    "Non-Whole": "Часть, неполнота",
+    "Nature, Class, Example": "Природа, род и образ",
+    "Distinctive, Unique": "Особый, уникальный",
+    "Perform, Do": "Совершать, делать",
+    "Case": "Обстоятельство, отношение",
+    "Sequence": "Последовательность",
+    "Identifiers": "Указатели и местоимения",
+    "Markers": "Служебные показатели",
+    "Discourse Markers": "Дискурсивные частицы",
+    "Affirmation, Negation": "Утверждение и отрицание",
+}
+
+THEOLOGICAL_AND_KEY_GLOSSES_RU: dict[str, tuple[str, str]] = {
+    "H0430G": ("Бог", "God → Бог"),
+    "H0430J": ("Бог", "God → Бог"),
+    "H0410G": ("Бог (Эль)", "God → Бог (Эль)"),
+    "H0426": ("Бог (Элах, арам.)", "God → Бог"),
+    "H0433": ("Бог (Элоах)", "God → Бог (Элоах)"),
+    "H3068G": ("Господь (Яхве)", "LORD → Господь (Яхве)"),
+    "H3050": ("Ях (Господь)", "LORD: Yah → Ях (Господь)"),
+    "H0136": ("Господь (Адонай)", "Lord → Господь (Адонай)"),
+    "H7706": ("Всемогущий (Шаддай) (в Син.: Вседержитель)", "Almighty → Всемогущий (Шаддай)"),
+    "H5945H": ("Всевышний", "(LORD) Most High → Всевышний"),
+    "G2316": ("Бог", "God → Бог"),
+    "G2962": ("Господь, господин", "Lord → Господь"),
+    "G5547": ("Христос (Мессия)", "Christ → Христос"),
+    "G5546": ("христианин", "Christian → христианин"),
+    "G2424G": ("Иисус", "Jesus → Иисус"),
+    "G4151G": ("дух, Дух; дуновение", "spirit/breath: spirit → дух, Дух"),
 }
 
 
@@ -404,25 +564,65 @@ def translate_morph(short_en: str, long_en: str) -> tuple[str, str]:
     return sh, lg
 
 
-def translate_domain(dom_en: str) -> str:
+def translate_single_domain(p: str, en_to_ru: dict[str, str] | None = None) -> str:
+    p = p.strip()
+    if not p:
+        return ""
+    if p in DOMAIN_EN_TO_RU:
+        return DOMAIN_EN_TO_RU[p]
+    if p.startswith("Names of "):
+        sub = p[len("Names of "):].strip()
+        sub_ru = translate_single_domain(sub, en_to_ru)
+        return f"Названия: {sub_ru.lower()}" if not re.search(r"[A-Za-z]", sub_ru) else "Имена и названия"
+    if p.startswith("Non-"):
+        sub = p[4:].strip()
+        sub_ru = translate_single_domain(sub, en_to_ru)
+        return f"Не-{sub_ru.lower()}" if not re.search(r"[A-Za-z]", sub_ru) else "Отсутствие признака"
+    if en_to_ru:
+        sub_parts = [sp.strip() for sp in re.split(r"[,/]", p) if sp.strip()]
+        ru_subs = []
+        for sp in sub_parts:
+            if sp in DOMAIN_EN_TO_RU:
+                ru_subs.append(DOMAIN_EN_TO_RU[sp])
+                continue
+            clean = re.sub(r"^(?:to|be|a|an|the|of|in|on|for|with)\s+", "", sp.lower()).strip()
+            hit = en_to_ru.get(clean) or en_to_ru.get(sp.lower())
+            if not hit and clean.endswith("s") and len(clean) > 3:
+                hit = en_to_ru.get(clean[:-1])
+            if not hit and clean.endswith("ing") and len(clean) > 5:
+                hit = en_to_ru.get(clean[:-3]) or en_to_ru.get(clean[:-3] + "e")
+            if not hit:
+                words = [w for w in re.findall(r"[a-z]{3,}", clean) if w not in ("and", "the", "for", "with", "from", "into", "such", "related", "states", "events")]
+                w_hits = [en_to_ru[w] for w in words if w in en_to_ru]
+                if w_hits:
+                    hit = w_hits[0]
+            if hit and hit not in ru_subs:
+                ru_subs.append(hit)
+        if ru_subs:
+            res = ", ".join(ru_subs[:3])
+            return res[0].upper() + res[1:]
+    return ""
+
+
+def translate_domain(dom_en: str, en_to_ru: dict[str, str] | None = None) -> str:
     if not dom_en:
         return ""
     parts = [p.strip() for p in dom_en.split(";")]
     out = []
     for p in parts:
-        ru = DOMAIN_EN_TO_RU.get(p, p)
-        if ru not in out:
+        ru = translate_single_domain(p, en_to_ru)
+        if ru and ru not in out:
             out.append(ru)
     return "; ".join(out)
 
 
-def load_door43_tw() -> dict[str, list[tuple[str, str]]]:
+def load_door43_tw() -> dict[str, list[dict]]:
     """Читает 1 018 русских статей Door43 ru_tw.zip и возвращает:
-    classic_code -> [(headword_ru, body_ru)]
+    classic_code -> [{'slug': slug_en, 'cat': cat, 'hw': headword_ru, 'body': full_text, 'hw_tokens': set, 'is_phrase': bool, 'n_codes': int}]
     """
     from priors import norm_classic
 
-    by_cl: dict[str, list[tuple[str, str]]] = collections.defaultdict(list)
+    by_cl: dict[str, list[dict]] = collections.defaultdict(list)
     zp = DATA / "sources" / "strongs" / "door43-ru" / "ru_tw.zip"
     if not zp.exists():
         return by_cl
@@ -430,12 +630,13 @@ def load_door43_tw() -> dict[str, list[tuple[str, str]]]:
         for n in sorted(z.namelist()):
             if not n.endswith(".md") or "/bible/" not in n:
                 continue
+            slug_en = pathlib.Path(n).stem.lower()
+            cat = pathlib.Path(n).parent.name.lower()
             txt = z.read(n).decode("utf-8", "ignore")
             lines = [ln.strip() for ln in txt.splitlines()]
             if not lines or not lines[0].startswith("#"):
                 continue
             headword = lines[0].lstrip("#").strip()
-            # Извлекаем раздел Определение и Варианты перевода
             m_def = re.search(
                 r"##\s*(?:Определение|Факты)\s*:?\s*(.*?)(?=##\s*Ссылки|##\s*Данные|\Z)",
                 txt,
@@ -446,15 +647,117 @@ def load_door43_tw() -> dict[str, list[tuple[str, str]]]:
             body = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", body)
             if not body:
                 continue
-            # Номера Стронга в конце файла
             m_st = re.search(r"Номера Стронга\s*:\s*([^\n]+)", txt)
             if not m_st:
                 continue
+            codes = []
             for raw_code in re.findall(r"[HG]\d+", m_st.group(1)):
                 cl = norm_classic(raw_code)
-                if cl:
-                    by_cl[cl].append((headword, f"{headword}\n{body}"))
+                if cl and cl not in codes:
+                    codes.append(cl)
+            if not codes:
+                continue
+            syn_parts = [sp.strip() for sp in headword.split(",") if sp.strip()]
+            is_phrase = bool(syn_parts) and all(" " in sp for sp in syn_parts)
+            hw_tokens = {w.lower() for sp in syn_parts if " " not in sp for w in re.findall(r"[А-ЯЁа-яё]{3,}", sp)}
+            rec = {
+                "slug": slug_en,
+                "cat": cat,
+                "hw": headword,
+                "body": f"{headword}\n{body}",
+                "hw_tokens": hw_tokens,
+                "is_phrase": is_phrase,
+                "n_codes": len(codes),
+            }
+            for cl in codes:
+                by_cl[cl].append(rec)
     return by_cl
+
+
+SLUG_ALIASES: dict[str, set[str]] = {
+    "god": {"god"},
+    "lord": {"yahweh", "lord", "lordyahweh"},
+    "yah": {"yahweh", "lord"},
+    "spirit": {"spirit", "holyspirit"},
+    "christ": {"christ", "messiah"},
+    "messiah": {"christ", "messiah"},
+    "almighty": {"almighty", "mighty"},
+    "angel": {"angel"},
+    "messenger": {"messenger", "angel"},
+    "sin": {"sin"},
+    "son": {"son"},
+    "father": {"father", "godthefather"},
+    "holy": {"holy"},
+    "love": {"love"},
+    "faith": {"faith", "believe"},
+    "grace": {"grace"},
+    "mercy": {"mercy"},
+    "peace": {"peace"},
+    "pray": {"pray"},
+    "repent": {"repent"},
+    "save": {"save", "salvation"},
+    "prophet": {"prophet"},
+    "priest": {"priest", "highpriest"},
+    "king": {"king"},
+    "servant": {"servant"},
+    "apostle": {"apostle"},
+    "disciple": {"disciple"},
+    "covenant": {"covenant"},
+    "law": {"lawofmoses", "law"},
+    "sacrifice": {"sacrifice", "offering"},
+    "altar": {"altar"},
+    "temple": {"temple"},
+    "sabbath": {"sabbath"},
+    "passover": {"passover"},
+    "baptize": {"baptize"},
+    "resurrection": {"resurrection"},
+}
+
+
+def select_matching_door43_tw(
+    en_gloss: str,
+    ru_gloss: str,
+    tw_candidates: list[dict],
+) -> list[dict]:
+    """Отбирает только релевантные статьи Door43 ru_tw для данного слова,
+    исключая побочные/составные темы (как 'angel.md' или 'houseofgod.md' для 'God').
+    """
+    if not tw_candidates:
+        return []
+    en_clean = re.sub(r"\([^)]*\)", "", en_gloss or "").split(":")[0].split("/")[0].strip().lower()
+    en_slug = re.sub(r"[^a-z]", "", re.sub(r"^to\s+", "", en_clean))
+    target_slugs = {en_slug} | SLUG_ALIASES.get(en_slug, set())
+
+    ru_clean = re.sub(r"\(в Син\.:.*?\)", "", ru_gloss or "").lower()
+    ru_tokens = {w for w in re.findall(r"[а-яё]{3,}", ru_clean)}
+
+    scored: list[tuple[int, int, dict]] = []
+    for rec in tw_candidates:
+        sc = 0
+        slug = rec["slug"]
+        is_phr = rec["is_phrase"]
+        n_c = rec["n_codes"]
+        if slug in target_slugs:
+            sc += 100
+        if not is_phr and (rec["hw_tokens"] & ru_tokens):
+            sc += 65
+        if n_c == 1 and not is_phr:
+            sc += 45
+        elif n_c <= 2 and not is_phr:
+            sc += 25
+        if is_phr and len(en_clean.split()) == 1 and slug not in target_slugs:
+            sc -= 80
+        if sc >= 45:
+            scored.append((sc, -n_c, rec))
+
+    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    if not scored:
+        return []
+    # Возвращаем лучшую статью (и вторую только если обе набрали >= 90 баллов, напр. spirit + holyspirit)
+    out = [scored[0][2]]
+    if len(scored) > 1 and scored[1][0] >= 90 and scored[1][2]["hw"] != out[0]["hw"]:
+        out.append(scored[1][2])
+    return out
 
 
 def load_aquifer_ru_articles() -> dict[str, list[tuple[str, str, str]]]:
@@ -472,29 +775,43 @@ def load_aquifer_ru_articles() -> dict[str, list[tuple[str, str, str]]]:
 
 
 def load_entity_ru_names() -> dict[str, tuple[str, str]]:
-    """Из knowledge.sb возвращает dStrong/classic -> (ru_name, short_desc)."""
+    """Из knowledge.sb возвращает dStrong/classic -> (ru_name, short_desc)
+    строго для индивидуальных имён собственных (person, place, group с <= 4 кодами),
+    чтобы групповые сущности вроде deity:Lord или person:Jesus.2 не перезаписывали
+    богословские и нарицательные лексемы.
+    """
     from priors import norm_classic
 
     db = sqlite3.connect(DATA / "work" / "strongs" / "knowledge" / "knowledge.sb")
     ru_names_by_id: dict[str, list[str]] = collections.defaultdict(list)
     for eid, nm in db.execute(
-        "SELECT entity_id, name FROM entity_names WHERE lang IN ('ru','rus')"
+        """
+        SELECT entity_id, name FROM entity_names
+        WHERE lang IN ('ru','rus')
+        ORDER BY CASE kind WHEN 'canonical' THEN 0 WHEN 'biblical' THEN 1 WHEN 'synodal' THEN 2 ELSE 3 END
+        """
     ):
         if nm not in ru_names_by_id[eid]:
             ru_names_by_id[eid].append(nm)
 
     res: dict[str, tuple[str, str]] = {}
-    for eid, cname, st_raw, desc in db.execute(
-        "SELECT id, name, strongs, short_description FROM entities WHERE strongs != ''"
+    for eid, typ, cname, st_raw, desc in db.execute(
+        "SELECT id, type, name, strongs, short_description FROM entities "
+        "WHERE strongs != '' AND type IN ('person', 'place', 'group')"
     ):
+        codes = re.findall(r"[HG]\d+[A-Za-z]?", st_raw)
+        if len(codes) > 4:
+            continue
         rnames = ru_names_by_id.get(eid, [])
         if not rnames:
             continue
         rname = rnames[0]
-        for code in re.findall(r"[HG]\d+[A-Za-z]?", st_raw):
+        for code in codes:
+            if code in THEOLOGICAL_AND_KEY_GLOSSES_RU:
+                continue
             res[code] = (rname, desc or "")
             cl = norm_classic(code)
-            if cl and cl not in res:
+            if cl and cl not in res and cl not in THEOLOGICAL_AND_KEY_GLOSSES_RU:
                 res[cl] = (rname, desc or "")
     return res
 
@@ -529,15 +846,21 @@ def build_modern_gloss(
     """
     from priors import norm_classic
 
-    # 1. Служебные морфемы H9xxx / H0853 / G3588
+    # 1. Служебные морфемы H9xxx / H0853 / G3588 и выверенные богословские термины
     if key in SERVICE_MORPH_RU:
         return SERVICE_MORPH_RU[key], en_sense, 10
     cl = norm_classic(key) or norm_classic(base) or key
     if cl in SERVICE_MORPH_RU:
         return SERVICE_MORPH_RU[cl], en_sense, 10
+    if key in THEOLOGICAL_AND_KEY_GLOSSES_RU:
+        g_ru, s_ru = THEOLOGICAL_AND_KEY_GLOSSES_RU[key]
+        return g_ru, s_ru, 10
+    if cl in THEOLOGICAL_AND_KEY_GLOSSES_RU and key == cl:
+        g_ru, s_ru = THEOLOGICAL_AND_KEY_GLOSSES_RU[cl]
+        return g_ru, s_ru, 10
 
-    # 2. Имена собственные людей и мест
-    is_proper = ("N" in pos and ("p" in pos or "Proper" in pos)) or (en_gloss and en_gloss[0].isupper() and not en_gloss.startswith("to "))
+    # 2. Имена собственные людей и мест (строго по грамматическому тегу Proper / N-*-P/L/G)
+    is_proper = ("N" in pos and ("p" in pos or "Proper" in pos or pos.endswith(("-P", "-L", "-G"))))
     if is_proper and (key in ent_names or cl in ent_names):
         ru_name, _ = ent_names.get(key) or ent_names[cl]
         syn_top = syn_corp[0][0].capitalize() if syn_corp else ""
@@ -547,7 +870,7 @@ def build_modern_gloss(
 
     # 3. Заголовки из Door43 Russian Translation Words (современный словарь) + корпусные слова
     tw_entries = tw_map.get(cl, [])
-    tw_heads = [h for h, _ in tw_entries]
+    tw_heads = [r["hw"] for r in tw_entries if not r["is_phrase"] and r["n_codes"] <= 2]
 
     mod_words = [w for w, cnt in modern_corp if len(w) >= 2]
     syn_words = [w for w, cnt in syn_corp if len(w) >= 2]
@@ -572,9 +895,14 @@ def build_modern_gloss(
     # Если есть начальная словарная форма в ref_gloss, комбинируем её с живыми словами из RLOB/ROB
     parts: list[str] = []
     if ref_gloss:
-        # Убираем старую скобку "(в Син.: ...)", чтобы не дублировать
+        # Убираем старую скобку "(в Син.: ...)", чтобы не дублировать, и дедуплицируем слова
         base_ref = re.sub(r"\s*\(в Син\.:.*?\)", "", ref_gloss).strip()
-        parts.append(base_ref)
+        dedup_ref = []
+        for sub_w in [x.strip() for x in base_ref.split(",") if x.strip()]:
+            if sub_w.lower() not in [d.lower() for d in dedup_ref]:
+                dedup_ref.append(sub_w)
+        if dedup_ref:
+            parts.append(", ".join(dedup_ref))
     for mw in mod_words[:2]:
         if not any(mw in p.lower() for p in parts):
             parts.append(mw)
@@ -692,6 +1020,18 @@ def main() -> None:
     base_rows = en_db.execute("SELECT base, key FROM lex_base").fetchall()
     db.executemany("INSERT INTO lex_base VALUES (?,?)", base_rows)
 
+    # Строим англо-русский словарь глоссов для 100% перевода составных семантических доменов UBS
+    en_to_ru_dom_words: dict[str, str] = {}
+    for k_ref, (rg_ref, _) in ref_lemmas.items():
+        clean_rg = re.sub(r"\s*\(в Син\.:.*?\)", "", rg_ref).split(";")[0].split(",")[0].strip()
+        if clean_rg and not re.search(r"[A-Za-z]", clean_rg):
+            for row_eg in en_db.execute("SELECT gloss FROM lex WHERE key=? OR base=?", (k_ref, k_ref.lstrip("0"))):
+                for part in re.split(r"[;,/]", (row_eg[0] or "").lower()):
+                    p_clean = re.sub(r"\([^)]*\)", "", part).strip()
+                    p_clean = re.sub(r"^(?:to|be|a|an|the)\s+", "", p_clean).strip()
+                    if len(p_clean) >= 2 and p_clean not in en_to_ru_dom_words:
+                        en_to_ru_dom_words[p_clean] = clean_rg
+
     # 3. Заполняем таблицу lex (22 743 строки) + entries + lex_def
     lex_rows = []
     def_rows = []
@@ -728,7 +1068,7 @@ def main() -> None:
         ru_gloss, ru_sense, conf = build_modern_gloss(
             key, base, pos, en_gloss, en_sense, m_corp, s_corp, tw_map, ent_names, ref_lemmas
         )
-        ru_dom = translate_domain(en_dom)
+        ru_dom = translate_domain(en_dom, en_to_ru_dom_words)
 
         lex_rows.append((
             key,
@@ -770,14 +1110,16 @@ def main() -> None:
                 "auto",
             ))
 
-        # Статьи из Door43 Russian Translation Words (привязываем на базовый ключ cl или key)
-        target_k = base if base else cl
-        if target_k and cl in tw_map:
-            for hw, tw_body in tw_map[cl][:2]:
-                if (target_k, hw) not in added_tw_keys:
-                    added_tw_keys.add((target_k, hw))
+        # Статьи из Door43 Russian Translation Words — строго по релевантности к key/en_gloss/ru_gloss
+        if cl in tw_map:
+            matched_tw = select_matching_door43_tw(en_gloss, ru_gloss, tw_map[cl])
+            for rec in matched_tw:
+                hw = rec["hw"]
+                tw_body = rec["body"]
+                if (key, hw) not in added_tw_keys:
+                    added_tw_keys.add((key, hw))
                     def_rows.append((
-                        target_k,
+                        key,
                         "ru",
                         tw_body,
                         "door43-tw-ru",
@@ -794,12 +1136,17 @@ def main() -> None:
             entry_text += "\n" + " ".join(usage_parts)
         entry_rows.append((idx, key, key.lower(), entry_text))
 
-    # 4. Копируем английские определения UBS SDBH / SDGNT и OSHB BDB с русской шапкой домена,
-    # чтобы в карточке словаря под русским толкованием были доступны и полные научные статьи
+    # 4. Копируем английские определения UBS SDBH / SDGNT и OSHB BDB, переводя шапку [Domain] на русский язык
     for k, _lang, dtext, dsrc, dlic, dconf, dfl, drev in en_db.execute(
         "SELECT key, lang, def, def_source, def_license, conf, flags, review FROM lex_def "
         "WHERE def_source IN ('ubs-sdbh', 'ubs-sdgnt', 'oshb-bdb')"
     ):
+        if dsrc in ("ubs-sdbh", "ubs-sdgnt") and dtext.startswith("[") and "]" in dtext:
+            end_br = dtext.index("]")
+            dom_hdr_en = dtext[1:end_br]
+            dom_hdr_ru = translate_domain(dom_hdr_en, en_to_ru_dom_words)
+            if dom_hdr_ru:
+                dtext = f"[{dom_hdr_ru}]{dtext[end_br + 1:]}"
         def_rows.append((k, "en", dtext, dsrc, dlic, dconf, dfl, drev))
 
     db.executemany(

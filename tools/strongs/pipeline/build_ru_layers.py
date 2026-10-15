@@ -365,7 +365,9 @@ def align_tagged_ru_verse(
             else:
                 target_cl = amap.get(cl, cl)
                 cand_ds = classic_to_ds.get(target_cl, []) or classic_to_ds.get(cl, [])
-                chosen = cand_ds[0] if cand_ds else cl
+                if not cand_ds:
+                    continue
+                chosen = cand_ds[0]
                 if chosen not in resolved_ds:
                     resolved_ds.append(chosen)
                 conf = min(conf, 8)
@@ -647,6 +649,12 @@ def main() -> None:
         f"Saved {priors_ru_path} in {time.time() - t0:.1f}s: "
         f"modern dStrong={len(dstrong_to_modern_ru)}, synodal dStrong={len(dstrong_to_synodal_ru)}"
     )
+    cli = REPO / "target" / "debug" / "studybible.exe"
+    import shutil
+    for lay_p in (rlob_out, russyn_out, rob_out):
+        subprocess.run([str(cli), "module", "check", str(lay_p)], check=True)
+        subprocess.run([str(cli), "module", "pack", str(lay_p)], check=True)
+        shutil.copy2(lay_p.with_suffix(".sbz"), DATA / "modules" / f"{lay_p.stem}.sbz")
 
 
 if __name__ == "__main__":

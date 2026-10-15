@@ -41,9 +41,9 @@ def parse_xstrong(raw: str) -> list[str]:
                 m = NUM_RE.search(sub)
                 if m:
                     code = m.group(0).upper()
-                    # Нормализация 5-значных кодов UGNT unfoldingWord (G15100 -> G1510)
+                    # Нормализация 5-значных кодов UGNT unfoldingWord (G15100 -> G1510, G41775 -> G4177)
                     mg = re.match(r"^G(\d{5})$", code)
-                    if mg and int(mg.group(1)) > 5624 and code.endswith("0"):
+                    if mg and int(mg.group(1)) > 5624:
                         code = f"G{int(mg.group(1)) // 10:04d}"
                     if code not in out:
                         out.append(code)
