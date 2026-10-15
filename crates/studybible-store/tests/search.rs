@@ -299,3 +299,93 @@ fn search_notes_includes_external_layer() {
     assert_eq!(hits[0].chapter, 1);
     assert_eq!(hits[0].verse, 3);
 }
+
+/// Обратный поиск Стронга: собственная разметка модуля
+/// (`strong=` в спанах → `token_pack`) и слой `links` с пометкой
+/// слова `w1` в сниппете.
+#[test]
+fn search_strong_native_and_layer() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = "\\id GEN\n\\mt1 Бытие\n\\c 1\n\\p\n\
+               \\v 1 \\w В|strong=\"H9003\"\\w* \\w начале|strong=\"H7225\"\\w* сотворил Бог небо и землю.\n\
+               \\v 2 \\w Земля|strong=\"H0776\"\\w* же была безвидна.\n";
+    let (_, m) = module(&dir, "a.sb", src);
+    let idx = SearchIndex::open(&dir.path().join("a.idx"), &m).unwrap();
+
+    // Нативная разметка: H7225 → стих 1; добивка нулями и регистр
+    // не влияют на сравнение.
+    for q in ["H7225", "h7225", "H07225"] {
+        let hits = idx.search_strong(q, 10, None, &m).unwrap();
+        assert_eq!(hits.len(), 1, "запрос {q}");
+        assert_eq!(hits[0].chapter, 1);
+        assert_eq!(hits[0].verse, 1);
+    }
+    let hits = idx.search_strong("H776", 10, None, &m).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 2);
+    // Чужого номера и не-номера нет; ошибки нет.
+    assert!(idx.search_strong("G3056", 10, None, &m).unwrap().is_empty());
+    assert!(idx.search_strong("X1", 10, None, &m).unwrap().is_empty());
+    // Слова Стронга в сниппете без слоя не помечаются.
+    assert!(
+        !idx.search_strong("H7225", 10, None, &m).unwrap()[0]
+            .snippet
+            .contains('[')
+    );
+
+    // Слой `links` (ADR 0025): совпавшие слова помечаются [ ] по w1.
+    let gen_ = studybible_core::BookCode::new("GEN").unwrap();
+    let lp = dir.path().join("lay.sb");
+    let mut w = ModuleWriter::create(
+        &lp,
+        &Meta {
+            id: "a-strongs".into(),
+            kind: "layer".into(),
+            ..Meta::default()
+        },
+    )
+    .unwrap();
+    w.add_book(gen_, 1, "Genesis", &Default::default()).unwrap();
+    w.add_link(
+        gen_,
+        1,
+        &studybible_store::Link {
+            verse: 1,
+            word: 2,
+            strong: "H1254".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    w.add_link(
+        gen_,
+        1,
+        &studybible_store::Link {
+            verse: 2,
+            word: 0,
+            strong: "H0776".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    w.finish().unwrap();
+    let layer = Module::open(&lp).unwrap();
+
+    // Валидный слой замещает собственную разметку: H7225 модуля
+    // через слой не находится, а H1254 — только из слоя.
+    assert!(
+        idx.search_strong("H7225", 10, Some(&layer), &m)
+            .unwrap()
+            .is_empty()
+    );
+    let hits = idx.search_strong("H1254", 10, Some(&layer), &m).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 1);
+    assert!(
+        hits[0].snippet.contains("[сотворил]"),
+        "{}",
+        hits[0].snippet
+    );
+    let hits = idx.search_strong("H0776", 10, Some(&layer), &m).unwrap();
+    assert_eq!(hits[0].snippet, "[земля] же была безвидна");
+}

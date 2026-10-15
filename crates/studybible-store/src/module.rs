@@ -366,7 +366,7 @@ fn attr<'a>(attrs: &'a str, key: &str) -> Option<&'a str> {
 /// Спан может нести несколько номеров Стронга/кодов морфологии
 /// (`strong="H1254" strong="H853" morph="TH8804" morph="TH8799"`) —
 /// позиционная связь i-го strong с i-м morph сохраняется.
-fn attr_all(attrs: &str, key: &str) -> String {
+pub(crate) fn attr_all(attrs: &str, key: &str) -> String {
     let pat = format!("{key}=\"");
     let mut out = String::new();
     let mut rest = attrs;
