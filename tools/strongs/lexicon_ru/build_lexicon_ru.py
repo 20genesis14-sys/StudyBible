@@ -1018,6 +1018,11 @@ def main() -> None:
 
     extend_corpus_ru_main()
 
+    # Точечный LLM-батч для ключей без ru-def и без corpus-покрытия
+    from apply_llm_defs import main as apply_llm_defs_main
+
+    apply_llm_defs_main()
+
     cli = REPO / "target" / "debug" / "studybible.exe"
     subprocess.run([str(cli), "module", "check", str(out_sb)], check=True)
     subprocess.run([str(cli), "module", "pack", str(out_sb)], check=True)
