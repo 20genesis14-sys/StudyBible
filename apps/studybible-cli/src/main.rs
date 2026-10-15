@@ -729,6 +729,8 @@ fn lint(m: &Module) -> Vec<String> {
             "lex" => count("lex"),
             "lex_def" => count("lex_def"),
             "lex_base" => count("lex_base"),
+            // Слой BAB-пометок (английский интерлайнер AnnotatedBible.com).
+            "bab" => count("bab_marks"),
             "knowledge" => count("entities"),
             // ADR 0023: слой перекрёстных ссылок — `x`-спаны.
             "xrefs" => conn
