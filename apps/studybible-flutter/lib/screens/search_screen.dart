@@ -56,7 +56,16 @@ class _SearchScreenState extends State<SearchScreen> {
   late final String _moduleId = widget.moduleId ?? mainModuleId();
   static const _searchLimit = 100;
   static const _fetchLimit = 500;
+
+  /// Потолок выборки для номера Стронга: выдача должна быть полной
+  /// (частотный aux вроде `H9003` встречается десятками тысяч раз —
+  /// крышка защищает от патологически больших разметок).
+  static const _strongFetchLimit = 30000;
   List<SearchHit> _allHits = const [];
+
+  /// Текущие результаты — выдача обратного поиска Стронга
+  /// (показываются целиком, без общего лимита показа).
+  bool _strongResults = false;
   bool _busy = false;
   String? _notice;
 
@@ -86,11 +95,16 @@ class _SearchScreenState extends State<SearchScreen> {
     _SearchScope.book => h.book == widget.initialBook,
   };
 
-  List<SearchHit> get _hits =>
-      _allHits.where(_matchesScope).take(_searchLimit).toList();
+  List<SearchHit> get _hits {
+    final scoped = _allHits.where(_matchesScope);
+    return _strongResults
+        ? scoped.toList()
+        : scoped.take(_searchLimit).toList();
+  }
 
-  bool get _isTruncated =>
-      _allHits.where(_matchesScope).length >= _searchLimit;
+  bool get _isTruncated => _strongResults
+      ? _allHits.length >= _strongFetchLimit
+      : _allHits.where(_matchesScope).length >= _searchLimit;
 
   Ref? get _directRef => parseQueryRef(_query.text);
 
@@ -167,8 +181,9 @@ class _SearchScreenState extends State<SearchScreen> {
     // Номер Стронга — обратный поиск: все стихи с этим номером
     // (слой `{id}-strongs` или собственная разметка модуля);
     // чип «В сносках» на него не влияет — в сносках Стронга нет.
-    final hits = _directStrong != null
-        ? await bridgeModuleStrongSearch(path, q, limit: _fetchLimit)
+    final strong = _directStrong;
+    final hits = strong != null
+        ? await bridgeModuleStrongSearch(path, q, limit: _strongFetchLimit)
         : _notes
         ? await bridgeNotesSearch(path, q, limit: _fetchLimit)
         : await bridgeModuleSearch(path, q, limit: _fetchLimit);
@@ -176,6 +191,7 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _busy = false;
       _allHits = hits;
+      _strongResults = strong != null;
       _notice = _emptyNotice;
     });
   }
@@ -412,10 +428,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
                   _isTruncated
-                      ? tr(
-                          'Найдено: $_searchLimit+ (показаны первые)',
-                          'Found: $_searchLimit+ (first shown)',
-                        )
+                      ? _strongResults
+                          ? tr(
+                              'Найдено: ${_allHits.length}+ (показаны первые)',
+                              'Found: ${_allHits.length}+ (first shown)',
+                            )
+                          : tr(
+                              'Найдено: $_searchLimit+ (показаны первые)',
+                              'Found: $_searchLimit+ (first shown)',
+                            )
                       : tr(
                           'Найдено: ${_hits.length}',
                           'Found: ${_hits.length}',

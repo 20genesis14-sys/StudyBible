@@ -1067,6 +1067,15 @@ Future<List<SearchHit>> bridgeModuleStrongSearch(
       final alt = _strongUwAltKeys(keys);
       if (alt.isNotEmpty) hits = _strongScan(db, alt, limit);
     }
+    if (hits.isEmpty) {
+      // Суффиксный запрос без совпадений: разметка могла проставить
+      // другую букву номера (`H2300G` vs `H2300A`) — ищем базовый.
+      final plain = {
+        for (final k in keys)
+          if (!k.endsWith(' ')) '${k.substring(0, k.length - 1)} ',
+      };
+      if (plain.isNotEmpty) hits = _strongScan(db, plain, limit);
+    }
     return hits;
   } catch (e) {
     debugPrint('[bridge] strong search $modulePath: $e');
