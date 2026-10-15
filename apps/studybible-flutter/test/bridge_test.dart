@@ -312,6 +312,23 @@ void main() {
     expect(lexRu!, contains('сборщик налогов'));
     expect(lexRu, contains('мытарь'));
 
+    // Проверка исправления H0430G (Бог) и G5547 (Христос) в strongs-step-ru.sb:
+    // H0430G обязан иметь глосс 'Бог', статью 'Бог, Божий' (не 'ангел') и русский домен.
+    final elohimRu = await bridgeChapterDoc(origPath, '@lex:H0430G|lang=ru', 1);
+    expect(elohimRu, isNotNull);
+    final elohimJson = jsonDecode(elohimRu!) as Map<String, dynamic>;
+    final elohimEntry = (elohimJson['entries'] as List).first as Map<String, dynamic>;
+    expect(elohimEntry['gloss'], 'Бог');
+    expect(elohimEntry['sense_domain'], contains('Бога'));
+    expect(elohimRu, contains('Бог, Божий'));
+    expect(elohimRu.contains('ангел, ангелы, архангел'), isFalse);
+
+    final christRu = await bridgeChapterDoc(origPath, '@lex:G5547|lang=ru', 1);
+    expect(christRu, isNotNull);
+    final christJson = jsonDecode(christRu!) as Map<String, dynamic>;
+    final christEntry = (christJson['entries'] as List).first as Map<String, dynamic>;
+    expect(christEntry['gloss'], contains('Христос'));
+
     final syn = await loadModule('russyn');
     final synGen1 = await syn.ensureChapter('GEN', 1);
     expect(synGen1, isNotNull);
