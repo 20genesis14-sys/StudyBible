@@ -23,8 +23,8 @@ STEP = C.STEP / 'Translators Amalgamated OT+NT'
 WORK = C.DATA / 'work' / 'strongs' / 'orig'
 
 REF = C.meas.REF
-# сегмент расширенного тега: CODE=LEMMA=TRANS
-SEG = re.compile(r'([HG]\d{3,5}[A-Z]?)=([^={}»|]*)=([^{}]*)')
+# сегмент расширенного тега: CODE=LEMMA=TRANS (включая строчные a..z для 26+ тёзок)
+SEG = re.compile(r'([HG]\d{3,5}[A-Za-z]?)=([^={}»|]*)=([^{}]*)')
 # метка значения: 'first:1_beginning' или 'to do/make|1_do/work'
 SENSE = re.compile(r'(\d+_[A-Za-z0-9_/()&.\' -]+)')
 # сущность »Name@Range (range: Book.ch.vs-Book|Book.ch.vs-Book.ch.vs)
@@ -90,7 +90,7 @@ def parse_tahot(verses):
                 # сегмент может быть '{H2657H}+' — код берём regex
                 dsts = []
                 for s in dsegs_m + dsegs_p:
-                    mm = re.search(r'[HG]\d{3,5}[A-Z]?', s)
+                    mm = re.search(r'[HG]\d{3,5}[A-Za-z]?', s)
                     dsts.append(mm.group(0) if mm else '')
                 gloss_parts = c[3].split('/')
 
@@ -139,12 +139,17 @@ def parse_tagnt(verses):
 
                 form = re.sub(r'\s*\([^()]*\)\s*$', '', c[1].strip())
                 ds = c[3].split('=')
-                codes = re.findall(r'G\d{4,5}[A-Z]?', ds[0])
+                codes = re.findall(r'G\d{4,5}[A-Za-z]?', ds[0])
+                gram = ds[1].strip() if len(ds) > 1 else ''
+                gparts = [
+                    p.strip() for p in gram.split(' + ')
+                    if p.strip() and not re.fullmatch(r'[HG]\d+[A-Za-z]?', p.strip())
+                ]
                 lemma = c[4].split('=', 1)[0].strip()
                 sub = c[9]
                 w = dict(gr=form, gloss=c[2].strip(),
                          strong=codes[0] if codes else '',
-                         morph=ds[1].strip() if len(ds) > 1 else '',
+                         morph=' '.join(gparts),
                          lemma=lemma, wid=wid, swid=wid,
                          sbcv=[book, ch, vs], typ=typ,
                          ed=c[5].strip(), sns=sense_of(sub),

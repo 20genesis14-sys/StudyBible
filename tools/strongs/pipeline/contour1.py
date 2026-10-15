@@ -152,12 +152,14 @@ def parse_attrs(attrs: str) -> dict[str, str]:
 
 
 def load_orig_Index() -> dict[tuple[int, int, int], list[OrigCand]]:
-    """Загружает все спаны step-orig.sb по (book_id, chapter, verse)."""
+    """Загружает все спаны step-orig.sb по (book_id, chapter, verse) вместе с английским глоссом из tokens."""
     db = sqlite3.connect(DATA / "work" / "strongs" / "orig" / "step-orig.sb")
     verses: dict[tuple[int, int, int], list[OrigCand]] = collections.defaultdict(list)
-    for bid, ch, v, seq, text, attrs in db.execute(
-        "SELECT book_id, chapter, verse, seq, text, spans.attrs "
-        "FROM spans WHERE style='w' ORDER BY book_id, chapter, seq"
+    for bid, ch, v, seq, surf, t_gloss, attrs in db.execute(
+        "SELECT s.book_id, s.chapter, s.verse, s.seq, t.surface, t.gloss, s.attrs "
+        "FROM spans s "
+        "LEFT JOIN tokens t ON t.book_id=s.book_id AND t.chapter=s.chapter AND t.verse=s.verse AND t.seq=s.seq "
+        "WHERE s.style='w' ORDER BY s.book_id, s.chapter, s.block, s.seq"
     ):
         ad = parse_attrs(attrs)
         wid = ad.get("wid", "")
@@ -168,14 +170,14 @@ def load_orig_Index() -> dict[tuple[int, int, int], list[OrigCand]]:
             c = norm_classic(d)
             if c and c not in cl_list:
                 cl_list.append(c)
-        gl = ad.get("gr", "")
+        gl = t_gloss or ""
         gtoks = {t.lower() for t in re.findall(r"[A-Za-z]+", gl) if len(t) >= 2}
         gstems = {stem_en(t) for t in gtoks}
         lst = verses[(bid, ch, v)]
         lst.append(
             OrigCand(
                 wid=wid,
-                surface=text,
+                surface=surf or ad.get("gr", ""),
                 dstrongs=ds_list,
                 classics=cl_list,
                 gloss=gl,
@@ -218,6 +220,13 @@ def lexical_dstrongs(ds_list: list[str]) -> list[str]:
     """Отделяет знаменательные dStrong от служебных H9xxx / H0853 / G3588."""
     lex = [d for d in ds_list if not d.startswith("H9") and not d.startswith("H0853") and not d.startswith("G3588")]
     return lex if lex else ds_list
+
+
+def order_lexical_first(ds_list: list[str]) -> list[str]:
+    """Ставит знаменательные dStrong перед служебными приставками H9xxx / H0853 / G3588."""
+    lex = [d for d in ds_list if not d.startswith("H9") and not d.startswith("H0853") and not d.startswith("G3588")]
+    aff = [d for d in ds_list if d.startswith("H9") or d.startswith("H0853") or d.startswith("G3588")]
+    return lex + aff
 
 
 def align_verse_assisted(
@@ -338,6 +347,8 @@ def align_verse_assisted(
                     source = "classic-raw"
 
         role = "aux" if (wl in AUX_ENG_WORDS and all(d.startswith("H9") or d in ("H0853", "G3588") for d in resolved_ds)) else "head"
+        if role == "head":
+            resolved_ds = order_lexical_first(resolved_ds)
         if role not in flags:
             flags.insert(0, role)
         links[i] = WordLink(

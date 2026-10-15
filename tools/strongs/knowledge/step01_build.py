@@ -158,6 +158,16 @@ def lexname_index():
 
 
 HEB_CONS = re.compile(r'[^א-תףץםןך]')
+HEB_CANT = re.compile(r'[\u0591-\u05af\u05bd\u05bf\u05c0\u05c3-\u05c6]')
+
+
+def norm_heb_vocal(s):
+    import unicodedata
+    s = unicodedata.normalize('NFC', s)
+    s = HEB_CANT.sub('', s)
+    # Нормализуем порядок холам-вав (ו + холам)
+    s = s.replace('\u05b9\u05d5', '\u05d5\u05b9')
+    return ''.join(ch for ch in s if '\u05b0' <= ch <= '\u05ea')
 
 
 def norm_grc(s):
@@ -167,17 +177,38 @@ def norm_grc(s):
 
 
 def form_strongs_index():
-    """согласная форма → [dStrong] из lex-core (фаза 2):
-    иврит — без огласовок (top_form уже консонантный), греческий —
-    без акцентов в нижнем регистре."""
-    idx = collections.defaultdict(list)
-    for key, v in json.loads(
-            (C.WORK / 'lex-core.json').read_text(encoding='utf-8')).items():
+    """Возвращает (cons_idx, vocal_idx, lex_meta):
+    - cons_idx: согласная форма (иврит) или нижний регистр без диакритики (греч.) → [dStrong]
+    - vocal_idx: огласованная форма иврита (без кантилляции) → [dStrong]
+    - lex_meta: dStrong → (pos, gloss_lower) из lex-map.json + lex-core.json."""
+    cons_idx = collections.defaultdict(list)
+    vocal_idx = collections.defaultdict(list)
+    lex_meta = {}
+    lmap = json.loads((C.WORK / 'lex-map.json').read_text(encoding='utf-8'))
+    core = json.loads((C.WORK / 'lex-core.json').read_text(encoding='utf-8'))
+    for key, r in lmap.items():
+        pos = r.get('pos') or ''
+        gl = (r.get('gloss') or '').lower()
+        lex_meta[key] = (pos, gl)
+        lem = (r.get('lemma') or '').lstrip('/')
+        if lem and key.startswith('H') and key in core:
+            vf = norm_heb_vocal(lem)
+            if vf and key not in vocal_idx[vf]:
+                vocal_idx[vf].append(key)
+            cf = HEB_CONS.sub('', lem)
+            if cf and key not in cons_idx[cf]:
+                cons_idx[cf].append(key)
+    for key, v in core.items():
+        if key not in lex_meta:
+            gl0 = ((v.get('glosses') or [''])[0]).lower()
+            lex_meta[key] = ('', gl0)
         f = v.get('top_form') or ''
         if not f:
             continue
-        idx[norm_grc(f) if key.startswith('G') else f].append(key)
-    return idx
+        k_norm = norm_grc(f) if key.startswith('G') else f
+        if key not in cons_idx[k_norm]:
+            cons_idx[k_norm].append(key)
+    return cons_idx, vocal_idx, lex_meta
 
 
 def load_zip_index(path, idkey):
@@ -242,7 +273,7 @@ def main():
     eids, mid2bcv, swid2bcv, sbcv2bcvs = orig_indices()
     ubs_md = load_ubs_handbooks()
     lexnames = lexname_index()
-    forms = form_strongs_index()
+    forms, vocal_forms, lex_meta = form_strongs_index()
     aqui = {}
     for key, fname, idk in (
             ('biblica', 'biblica-keyterms', 'content_id'),
@@ -332,12 +363,36 @@ def main():
                 stats['lexname_hit'] += 1
 
         # канал 3 — леммы (для сущностей без eid-канала: флора/фауна/
-        # реалия/термины); только однозначные формы (≤3 кандидатов)
+        # реалия/термины); приоритет огласованной формы + фильтр части речи (POS)
         if not strongs:
+            ent_words = {
+                w for w in re.findall(r'[a-z]+', name.lower())
+                if len(w) >= 3 and w not in ('the', 'and', 'for', 'act', 'state', 'event')
+            }
             for lg, vs in (d.get('lemmas') or {}).items():
                 for lem in vs:
-                    cand = forms.get(norm_grc(lem) if lg == 'el'
-                                     else HEB_CONS.sub('', lem), [])
+                    if lg == 'el':
+                        raw_cand = list(forms.get(norm_grc(lem), []))
+                    else:
+                        vf = norm_heb_vocal(lem)
+                        raw_cand = list(vocal_forms.get(vf, [])) or list(forms.get(HEB_CONS.sub('', lem), []))
+                    # Отсекаем имена собственные (N:N-*-P/L/T) у нарицательных сущностей и глаголы у предметов/животных/растений
+                    cand = []
+                    for ck in raw_cand:
+                        pos, gl = lex_meta.get(ck, ('', ''))
+                        if typ in ('creature', 'plant', 'object', 'concept'):
+                            if pos.startswith('N:') or 'Proper' in pos or pos.endswith(('-P', '-L', '-T')):
+                                continue
+                        if typ in ('creature', 'plant', 'object') and ':V' in pos:
+                            continue
+                        cand.append(ck)
+                    if len(cand) > 1 and ent_words:
+                        gl_matched = [
+                            ck for ck in cand
+                            if ent_words & set(re.findall(r'[a-z]+', lex_meta.get(ck, ('', ''))[1]))
+                        ]
+                        if gl_matched:
+                            cand = gl_matched
                     if cand and len(cand) <= 3:
                         strongs.update(cand)
                         stats['lemma_hit'] += 1

@@ -106,6 +106,8 @@ def attrs_of(w):
 
 
 def build():
+    if DST.exists():
+        DST.unlink()
     db = sqlite3.connect(DST)
     db.execute('PRAGMA application_id = 0x53424D31')
     db.executescript(SCHEMA)

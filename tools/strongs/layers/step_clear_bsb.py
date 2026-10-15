@@ -106,7 +106,28 @@ AUX_ENG = {
 }
 
 
-def split_group(strongs, w_list, words):
+def is_func_code(s):
+    return s in FUNC_MAP or s == 'H0853' or s.startswith(('H9', 'G9'))
+
+
+def order_lex_first(codes):
+    """Ставит знаменательные коды dStrong впереди служебных морфем H9xxx / H0853 / G3588."""
+    lex = [s for s in codes if not is_func_code(s)]
+    aff = [s for s in codes if is_func_code(s)]
+    return lex + aff
+
+
+def stem_simple(w):
+    w = norm(w)
+    if len(w) <= 3:
+        return w
+    for suf in ('ing', 'ed', 'es', 's'):
+        if w.endswith(suf) and len(w) - len(suf) >= 3:
+            return w[:-len(suf)]
+    return w
+
+
+def split_group(strongs, w_list, words, st_gloss=None):
     """Распределить strongs внутри фразовой группы по словам w_list
     и назначить каждому слову роль ('head' или 'aux').
     Возвращает {w_idx: ([strongs], role)}."""
@@ -119,7 +140,8 @@ def split_group(strongs, w_list, words):
             s in FUNC_MAP or s == 'H0853' for s in strongs)
         role = 'aux' if (all_func or (wnorms[w] in AUX_ENG and not strongs)) \
             else 'head'
-        return {w: (list(strongs), role)}
+        ordered = order_lex_first(strongs) if role == 'head' else list(strongs)
+        return {w: (ordered, role)}
 
     matched_s = set()
     w_affix = {w: [] for w in w_list}
@@ -140,6 +162,7 @@ def split_group(strongs, w_list, words):
                           if s in FUNC_MAP and s not in matched_s]
         if unmatched_func:
             lex_s = [s for s in strongs if s not in matched_s]
+    lex_s = order_lex_first(lex_s)
 
     non_affix_w = [w for w in w_list if not w_affix[w]]
     if not non_affix_w:
@@ -150,10 +173,26 @@ def split_group(strongs, w_list, words):
         head_w = [non_affix_w[-1]]
     head_set = set(head_w)
 
+    # Если в группе несколько head-слов и несколько знаменательных кодов,
+    # распределяем знаменательные коды по совпадению со словарным/контекстным глоссом
+    pure_lex = [s for s in lex_s if not is_func_code(s)]
+    head_alloc = {}
+    if st_gloss and len(head_w) >= 2 and len(pure_lex) >= 2:
+        for w in head_w:
+            wn = wnorms[w]
+            wst = stem_simple(wn)
+            hits = []
+            for s in pure_lex:
+                gtoks = st_gloss.get(s, set())
+                if wn in gtoks or (len(wst) >= 3 and any(stem_simple(gt) == wst for gt in gtoks)):
+                    hits.append(s)
+            if len(hits) == 1:
+                head_alloc[w] = hits
+
     out = {}
     for w in w_list:
         if w in head_set:
-            out[w] = (list(lex_s), 'head')
+            out[w] = (head_alloc.get(w, list(lex_s)), 'head')
         elif w_affix[w]:
             out[w] = (list(w_affix[w]), 'aux')
         else:
@@ -437,6 +476,18 @@ def main():
         if len(tgts) - len(t2w) and len(unmapped_log) < 2000:
             left = [tgts[i] for i in tgts if i not in t2w]
             unmapped_log.append((bcv, left, words))
+        ow = orig_v.get(bcv, [])
+        st_gloss = collections.defaultdict(set)
+        wid_to_sts = collections.defaultdict(set)
+        for w_o in ow:
+            st_o = w_o.get('strong') or ''
+            wid_o = w_o.get('wid') or ''
+            if st_o:
+                for gt in re.findall(r'[A-Za-z]+', (w_o.get('gloss') or '').lower()):
+                    if len(gt) >= 2:
+                        st_gloss[st_o].add(gt)
+                if wid_o:
+                    wid_to_sts[wid_o].add(st_o)
         for src_ids, tgt_ids, src_lab in recs:
             strongs, refs, fb = [], [], False
             for sid in src_ids:
@@ -474,21 +525,29 @@ def main():
                     if w not in w_list:
                         w_list.append(w)
             multi = len(w_list) > 1
-            alloc = split_group(strongs, w_list, words)
+            alloc = split_group(strongs, w_list, words, st_gloss)
             for w, (w_strongs, role) in alloc.items():
                 key = (bcv[0], bcv[1], bcv[2], w)
                 L = links.setdefault(key, [[], [], set(), set()])
                 for s in w_strongs:
                     if s not in L[0]:
                         L[0].append(s)
-                for r_ in refs:
+                # Приоритет wid, содержащих коды w_strongs этого слова
+                w_st_set = set(w_strongs)
+                matched_refs = [r_ for r_ in refs if wid_to_sts.get(r_, set()) & w_st_set]
+                other_refs = [r_ for r_ in refs if r_ not in matched_refs]
+                for r_ in (matched_refs + other_refs):
                     if r_ not in L[1]:
                         L[1].append(r_)
                 if role == 'head':
                     L[2].discard('aux')
                     L[2].add('head')
+                    L[0][:] = order_lex_first(L[0])
                 elif 'head' not in L[2]:
                     L[2].add('aux')
+                if L[0] and len(L[1]) > 1:
+                    primary_s = L[0][0]
+                    L[1].sort(key=lambda rw: 0 if primary_s in wid_to_sts.get(rw, set()) else (1 if wid_to_sts.get(rw, set()) & set(L[0]) else 2))
                 if multi:
                     L[2].add('grp')
                 if fb:
@@ -499,7 +558,6 @@ def main():
                 stats['link'] += 1
 
         # Добор слов w1 стиха, не попавших в Clear (редакционные отличия или added)
-        ow = orig_v.get(bcv, [])
         for wi in range(len(words)):
             key = (bcv[0], bcv[1], bcv[2], wi)
             if key in links:
@@ -518,6 +576,8 @@ def main():
                                 rr.append(w_orig['wid'])
             role = 'aux' if norm(words[wi]) in AUX_ENG else 'head'
             if ss:
+                if role == 'head':
+                    ss = order_lex_first(ss)
                 links[key] = [ss, rr, {'bsb-fb', role},
                               {'bsb-tables+step-orig'}]
                 stats['link_bsb_fb_word'] += 1
@@ -527,7 +587,7 @@ def main():
 
     # Сверка со старым слоем: разделяем сдвиг внутри стиха (diff-shift)
     # и настоящее лексическое расхождение (diff)
-    num_re = re.compile(r'^[HG]|[A-Z]$')
+    num_re = re.compile(r'^[HG]|[A-Za-z]$')
     verse_bases = collections.defaultdict(set)
     for (b, c, v, _w), (ss, _rr, _ff, _srcs) in links.items():
         for s in ss:
@@ -549,6 +609,8 @@ def main():
                     if not ss:
                         ss.append(cl)
                 if ss:
+                    if 'head' in ff:
+                        ss[:] = order_lex_first(ss)
                     ff.discard('unresolved')
                     ff.add('bsb-fb')
                     srcs.add('bsb-tables+step-orig')

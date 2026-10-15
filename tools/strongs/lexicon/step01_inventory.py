@@ -21,8 +21,8 @@ import common as C  # noqa: E402
 STEP = C.STEP / 'Translators Amalgamated OT+NT'
 
 REF = C.meas.REF
-# сегмент расширенного тега: CODE=HEB=TRANS (TRANS может нести »label и @entity)
-SEG = re.compile(r'([HG]\d{3,5}[A-Z]?)=([^={}»|]*)=([^{}]*)')
+# сегмент расширенного тега: CODE=HEB=TRANS (TRANS может нести »label и @entity, включая строчные a..z)
+SEG = re.compile(r'([HG]\d{3,5}[A-Za-z]?)=([^={}»|]*)=([^{}]*)')
 # 'first:1_beginning' / 'land:2_country;_planet' → '1_beginning'
 SENSE = re.compile(r':?(\d+_\S+)')
 

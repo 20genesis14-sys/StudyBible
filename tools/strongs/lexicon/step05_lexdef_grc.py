@@ -62,24 +62,42 @@ def load_ubs_greek():
     for e in raw:
         bases = {C.classic(s) for s in e.get('StrongCodes', [])
                  if s.startswith('G')}
-        defs, doms = [], []
+        defs, doms, meanings = [], [], []
         for bf in e.get('BaseForms') or []:
             for m in bf.get('LEXMeanings') or []:
-                ds = {d.get('Domain', '') for d in m.get('LEXDomains') or []}
-                ds |= {d.get('Domain', '') for d in m.get('LEXSubDomains') or []}
-                doms.extend(sorted(ds - {''}))
+                m_doms = []
+                for src_d in (m.get('LEXDomains') or []) + (m.get('LEXSubDomains') or []):
+                    dn = (src_d.get('Domain') or '').strip()
+                    if dn and dn not in m_doms:
+                        m_doms.append(dn)
+                doms.extend(d for d in m_doms if d not in doms)
+                m_words = set()
+                m_exact = set()
                 for s in m.get('LEXSenses') or []:
                     if s.get('LanguageCode') != 'en':
                         continue
                     d = s.get('DefinitionShort') or s.get('DefinitionLong') or ''
-                    gl = '; '.join(s.get('Glosses') or [])
+                    gls = s.get('Glosses') or []
+                    gl = '; '.join(gls)
+                    for g_item in gls:
+                        m_exact.add(g_item.strip().lower())
+                    for gw in re.findall(r'[a-z]+', gl.lower()):
+                        if len(gw) >= 3:
+                            m_words.add(gw)
                     if d or gl:
-                        defs.append((d + (' — ' + gl if gl else '')).strip(' —'))
+                        body = (d + (' — ' + gl if gl else '')).strip(' —')
+                        pref = ('[%s] ' % '; '.join(m_doms)) if m_doms else ''
+                        defs.append(pref + body)
+                if m_doms:
+                    meanings.append((m_doms, m_exact, m_words))
         for b in bases:
             if b:
-                cur = by_base.setdefault(b, {'defs': [], 'doms': []})
+                cur = by_base.setdefault(b, {'defs': [], 'doms': [], 'meanings': []})
                 cur['defs'].extend(defs)
-                cur['doms'].extend(doms)
+                for d in doms:
+                    if d not in cur['doms']:
+                        cur['doms'].append(d)
+                cur['meanings'].extend(meanings)
     # UBS повторяет одно значение в нескольких BaseForms — дедупликация
     for u in by_base.values():
         u['defs'] = list(dict.fromkeys(u['defs']))
@@ -111,22 +129,31 @@ def main():
     for base, txt in arts.items():
         add(base, 'en', txt, 'abbott-smith', 'public domain')
 
-    # 2) UBS SDGNT — по базе; домены → sense_domain
+    # 2) UBS SDGNT — по базе; домены → sense_domain с отбором по глоссу dStrong
     ubs = load_ubs_greek()
     for base, u in ubs.items():
-        seen = []
-        for d in u['doms']:
-            if d not in seen:
-                seen.append(d)
         for d in u['defs']:
-            add(base, 'en', ('[%s] ' % '; '.join(seen) if seen else '') + d,
-                'ubs-sdgnt', 'CC BY-SA 4.0')
+            add(base, 'en', d, 'ubs-sdgnt', 'CC BY-SA 4.0')
     for k in keys:
         if k.startswith('G') and base_of(k) in ubs:
-            seen = []
-            for d in ubs[base_of(k)]['doms']:
-                if d not in seen:
-                    seen.append(d)
+            u = ubs[base_of(k)]
+            k_gloss = ((lmap.get(k) or {}).get('gloss') or
+                       ((core.get(k) or {}).get('glosses') or [''])[0]).lower()
+            k_words = {w for w in re.findall(r'[a-z]+', k_gloss) if len(w) >= 3}
+            matched_doms = []
+            if k_gloss and len(u.get('meanings', [])) > 1:
+                for m_doms, m_exact, _m_words in u['meanings']:
+                    if k_gloss in m_exact:
+                        for d in m_doms:
+                            if d not in matched_doms:
+                                matched_doms.append(d)
+                if not matched_doms and k_words:
+                    for m_doms, _m_exact, m_words in u['meanings']:
+                        if k_words & m_words:
+                            for d in m_doms:
+                                if d not in matched_doms:
+                                    matched_doms.append(d)
+            seen = matched_doms if matched_doms else list(u['doms'])
             if seen:
                 dom[k] = '; '.join(seen)
 

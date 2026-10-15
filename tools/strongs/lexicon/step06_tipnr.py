@@ -17,8 +17,8 @@ import common as C  # noqa: E402
 TIPNR = C.STEP / 'Proper Nouns' / \
     'TIPNR - Translators Individualised Proper Names with all References - STEPBible.org CC BY.txt'
 
-BLOCK = re.compile(r'^(\S+@[^\t=]+)=([HG]\d+[A-Z]?)\t')
-NAMED = re.compile(r'^[–-]\s*Named\s+(\S+@\S+)\s*\t([HG]\d+[A-Z]?)')
+BLOCK = re.compile(r'^(\S+@[^\t=]+)=([HG]\d+[A-Za-z]?)\t')
+NAMED = re.compile(r'^[–-]\s*Named\s+(\S+@\S+)\s*\t([HG]\d+[A-Za-z]?)')
 SECT = re.compile(r'^\$=+\s*(PERSON|PLACE|OTHER)')
 
 
