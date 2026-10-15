@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../l10n.dart';
@@ -69,6 +71,10 @@ class _SearchScreenState extends State<SearchScreen> {
   /// Область поиска: текст стихов или сноски/параллельные места.
   bool _notes = false;
 
+  /// Debounce авто-поиска стихов для запроса-Стронга — он однозначен,
+  /// поэтому ждать «Найти» не нужно; таймер сглаживает посимвольный ввод.
+  Timer? _strongAuto;
+
   /// Фильтр по разделу канона или текущей книге.
   _SearchScope _scope = _SearchScope.all;
 
@@ -133,6 +139,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _run({bool fromSubmit = false}) async {
+    _strongAuto?.cancel();
     final q = _query.text.trim();
     if (q.isEmpty) return;
     final ref = parseQueryRef(q);
@@ -188,6 +195,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _strongAuto?.cancel();
     _query.dispose();
     super.dispose();
   }
@@ -297,7 +305,20 @@ class _SearchScreenState extends State<SearchScreen> {
                         controller: _query,
                         autofocus: true,
                         textInputAction: TextInputAction.search,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (_) {
+                          setState(() {});
+                          _strongAuto?.cancel();
+                          if (_directStrong != null) {
+                            _strongAuto = Timer(
+                              const Duration(milliseconds: 350),
+                              () {
+                                if (mounted && _directStrong != null) {
+                                  _run();
+                                }
+                              },
+                            );
+                          }
+                        },
                         onSubmitted: (_) => _run(fromSubmit: true),
                         decoration: InputDecoration(
                           hintText: tr(
