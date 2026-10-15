@@ -38,9 +38,9 @@ impl std::error::Error for Error {}
 const HEADER: [&str; 9] = [
     "id", "ide", "h", "toc1", "toc2", "toc3", "usfm", "sts", "rem",
 ];
-const CHAR_STYLES: [&str; 20] = [
+const CHAR_STYLES: [&str; 21] = [
     "add", "wj", "nd", "w", "qs", "qac", "sc", "bk", "it", "bd", "bdit", "em", "k", "tl", "pn",
-    "png", "ord", "sls", "no", "dc",
+    "png", "ord", "sls", "no", "dc", "ref",
 ];
 
 fn is_paragraph(m: &str) -> bool {
@@ -128,10 +128,13 @@ fn tokens(src: &str) -> Vec<Token<'_>> {
     }
     while let Some(after) = rest.strip_prefix('\\') {
         let len = after
-            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '+' || c == '*'))
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '+'))
             .unwrap_or(after.len());
-        let marker = &after[..len];
-        let mut body = &after[len..];
+        // Закрывающий маркер — «имя*»; без пробела после звезды
+        // (`\f*saying`) звезда не должна проглатывать текст.
+        let star = usize::from(after[len..].starts_with('*'));
+        let marker = &after[..len + star];
+        let mut body = &after[len + star..];
         if !marker.ends_with('*') {
             body = body.strip_prefix([' ', '\n', '\r', '\t']).unwrap_or(body);
             if body.starts_with('\n') {
@@ -249,11 +252,18 @@ pub fn parse(src: &str) -> Result<Book, Error> {
                             {
                                 part = c.to_string();
                             }
-                        } else if matches!(inner, "fq" | "fqa" | "xq") {
+                        } else if matches!(inner, "fq" | "xq") {
                             anchor.push_str(t.text);
                         }
                     }
-                    add(t.text, skip, &mut note);
+                    // \ref Текст|Цель\ref* внутри сноски — в текст сноски
+                    // идёт только отображаемый текст, цель отбрасывается.
+                    let body = if inner == "ref" {
+                        t.text.split_once('|').map_or(t.text, |(d, _)| d)
+                    } else {
+                        t.text
+                    };
+                    add(body, skip, &mut note);
                     i += 1;
                 }
                 // Текст после закрывающего маркера продолжает стих.

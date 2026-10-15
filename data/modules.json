@@ -78,16 +78,16 @@
         },
         {
             "id": "engbsb",
-            "source": "engbsb",
-            "title": "Berean Standard Bible (критический аппарат, Стронг)",
+            "source": "bsb2025",
+            "title": "Berean Standard Bible (критический аппарат, сноски)",
             "language": "en",
             "direction": "ltr",
             "versification": "eng",
             "name_profile": "en",
             "book_order": "syn",
-            "version": "1.0.0",
+            "version": "2025.1",
             "license": "public domain",
-            "attribution": "eBible.org (engbsb); ~4500 сносок о разночтениях LXX/MT/DSS/SP/Vulgate",
+            "attribution": "Berean Bible Translation Committee / biblehub.com — официальный USFM 2025",
             "format": "usfm",
             "sbz": "both"
         }
