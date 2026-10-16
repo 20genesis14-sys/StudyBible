@@ -60,3 +60,6 @@
 | [0023](adr/0023-xrefs-layer.md) | Параллельные места как общий модуль-слой `kind="layer"` |
 | [0024](adr/0024-mega-encyclopedia.md) | Библейская мегаэнциклопедия — модуль `knowledge.sb` (этап 1 v0.1.0 на ACAI; доработки этапа 2+) |
 | [0025](adr/0025-extended-strongs-interlinear.md) | Расширенный лексикон Стронга, опорный слой оригинала, подстрочники и слои разметки |
+| [0026](adr/0026-word-annotation-layers.md) | Словесные слои аннотаций (`kind="layer"`, схема links) |
+| [0027](adr/0027-rusb-reseated-alignments.md) | Модуль `rusb` + перепосаженные выравнивания Aquifer |
+| [0028](adr/0028-rusb-consensus-arbitration.md) | Консенсус-арбитраж `rusb-strongs` (Aquifer reseat × russyn) |

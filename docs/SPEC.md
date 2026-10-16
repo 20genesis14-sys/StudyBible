@@ -62,3 +62,6 @@ are written together with the test fixture of their stage.
 | [0023](adr/0023-xrefs-layer.md) | Cross-references as a shared `kind="layer"` module |
 | [0024](adr/0024-mega-encyclopedia.md) | Biblical mega-encyclopedia — `knowledge.sb` module (stage 1 v0.1.0 built on ACAI; stage 2+ refinements) |
 | [0025](adr/0025-extended-strongs-interlinear.md) | Extended Strong's lexicon, original-language base layer, interlinears and tagging layers |
+| [0026](adr/0026-word-annotation-layers.md) | Word-level annotation layers (`kind="layer"`, links schema) |
+| [0027](adr/0027-rusb-reseated-alignments.md) | `rusb` module + reseated Aquifer alignments |
+| [0028](adr/0028-rusb-consensus-arbitration.md) | `rusb-strongs` consensus arbitration (Aquifer reseat × russyn) |

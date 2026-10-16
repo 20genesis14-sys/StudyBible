@@ -1655,12 +1655,18 @@ plan, tasks, data inventory and skill specs —
   audio only; `aquifer-osn` — 9,035 Russian per-verse study notes
   (stays on the post-1.0 BibleAquifer track); `rsb-aquifer` — a
   translation. `load_aquifer_ru_articles` was a stub.
-- **`rusb` module + `rusb-strongs` layer (ADR 0027)**: `rusb` is the
-  modernized Synodal edition (CC0, 66 books, `rsc`); the Aquifer/Clear-
-  Bible RUSSYN "manual" alignments turned out to be unverified automatic
-  output (47.6 % agreement as-is) — reseated against `priors_ru` gives
-  **96.44 % agreement** with `russyn` on identical verses (194,512
-  links). `corpus-ru` not fed from it yet (needs an edition label, not
+- **`rusb` module + `rusb-strongs` layer (ADR 0027, 0028)**: `rusb` is
+  the modernized Synodal edition (CC0, 66 books, `rsc`); the Aquifer/
+  Clear-Bible RUSSYN "manual" alignments turned out to be unverified
+  automatic output (47.6 % agreement as-is) — reseated against
+  `priors_ru` gives 96.44 %, and the deployed layer is a **consensus
+  arbitration** (`adjudicate_rusb.py`) of reseated Aquifer × russyn on
+  identical verses: union on agreement, evidence-weighted arbiter
+  (prior support, POS class, FUNC codes, claim penalty) on conflicts —
+  **99.25 % agreement**, 543,114 links, manual spot-check ≈ 90 %
+  arbiter precision → ≈ 99 % true accuracy. Rejected: monotonic DP
+  (94.95 %), full corpus-ru priors (92.7 %), bootstrap (−3.7 п.п.).
+  `corpus-ru` not fed from it yet (needs an edition label, not
   conflated with classical `russyn`).
 - **biblica-keyterms article placement**: canonically on
   `knowledge.sb` entities (`acai` id = our `entity_id`); `lex_def`
