@@ -28,6 +28,9 @@ Usability and intuitiveness — fixing visual rough edges.
 - Quick search filters let you narrow results in one tap to the whole
   Bible, the Old Testament, the New Testament, or the book you are
   currently reading.
+- Docs: the entity/knowledge module is renamed — "Biblical
+  mega-encyclopedia" → **Tree of Knowledge** («Древо знаний»); ADR 0024
+  files renamed to `0024-tree-of-knowledge.*`.
 - Copying selected text now puts a neat quote in your clipboard with
   the exact verse reference and translation name, without extra spaces
   or markers.

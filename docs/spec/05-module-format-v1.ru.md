@@ -225,7 +225,7 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   `meta.subtype="study" | "translator"` и `verse_end` для примечаний на
   диапазон стихов); `dictionary` и `layer` — `books` может быть пустой
   (контент в `entries`/аппарате); `critical` — несёт `variants`;
-  `knowledge` — модуль мегаэнциклопедии (сущности, `entity_names`,
+  `knowledge` — модуль «Древа знаний» (сущности, `entity_names`,
   `entity_articles`, связи, упоминания в стихах; ADR 0024). Неизвестный
   `kind` — читается как `bible` (мягко).
 - **С-9.** `meta.features` — **открытый** список. Известные значения

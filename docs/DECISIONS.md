@@ -1187,7 +1187,7 @@ overridden.
   per (module, versification, note text) and prefetched in the
   background when a chapter opens (commits 603c111, b4f3263).
 
-## Biblical mega-encyclopedia (2026-10-12, ADR 0024)
+## Tree of Knowledge (2026-10-12, ADR 0024)
 
 Design accepted and deferred to the far-future track (alongside format
 v2 and `studybible-text`). An optional `knowledge.sb` module with a new
@@ -1211,6 +1211,12 @@ them, and verse mentions. Key points:
   at data-preparation time, never at runtime.
 - Deferred: user annotations (`user_knowledge.sb`), place coordinates
   + map, enriching `x`-spans with entities.
+- **2026-10-16**: the product is renamed — "Biblical mega-encyclopedia"
+  → **Tree of Knowledge** («Древо знаний»); ADR 0024 files renamed to
+  `0024-tree-of-knowledge.*`. Card-layout mockups explored externally at
+  `$STUDYBIBLE_DATA/mock/entity/` (reference-style compact cards,
+  full-passport variants, warm-palette restyles, original parchment v1)
+  — visual design **not approved**, variants kept for evaluation.
 
 ## Canonical verse coordinate and the `book_id` boundary (2026-10-13)
 
@@ -1341,7 +1347,7 @@ plan, tasks, data inventory and skill specs —
   definitions after the Online Bible answer; Synodal layer from the
   Clear manual RUSSYN alignment if validated (measurement F), otherwise
   from the pipeline.
-- **Mega-encyclopedia** stage 1 is fed from person/place IDs in
+- **Tree of Knowledge** stage 1 is fed from person/place IDs in
   TAHOT/TAGNT + TIPNR + OpenBible Geocoding (ADR 0024 addendum).
 - **Sources** pinned in `data/sources.json` (commit + SHA-256),
   fetched by `scripts/fetch-data.ps1` (`-Only`, `dest`, `files`) into
@@ -1370,7 +1376,7 @@ plan, tasks, data inventory and skill specs —
   introductions, dictionaries/key terms, maps/media; source — the
   `BibleAquifer` GitHub org (~73 repos, JSON+Markdown, `rus` present,
   mostly CC BY-SA 4.0). Roadmap entry added; implementation post-1.0.
-- **`ACAI` is a ready mega-encyclopedia dataset**: word-level entity annotations
+- **`ACAI` is a ready Tree of Knowledge dataset**: word-level entity annotations
   (people/places/deities/groups/fauna/flora/realia/keyterms) with
   labels, descriptions and relationships — feeds `entities`/
   `verse_mentions`/`relationships` almost directly (ADR 0024
@@ -1380,7 +1386,7 @@ plan, tasks, data inventory and skill specs —
   — they ship as an independent layer (ADR 0023 precedent). The NIV
   text is proprietary and not on Aquifer; the product is a
   composition, not a copy of the NIV Study Bible.
-- Aquifer dictionaries close previously uncovered mega-encyclopedia entity types
+- Aquifer dictionaries close previously uncovered Tree of Knowledge entity types
   (flora/fauna/realia/keyterms/themes — see ADR 0024 addendum);
   `concept`/`event` sources in OQ 45 updated accordingly.
 - Licence handling: CC BY-SA attribution (Biblica Inc. / Mission
@@ -1399,10 +1405,10 @@ plan, tasks, data inventory and skill specs —
     scripture references in `BookIntros` outlines into internal links
     (`sb://...`); `AquiferOpenStudyNotesThemes` and `Profiles` map to
     thematic/biographical articles in `knowledge.sb` / book headers.
-  - **Cross-linking notes ↔ mega-encyclopedia**: inline Aquifer links
+  - **Cross-linking notes ↔ Tree of Knowledge**: inline Aquifer links
     inside study notes resolve to `entity_id` in `knowledge.sb`, turning
     verse notes + entity cards + realia/maps into one hypertext layer.
-  - **Mega-encyclopedia stage 2+ refinements (ADR 0024)**: multi-source
+  - **Tree of Knowledge stage 2+ refinements (ADR 0024)**: multi-source
     articles move from JSON `metadata.articles` into an optional
     `entity_articles(entity_id, source, lang, title, body_md, license,
     ord)` table (FTS5 + lazy load); Synodal word forms from
@@ -1520,7 +1526,7 @@ plan, tasks, data inventory and skill specs —
   `work/strongs/orig/report-phase3.md` (mid 75.5%; gaps are
   documented, not defects).
 
-## Extended Strong's, Interlinears, Russian Lexicon & Mega-Encyclopedia Profile Cards (2026-10-14, ADR 0024 / ADR 0025)
+## Extended Strong's, Interlinears, Russian Lexicon & Tree of Knowledge Profile Cards (2026-10-14, ADR 0024 / ADR 0025)
 
 - **Phases 1–8 of ADR 0025 completed**:
   - Re-ran Phase 1 measurements `A–G` after fixing Groves affix filtering

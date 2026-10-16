@@ -246,7 +246,7 @@ same.
   `meta.subtype="study" | "translator"` and range end `verse_end` for
   pericope notes); `dictionary` and `layer` — `books` may be empty
   (content in `entries`/apparatus); `critical` — carries `variants`;
-  `knowledge` — the mega-encyclopedia module (entities, `entity_names`,
+  `knowledge` — the Tree of Knowledge module (entities, `entity_names`,
   `entity_articles`, relations, verse mentions; ADR 0024). Unknown
   `kind` — read as `bible` (soft).
 - **S-9.** `meta.features` — an **open** list. Known values

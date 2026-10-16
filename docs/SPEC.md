@@ -60,7 +60,7 @@ are written together with the test fixture of their stage.
 | [0021](adr/0021-gpui-ui-track.md) | Custom text system `studybible-text` (post-1.0 track; stage 2b `CustomPainter` gate) |
 | [0022](adr/0022-packed-span-storage.md) | Packed varint storage of spans/tokens/alignment (`required="pack"`) and lazy-reading candidates A/C |
 | [0023](adr/0023-xrefs-layer.md) | Cross-references as a shared `kind="layer"` module |
-| [0024](adr/0024-mega-encyclopedia.md) | Biblical mega-encyclopedia — `knowledge.sb` module (stage 1 v0.1.0 built on ACAI; stage 2+ refinements) |
+| [0024](adr/0024-tree-of-knowledge.md) | Tree of Knowledge — `knowledge.sb` module (stage 1 v0.1.0 built on ACAI; stage 2+ refinements) |
 | [0025](adr/0025-extended-strongs-interlinear.md) | Extended Strong's lexicon, original-language base layer, interlinears and tagging layers |
 | [0026](adr/0026-word-annotation-layers.md) | Word-level annotation layers (`kind="layer"`, links schema) |
 | [0027](adr/0027-rusb-reseated-alignments.md) | `rusb` module + reseated Aquifer alignments |

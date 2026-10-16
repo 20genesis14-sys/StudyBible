@@ -4,7 +4,7 @@
 
 Status: plan approved by the user 2026-10-13. Decision record:
 [ADR 0025](../adr/0025-extended-strongs-interlinear.md) (+ addendum in
-[ADR 0024](../adr/0024-mega-encyclopedia.md)). This document is
+[ADR 0024](../adr/0024-tree-of-knowledge.md)). This document is
 self-contained: a new engineer or model with this file, the repository
 and `STUDYBIBLE_DATA` must be able to continue the work without the
 original conversation.
@@ -42,7 +42,7 @@ Goals (in order):
    on English (BSB primary, KJV second) — **quality gate**.
 4. Russian: overlay lexicon, dictionary interlinear, Synodal tagging
    layer; then other languages.
-5. Mega-encyclopedia stage 1 data (people, places) — ADR 0024.
+5. Tree of Knowledge stage 1 data (people, places) — ADR 0024.
 
 Non-goals now: Septuagint (TAGOT not released), deuterocanonical books
 (not in TAHOT/TAGNT; OpenBible Apocrypha interlinear is a later
@@ -74,7 +74,7 @@ Clear Alignments `catalog.tsv` stays an LFS pointer (not needed).
 | `macula-hebrew`, `macula-greek` | MACULA TSV (WLC; SBLGNT + Nestle1904) | repos CC BY 4.0 © Biblica; `@ln`/`@domain` (MARBLE) and `@sdbh` (SDBH) — "used with permission" from UBS → **internal cross-check only, never ship in modules** | cross-check, Greek senses, referents, bridge to Clear |
 | `clear-alignments` | Clear-Bible/Alignments: manual alignments eng BSB/YLT, rus RUSSYN, fra, spa, por, arb, hin, hau… | CC BY 4.0 | gold; RUSSYN possibly a direct source |
 | `asv-alignment`, `asv-bible` | OpenBible ASV interlinear: rules, driver, reviewed judgments, USX aligned | code MIT, judgments no claim, ASV PD | process template + comparison gold |
-| `openbible-geocoding` | places with coordinates | CC BY 4.0 | mega-encyclopedia |
+| `openbible-geocoding` | places with coordinates | CC BY 4.0 | Tree of Knowledge |
 | `abbott-smith` | Abbott-Smith Greek lexicon TEI | PD | Greek definitions, ML replacement |
 | `esv/` (local, not re-fetchable) | `ttesv.txt`, `esv2016_*.sqlite`, `build_esv2016_strongs.py`, `make_variants.py`, `converter.py`, README, source JSON | ESV text © Crossway — never commit/distribute | ESV gold on held-out books |
 | `ubs-dictionaries` | UBS Dictionary of Biblical Hebrew (from SDBH, ~99 % of OT words) and UBS Dictionary of NT Greek (revised Louw–Nida): senses, glosses, references, semantic domains; en JSON | **CC BY-SA 4.0** © UBS — the legal channel for publishing domains/senses | `lex_def` + domain field; `@ln`/`@sdbh` verification |
@@ -82,11 +82,11 @@ Clear Alignments `catalog.tsv` stays an LFS pointer (not needed).
 | `bdb-aramaic` | Aquifer: BDB Aramaic section, `English-json`+`alignments` | CC0 | `lex_def` for Aramaic numbers H10xxx |
 | `bdb-hebrew-aq` | Aquifer: BDB Hebrew, `English-json`+`alignments` | CC0 | `lex_def` + **alignments tag senses per verse** — a disambiguated-sense corpus |
 | `rsb-aquifer` | Aquifer RussianSynodalBible: usfm/json + **234,908 manual word-level alignments WLCM/SBLGNT→RUSSYN** (all 66 books, `process=manual`, Burrito format, MACULA ids) | **CC0** | second Russian gold (alongside rsts), *publishable* — open licence; prior + gold for 8.3 |
-| `acai` | Aquifer ACAI: entities people/places/deities/groups/fauna/flora/realia/keyterms — relationships, labels in 11 langs (incl. rus), referents keyed by MACULA ids, TIPNR crosswalk | CC BY-SA 4.0 © Mission Mutual | mega-encyclopedia (ADR 0024 add. 2026-10-13); lexicon name data and entity_names |
+| `acai` | Aquifer ACAI: entities people/places/deities/groups/fauna/flora/realia/keyterms — relationships, labels in 11 langs (incl. rus), referents keyed by MACULA ids, TIPNR crosswalk | CC BY-SA 4.0 © Mission Mutual | Tree of Knowledge (ADR 0024 add. 2026-10-13); lexicon name data and entity_names |
 | `aquifer-obd` | Aquifer Open Bible Dictionary (Tyndale OBD adaptation) en+ru | CC BY-SA 4.0 (Tyndale→Mission Mutual) | entity articles, entity_names(ru) |
-| `uw-tw`, `fia-keyterms`, `biblica-keyterms` | key-term articles uW / FIA / Biblica (en; FIA & Biblica also ru) | CC BY-SA 4.0 | mega-encyclopedia concept entities, term cards |
-| `ubs-fauna`, `ubs-flora`, `ubs-realia` | UBS lexicons: animals, plants, realia (md) | CC BY-SA 4.0 © UBS | mega-encyclopedia fauna/flora/object entities |
-| `dict-themes` | Dictionary of Bible Themes (Manser) | CC BY-SA 4.0 | mega-encyclopedia concept/event |
+| `uw-tw`, `fia-keyterms`, `biblica-keyterms` | key-term articles uW / FIA / Biblica (en; FIA & Biblica also ru) | CC BY-SA 4.0 | Tree of Knowledge concept entities, term cards |
+| `ubs-fauna`, `ubs-flora`, `ubs-realia` | UBS lexicons: animals, plants, realia (md) | CC BY-SA 4.0 © UBS | Tree of Knowledge fauna/flora/object entities |
+| `dict-themes` | Dictionary of Bible Themes (Manser) | CC BY-SA 4.0 | Tree of Knowledge concept/event |
 | `analysis/` | scripts used for the 2026-10-12/13 findings (`senses.py`, `compare.py`, `quality.py`, `q2.py`) | — | reproduce findings |
 
 `D:\StudyBible-data\sources\aquifer\` also holds the "own study
@@ -176,7 +176,7 @@ tagging layer in target versification bound by id+hash+tokenizer; one
 core tokenizer; `conf` 0–10 everywhere; pipeline with deterministic
 first, model last (align → review → reconcile), agent per chapter,
 provenance per chapter; English gate first; TTESV only on dev books;
-held-out books; knowledge-mega-encyclopedia feed; pinned sources. Read the ADR for
+held-out books; Tree of Knowledge feed; pinned sources. Read the ADR for
 details.
 
 ### 4.1 Confidence scale `conf` (0–10)
@@ -236,7 +236,7 @@ MACULA dependency audit (2026-10-13, details —
 - SBLGNT (Faithlife) — CC BY 4.0.
 - Clear's own data (syntax, participant referents, semantic frames,
   synonyms, mappings) — CC BY 4.0 → optionally usable in the
-  mega-encyclopedia with attribution.
+  Tree of Knowledge with attribution.
 - MARBLE `@ln`/`@domain` and SDBH `@sdbh` — "used with permission"
   from UBS, sublicensing scope unspecified → internal scoring only;
   MACULA attributes never ship in modules.
@@ -378,7 +378,7 @@ clean; report `work/strongs/orig/report-phase3.md`. Output:
 `work/strongs/orig/step-orig.sb` (~193 MB unpacked; blob packing is
 a pending optimization).
 
-### Phase 3b — mega-encyclopedia stage 1 export — **done 2026-10-13**
+### Phase 3b — Tree of Knowledge stage 1 export — **done 2026-10-13**
 
 Built in Python as `tools/strongs/knowledge/step01_build.py`.
 Backbone is ACAI (`primary_id` = entity id): 5,700 entities, 62,548
@@ -578,7 +578,7 @@ Implemented in `tools/strongs/pipeline/prep_rlob.py`,
   measurement F). Text editions diverge (~6 % in rsts — check the
   Aquifer edition separately); divergent verses get an edition flag
   and are excluded from scoring. Expert sample 200–300 verses.
-- **8.4** mega-encyclopedia `entity_names` (ru) from the Synodal layer.
+- **8.4** Tree of Knowledge `entity_names` (ru) from the Synodal layer.
 
 Next languages: glosses + morphology with `conf`, dictionary
 interlinear, pipeline on the main translation, gold = Clear manual

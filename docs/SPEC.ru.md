@@ -58,7 +58,7 @@
 | [0021](adr/0021-gpui-ui-track.md) | Собственная текстовая система `studybible-text` (пост-1.0 трек; проверочный этап 2б на `CustomPainter`) |
 | [0022](adr/0022-packed-span-storage.md) | Varint-упаковка спанов/tokens/alignment (`required="pack"`) и варианты ленивого чтения A/C |
 | [0023](adr/0023-xrefs-layer.md) | Параллельные места как общий модуль-слой `kind="layer"` |
-| [0024](adr/0024-mega-encyclopedia.md) | Библейская мегаэнциклопедия — модуль `knowledge.sb` (этап 1 v0.1.0 на ACAI; доработки этапа 2+) |
+| [0024](adr/0024-tree-of-knowledge.md) | «Древо знаний» — модуль `knowledge.sb` (этап 1 v0.1.0 на ACAI; доработки этапа 2+) |
 | [0025](adr/0025-extended-strongs-interlinear.md) | Расширенный лексикон Стронга, опорный слой оригинала, подстрочники и слои разметки |
 | [0026](adr/0026-word-annotation-layers.md) | Словесные слои аннотаций (`kind="layer"`, схема links) |
 | [0027](adr/0027-rusb-reseated-alignments.md) | Модуль `rusb` + перепосаженные выравнивания Aquifer |

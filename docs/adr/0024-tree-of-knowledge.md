@@ -1,6 +1,6 @@
-# 0024. The Biblical mega-encyclopedia — the `knowledge.sb` module
+# 0024. The Tree of Knowledge — the `knowledge.sb` module
 
-**English** | [Русский](0024-mega-encyclopedia.ru.md)
+**English** | [Русский](0024-tree-of-knowledge.ru.md)
 
 Status: design accepted (2026-10-12); **stage 1 built 2026-10-13..14** —
 `knowledge.sb` v0.2.0 + Phase 8.4 with ACAI + TIPNR as the entity backbone
@@ -19,7 +19,7 @@ of any particular translation and fully offline.
 Format v1 already allows this without forks: optional tables and
 `meta` keys are ignored by older readers (C-18), and text-less layer
 modules already exist (ADR 0016 `kind="layer"`, ADR 0023 — the shared
-cross-reference layer). The mega-encyclopedia is the same kind of
+cross-reference layer). The Tree of Knowledge is the same kind of
 independent layer, but with its own composition contract, so it gets
 a dedicated `kind`.
 
@@ -67,7 +67,7 @@ a dedicated `kind`.
 4. **Provenance is mandatory**: a `source` field on entities,
    relationships and mentions (`TIPNR`, `OpenBible`, dictionaries,
    `user`…). Versioning via `meta` (`content_version`, `updated_at`);
-   the mega-encyclopedia updates independently of translations.
+   the Tree of Knowledge updates independently of translations.
 5. **Ties to existing data**: `entities.strongs` ↔ `tokens.strong`
    of modules with `features=strongs`; enriching `x`-spans with
    entities is a separate deferred step.
@@ -87,14 +87,14 @@ a dedicated `kind`.
 - User annotations on top of the base module
   (`user_knowledge.sb`, `source='user'`, priority on conflicts).
 - Place coordinates (`lat`/`lon` in `metadata`) and a map layer.
-- Enriching existing `x`-spans with mega-encyclopedia entities.
+- Enriching existing `x`-spans with Tree of Knowledge entities.
 
 ## Consequences
 
 - Format v1 changes nothing structurally: a new `meta.kind` value and
   a fixed set of optional tables are added; older readers simply do
   not see the module.
-- The mega-encyclopedia is not duplicated per translation — one module for all,
+- The Tree of Knowledge is not duplicated per translation — one module for all,
   updated independently (like `openbible-xrefs`, ADR 0023).
 - The effort concentrates in the data: `person`/`place` are covered
   by ready sources, while `concept`/`event` need authored content —
@@ -150,7 +150,7 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
   `FIAMaps`, `FIAImages`, `UBSImages`, `VideoBibleDictionary`.
 - **Original-language texts**: `WestminsterLeningradCodex`,
   `SBLGNT`, plus `text-align` — relevant to the interlinear/tokens
-  track, not the mega-encyclopedia directly.
+  track, not the Tree of Knowledge directly.
 - **Licence note**: Biblica study-notes content is CC BY-SA 4.0
   (© Biblica Inc. 2023; adaptations © Mission Mutual) — attribution
   required, derived modules stay under CC BY-SA, entries go to
@@ -242,6 +242,12 @@ present for the Biblica resources), mostly CC BY-SA 4.0:
        keyed by entity id (for major figures) or role archetype
        (`metadata.roles`: *King, Prophet, Priest, Warrior, Shepherd,
        Apostle, Matriarch*).
+
+   Design exploration (2026-10-16): card-layout mockups were drafted
+   externally at `$STUDYBIBLE_DATA/mock/entity/` (SVG+PNG — compact
+   reference-style cards, full-passport variants, warm-palette restyles,
+   and the original parchment v1). The visual design is **not yet
+   approved**; alternatives are kept side by side for evaluation.
 8. **Door43 Russian open resources (`door43-ru`, CC BY-SA 4.0) & Open Study Bible integration**:
    `ru_tw` (**1,018** modern Russian Translation Words articles) and
    `ru_twl` provide Russian concept/name/realia articles, while `ru_tn`

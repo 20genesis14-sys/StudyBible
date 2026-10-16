@@ -199,7 +199,7 @@ exports.
 - `verse_map` is part of the v2 contract: manual versification
   overrides apply before the automatic `.vrs` map
   (`Versification::convert`, DECISIONS 2026-10-13).
-- Cross-module links (xref layers, the mega-encyclopedia, future
+- Cross-module links (xref layers, the Tree of Knowledge, future
   connections) are stored as structured coordinates; display text is
   synthesized locally. Precedent already shipped in v1: `xrefs_pack`
   keeps `openbible-xrefs` targets as `(BookCode, chapter, verse,
@@ -216,7 +216,7 @@ RAM and web-streaming bottlenecks while keeping SQLite and FTS5 intact.
 Format v2 is therefore kept strictly as a **far-horizon strategic
 reserve** rather than an immediate post-1.0 rewrite. Its trigger is the
 growth of **heavy encyclopedic and lexical modules** — the Biblical
-mega-encyclopedia (`knowledge.sb` with tens of thousands of multilingual
+Tree of Knowledge (`knowledge.sb` with tens of thousands of multilingual
 articles, relations, word-level mentions and media), full unabridged
 lexicons (`strongs-step`, `lsj`, UBS/BDB dictionaries) and full
 critical-apparatus corpora — if and when their combined weight and

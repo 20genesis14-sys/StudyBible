@@ -17,7 +17,7 @@ produced by `tools/strongs/measure/*.py`.
 | 1 — measurements A–G | ✅ done | 2026-10-13 | `tools/strongs/measure/`, reports A–G (below) |
 | 2 — lexicon `strongs-step` | ⏳ not started | | |
 | 3 — base layer `step-orig` | ⏳ not started | | |
-| 3b — mega-encyclopedia stage 1 | ⏳ not started | | |
+| 3b — Tree of Knowledge stage 1 | ⏳ not started | | |
 | 4 — English interlinears | ⏳ not started | | |
 | 5 — layer format, tokenizer, app, importer fixes | ⏳ not started | | |
 | 6 — tagging pipeline | ⏳ not started | | |
@@ -186,7 +186,7 @@ can be attached to base-layer words deterministically.
   mostly CC BY-SA). 21 sources pinned (all SHA-256) and downloaded.
   Key finds: **manual word-level RUSSYN→WLCM/SBLGNT alignment**
   (`rsb-aquifer`, 234,908 records, 66 books, CC0 — a publishable
-  Russian gold), **ACAI** (mega-encyclopedia entities: relationships, labels in
+  Russian gold), **ACAI** (Tree of Knowledge entities: relationships, labels in
   11 languages incl. Russian, MACULA-id referents, TIPNR crosswalk),
   `bdb-aramaic` (Aramaic BDB, CC0), `bdb-hebrew-aq` (BDB + sense-to-
   verse alignments), `aquifer-obd` (Tyndale OBD, Russian included),
