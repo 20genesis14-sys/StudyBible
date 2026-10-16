@@ -116,6 +116,7 @@ def write_layer_sb(
     versification: str,
     mode: str,
     rows: list[tuple[int, int, int, int, str, str, int, str, str]],
+    meta_overrides: dict[str, str] | None = None,
 ) -> None:
     if out_sb.exists():
         out_sb.unlink()
@@ -145,6 +146,8 @@ def write_layer_sb(
         "required": "",
         "content_hash": chash,
     }
+    if meta_overrides:
+        meta_rows.update(meta_overrides)
     db.executemany("INSERT INTO meta VALUES (?,?)", meta_rows.items())
     db.commit()
     db.execute("ANALYZE")

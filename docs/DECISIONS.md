@@ -1655,6 +1655,13 @@ plan, tasks, data inventory and skill specs —
   audio only; `aquifer-osn` — 9,035 Russian per-verse study notes
   (stays on the post-1.0 BibleAquifer track); `rsb-aquifer` — a
   translation. `load_aquifer_ru_articles` was a stub.
+- **`rusb` module + `rusb-strongs` layer (ADR 0027)**: `rusb` is the
+  modernized Synodal edition (CC0, 66 books, `rsc`); the Aquifer/Clear-
+  Bible RUSSYN "manual" alignments turned out to be unverified automatic
+  output (47.6 % agreement as-is) — reseated against `priors_ru` gives
+  **96.44 % agreement** with `russyn` on identical verses (194,512
+  links). `corpus-ru` not fed from it yet (needs an edition label, not
+  conflated with classical `russyn`).
 - **biblica-keyterms article placement**: canonically on
   `knowledge.sb` entities (`acai` id = our `entity_id`); `lex_def`
   receives `short_description` + an `eid` link — no full-text
