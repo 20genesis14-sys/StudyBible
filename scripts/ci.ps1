@@ -10,7 +10,8 @@ $steps = @(
     @('clippy', 'cargo', @('clippy', '--workspace', '--all-targets', '--', '-D', 'warnings')),
     @('test',   'cargo', @('test', '--workspace')),
     @('wasm32', 'cargo', @('check', '-p', 'studybible-core', '--target', 'wasm32-unknown-unknown')),
-    @('deny',   'cargo', @('deny', 'check'))
+    @('deny',   'cargo', @('deny', 'check')),
+    @('agent-rules', (Join-Path $PSScriptRoot 'check-agent-rules.ps1'), @())
 )
 
 foreach ($s in $steps) {

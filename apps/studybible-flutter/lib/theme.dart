@@ -153,6 +153,55 @@ class Palette {
   };
 }
 
+/// Триада цветов «бумаги», которую меняет оттенок (фон, плитка, рамка).
+typedef PaperToneColors = ({Color background, Color card, Color edge});
+
+/// Оттенки «бумаги» светлой темы (DECISIONS 18.10.2026): три градации
+/// светлой палитры «книга и киноварь», различающиеся только фоном,
+/// плитками и рамками. Тушь, приглушённый текст, акцент, слова Иисуса
+/// и текст на акценте у всех оттенков общие. Таблица применяется
+/// строго к [AppTheme.light] — тёмные темы (dark/amoled) оттенок
+/// не трогают. Индекс хранится в настройках (Settings.paperTone).
+const List<PaperToneColors> kPaperTones = [
+  // 0 «Классическая» — текущие значения светлой палитры.
+  (
+    background: Color(0xFFF3EDDE),
+    card: Color(0xFFFBF6EA),
+    edge: Color(0xFFE3D8C2),
+  ),
+  // 1 «Светлая» — почти белая бумага.
+  (
+    background: Color(0xFFF7F4EC),
+    card: Color(0xFFFCFBF4),
+    edge: Color(0xFFE7E0D2),
+  ),
+  // 2 «Сепия» — тёплая бумага, глубже классической.
+  (
+    background: Color(0xFFEDE3CB),
+    card: Color(0xFFF4ECD9),
+    edge: Color(0xFFDCD0B4),
+  ),
+];
+
+/// Применить оттенок бумаги [tone] к палитре [p]: для светлой темы
+/// вернуть копию с фоном/плиткой/рамкой из [kPaperTones] (тон вне
+/// диапазона — тон 0), для тёмных — палитру без изменений. Палитра
+/// сама не знает своей темы, поэтому [t] передаётся явно.
+Palette applyPaperTone(Palette p, AppTheme t, int tone) {
+  if (t != AppTheme.light) return p;
+  final k = kPaperTones[tone.clamp(0, kPaperTones.length - 1)];
+  return Palette(
+    background: k.background,
+    card: k.card,
+    edge: k.edge,
+    ink: p.ink,
+    muted: p.muted,
+    accent: p.accent,
+    jesus: p.jesus,
+    onAccent: p.onAccent,
+  );
+}
+
 /// Набор темы в ThemeData: палитра + текущий AppTheme.
 /// Через ThemeExtension виджеты автоматически перестраиваются
 /// при смене темы (зависимость через Theme.of).
@@ -176,8 +225,11 @@ class AppThemeExtension extends ThemeExtension<AppThemeExtension> {
   }
 }
 
-ThemeData buildThemeData(AppTheme t) {
-  final p = Palette.of(t);
+/// Собрать ThemeData темы [t]. [paperTone] — оттенок бумаги светлой
+/// темы (индекс в [kPaperTones]; для тёмных тем игнорируется).
+ThemeData buildThemeData(AppTheme t, {int paperTone = 0}) {
+  var p = Palette.of(t);
+  if (t == AppTheme.light) p = applyPaperTone(p, t, paperTone);
   return ThemeData(
     useMaterial3: true,
     extensions: [AppThemeExtension(t, p)],

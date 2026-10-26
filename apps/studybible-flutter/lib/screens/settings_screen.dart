@@ -7,9 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../data.dart';
+import '../error_log.dart';
 import '../l10n.dart';
 import '../native_bridge_stub.dart'
-    if (dart.library.html) '../native_bridge_web.dart'
+    if (dart.library.js_interop) '../native_bridge_web.dart'
     if (dart.library.io) '../native_bridge_io.dart';
 import '../routes.dart';
 import '../state.dart';
@@ -56,6 +57,10 @@ class SettingsScreen extends StatelessWidget {
                     children: [
                       _section(p, tr('Оформление', 'Appearance')),
                       _themePicker(p),
+                      // Оттенок бумаги относится только к светлой теме;
+                      // тёмные (в т.ч. ночные) его не показывают.
+                      if (settings.effectiveTheme == AppTheme.light)
+                        _paperToneRow(p),
                       _autoNightRow(context, p),
                       const SizedBox(height: 8),
                       Row(
@@ -176,16 +181,12 @@ class SettingsScreen extends StatelessWidget {
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 2,
                                     ),
-                                    textStyle: const TextStyle(
-                                      fontSize: 12,
-                                    ),
+                                    textStyle: const TextStyle(fontSize: 12),
                                   ),
                                   segments: [
                                     ButtonSegment(
                                       value: 0,
-                                      label: Text(
-                                        tr('Обычный', 'Regular'),
-                                      ),
+                                      label: Text(tr('Обычный', 'Regular')),
                                     ),
                                     ButtonSegment(
                                       value: 1,
@@ -193,9 +194,7 @@ class SettingsScreen extends StatelessWidget {
                                     ),
                                     ButtonSegment(
                                       value: 2,
-                                      label: Text(
-                                        tr('Полужирный', 'Semibold'),
-                                      ),
+                                      label: Text(tr('Полужирный', 'Semibold')),
                                     ),
                                     ButtonSegment(
                                       value: 3,
@@ -203,11 +202,9 @@ class SettingsScreen extends StatelessWidget {
                                     ),
                                   ],
                                   selected: {settings.fontWeightStep},
-                                  onSelectionChanged: (s) =>
-                                      settings.update(
-                                        () =>
-                                            settings.fontWeightStep = s.first,
-                                      ),
+                                  onSelectionChanged: (s) => settings.update(
+                                    () => settings.fontWeightStep = s.first,
+                                  ),
                                 ),
                               ),
                               _labeled(
@@ -343,15 +340,11 @@ class SettingsScreen extends StatelessWidget {
                                 segments: [
                                   ButtonSegment(
                                     value: 'synodal',
-                                    label: Text(
-                                      tr('Синодальные', 'Synodal'),
-                                    ),
+                                    label: Text(tr('Синодальные', 'Synodal')),
                                   ),
                                   ButtonSegment(
                                     value: 'modern',
-                                    label: Text(
-                                      tr('Современные', 'Modern'),
-                                    ),
+                                    label: Text(tr('Современные', 'Modern')),
                                   ),
                                 ],
                                 selected: {settings.bookNames},
@@ -692,19 +685,47 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                      _section(p, tr('Диагностика', 'Diagnostics')),
+                      _card(
+                        p,
+                        // Журнал ошибок (BUGS 18.10.2026, «молчаливые
+                        // ошибки»): счётчик записей, тап — список
+                        // с копированием и очисткой.
+                        ListenableBuilder(
+                          listenable: errorLog,
+                          builder: (context, _) => ListTile(
+                            dense: true,
+                            leading: Icon(
+                              errorLog.count == 0
+                                  ? Icons.check_circle_outline
+                                  : Icons.bug_report_outlined,
+                              size: 18,
+                            ),
+                            title: Text(
+                              errorLog.count == 0
+                                  ? tr('Ошибок нет', 'No errors')
+                                  : tr(
+                                      'Ошибок: ${errorLog.count}',
+                                      'Errors: ${errorLog.count}',
+                                    ),
+                            ),
+                            trailing: errorLog.count == 0
+                                ? null
+                                : Icon(Icons.chevron_right, color: p.muted),
+                            onTap: errorLog.count == 0
+                                ? null
+                                : () => _showDiagnostics(context),
+                          ),
+                        ),
+                      ),
                       _section(p, tr('О приложении', 'About')),
                       _card(
                         p,
                         ListTile(
                           title: Text(tr('Лицензии', 'Licenses')),
-                          trailing: Icon(
-                            Icons.chevron_right,
-                            color: p.muted,
-                          ),
-                          onTap: () => pushFast(
-                            context,
-                            const LicensesScreen(),
-                          ),
+                          trailing: Icon(Icons.chevron_right, color: p.muted),
+                          onTap: () =>
+                              pushFast(context, const LicensesScreen()),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -775,14 +796,13 @@ class SettingsScreen extends StatelessWidget {
               builder: (_, c) {
                 final fits14 =
                     (TextPainter(
-                          text: TextSpan(
-                            text: label,
-                            style: TextStyle(fontSize: 14, color: p.ink),
-                          ),
-                          maxLines: 1,
-                          textDirection: Directionality.of(context),
-                        )..layout(maxWidth: c.maxWidth))
-                        .didExceedMaxLines ==
+                      text: TextSpan(
+                        text: label,
+                        style: TextStyle(fontSize: 14, color: p.ink),
+                      ),
+                      maxLines: 1,
+                      textDirection: Directionality.of(context),
+                    )..layout(maxWidth: c.maxWidth)).didExceedMaxLines ==
                     false;
                 return Text(
                   label,
@@ -914,6 +934,71 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  /// Оттенок бумаги светлой темы (DECISIONS 18.10.2026): три градации
+  /// фона/плитки/рамки; тушь и киноварь у всех общие. Показывается
+  /// только при действующей светлой теме (условие в build).
+  Widget _paperToneRow(Palette p) {
+    String label(int t) => switch (t) {
+      0 => tr('Классическая', 'Classic'),
+      1 => tr('Светлая', 'Light'),
+      _ => tr('Сепия', 'Sepia'),
+    };
+    return _card(
+      p,
+      _row(
+        p,
+        tr('Оттенок бумаги', 'Paper tone'),
+        SegmentedButton<int>(
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            textStyle: const TextStyle(fontSize: 12),
+          ),
+          segments: [
+            for (var i = 0; i < kPaperTones.length; i++)
+              ButtonSegment(
+                value: i,
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _paperSwatch(i),
+                    const SizedBox(width: 6),
+                    Text(label(i)),
+                  ],
+                ),
+              ),
+          ],
+          selected: {settings.paperTone.clamp(0, kPaperTones.length - 1)},
+          onSelectionChanged: (s) =>
+              settings.update(() => settings.paperTone = s.first),
+        ),
+      ),
+    );
+  }
+
+  /// Мини-образец оттенка: фон «бумаги» с рамкой-краем и плиткой внутри.
+  Widget _paperSwatch(int tone) {
+    final k = kPaperTones[tone];
+    return Container(
+      width: 22,
+      height: 14,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: k.background,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: k.edge),
+      ),
+      alignment: Alignment.center,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: k.card,
+          borderRadius: BorderRadius.circular(1),
+        ),
+      ),
+    );
+  }
+
   Widget _themePicker(Palette p) {
     Widget card(AppTheme t, String label) {
       final tp = Palette.of(t);
@@ -994,6 +1079,144 @@ class SettingsScreen extends StatelessWidget {
       ),
     ),
   );
+
+  /// Журнал ошибок (BUGS 18.10.2026): нижний лист со списком записей
+  /// (время, контекст, ошибка, хвост стека), копированием всего
+  /// журнала в буфер обмена и очисткой.
+  void _showDiagnostics(BuildContext context) {
+    final p = context.palette;
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: p.background,
+        builder: (sheetCtx) => SafeArea(
+          child: ListenableBuilder(
+            listenable: errorLog,
+            builder: (context, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tr('Диагностика', 'Diagnostics'),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: p.ink,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: errorLog.count == 0
+                            ? null
+                            : () async {
+                                await Clipboard.setData(
+                                  ClipboardData(text: _formatErrorLog()),
+                                );
+                                if (sheetCtx.mounted) {
+                                  ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        tr('Скопировано', 'Copied'),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                        child: Text(tr('Копировать', 'Copy')),
+                      ),
+                      TextButton(
+                        onPressed: errorLog.count == 0 ? null : errorLog.clear,
+                        child: Text(tr('Очистить', 'Clear')),
+                      ),
+                    ],
+                  ),
+                ),
+                if (errorLog.count == 0)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      tr('Ошибок нет', 'No errors'),
+                      style: TextStyle(color: p.muted),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      children: [
+                        for (final r in errorLog.records)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_fmtTime(r.time)} · ${r.context}',
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 12,
+                                    color: p.ink,
+                                  ),
+                                ),
+                                Text(
+                                  '${r.error}',
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 12,
+                                    color: p.accent,
+                                  ),
+                                ),
+                                if (r.stack != null)
+                                  Text(
+                                    _stackTail(r.stack!, 3),
+                                    style: TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 11,
+                                      color: p.muted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// «ЧЧ:мм:сс» для записи журнала.
+  String _fmtTime(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:'
+      '${t.minute.toString().padLeft(2, '0')}:'
+      '${t.second.toString().padLeft(2, '0')}';
+
+  /// Последние [n] строк стека — чтобы карточка записи не раздувалась.
+  String _stackTail(StackTrace stack, int n) {
+    final lines = stack.toString().trimRight().split('\n');
+    if (lines.length <= n) return lines.join('\n');
+    return '… ${lines.sublist(lines.length - n).join('\n')}';
+  }
+
+  /// Весь журнал одним текстом — для «Копировать».
+  String _formatErrorLog() {
+    final buf = StringBuffer();
+    for (final r in errorLog.records) {
+      buf.writeln('${r.time.toIso8601String()} [${r.context}] ${r.error}');
+      final st = r.stack;
+      if (st != null) buf.writeln(st.toString().trimRight());
+    }
+    return buf.toString().trimRight();
+  }
 }
 
 /// Установленные голосовые пакеты и их импорт (ADR 0017): тап по

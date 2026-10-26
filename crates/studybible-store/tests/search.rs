@@ -62,6 +62,47 @@ fn basic_and_normalization() {
 }
 
 #[test]
+fn operators_phrase_prefix_glob() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+    let idx = SearchIndex::open(&dir.path().join("a.idx"), &m).unwrap();
+
+    // Фраза — порядок слов важен.
+    let hits = idx.search("\"начале сотворил\"", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 1);
+    assert!(idx.search("\"сотворил начале\"", 10).unwrap().is_empty());
+    // Незакрытая кавычка — всё до конца как фраза.
+    assert_eq!(idx.search("\"да будет", 10).unwrap().len(), 1);
+
+    // Префикс `w*`: «свет*» — «свет» в 1:3 (дважды — один стих).
+    let hits = idx.search("свет*", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert!(hits.iter().all(|h| h.chapter == 1 && h.verse == 3));
+    // Префикс + слово — AND.
+    let hits = idx.search("св* стал", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 3);
+
+    // `?` — односимвольный wildcard: «све?» → «свет», «земл?» → «земля»/«землю».
+    let hits = idx.search("све?", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 3);
+    assert!(hits[0].snippet.contains("[свет]"));
+    let hits = idx.search("земл?", 10).unwrap();
+    assert_eq!(hits.len(), 3); // «землю» (1:1), «земля» (2:1)… и «земля» в 1:2
+    // Внутренняя `*` — тоже glob: «н*е» → «небо»/«небо.».
+    let hits = idx.search("н*е", 10).unwrap();
+    assert!(hits.iter().any(|h| h.verse == 1));
+    // Glob AND слово.
+    let hits = idx.search("земл? совершены", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].chapter, 2);
+    // Glob без совпадений.
+    assert!(idx.search("кот?", 10).unwrap().is_empty());
+}
+
+#[test]
 fn limit_respected() {
     let dir = tempfile::tempdir().unwrap();
     let (_, m) = module(&dir, "a.sb", SRC);
@@ -226,4 +267,421 @@ fn query_quoting() {
     assert!(idx.search("AND OR NOT", 10).is_ok());
     assert!(idx.search("(небо)", 10).is_ok());
     assert!(idx.search("небо*", 10).is_ok());
+}
+
+#[test]
+fn search_notes_includes_external_layer() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+    let layer_path = dir.path().join("layer.sb");
+    let gen_ = studybible_core::BookCode::new("GEN").unwrap();
+    let mut w = ModuleWriter::create(
+        &layer_path,
+        &Meta {
+            id: "openbible-xrefs".into(),
+            versification: "eng".into(),
+            kind: "layer".into(),
+            ..Meta::default()
+        },
+    )
+    .unwrap();
+    w.add_book(gen_, 1, "Genesis", &Default::default()).unwrap();
+    w.add_xref(gen_, 1, 3, 0, "2Cor 4:6").unwrap();
+    w.finish().unwrap();
+    let layer = Module::open(&layer_path).unwrap();
+
+    let idx = SearchIndex::open(&dir.path().join("a.idx"), &m).unwrap();
+    assert!(idx.search_notes("2cor", 10).unwrap().is_empty());
+    let hits = idx
+        .search_notes_with_layer("2cor", 10, Some(&layer), "rsc")
+        .unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].chapter, 1);
+    assert_eq!(hits[0].verse, 3);
+}
+
+/// Модуль со сноской (spans kind='f'): текст сноски ищется notes-поиском.
+const SRC_NOTE: &str = "\\id GEN\n\\mt1 Бытие\n\
+\\c 1\n\\p\n\
+\\v 1 В начале сотворил Бог небо и землю.\\f + \\fr 1:1 \\ft Примечание о сотворении мира\\f*\n\
+\\v 2 Земля же была безвидна и пуста.\n\
+\\v 3 И сказал Бог: да будет свет. И стал свет.\n";
+
+/// Минимальный валидный кадр zstd из raw-блоков (RFC 8878): магия,
+/// дескриптор кадра без FCS/checksum, окно 16 МиБ, блоки ≤ 64 КиБ.
+/// Настоящий упаковщик — `module pack` в CLI (`zstd::stream`); здесь
+/// самодостаточная сборка контейнера без новых зависимостей.
+fn zstd_raw_frame(data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(data.len() + 16);
+    out.extend_from_slice(&0xFD2FB528u32.to_le_bytes());
+    out.push(0x00); // Frame_Header_Descriptor
+    out.push(0x70); // Window_Descriptor: Exponent 14 → windowLog 24
+    let mut rest = data;
+    loop {
+        let n = rest.len().min(1 << 16);
+        let (chunk, tail) = rest.split_at(n);
+        let last = u32::from(tail.is_empty());
+        // Block_Header: Last_Block | тип Raw(0) << 1 | размер << 3.
+        out.extend_from_slice(&(last | (chunk.len() as u32) << 3).to_le_bytes()[..3]);
+        out.extend_from_slice(chunk);
+        if last == 1 {
+            return out;
+        }
+        rest = tail;
+    }
+}
+
+/// SBZ1-контейнер (ADR 0016 п. 6): magic + кодек 0 (zstd) + кадр —
+/// как у `module pack`.
+fn pack_sbz(raw: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(raw.len() + 16);
+    out.extend_from_slice(studybible_store::sbz::MAGIC);
+    out.push(0);
+    out.extend_from_slice(&zstd_raw_frame(raw));
+    out
+}
+
+/// Собрать .sb (со сноской; `fts` — со встроенным индексом), упаковать
+/// в .sbz на диск и открыть «как .sbz»: `Module::open_bytes` — живое
+/// соединение в памяти, а `module.path()` указывает на сжатый файл.
+fn open_as_sbz(dir: &tempfile::TempDir, name: &str, src: &str, fts: bool) -> Module {
+    let sb = dir.path().join(name);
+    let b = usfm::parse(src).unwrap();
+    let mut w = ModuleWriter::create(&sb, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    if fts {
+        w.build_search_index().unwrap();
+    }
+    w.finish().unwrap();
+    let raw = std::fs::read(&sb).unwrap();
+    let path = dir.path().join(name.replace(".sb", ".sbz"));
+    std::fs::write(&path, pack_sbz(&raw)).unwrap();
+    let unpacked = studybible_store::sbz::unpack(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(unpacked, raw, "контейнер .sbz должен распаковываться");
+    Module::open_bytes(&path, &unpacked).unwrap()
+}
+
+/// OQ 54: модуль, распакованный из `.sbz` в память, ищется тем же
+/// `SearchIndex`: встроенный fts, glob-скан и сноски читают живое
+/// соединение модуля, а не его путь — сжатый `.sbz` не SQLite, и
+/// открытие пути давало ошибку → пустая выдача в UI.
+#[test]
+fn sbz_embedded_fts_search_scan_notes() {
+    let dir = tempfile::tempdir().unwrap();
+    let m = open_as_sbz(&dir, "emb.sb", SRC_NOTE, true);
+    assert!(m.has_search_index());
+
+    let idx = SearchIndex::open(&dir.path().join("emb.idx"), &m).unwrap();
+    // Встроенный fts: слово находится.
+    let hits = idx.search("свет", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 3);
+    // Glob `?` — скан по verses живого соединения.
+    let hits = idx.search("све?", 10).unwrap();
+    assert!(!hits.is_empty(), "glob-скан по .sbz пуст");
+    // Сноска — spans того же соединения.
+    let hits = idx.search_notes("примечание", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert!(hits[0].snippet.contains("примечание"));
+    let hits = idx
+        .search_notes_with_layer("примечание", 10, None, "")
+        .unwrap();
+    assert_eq!(hits.len(), 1);
+}
+
+/// OQ 54: то же при закэшированном `.idx` (у модуля нет встроенного
+/// fts): скан стихов и сноски — снова живое соединение, не путь `.sbz`.
+#[test]
+fn sbz_cache_idx_scan_and_notes() {
+    let dir = tempfile::tempdir().unwrap();
+    let m = open_as_sbz(&dir, "cch.sb", SRC_NOTE, false);
+    assert!(!m.has_search_index());
+
+    let idx_path = dir.path().join("cch.idx");
+    let idx = SearchIndex::open(&idx_path, &m).unwrap();
+    assert!(idx_path.exists(), "кэш .idx должен быть построен");
+    let hits = idx.search("свет", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+    let hits = idx.search("све?", 10).unwrap();
+    assert!(!hits.is_empty(), "glob-скан по .sbz пуст");
+    let hits = idx.search_notes("примечание", 10).unwrap();
+    assert_eq!(hits.len(), 1);
+}
+
+/// Обратный поиск Стронга: собственная разметка модуля
+/// (`strong=` в спанах → `token_pack`) и слой `links` с пометкой
+/// слова `w1` в сниппете.
+#[test]
+fn search_strong_native_and_layer() {
+    let dir = tempfile::tempdir().unwrap();
+    let src = "\\id GEN\n\\mt1 Бытие\n\\c 1\n\\p\n\
+               \\v 1 \\w В|strong=\"H9003\"\\w* \\w начале|strong=\"H7225\"\\w* сотворил Бог небо и землю.\n\
+               \\v 2 \\w Земля|strong=\"H0776\"\\w* же была безвидна.\n";
+    let (_, m) = module(&dir, "a.sb", src);
+    let idx = SearchIndex::open(&dir.path().join("a.idx"), &m).unwrap();
+
+    // Нативная разметка: H7225 → стих 1; добивка нулями и регистр
+    // не влияют на сравнение.
+    for q in ["H7225", "h7225", "H07225"] {
+        let hits = idx.search_strong(q, 10, None, &m).unwrap();
+        assert_eq!(hits.len(), 1, "запрос {q}");
+        assert_eq!(hits[0].chapter, 1);
+        assert_eq!(hits[0].verse, 1);
+    }
+    let hits = idx.search_strong("H776", 10, None, &m).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 2);
+    // Чужого номера и не-номера нет; ошибки нет.
+    assert!(idx.search_strong("G3056", 10, None, &m).unwrap().is_empty());
+    assert!(idx.search_strong("X1", 10, None, &m).unwrap().is_empty());
+    // Слова Стронга в сниппете без слоя не помечаются.
+    assert!(
+        !idx.search_strong("H7225", 10, None, &m).unwrap()[0]
+            .snippet
+            .contains('[')
+    );
+
+    // Слой `links` (ADR 0025): совпавшие слова помечаются [ ] по w1.
+    let gen_ = studybible_core::BookCode::new("GEN").unwrap();
+    let lp = dir.path().join("lay.sb");
+    let mut w = ModuleWriter::create(
+        &lp,
+        &Meta {
+            id: "a-strongs".into(),
+            kind: "layer".into(),
+            ..Meta::default()
+        },
+    )
+    .unwrap();
+    w.add_book(gen_, 1, "Genesis", &Default::default()).unwrap();
+    w.add_link(
+        gen_,
+        1,
+        &studybible_store::Link {
+            verse: 1,
+            word: 2,
+            strong: "H1254".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    w.add_link(
+        gen_,
+        1,
+        &studybible_store::Link {
+            verse: 2,
+            word: 0,
+            strong: "H0776".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    w.finish().unwrap();
+    let layer = Module::open(&lp).unwrap();
+
+    // Валидный слой замещает собственную разметку: H7225 модуля
+    // через слой не находится, а H1254 — только из слоя.
+    assert!(
+        idx.search_strong("H7225", 10, Some(&layer), &m)
+            .unwrap()
+            .is_empty()
+    );
+    let hits = idx.search_strong("H1254", 10, Some(&layer), &m).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 1);
+    assert!(
+        hits[0].snippet.contains("[сотворил]"),
+        "{}",
+        hits[0].snippet
+    );
+    let hits = idx.search_strong("H0776", 10, Some(&layer), &m).unwrap();
+    assert_eq!(hits[0].snippet, "[земля] же была безвидна");
+    // Суффиксный запрос без точного совпадения — фолбэк на базовый
+    // номер (слой хранит `H0776`, `H0776B` находит его же).
+    let hits = idx.search_strong("H0776B", 10, Some(&layer), &m).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].verse, 2);
+}
+
+/// Слой разметки с заданными ячейками (`links.strong`) поверх GEN 1.
+fn layer_with(dir: &tempfile::TempDir, name: &str, cells: &[(u16, u16, u16, &str)]) -> Module {
+    let gen_ = studybible_core::BookCode::new("GEN").unwrap();
+    let lp = dir.path().join(name);
+    let mut w = ModuleWriter::create(
+        &lp,
+        &Meta {
+            id: "a-strongs".into(),
+            kind: "layer".into(),
+            ..Meta::default()
+        },
+    )
+    .unwrap();
+    w.add_book(gen_, 1, "Genesis", &Default::default()).unwrap();
+    for (ch, verse, word, strong) in cells {
+        w.add_link(
+            gen_,
+            *ch,
+            &studybible_store::Link {
+                verse: *verse,
+                word: *word,
+                strong: (*strong).into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    }
+    w.finish().unwrap();
+    Module::open(&lp).unwrap()
+}
+
+/// Производные объекты слоя (`derive.rs`): быстрый путь по индексу даёт
+/// **ту же** выдачу, что скан, — включая номер, стоящий в ячейке первым
+/// вместе со списком (`H1254A H0776G`), и номер «только вторым»
+/// (`H0776G H1254A`). Именно на первом случае пути расходились до
+/// правки: точное равенство всей ячейки теряло стих `H1254A H0776G`.
+#[test]
+fn strong_fast_path_matches_scan() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+
+    let fast = layer_with(
+        &dir,
+        "fast.sb",
+        &[
+            (1, 1, 0, "H1254A"),
+            (1, 1, 1, "H1254A H0776G"),
+            (1, 2, 0, "H0776G H1254A"),
+            (1, 3, 0, "H0430G"),
+            (2, 1, 0, "H1254"),
+        ],
+    );
+    // Скан-вариант: те же данные без производных объектов.
+    let scan_path = dir.path().join("scan.sb");
+    std::fs::copy(dir.path().join("fast.sb"), &scan_path).unwrap();
+    rusqlite::Connection::open(&scan_path)
+        .unwrap()
+        .execute_batch("DROP INDEX IF EXISTS links_strong; DROP TABLE IF EXISTS links_extra;")
+        .unwrap();
+    let scan = Module::open(&scan_path).unwrap();
+
+    assert!(
+        fast.has_strong_fast_path(),
+        "сборщик обязан создать индекс и links_extra"
+    );
+    assert!(!scan.has_strong_fast_path(), "без объектов — только скан");
+
+    let idx = SearchIndex::without_cache(&m);
+    for code in ["H1254A", "H1254", "H0776G", "H0430", "H9999"] {
+        let a = idx
+            .search_strong_words(code, usize::MAX, Some(&scan), &m)
+            .unwrap();
+        let b = idx
+            .search_strong_words(code, usize::MAX, Some(&fast), &m)
+            .unwrap();
+        assert_eq!(a.len(), b.len(), "код {code}: число стихов");
+        for (x, y) in a.iter().zip(&b) {
+            assert_eq!(
+                (x.book, x.chapter, x.verse, &x.words),
+                (y.book, y.chapter, y.verse, &y.words),
+                "код {code}"
+            );
+            assert_eq!(x.snippet, y.snippet, "код {code}: сниппет");
+        }
+    }
+}
+
+/// Окно выдачи (`offset`/`limit`): страницы совпадают со срезом полной
+/// выдачи — экран поиска догружает вхождения страницами.
+#[test]
+fn strong_window_pages_match_full_list() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+    let layer = layer_with(
+        &dir,
+        "lay.sb",
+        &[
+            (1, 1, 0, "H1254"),
+            (1, 2, 0, "H1254"),
+            (1, 3, 0, "H1254"),
+            (2, 1, 0, "H1254"),
+        ],
+    );
+
+    let idx = SearchIndex::without_cache(&m);
+    let full = idx
+        .search_strong_window("H1254", 0, usize::MAX, Some(&layer), &m)
+        .unwrap();
+    assert_eq!(full.len(), 4);
+    let mut paged = Vec::new();
+    for off in (0..4).step_by(2) {
+        paged.extend(
+            idx.search_strong_window("H1254", off, 2, Some(&layer), &m)
+                .unwrap(),
+        );
+    }
+    assert_eq!(paged.len(), full.len());
+    for (x, y) in full.iter().zip(&paged) {
+        assert_eq!((x.chapter, x.verse), (y.chapter, y.verse));
+    }
+    // За пределами выдачи окно пустое, ошибки нет.
+    assert!(
+        idx.search_strong_window("H1254", 10, 5, Some(&layer), &m)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+/// Неканоническая запись номера (`H430` без добивки нулями) индексным
+/// диапазоном не находится — слой обязан вернуть её сканом, а не пустотой.
+#[test]
+fn strong_noncanonical_codes_fall_back_to_scan() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+    let layer = layer_with(&dir, "lay.sb", &[(1, 3, 0, "H430")]);
+    assert!(layer.has_strong_fast_path());
+
+    let idx = SearchIndex::without_cache(&m);
+    let hits = idx
+        .search_strong_words("H430", usize::MAX, Some(&layer), &m)
+        .unwrap();
+    assert_eq!(hits.len(), 1, "скан-фолбэк обязан найти неканонический код");
+    assert_eq!(hits[0].verse, 3);
+}
+
+/// Ячейка записана **без добивки нулями** (`H430`), а спрашивают добитую
+/// форму (`H0430`) — и наоборот. Скан сравнивает число и находит обе;
+/// индексный диапазон обязан покрывать обе формы шаблонами, иначе выдача
+/// молча теряет стихи (`engbsb-strongs`: 280 таких ячеек, терялись
+/// ECC 3:13 и EZR 3:9 при запросе `H0430`).
+#[test]
+fn strong_unpadded_cells_found_by_both_paths() {
+    let dir = tempfile::tempdir().unwrap();
+    let (_, m) = module(&dir, "a.sb", SRC);
+
+    let fast = layer_with(&dir, "fast.sb", &[(1, 1, 0, "H430"), (1, 2, 0, "G25")]);
+    let scan_path = dir.path().join("scan.sb");
+    std::fs::copy(dir.path().join("fast.sb"), &scan_path).unwrap();
+    rusqlite::Connection::open(&scan_path)
+        .unwrap()
+        .execute_batch("DROP INDEX IF EXISTS links_strong; DROP TABLE IF EXISTS links_extra;")
+        .unwrap();
+    let scan = Module::open(&scan_path).unwrap();
+
+    let idx = SearchIndex::without_cache(&m);
+    for code in ["H0430", "H430", "G0025", "G25"] {
+        let a = idx
+            .search_strong_words(code, usize::MAX, Some(&scan), &m)
+            .unwrap();
+        let b = idx
+            .search_strong_words(code, usize::MAX, Some(&fast), &m)
+            .unwrap();
+        assert!(!a.is_empty(), "скан обязан найти {code}");
+        assert_eq!(a.len(), b.len(), "код {code}: индексный путь потерял стихи");
+        for (x, y) in a.iter().zip(&b) {
+            assert_eq!((x.chapter, x.verse), (y.chapter, y.verse), "код {code}");
+        }
+    }
 }

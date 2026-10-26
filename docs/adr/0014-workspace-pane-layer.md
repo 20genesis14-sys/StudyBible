@@ -60,3 +60,19 @@ Layer      type: text | second_translation | interlinear | footnotes | xrefs
 - Moving a block is a JSON change, not a screen rework.
 - The transition happens without changing the look; behavior is checked
   against screenshots.
+
+## Update 2026-10-18 — same-translation panes and optional link groups
+
+`source` and the reading position are independent per pane: two panes
+may open the **same** translation at **different** places — another
+verse of the same chapter, another chapter, another book. The position
+becomes a per-pane map; the ADR 0019 stack stores pane-position
+snapshots. `link_group` is optional by design: `null` — independent
+pane (several different passages on one screen); `"main"` — follows the
+main pane by verse; arbitrary group ids give multiple sync groups
+(e.g. a `ru` pair and an `en` pair, independent of each other). Verse
+sync across different translations goes through
+`Versification::convert`; same-translation panes need no conversion.
+UI: a link toggle in each pane header; presets set the defaults
+(«Сравнение» — all linked, «Места» — all independent). Active-pane
+rule: TTS, history and reading progress follow the focused pane.

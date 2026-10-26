@@ -152,4 +152,22 @@ void main() {
       expect(findRefs('Быт 1:0'), isEmpty);
     });
   });
+
+  group('parseQueryRef: омнибокс поиска', () {
+    test('распознаёт стих, главу без стиха и нижний регистр', () {
+      final r1 = parseQueryRef('Ин 3:16')!;
+      expect((r1.book, r1.chapter, r1.verse), ('JHN', 3, 16));
+
+      final r2 = parseQueryRef('быт 1')!;
+      expect((r2.book, r2.chapter, r2.verse), ('GEN', 1, 1));
+
+      final r3 = parseQueryRef('1кор 13:4-7')!;
+      expect((r3.book, r3.chapter, r3.verse, r3.verseEnd), ('1CO', 13, 4, 7));
+
+      final r4 = parseQueryRef('john 3 16')!;
+      expect((r4.book, r4.chapter, r4.verse), ('JHN', 3, 16));
+
+      expect(parseQueryRef('просто текст запроса'), isNull);
+    });
+  });
 }

@@ -148,10 +148,12 @@ void main() {
       expect(junk.skipped, isEmpty);
     });
 
-    test('буквенный суффикс стиха отбрасывается (GEN 1:1a)', () {
+    test('буквенный сегмент стиха — отдельная координата (GEN 1:1a)', () {
       final v = Versification.parse('t', 'GEN 1:1a = GEN 1:2\n');
       expect(v.skipped, isEmpty);
-      expect(v.toOrg(VerseKey('GEN', 1, 1)), [VerseKey('GEN', 1, 2)]);
+      expect(v.toOrg(VerseKey('GEN', 1, 1, 1)), [VerseKey('GEN', 1, 2)]);
+      // Целый стих сегментной строкой не покрывается.
+      expect(v.toOrg(VerseKey('GEN', 1, 1)), [VerseKey('GEN', 1, 1)]);
     });
   });
 

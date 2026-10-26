@@ -120,3 +120,113 @@ fn userdata_frag() {
     assert_eq!(hl2[0].frag, frag);
     assert_eq!(hl2[0].created, ts);
 }
+
+#[test]
+fn entries_for_chapter_and_legacy_migration() {
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("u.db");
+    let gen_ = BookCode::new("GEN").unwrap();
+    let exo = BookCode::new("EXO").unwrap();
+    {
+        let db = UserData::open(&db_path).unwrap();
+        // Legacy records as they used to be stored before Group 1:
+        db.add(
+            Kind::Mark,
+            Anchor {
+                module: "settings",
+                book: BookCode::new("GEN").unwrap(),
+                chapter: 0,
+                verse: 0,
+            },
+            "settings",
+            r#"{"theme":1}"#,
+        )
+        .unwrap();
+        // Force book='SET' like Dart did:
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute("UPDATE entries SET book='SET' WHERE module='settings'", [])
+            .unwrap();
+        db.add(
+            Kind::Mark,
+            Anchor {
+                module: "*",
+                book: exo,
+                chapter: 3,
+                verse: 0,
+            },
+            "pos",
+            "",
+        )
+        .unwrap();
+        db.add(
+            Kind::Mark,
+            Anchor {
+                module: "russyn",
+                book: gen_,
+                chapter: 1,
+                verse: 1,
+            },
+            "hist",
+            "",
+        )
+        .unwrap();
+        // Real user records across two chapters:
+        db.add(
+            Kind::Mark,
+            Anchor {
+                module: "russyn",
+                book: gen_,
+                chapter: 1,
+                verse: 2,
+            },
+            "закладка",
+            "",
+        )
+        .unwrap();
+        db.add(
+            Kind::Highlight,
+            Anchor {
+                module: "russyn",
+                book: gen_,
+                chapter: 1,
+                verse: 5,
+            },
+            "green",
+            "",
+        )
+        .unwrap();
+        db.add(
+            Kind::Note,
+            Anchor {
+                module: "russyn",
+                book: gen_,
+                chapter: 2,
+                verse: 1,
+            },
+            "глава 2",
+            "",
+        )
+        .unwrap();
+    }
+    // Reopen to trigger automatic migration of legacy rows:
+    let db = UserData::open(&db_path).unwrap();
+    assert_eq!(
+        db.meta_get("settings").unwrap().as_deref(),
+        Some(r#"{"theme":1}"#)
+    );
+    assert_eq!(
+        db.meta_get("last_position").unwrap().as_deref(),
+        Some("EXO:3")
+    );
+    // Real bookmarks exclude migrated history and settings/progress:
+    let marks = db.entries(Kind::Mark, None).unwrap();
+    assert_eq!(marks.len(), 1);
+    assert_eq!(marks[0].text, "закладка");
+    // History migrated to Kind::History:
+    let hist = db.entries(Kind::History, None).unwrap();
+    assert_eq!(hist.len(), 1);
+    assert_eq!(hist[0].text, "hist");
+    // Chapter query returns only GEN 1 user records (mark + hl, no hist, no GEN 2):
+    let ch1 = db.entries_for_chapter("russyn", gen_, 1).unwrap();
+    assert_eq!(ch1.len(), 2);
+}

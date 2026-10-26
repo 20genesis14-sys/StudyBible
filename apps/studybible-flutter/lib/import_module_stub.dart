@@ -9,3 +9,15 @@ Future<String?> importSbModule() async => tr(
   'Импорт .sb поддерживается в настольной и Android-версии',
   '.sb import is supported in the desktop and Android builds',
 );
+
+/// Возвращает текст результата для SnackBar или null при отмене.
+Future<String?> importModulesZip() async => tr(
+  'Импорт zip-пачки поддерживается в настольной и Android-версии',
+  'Zip bundle import is supported in the desktop and Android builds',
+);
+
+/// Возвращает текст результата для SnackBar или null при отмене.
+Future<String?> importStrongsDict() async => tr(
+  'Импорт словаря поддерживается в настольной и Android-версии',
+  'Lexicon import is supported in the desktop and Android builds',
+);

@@ -221,11 +221,13 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
   `marks.seq` — внутри стиха, `entries.ord` — внутри словаря.
 - **С-8.** `meta.kind` — контракт состава: `bible` — текст с стихами;
   `interlinear` — тот же + `alignment`/`tokens`; `commentary` — блоки
-  привязаны к стихам, стихового текста нет; `dictionary` и `layer` —
-  `books` может быть пустой (контент в `entries`/аппарате);
-  `critical` — несёт `variants`; `knowledge` — модуль графа знаний
-  (сущности, связи, упоминания в стихах; ADR 0024, реализация
-  отложена). Неизвестный `kind` — читается как `bible` (мягко).
+  привязаны к стихам, стихового текста нет (опционально
+  `meta.subtype="study" | "translator"` и `verse_end` для примечаний на
+  диапазон стихов); `dictionary` и `layer` — `books` может быть пустой
+  (контент в `entries`/аппарате); `critical` — несёт `variants`;
+  `knowledge` — модуль «Древа знаний» (сущности, `entity_names`,
+  `entity_articles`, связи, упоминания в стихах; ADR 0024). Неизвестный
+  `kind` — читается как `bible` (мягко).
 - **С-9.** `meta.features` — **открытый** список. Известные значения
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,
   `fts`, `marks`, `xrefs`) включают слои UI. Значения с префиксом `x-` —
@@ -302,3 +304,17 @@ CREATE TABLE verses(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL, verse IN
 записи `span_pack` со строками `spans` (`f`/`x`/`v`) по `seq` внутри
 блока. Построчные таблицы сохраняют схему (создаются пустыми);
 `verses`, `entries`, `variants`, `marks` не упаковываются никогда.
+
+### Производные объекты (не часть контракта формата)
+
+Читатель может создавать и ожидать **производные объекты**, ускоряющие
+поиск и не меняющие смысл данных: индексы (`links_strong` по
+`links.strong`, `lex.base`, `lex_base.base`, `lex_def.key`) и
+вспомогательная таблица `links_extra(strong, book_id, chapter, verse,
+word)` со вторым и последующими номерами Стронга ячейки `links` — индекс
+по `links.strong` покрывает только первый номер ячейки. Их пишет
+`ModuleWriter::finish`, а в уже собранный модуль добавляет
+`studybible module reindex`; `content_hash` считается по потоку чтения
+(С-12), поэтому на привязку `target_hash` они не влияют. Читатель, не
+нашедший этих объектов, откатывается на полный скан — медленнее, но с
+тем же результатом.

@@ -15,6 +15,9 @@ import 'dart:convert';
 /// Возвращает JSON-кусок формата export.rs `{"n":..,"blocks":[..]}` или null.
 typedef ChapterJsonLoader = Future<String?> Function(String code, int n);
 
+/// Прямой типизированный загрузчик главы без JSON-декодирования (нативный FRB).
+typedef ChapterTypedLoader = Future<ChapterDoc?> Function(String code, int n);
+
 class ModuleDoc {
   final String id;
   final String title;
@@ -45,8 +48,33 @@ class ModuleDoc {
   /// У предвыгруженных JSON-документов null — все главы уже в [chapters].
   final ChapterJsonLoader? chapterLoader;
 
+  /// Прямой типизированный загрузчик главы (нативный FRB без JSON).
+  final ChapterTypedLoader? typedChapterLoader;
+
   /// 'code:n' -> идущий запрос (чтобы не грузить одну главу дважды).
   final Map<String, Future<ChapterDoc?>> _pending = {};
+
+  /// Потолок кэша глав ленивого модуля (B9, DECISIONS 18.10.2026).
+  /// Выбран с запасом над прогревом сносок: prefetchChapterNotes для
+  /// самой большой главы (Пс 119) грузит ~300 глав-мишеней одним
+  /// залпом между сборками, и потолок 48 вытеснял активную главу
+  /// (замер render_bench). 512 меньше целой Библии (~1200 глав), уже
+  /// живущей в памяти у предвыгруженного JSON-модуля, — т.е. ленивый
+  /// модуль остаётся экономнее статус-кво; 3 перевода × 512 глав —
+  /// худший случай сравнения.
+  static const int kChapterLruCap = 512;
+
+  /// Ключи глав в порядке доступа (LRU): прикосновение — чтение из
+  /// кэша в [chapter] или загрузка в [ensureChapter] — переносит ключ
+  /// в конец (MRU); при превышении [kChapterLruCap] вытесняется самый
+  /// старый. Только для ленивых модулей — предвыгруженные
+  /// JSON-документы не вытесняются никогда.
+  final Set<String> _chapterLru = <String>{};
+
+  /// Ленивый ли источник глав: память ограничиваем только у модулей,
+  /// догружающих главы по запросу; у полностью предвыгруженных все
+  /// главы уже в [chapters] и вытеснять их нечего.
+  bool get _lazyChapters => chapterLoader != null || typedChapterLoader != null;
 
   ModuleDoc({
     required this.id,
@@ -60,6 +88,7 @@ class ModuleDoc {
     required this.chapters,
     required this.verseCounts,
     this.chapterLoader,
+    this.typedChapterLoader,
   });
 
   /// true, если модуль объявляет возможность [f] (или у старого
@@ -91,7 +120,33 @@ class ModuleDoc {
         const {},
   );
 
-  ChapterDoc? chapter(String code, int n) => chapters['$code:$n'];
+  /// Глава из кэша. Для ленивого модуля чтение — прикосновение к LRU:
+  /// активная глава перестраивается при каждом build, остаётся MRU
+  /// и не вытесняется.
+  ChapterDoc? chapter(String code, int n) {
+    final key = '$code:$n';
+    final ch = chapters[key];
+    if (ch != null && _lazyChapters) _touchChapter(key);
+    return ch;
+  }
+
+  /// Прикосновение: перенос ключа в конец LRU (MRU). Дёшево — две
+  /// операции над множеством, без аллокаций.
+  void _touchChapter(String key) {
+    _chapterLru.remove(key);
+    _chapterLru.add(key);
+  }
+
+  /// Вытеснить самые старые главы сверх [kChapterLruCap]. Вытесненная
+  /// глава самовосстанавливается: следующий [ensureChapter] загрузит
+  /// её через лоадер заново.
+  void _evictOldChapters() {
+    while (_chapterLru.length > kChapterLruCap) {
+      final oldest = _chapterLru.first;
+      _chapterLru.remove(oldest);
+      chapters.remove(oldest);
+    }
+  }
 
   /// Тексты уже вычитанных стихов («код:глава:стих» → текст) —
   /// соседние сноски со ссылкой на один стих не режут главу заново.
@@ -103,8 +158,25 @@ class ModuleDoc {
   Future<ChapterDoc?> ensureChapter(String code, int n) {
     final key = '$code:$n';
     final cached = chapters[key];
-    if (cached != null) return Future.value(cached);
+    if (cached != null) {
+      if (_lazyChapters) _touchChapter(key);
+      return Future.value(cached);
+    }
     if (_pending.containsKey(key)) return _pending[key]!;
+    final typed = typedChapterLoader;
+    if (typed != null) {
+      final fut = typed(code, n).then((ch) {
+        _pending.remove(key);
+        if (ch != null) {
+          chapters[key] = ch;
+          _touchChapter(key);
+          _evictOldChapters();
+        }
+        return ch;
+      });
+      _pending[key] = fut;
+      return fut;
+    }
     final loader = chapterLoader;
     if (loader == null) return Future.value(null);
     final fut = loader(code, n).then((raw) {
@@ -112,6 +184,8 @@ class ModuleDoc {
       if (raw == null) return null;
       final ch = ChapterDoc.fromJson(jsonDecode(raw) as Map<String, dynamic>);
       chapters[key] = ch;
+      _touchChapter(key);
+      _evictOldChapters();
       return ch;
     });
     _pending[key] = fut;
@@ -150,12 +224,20 @@ class ChapterDoc {
   /// Варианты критического аппарата главы (ADR 0016).
   final List<VariantDoc> variants;
 
+  /// Несовпадение target_hash накладного слоя Стронга с текстом модуля (ADR 0025).
+  final bool layerMismatch;
+
   // Кэши производных представлений (08.10.2026): разбор спанов —
   // заметная доля времени build на длинных главах (Пс 119), а глава
   // неизменна — считаем один раз на объект.
   Map<int, String>? plainCache;
   Map<int, List<TextSpanDoc>>? wordCache;
   List<({int verse, NoteSpanDoc note})>? notesCache;
+
+  /// Словарные глоссы и морфология главы из `.sb` (Фаза 4).
+  Map<String, String>? dictGlosses;
+  Map<String, String>? dictMorphs;
+  bool dictLoading = false;
 
   /// Фоновый прогрев текстов сносок уже запущен (флаг ставит
   /// prefetchChapterNotes — работа идёт один раз на главу).
@@ -167,6 +249,7 @@ class ChapterDoc {
     required this.number,
     required this.blocks,
     this.variants = const [],
+    this.layerMismatch = false,
   });
 
   factory ChapterDoc.fromJson(Map<String, dynamic> j) => ChapterDoc(
@@ -179,6 +262,7 @@ class ChapterDoc {
             ?.map((v) => VariantDoc.fromJson(v as Map<String, dynamic>))
             .toList() ??
         const [],
+    layerMismatch: j['layer_mismatch'] as bool? ?? false,
   );
 }
 
@@ -286,11 +370,48 @@ class TextSpanDoc extends SpanDoc {
     required this.attrs,
   }) : super._();
 
-  /// Номер Стронга вида 'H7225'/'G25', если есть.
-  String? get strong {
-    final m = RegExp(r'strong="([HG]\d+)"').firstMatch(attrs);
-    return m?.group(1);
+  String? _attr(String key) {
+    final m = RegExp('$key="([^"]*)"').firstMatch(attrs);
+    final v = m?.group(1);
+    return (v != null && v.isNotEmpty) ? v : null;
   }
+
+  /// Номера Стронга (классические или Strong 'H7225G', списки через пробел
+  /// или повторные атрибуты `strong="..."`).
+  String? get strong {
+    final matches = RegExp(r'strong="([^"]+)"').allMatches(attrs);
+    if (matches.isEmpty) return null;
+    final parts = <String>[];
+    for (final m in matches) {
+      final v = m.group(1)?.trim() ?? '';
+      if (v.isNotEmpty) parts.add(v);
+    }
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
+  /// Слово оригинала в подстрочнике (`gr="..."`).
+  String? get gr => _attr('gr');
+
+  /// Код морфологии (`morph="..."`).
+  String? get morph => _attr('morph');
+
+  /// Лемма (`lemma="..."`).
+  String? get lemma => _attr('lemma');
+
+  /// Идентификатор сущности (`eid="Abraham@Gen.11.26-1Pe"`).
+  String? get eid => _attr('eid');
+
+  /// Контекстное значение (`sns="1_beginning"`).
+  String? get sns => _attr('sns');
+
+  /// Ссылка на слово опорного слоя (`ref="Gen.1.1#01"` или `wid="..."`).
+  String? get refAddr => _attr('ref') ?? _attr('wid');
+
+  /// Флаги связи (`flags="grp,head"`).
+  String get flags => _attr('flags') ?? '';
+
+  /// Уверенность связи 0–10 (`conf="10"`, по умолчанию 10).
+  int get conf => int.tryParse(_attr('conf') ?? '') ?? 10;
 }
 
 class NoteSpanDoc extends SpanDoc {

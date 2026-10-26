@@ -5,6 +5,7 @@
 //! FTS-индекс — локальный кэш (`search.rs`); у модуля с таблицей `fts`
 //! (ADR 0016) поиск идёт прямо по ней.
 
+mod derive;
 mod hash;
 pub mod module;
 pub mod pack;
@@ -12,10 +13,14 @@ pub mod sbz;
 pub mod search;
 pub mod userdata;
 
+pub use derive::{LINKS_EXTRA_SCHEMA, ensure_search_indexes};
 pub use module::{
-    Alignment, Mark, Meta, Module, ModuleError, ModuleWriter, Reading, Token, Variant, XrefTarget,
+    Alignment, Link, Mark, Meta, Module, ModuleError, ModuleWriter, Reading, Token, Variant,
+    XrefTarget,
 };
-pub use search::{Hit, SearchIndex};
+pub use search::{
+    Hit, STRONG_FAST_EXTRA_SQL, STRONG_FAST_LINKS_SQL, STRONG_LAYER_SQL, SearchIndex, StrongHit,
+};
 pub use userdata::{
     Anchor, Bind, Entry, ImportStats, Kind, RelinkStats, UserData, UserError, canon_range,
 };

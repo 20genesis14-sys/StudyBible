@@ -15,9 +15,10 @@ import 'package:flutter/services.dart' show FontLoader, rootBundle;
 // Прогресс через мост; на web — заглушка без сохранения.
 import 'native_bridge_stub.dart'
     if (dart.library.io) 'native_bridge_io.dart'
-    if (dart.library.html) 'native_bridge_web.dart';
+    if (dart.library.js_interop) 'native_bridge_web.dart';
 import 'native_bridge.dart' show UserEntry;
 import 'data.dart' show installedModules, mainModuleId;
+import 'error_log.dart';
 import 'theme.dart';
 
 /// Два варианта вёрстки главы.
@@ -28,8 +29,18 @@ enum LayoutMode { paragraphs, versePerLine, book }
 /// параллельных мест и номеров Стронга.
 enum ReaderMode { reading, study }
 
+/// Режим подстрочника (Фаза 4, ADR 0025): контекстный глосс текста
+/// (``) или словарный глосс `Strong` + краткая морфология.
+enum InterlinearMode { contextual, dictionary }
+
 /// Ширина текстовой колонки на десктопе.
 enum ColumnWidth { reading, full }
+
+/// Вид результатов поиска (DECISIONS «Поиск»): плоский список или
+/// аккордеон по книгам. Выбор пока живёт в состоянии экрана;
+/// поле сериализуется — возможность «запоминать вид» есть в коде,
+/// в интерфейс настроек сознательно не выносится.
+enum SearchResultsView { list, books }
 
 /// Шрифт основного текста главы.
 enum ReadingFont {
@@ -116,7 +127,10 @@ Future<bool> ensureReadingFontLoaded(ReadingFont f) {
     try {
       await loader.load();
       return true;
-    } catch (_) {
+    } catch (e, st) {
+      // Шрифт не загрузился — вызывающий оставляет прежний; провал
+      // фиксируем в журнале (BUGS 18.10.2026).
+      errorLog.logError('settings.font.load', e, st);
       _lazyFontLoads.remove(f);
       return false;
     }
@@ -181,6 +195,11 @@ class Settings extends ChangeNotifier {
   /// Тема, подставляемая ночью (тёмная или AMOLED).
   AppTheme nightTheme = AppTheme.dark;
 
+  /// Оттенок бумаги светлой темы (DECISIONS 18.10.2026): 0 —
+  /// «Классическая», 1 — «Светлая», 2 — «Сепия» (индекс в таблице
+  /// kPaperTones, theme.dart); тёмными темами игнорируется.
+  int paperTone = 0;
+
   /// Действующая тема с учётом автоночного режима — то, что
   /// показывает MaterialApp; выбор пользователя хранит [theme].
   AppTheme get effectiveTheme {
@@ -242,6 +261,13 @@ class Settings extends ChangeNotifier {
 
   /// Режим «Чтение» / «Изучение» (ADR 0015).
   ReaderMode readerMode = ReaderMode.reading;
+
+  /// Режим подстрочника: контекстный или словарный (ADR 0025, Фаза 4).
+  InterlinearMode interlinearMode = InterlinearMode.contextual;
+
+  /// Вид результатов поиска — сейчас перезаписывается экраном
+  /// поиска при переключении сегмента; UI-опции в Настройках нет.
+  SearchResultsView searchResultsView = SearchResultsView.list;
 
   /// Слои учебных меток (лист «Слои», ADR 0014/0015): видны в режиме
   /// «Изучение»; выключенные скрывают маркеры даже там.
@@ -312,6 +338,13 @@ class Settings extends ChangeNotifier {
   /// Основной перевод — модуль, открываемый по умолчанию.
   String defaultModule = 'russyn';
 
+  /// Рабочее место (B10, этап 2 — DECISIONS 18.10.2026): рабочее
+  /// место едет в блобе настроек под ключом 'workspace'. Поле —
+  /// прозрачный канал: Settings не понимает содержимое и никогда
+  /// его не разбирает; мутаторы пишут готовую строку
+  /// (`settings.update(() => settings.workspaceJson = ...)`).
+  String? workspaceJson;
+
   /// id голосового пакета для двухбуквенного языка ('ru','en'); '' — нет.
   String voiceFor(String lang) {
     for (final e in neuralVoices.split(',')) {
@@ -340,30 +373,47 @@ class Settings extends ChangeNotifier {
   /// иначе дефолты затёрли бы сохранённые значения.
   bool _loaded = false;
 
-  /// Загрузить настройки из UserData (kind=mark, module='settings',
-  /// book='SET', context — JSON со всеми полями).
+  /// Очередь сохранения настроек — сериализует параллельные вызовы
+  /// `_save()`, чтобы быстрые переключения не плодили дубликаты строки.
+  Future<void> _saveQueue = Future.value();
+
+  /// Загрузить настройки из `meta('settings')` в UserData
+  /// (с прозрачной миграцией из старой записи `entries`, если была).
   Future<void> load() async {
     try {
-      final all = await bridgeEntriesList('mark');
-      final e = all
-          .where((e) => e.module == 'settings' && e.book == 'SET')
-          .firstOrNull;
-      if (e != null && e.context.isNotEmpty) {
-        final j = jsonDecode(e.context) as Map<String, dynamic>;
+      var raw = await bridgeSettingsLoad();
+      if (raw == null || raw.isEmpty) {
+        final all = await bridgeEntriesList('mark', module: 'settings');
+        raw = all
+            .where((e) => e.module == 'settings' && e.book == 'SET')
+            .firstOrNull
+            ?.context;
+      }
+      if (raw != null && raw.isNotEmpty) {
+        final j = jsonDecode(raw) as Map<String, dynamic>;
         theme = AppTheme.values[j['theme'] as int? ?? 0];
         autoNight = j['autoNight'] as bool? ?? false;
         nightStart = j['nightStart'] as int? ?? 22 * 60;
         nightEnd = j['nightEnd'] as int? ?? 7 * 60;
         nightTheme = AppTheme.values[j['nightTheme'] as int? ?? 1];
+        paperTone = (j['paperTone'] as num? ?? 0).toInt().clamp(0, 2);
         fontScale = (j['fontScale'] as num? ?? 1.0).toDouble();
-        fontWeightStep = (j['fontWeightStep'] as num? ?? 0)
-            .toInt()
-            .clamp(0, kFontWeightSteps.length - 1);
+        fontWeightStep = (j['fontWeightStep'] as num? ?? 0).toInt().clamp(
+          0,
+          kFontWeightSteps.length - 1,
+        );
         footScale = (j['footScale'] as num? ?? 1.0).toDouble();
         xrefScale = (j['xrefScale'] as num? ?? 1.0).toDouble();
         layoutMode = LayoutMode.values[j['layoutMode'] as int? ?? 0];
         columnWidth = ColumnWidth.values[j['columnWidth'] as int? ?? 1];
         readerMode = ReaderMode.values[j['readerMode'] as int? ?? 0];
+        interlinearMode =
+            InterlinearMode.values[(j['interlinearMode'] as int? ?? 0).clamp(
+              0,
+              InterlinearMode.values.length - 1,
+            )];
+        searchResultsView =
+            SearchResultsView.values[j['searchResultsView'] as int? ?? 0];
         layerFootnotes = j['layerFootnotes'] as bool? ?? true;
         layerXrefs = j['layerXrefs'] as bool? ?? true;
         layerStrongs = j['layerStrongs'] as bool? ?? true;
@@ -372,9 +422,8 @@ class Settings extends ChangeNotifier {
           readingFont = ReadingFont.literata;
         }
         unawaited(
-          ensureReadingFontLoaded(readingFont).then(
-            (ok) => ok ? notifyListeners() : null,
-          ),
+          ensureReadingFontLoaded(readingFont)
+              .then((ok) => ok ? notifyListeners() : null),
         );
         bookFullNames = j['bookFullNames'] as bool? ?? false;
         versePickerEnabled = j['versePickerEnabled'] as bool? ?? false;
@@ -394,9 +443,12 @@ class Settings extends ChangeNotifier {
         systemEngine = j['systemEngine'] as String? ?? '';
         systemVoice = j['systemVoice'] as String? ?? '';
         defaultModule = j['defaultModule'] as String? ?? 'russyn';
+        workspaceJson = j['workspace'] as String?;
       }
-    } catch (_) {
-      // Битый JSON/ошибка моста — работаем на значениях по умолчанию.
+    } catch (e, st) {
+      // Битый JSON/ошибка моста — работаем на значениях по умолчанию,
+      // но провал фиксируем в журнале (BUGS 18.10.2026).
+      errorLog.logError('settings.load', e, st);
     }
     _loaded = true;
     _syncNightTimer();
@@ -411,6 +463,7 @@ class Settings extends ChangeNotifier {
       'nightStart': nightStart,
       'nightEnd': nightEnd,
       'nightTheme': nightTheme.index,
+      'paperTone': paperTone,
       'fontScale': fontScale,
       'fontWeightStep': fontWeightStep,
       'footScale': footScale,
@@ -418,6 +471,8 @@ class Settings extends ChangeNotifier {
       'layoutMode': layoutMode.index,
       'columnWidth': columnWidth.index,
       'readerMode': readerMode.index,
+      'interlinearMode': interlinearMode.index,
+      'searchResultsView': searchResultsView.index,
       'layerFootnotes': layerFootnotes,
       'layerXrefs': layerXrefs,
       'layerStrongs': layerStrongs,
@@ -440,33 +495,26 @@ class Settings extends ChangeNotifier {
       'systemEngine': systemEngine,
       'systemVoice': systemVoice,
       'defaultModule': defaultModule,
+      'workspace': workspaceJson,
     });
     try {
-      final all = await bridgeEntriesList('mark');
-      for (final e in all.where(
-        (e) => e.module == 'settings' && e.book == 'SET',
-      )) {
-        await bridgeEntryRemove(e.id);
-      }
-      await bridgeEntryAdd(
-        kind: 'mark',
-        module: 'settings',
-        book: 'SET',
-        chapter: 0,
-        verse: 0,
-        text: 'settings',
-        context: j,
-      );
-    } catch (_) {
-      // Не сохранилось — следующий запуск вернёт старые значения.
+      await bridgeSettingsSave(j);
+    } catch (e, st) {
+      // Не сохранилось — следующий запуск вернёт старые значения;
+      // провал фиксируем в журнале (BUGS 18.10.2026).
+      errorLog.logError('settings.save', e, st);
     }
+  }
+
+  void _enqueueSave() {
+    _saveQueue = _saveQueue.then((_) => _save());
   }
 
   void update(void Function() fn) {
     fn();
     _syncNightTimer();
     notifyListeners();
-    if (_loaded) _save();
+    if (_loaded) _enqueueSave();
   }
 
   /// Изменение без записи — живой предпросмотр (pinch-zoom шлёт
@@ -479,7 +527,7 @@ class Settings extends ChangeNotifier {
 
   /// Записать текущие настройки (как в конце [update]).
   void save() {
-    if (_loaded) _save();
+    if (_loaded) _enqueueSave();
   }
 
   /// Модули для экрана «стих во всех переводах»: явный список или,
@@ -700,8 +748,8 @@ class Notes extends ChangeNotifier {
 
 final Notes notes = Notes();
 
-/// Сквозная история навигации — записи kind=mark с текстом
-/// 'hist*' в UserData (userdata.db / localStorage на web).
+/// Сквозная история навигации — записи kind='hist' в UserData
+/// (userdata.db / localStorage на web).
 /// 'hist' — глава/стих, 'hist:dict' — словарь Стронга,
 /// 'hist:search' — поисковый запрос. Без ограничения по времени.
 class ReadingHistory extends ChangeNotifier {
@@ -710,7 +758,7 @@ class ReadingHistory extends ChangeNotifier {
   bool _loaded = false;
 
   Future<void> load() async {
-    final all = await bridgeEntriesList('mark');
+    final all = await bridgeEntriesList('hist');
     items
       ..clear()
       ..addAll(all.where((e) => e.text.startsWith('hist')));
@@ -736,7 +784,7 @@ class ReadingHistory extends ChangeNotifier {
     }
     final now = DateTime.now().millisecondsSinceEpoch;
     final id = await bridgeEntryAdd(
-      kind: 'mark',
+      kind: 'hist',
       module: module,
       book: book,
       chapter: chapter,
@@ -749,7 +797,7 @@ class ReadingHistory extends ChangeNotifier {
       UserEntry(
         id: id ?? 'local-$now',
         module: module,
-        kind: 'mark',
+        kind: 'hist',
         book: book,
         chapter: chapter,
         verse: verse,

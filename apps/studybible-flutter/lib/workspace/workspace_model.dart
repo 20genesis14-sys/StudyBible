@@ -6,6 +6,7 @@
 library;
 
 import 'dart:collection';
+import 'dart:convert';
 
 /// Тип раскладки рабочей области.
 enum WorkspaceLayoutType { single, splitHorizontal, splitVertical, tabs }
@@ -152,10 +153,17 @@ class PaneConfig {
     this.customType,
     this.source = 'main',
     this.linkGroup,
+    this.book = 'GEN',
+    this.chapter = 1,
+    this.verse = 0,
     List<LayerConfig> layers = const [],
     Map<String, Object?> options = const {},
   }) : layers = List.unmodifiable(layers),
        options = UnmodifiableMapView(Map<String, Object?>.from(options));
+
+  /// Служебный маркер «поле linkGroup в copyWith не передавали»:
+  /// отличает «не менять» от явной очистки в null.
+  static const Object _unsetLinkGroup = Object();
 
   final String id;
   final PaneType type;
@@ -176,6 +184,15 @@ class PaneConfig {
 
   /// Панель следует за основной (умолчание дополнительных панелей).
   bool get followsMain => linkGroup == 'main';
+
+  /// Позиция панели: книга (`'GEN'`…), глава (с 1) и стих (0 — стих
+  /// не выбран). У каждой панели своя позиция (ADR 0014, DECISIONS
+  /// 18.10.2026): связанная панель её получает от синхронизации,
+  /// независимая листает сама.
+  final String book;
+  final int chapter;
+  final int verse;
+
   final List<LayerConfig> layers;
   final Map<String, Object?> options;
 
@@ -186,6 +203,31 @@ class PaneConfig {
   }
 
   bool hasLayer(LayerType type) => layers.any((l) => l.type == type);
+
+  /// Копия с заменой позиции и/или привязки: поле `null` означает
+  /// «оставить как есть», кроме `linkGroup` — там по умолчанию «не
+  /// менять», а очистка передаётся явным `linkGroup: null`.
+  PaneConfig copyWith({
+    String? book,
+    int? chapter,
+    int? verse,
+    String? source,
+    Object? linkGroup = _unsetLinkGroup,
+  }) => PaneConfig(
+    id: id,
+    type: type,
+    pluginId: pluginId,
+    customType: customType,
+    source: source ?? this.source,
+    linkGroup: identical(linkGroup, _unsetLinkGroup)
+        ? this.linkGroup
+        : linkGroup as String?,
+    book: book ?? this.book,
+    chapter: chapter ?? this.chapter,
+    verse: verse ?? this.verse,
+    layers: layers,
+    options: options,
+  );
 
   factory PaneConfig.fromJson(Map<String, Object?> j) {
     final raw = _string(j, 'type', 'reader');
@@ -201,6 +243,9 @@ class PaneConfig {
       customType: !plugin && type == null ? raw : null,
       source: _string(j, 'source', 'main'),
       linkGroup: j['link_group'] as String?,
+      book: _string(j, 'book', 'GEN'),
+      chapter: (j['chapter'] as num? ?? 1).toInt(),
+      verse: (j['verse'] as num? ?? 0).toInt(),
       layers: [for (final e in _objects(j, 'layers')) LayerConfig.fromJson(e)],
       options: _object(j, 'options'),
     );
@@ -211,6 +256,9 @@ class PaneConfig {
     'type': typeName,
     'source': source,
     if (linkGroup != null) 'link_group': linkGroup,
+    'book': book,
+    'chapter': chapter,
+    'verse': verse,
     'layers': [for (final l in layers) l.toJson()],
     'options': options,
   };
@@ -221,12 +269,35 @@ class WorkspaceConfig {
   WorkspaceConfig({
     this.version = 1,
     this.layout = const WorkspaceLayoutSpec.single(),
+    this.activePane = 0,
     List<PaneConfig> panes = const [],
   }) : panes = List.unmodifiable(panes);
 
   final int version;
   final WorkspaceLayoutSpec layout;
+
+  /// Индекс активной панели (куда идёт навигация по умолчанию).
+  /// Может выйти за пределы `panes` после разбора старого снимка —
+  /// потребителя обязан ограничивать значение сам.
+  final int activePane;
+
   final List<PaneConfig> panes;
+
+  /// Копия с панелью `index`, заменённой на `pane`; остальные поля —
+  /// как здесь. Индекс обязан быть в пределах `panes`.
+  WorkspaceConfig withPane(int index, PaneConfig pane) {
+    if (index < 0 || index >= panes.length) {
+      throw RangeError.index(index, panes, 'index');
+    }
+    final next = [...panes];
+    next[index] = pane;
+    return WorkspaceConfig(
+      version: version,
+      layout: layout,
+      activePane: activePane,
+      panes: next,
+    );
+  }
 
   /// Текущая однопанельная раскладка чтения.
   factory WorkspaceConfig.singleReader() => WorkspaceConfig(
@@ -249,12 +320,46 @@ class WorkspaceConfig {
   factory WorkspaceConfig.fromJson(Map<String, Object?> j) => WorkspaceConfig(
     version: (j['version'] as num? ?? 1).toInt(),
     layout: WorkspaceLayoutSpec.fromJson(_object(j, 'layout')),
+    activePane: (j['activePane'] as num? ?? 0).toInt(),
     panes: [for (final e in _objects(j, 'panes')) PaneConfig.fromJson(e)],
   );
 
   Map<String, Object?> toJson() => {
     'version': version,
     'layout': layout.toJson(),
+    'activePane': activePane,
     'panes': [for (final p in panes) p.toJson()],
   };
+}
+
+/// Кодирует конфигурацию в строку JSON для хранения в настройках.
+///
+/// Строка кладётся вызывающим кодом (будущая проводка, не эта
+/// библиотека) в существующий JSON-блоб настроек под ключом
+/// `'workspace'` (ADR 0014; DECISIONS 18.10.2026, этап 1 B10) —
+/// сохранение/загрузка настроек остаётся на стороне настроек.
+/// В норме не `null`; `null` — только если сериализация невозможна.
+String? encodeWorkspace(WorkspaceConfig workspace) {
+  try {
+    return jsonEncode(workspace.toJson());
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Безопасно декодирует строку, ранее выданную [encodeWorkspace].
+///
+/// Любая ошибка (null/пусто, не JSON, не объект, битая структура)
+/// даёт `null` — вызывающий код тогда просто берёт пресет по
+/// умолчанию; старые снимки без новых ключей (`book`/`chapter`/
+/// `verse`/`activePane`) разбираются с умолчаниями GEN/1/0 и 0.
+WorkspaceConfig? decodeWorkspace(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
+    return WorkspaceConfig.fromJson(Map<String, Object?>.from(decoded));
+  } catch (_) {
+    return null;
+  }
 }

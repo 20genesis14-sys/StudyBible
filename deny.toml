@@ -18,6 +18,11 @@ allow = [
     "Unicode-3.0",
     "CC0-1.0",
     "MPL-2.0",
+    # bzip2-1.0.6 (Julian Seward и др.) — пермиссивная BSD-подобная
+    # лицензия распаковщика bzip2, который тянет `zip` 9.x
+    # (`libbz2-rs-sys` ← `bzip2`). Нужна для чтения ZIP-архивов со
+    # сжатием bzip2: импорт BibleQuote и импорт пользовательских данных.
+    "bzip2-1.0.6",
 ]
 
 [licenses.private]

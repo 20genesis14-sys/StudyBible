@@ -14,12 +14,23 @@ import '../routes.dart';
 /// переводам, обращения к словарю Стронга, поисковые запросы
 /// (userdata.db). Тап — возврат к тому же месту.
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key, this.onBack, this.onOpenVerse});
+  const HistoryScreen({
+    super.key,
+    this.onBack,
+    this.onOpenVerse,
+    this.onFinStrongVerses,
+  });
 
   /// Встроенный режим (экран-позиция рабочего места): «назад» и тап
   /// по стиху идут через стек читалки, а не через Navigator.
   final VoidCallback? onBack;
   final OpenVerse? onOpenVerse;
+
+  /// «Все вхождения» из карточки Стронга (DECISIONS 18.10.2026 «От
+  /// слова к стихам через Strong»): карточка сама закрывает шторку и
+  /// отдаёт нормализованный первый код; экран поиска, открытый с этим
+  /// запросом, сам делает обратный поиск Strong. null — кнопки нет.
+  final void Function(String strong)? onFinStrongVerses;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -57,7 +68,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
           style: TextStyle(fontSize: 12, color: p.muted),
         ),
         trailing: Icon(Icons.chevron_right, size: 18, color: p.muted),
-        onTap: () => showStrongCard(context, strong, word),
+        onTap: () => showStrongCard(
+          context,
+          strong,
+          word,
+          onFindVerses: widget.onFinStrongVerses,
+        ),
       );
     }
     if (e.text == 'hist:search') {

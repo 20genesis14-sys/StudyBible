@@ -6,7 +6,7 @@ import 'data.dart' show rescanModules;
 import 'l10n.dart';
 import 'native_bridge_stub.dart'
     if (dart.library.io) 'native_bridge_io.dart'
-    if (dart.library.html) 'native_bridge_web.dart'
+    if (dart.library.js_interop) 'native_bridge_web.dart'
     show bridgeEntriesRelink;
 import 'state.dart';
 import 'theme.dart';
@@ -42,7 +42,10 @@ class StudyBibleApp extends StatelessWidget {
         return MaterialApp(
           title: tr('Учебная Библия', 'Study Bible'),
           debugShowCheckedModeBanner: false,
-          theme: buildThemeData(settings.effectiveTheme),
+          theme: buildThemeData(
+            settings.effectiveTheme,
+            paperTone: settings.paperTone,
+          ),
           // Плавная смена темы: все цвета перетекают за ~200 мс
           // (раньше тема переключалась скачком и «дёргалась»).
           // builder оборачивает Navigator — затрагивает и открытые

@@ -33,6 +33,10 @@
 - Документы двуязычные: английский `X.md` — первичный, русский
   `X.ru.md` — зеркало (кроме `docs/ROADMAP.md` — русский, только
   локальный).
+- Агентская обвязка улучшается петлёй из `docs/AGENT-HARNESS.ru.md`
+  (ADR 0031): механические правила — в `scripts/check-agent-rules.ps1`
+  (шаг `ci.ps1`; комментарий `// nav:` в строке — исключение под
+  ревью), поведенческие прогоны — на замороженных карточках `evals/`.
 
 ## Источник решений
 
@@ -45,7 +49,8 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
-Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`
+Шаги: fmt, clippy (`-D warnings`), test, `cargo check` ядра под `wasm32-unknown-unknown`, `cargo deny check`,
+agent-rules (`check-agent-rules.ps1`)
 — зависимости и переменные сборки в `docs/ENVIRONMENT-ru.md`.
 После сборки APK проверить целевой API нативных библиотек:
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-apk-api.ps1`

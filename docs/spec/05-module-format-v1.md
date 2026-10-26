@@ -243,11 +243,13 @@ existing fields must not change even if the column type stays the same.
   dictionary.
 - **C-8.** `meta.kind` — a composition contract: `bible` — text with
   verses; `interlinear` — the same + `alignment`/`tokens`;
-  `commentary` — blocks bound to verses, no verse text; `dictionary`
-  and `layer` — `books` may be empty (content in `entries`/apparatus);
-  `critical` — carries `variants`; `knowledge` — the knowledge-graph
-  module (entities, relations, verse mentions; ADR 0024, implementation
-  deferred). An unknown `kind` reads as `bible` (soft).
+  `commentary` — blocks bound to verses, no verse text (optional
+  `meta.subtype="study" | "translator"` and range end `verse_end` for
+  pericope notes); `dictionary` and `layer` — `books` may be empty
+  (content in `entries`/apparatus); `critical` — carries `variants`;
+  `knowledge` — the Tree of Knowledge module (entities, `entity_names`,
+  `entity_articles`, relations, verse mentions; ADR 0024). An unknown
+  `kind` reads as `bible` (soft).
 - **C-9.** `meta.features` — an **open** list. Known values
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,
   `fts`, `marks`, `xrefs`) enable UI layers. `x-`-prefixed values are
@@ -325,3 +327,17 @@ length-prefixed UTF-8; varint entry count; then entries. A reader
 merges `span_pack` entries with `spans` rows (`f`/`x`/`v`) by `seq`
 inside each block. The row tables keep their schema (created empty);
 `verses`, `entries`, `variants`, `marks` are never packed.
+
+### Derived objects (not part of the format contract)
+
+A reader may create or expect **derived objects** that speed up search
+and never change the meaning of the data: indexes (`links_strong` on
+`links.strong`, `lex.base`, `lex_base.base`, `lex_def.key`) and the
+auxiliary table `links_extra(strong, book_id, chapter, verse, word)`
+holding the second and later Strong's numbers of a `links` cell — an
+index over `links.strong` covers only the first number of a cell. They
+are written by `ModuleWriter::finish` and can be added to an already
+built module by `studybible module reindex`; `content_hash` is computed
+from the reading stream (С-12), so they do not affect `target_hash`
+binding. A reader that finds no such objects falls back to a full scan,
+which is slower but yields the same results.

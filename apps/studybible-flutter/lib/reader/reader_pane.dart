@@ -1,7 +1,9 @@
 part of '../screens/reading_screen.dart';
 
-/// Одна панель чтения и сравнение переводов.
-extension _ReaderPane on _ReadingScreenState {
+/// Одна панель чтения и сравнение переводов. После B10 этап 1 (ADR 0014)
+/// методы работают с [ReaderPaneController]; `BuildContext` у методов,
+/// которым нужен диалог/окружение, приходит параметром.
+extension _ReaderPane on ReaderPaneController {
   /// Заголовок в начале главы: «Книга» крупной строкой, под ней —
   /// «Глава N» мелкой (прототип дизайна: название главы под книгой).
   Widget _chapterHeader(String code, int chapter, Palette p) => Padding(
@@ -33,7 +35,12 @@ extension _ReaderPane on _ReadingScreenState {
     ),
   );
 
-  Widget _readingBody(ChapterDoc? ch, Palette p, bool wide) {
+  Widget _readingBody(
+    BuildContext context,
+    ChapterDoc? ch,
+    Palette p,
+    bool wide,
+  ) {
     final maxW = settings.columnWidth == ColumnWidth.reading && wide
         ? 720.0
         : double.infinity;
@@ -44,17 +51,46 @@ extension _ReaderPane on _ReadingScreenState {
         !_study) {
       // «Бесконечная книга»: вся книга одной лентой. В режиме
       // «Изучение» лента уступает построчной вёрстке главы.
-      return _bookFeed(p, wide);
+      return _bookFeed(context, p, wide);
     }
     if (ch == null) {
+      // Главы нет: модуль ещё загружается, либо книги/главы нет в этом
+      // переводе, либо глава существующая и просто ещё не выгружена.
+      final book = _module?.bookByCode(_code);
+      final absent =
+          _module != null && (book == null || _ch < 1 || _ch > book.chapters);
       content = Center(
-        child: Text(
-          tr(
-            'Эта глава не выгружена в прототип',
-            'This chapter is not available in the prototype',
-          ),
-          style: TextStyle(color: p.muted),
-        ),
+        child: absent
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    tr(
+                      'Главы нет в этом переводе',
+                      'Chapter not available in this translation',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: p.muted),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    tr(
+                      'Выберите другую книгу или перевод',
+                      'Choose another book or translation',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: p.muted),
+                  ),
+                ],
+              )
+            : SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: p.muted,
+                ),
+              ),
       );
     } else {
       // Ленивая лента главы (08.10.2026, вариант 1): строки стихов
@@ -68,7 +104,9 @@ extension _ReaderPane on _ReadingScreenState {
         // Заголовок «Книга» над «Глава N» в начале главы —
         // тот же, что на peek-странице листания.
         _chapterHeader(_code, _ch, p),
-        ..._interleaved ? _buildInterleaved(ch, p) : _buildChapter(ch, p),
+        ..._interleaved
+            ? _buildInterleaved(context, ch, p)
+            : _buildChapter(context, ch, p),
       ];
       _itemsTotal = items.length;
       content = Listener(
@@ -94,9 +132,9 @@ extension _ReaderPane on _ReadingScreenState {
                 // Когда сверху уже стоит полоса выбора перевода
                 // (строчное сравнение / мобильный compare), отступ
                 // под панель не нужен — иначе двойной зазор.
-                _interleaved || (_compare && !wide) ? 12 : _topClear(),
+                _interleaved || (_compare && !wide) ? 12 : _topClear(context),
                 wide ? 48 : 20,
-                wide ? 20 : _bottomClear(),
+                wide ? 20 : _bottomClear(context),
               ),
               itemCount: items.length,
               itemBuilder: (_, i) => Align(
@@ -124,7 +162,7 @@ extension _ReaderPane on _ReadingScreenState {
             padding: EdgeInsets.only(
               left: 16,
               right: 16,
-              top: _topClear(),
+              top: _topClear(context),
               bottom: 6,
             ),
             child: Row(
@@ -152,7 +190,7 @@ extension _ReaderPane on _ReadingScreenState {
             padding: EdgeInsets.only(
               left: 8,
               right: 8,
-              top: _topClear(),
+              top: _topClear(context),
               bottom: 8,
             ),
             child: Row(
@@ -174,8 +212,10 @@ extension _ReaderPane on _ReadingScreenState {
                       ),
                     ],
                     selected: {_mobilePane},
-                    onSelectionChanged: (s) =>
-                        _rebuild(() => _mobilePane = s.first),
+                    onSelectionChanged: (s) {
+                      _mobilePane = s.first;
+                      rebuild();
+                    },
                   ),
                 ),
                 // Выбор второго перевода для сравнения.
@@ -189,7 +229,7 @@ extension _ReaderPane on _ReadingScreenState {
                     size: 20,
                     color: p.muted,
                   ),
-                  onPressed: _pickCompareModule,
+                  onPressed: () => _pickCompareModule(context),
                 ),
               ],
             ),
@@ -264,7 +304,7 @@ extension _ReaderPane on _ReadingScreenState {
   }
 
   /// Выбор второго перевода сравнения на телефоне (нижний лист).
-  void _pickCompareModule() {
+  void _pickCompareModule(BuildContext context) {
     final p = context.palette;
     showModalBottomSheet(
       context: context,
@@ -282,11 +322,13 @@ extension _ReaderPane on _ReadingScreenState {
                   title: Text(e.value),
                   onTap: () {
                     Navigator.of(context).pop();
-                    _rebuild(() => _compareModuleId = e.key);
+                    _compareModuleId = e.key;
+                    rebuild();
                     _load(e.key);
                     final m = _mods[e.key];
                     if (m != null) _ensureChapter(m, _code, _ch);
-                    _rebuild(() => _mobilePane = 'second');
+                    _mobilePane = 'second';
+                    rebuild();
                   },
                 ),
           ],
@@ -313,7 +355,8 @@ extension _ReaderPane on _ReadingScreenState {
         ],
         onChanged: (v) {
           if (v == null) return;
-          _rebuild(() => _compareModuleId = v);
+          _compareModuleId = v;
+          rebuild();
           final m = _mods[v];
           if (m != null) _ensureChapter(m, _code, _ch);
           _load(v);
@@ -327,7 +370,7 @@ extension _ReaderPane on _ReadingScreenState {
 
   /// Чипы переводов строчного сравнения (3+, ADR 0020): список
   /// модулей слоя compare в порядке показа; «+» — лист выбора.
-  Widget _interleavedPicker(Palette p) {
+  Widget _interleavedPicker(BuildContext context, Palette p) {
     final ids = _compareIds;
     return Wrap(
       spacing: 6,
@@ -341,7 +384,8 @@ extension _ReaderPane on _ReadingScreenState {
               final rest = ids.where((e) => e != id).toList();
               if (rest.isEmpty) {
                 // Без переводов сравнение выключено целиком.
-                _rebuild(() => _interleaved = false);
+                _interleaved = false;
+                rebuild();
                 workspace.updateSnapshot(_paneSnapshot());
               } else {
                 _setInterleavedModules(rest);
@@ -355,7 +399,7 @@ extension _ReaderPane on _ReadingScreenState {
             style: const TextStyle(fontSize: 12),
           ),
           visualDensity: VisualDensity.compact,
-          onPressed: _interleavedModulesSheet,
+          onPressed: () => _interleavedModulesSheet(context),
         ),
       ],
     );
@@ -386,12 +430,12 @@ extension _ReaderPane on _ReadingScreenState {
       if (m != null) _ensureChapter(m, _code, _ch);
     }
     workspace.updateSnapshot(_paneSnapshot());
-    _rebuild(() {});
+    rebuild();
   }
 
   /// Лист выбора переводов сравнения: выбранные сверху в порядке
   /// показа (стрелки переставляют), невыбранные — чек-листом ниже.
-  void _interleavedModulesSheet() {
+  void _interleavedModulesSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -616,7 +660,58 @@ extension _ReaderPane on _ReadingScreenState {
     );
   }
 
-  // ---------- действия по стиху ----------
-
-  /// Плоский текст стиха (для «Копировать»/«Поделиться» и context записи).
+  /// Входящая страница листания: целевая глава без прокрутки и без
+  /// якорей (peek — превью, ключи нужны только живой странице).
+  Widget _peekPage(
+    BuildContext context,
+    Palette p,
+    bool wide,
+    String code,
+    int chapter,
+  ) {
+    final doc = _module?.chapter(code, chapter);
+    final maxW = settings.columnWidth == ColumnWidth.reading && wide
+        ? 720.0
+        : double.infinity;
+    Widget inner;
+    if (doc == null) {
+      inner = Padding(
+        padding: const EdgeInsets.only(top: 160),
+        child: Center(
+          child: SizedBox(
+            width: 26,
+            height: 26,
+            child: CircularProgressIndicator(strokeWidth: 2, color: p.muted),
+          ),
+        ),
+      );
+    } else {
+      final items = <Widget>[
+        _chapterHeader(code, chapter, p),
+        ...(settings.layoutMode == LayoutMode.book
+            ? _bookBlocks(context, doc, p, chapter, true)
+            : _buildChapter(context, doc, p, true)),
+      ];
+      // Peek тоже ленивая лента: под свайпом строятся только
+      // видимые строки входящей главы, а не все ~20 тыс. объектов.
+      inner = ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          wide ? 48 : 20,
+          _topClear(context),
+          wide ? 48 : 20,
+          wide ? 20 : _bottomClear(context),
+        ),
+        itemCount: items.length,
+        itemBuilder: (_, i) => Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxW),
+            child: SizedBox(width: double.infinity, child: items[i]),
+          ),
+        ),
+      );
+    }
+    return Container(color: p.background, child: inner);
+  }
 }

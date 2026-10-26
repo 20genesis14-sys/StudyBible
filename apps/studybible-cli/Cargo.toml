@@ -23,11 +23,13 @@ brotli = "9.0.0"
 zstd = "0.14.0"
 # Сборщик лексикона ударений читает/пишет gzip-словари RUAccent.
 flate2 = "1.1"
+# Дайджест выдачи в квитанциях `search --strong`.
+sha2 = "0.10"
 
 [dev-dependencies]
 tempfile = "3"
 # Синтетический .zip-вход BibleQuote в сквозных тестах сборки.
-zip = "2.2"
+zip = "9.0.2"
 
 [lints]
 workspace = true

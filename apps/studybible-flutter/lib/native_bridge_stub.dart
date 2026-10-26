@@ -4,6 +4,7 @@
 /// JSON-ассеты (см. data.dart), а прогресс живёт только в памяти.
 library;
 
+import 'models.dart';
 import 'native_bridge.dart';
 
 /// Каталог данных — в среде без файловой системы нет.
@@ -19,8 +20,29 @@ Future<String?> bridgeModuleDoc(String path) => Future.value(null);
 Future<String?> bridgeChapterDoc(String path, String book, int chapter) =>
     Future.value(null);
 
+Future<ModuleDoc?> bridgeLoadModuleDoc(String id, String path) =>
+    Future.value(null);
+Future<ChapterDoc?> bridgeLoadChapterDoc(
+  String path,
+  String book,
+  int chapter,
+) => Future.value(null);
+
+String? _stubSettings;
+Future<String?> bridgeSettingsLoad() => Future.value(_stubSettings);
+Future<void> bridgeSettingsSave(String json) async {
+  _stubSettings = json;
+}
+
 /// Общий слой параллельных (ADR 0023) — в стабе нет.
 Future<void> bridgeSetXrefLayer(bool enabled) async {}
+
+/// Второй ярус ссылок — в стабе нет.
+Future<void> bridgeSetXrefPanel(bool enabled) async {}
+
+/// Метаданные типов связей — в стабе пусто.
+
+/// Панельные ссылки главы — в стабе пусто.
 
 /// Прогресс — на web только в памяти.
 Future<String?> bridgeProgressLoad() => Future.value(null);
@@ -47,7 +69,26 @@ Future<List<UserEntry>> bridgeEntriesList(
   String? module,
 }) async => [
   for (final e in _stubEntries)
-    if (e.kind == kind && (module == null || e.module == module)) e,
+    if ((e.kind == kind ||
+            (kind == 'hist' &&
+                e.kind == 'mark' &&
+                e.text.startsWith('hist'))) &&
+        (module == null || e.module == module))
+      e,
+];
+
+Future<List<UserEntry>> bridgeEntriesChapter(
+  String module,
+  String book,
+  int chapter,
+) async => [
+  for (final e in _stubEntries)
+    if (e.module == module &&
+        e.book == book &&
+        e.chapter == chapter &&
+        const {'hl', 'note', 'mark', 'tag'}.contains(e.kind) &&
+        !e.text.startsWith('hist'))
+      e,
 ];
 
 Future<String?> bridgeEntryAdd({
@@ -146,3 +187,26 @@ Future<List<SearchHit>> bridgeModuleSearch(
   String query, {
   int limit = 50,
 }) async => const [];
+
+Future<List<SearchHit>> bridgeNotesSearch(
+  String modulePath,
+  String query, {
+  int limit = 50,
+}) async => const [];
+
+Future<List<SearchHit>> bridgeModuleStrongSearch(
+  String modulePath,
+  String code, {
+  int offset = 0,
+  int limit = 50,
+}) async => const [];
+
+/// Тонкий индекс  в заглушке недоступен.
+Future<List<SearchHit>> bridgeOrigOccurrences(
+  String modulePath, {
+  String field = 'strong',
+  String value = '',
+  int offset = 0,
+  int limit = 50,
+}) async => const [];
+

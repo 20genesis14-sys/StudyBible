@@ -1,12 +1,14 @@
 //! Консольная оболочка StudyBible: сборка и проверка модулей.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::Instant;
 
 mod speech;
 
 use rusqlite::params;
+use sha2::{Digest, Sha256};
 use speech::TtsSpeech;
 use studybible_convert::{biblequote, mybible, osis, tsv, usfm, zefania};
 use studybible_core::speech::Speech;
@@ -34,6 +36,7 @@ const USAGE: &str = "studybible — консольная оболочка StudyB
                                         norm_version и content_hash
   studybible module pack <файл.sb> [--codec zstd|brotli] [--out <файл.sbz>]
   studybible read <файл.sb> \"<ссылка>\"          — глава или диапазон («Быт 1», «Ин 3:16-18»)
+  studybible tokenize <файл.sb>                 — слова стихов (JSONL, токенизатор w1, ADR 0025)
   studybible search <файл.sb> \"<запрос>\" [--cache <файл>] [--limit N]
   studybible user add note|mark|hl <модуль> <КОД> <гл:ст> [текст...] [--db <файл>]
   studybible user relink [--db <файл>]       перепривязка записей к модулям (в.12)
@@ -57,9 +60,11 @@ fn main() -> ExitCode {
             Some("rehash") => run(rehash(&args[2..])),
             Some("index") => run(index(&args[2..])),
             Some("pack") => run(pack(&args[2..])),
+            Some("reindex") => run(reindex(&args[2..])),
             _ => usage(),
         },
         Some("read") => run(read(&args[1..])),
+        Some("tokenize") => run(tokenize(&args[1..])),
         Some("search") => run(search(&args[1..])),
         Some("user") => run(user(&args[1..])),
         Some("say") => run(say(&args[1..])),
@@ -712,16 +717,24 @@ fn lint(m: &Module) -> Vec<String> {
             "strongs" => count("tokens")
                 .max(count("token_pack"))
                 .max(attr_count("strong"))
-                .max(pack_attr("strong")),
+                .max(pack_attr("strong"))
+                .max(count("links")),
             "morph" => count("tokens")
                 .max(count("token_pack"))
                 .max(attr_count("morph"))
-                .max(pack_attr("morph")),
+                .max(pack_attr("morph"))
+                .max(count("morph")),
             "tokens" => count("tokens").max(count("token_pack")),
             "alignment" => count("alignment").max(count("align_pack")),
             "variants" => count("variants"),
             "entries" => count("entries"),
             "marks" => count("marks"),
+            "lex" => count("lex"),
+            "lex_def" => count("lex_def"),
+            "lex_base" => count("lex_base"),
+            // Слои пометок на словах w1 (ADR 0026): BAB и т.п.
+            "annotations" => count("annotations"),
+            "knowledge" => count("entities"),
             // ADR 0023: слой перекрёстных ссылок — `x`-спаны.
             "xrefs" => conn
                 .query_row("SELECT count(*) FROM spans WHERE kind='x'", [], |r| {
@@ -898,6 +911,280 @@ fn pack_file(src: &Path, codec: &str, out: Option<PathBuf>) -> Result<PathBuf, S
         body.len() as f64 * 100.0 / raw.len().max(1) as f64
     );
     Ok(out)
+}
+
+/// `module reindex <файл.sb|.sbz> [--out <файл>] [--no-backup]`:
+/// добавить производные объекты (индексы, `links_extra` — `derive.rs`)
+/// в уже собранный модуль и записать его обратно в SBZ1/zstd.
+///
+/// Заодно чинит контейнер: чужой кодек (zlib/gzip) читатель модулей не
+/// открывает вовсе — такой файл молча не работает, а слой разметки
+/// просто не применяется. Починка идёт на копии, оригинал остаётся
+/// рядом бэкапом, замена — атомарная (`rename` поверх).
+///
+/// Квитанция печатает то, что нельзя проверить глазами: контейнер до и
+/// после, число строк `links` и **логический** дайджест их содержимого
+/// (байты после репака и индексов заведомо другие, содержимое — нет),
+/// привязку `target_hash` к переводу и созданные объекты.
+fn reindex(args: &[String]) -> Result<(), String> {
+    let file = module_arg(args)?;
+    let out = flag(args, "--out")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| file.clone());
+    let want_backup = !args.iter().any(|a| a == "--no-backup");
+
+    let blob = std::fs::read(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+    let (container, raw) = decode_container(&blob, &file)?;
+
+    let work = out.with_extension("reindex.sb");
+    std::fs::write(&work, &raw).map_err(|e| format!("{}: {e}", work.display()))?;
+    let cleanup = |work: &Path, tmp: &Path| {
+        let _ = std::fs::remove_file(work);
+        let _ = std::fs::remove_file(tmp);
+    };
+
+    let conn = rusqlite::Connection::open(&work).map_err(|e| e.to_string())?;
+    let (rows_before, digest_before) = links_digest(&conn)?;
+    let meta_before = meta_map(&conn)?;
+    let created = studybible_store::ensure_search_indexes(&conn).map_err(|e| e.to_string())?;
+    let _ = conn.execute_batch("PRAGMA optimize;");
+    let (rows_after, digest_after) = links_digest(&conn)?;
+    // Сверка meta по сырым картам: `id`/`version` — поля структуры Meta,
+    // а не `extra`, поэтому сравнение через `Module::meta()` давало бы
+    // ложные «изменения».
+    let meta_after = meta_map(&conn)?;
+    drop(conn);
+
+    // Страховка: содержимое разметки не имеет права измениться.
+    if rows_before != rows_after || digest_before != digest_after {
+        cleanup(&work, &out);
+        return Err(format!(
+            "{}: содержимое links изменилось ({} → {} строк) — правка отменена",
+            file.display(),
+            rows_before,
+            rows_after
+        ));
+    }
+
+    let tmp_sbz = out.with_extension("sbz.tmp");
+    pack_file(&work, "zstd", Some(tmp_sbz.clone()))?;
+    // Проверка до подмены: читатель должен открыть новый файл.
+    let check = open_any(&tmp_sbz).map(|o| o.module.meta().clone());
+
+    // Бэкап делается у файла, который будет **заменён** (`out`), а не у
+    // входного: при `--out` это разные файлы, и без этого целевой
+    // затирался бы без копии. Когда `out` совпадает с входом, поведение
+    // прежнее.
+    let backup = if want_backup && out.exists() {
+        let b = out.with_extension(format!(
+            "bak-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        ));
+        std::fs::copy(&out, &b).map_err(|e| format!("{}: {e}", b.display()))?;
+        Some(b)
+    } else {
+        None
+    };
+    std::fs::rename(&tmp_sbz, &out).map_err(|e| format!("{}: {e}", out.display()))?;
+    cleanup(&work, &tmp_sbz);
+
+    let new_size = std::fs::metadata(&out).map(|m| m.len()).unwrap_or(0);
+    let meta = match &check {
+        Ok(m) => m.clone(),
+        Err(e) => {
+            println!("{}: новый файл не открылся ({e})", out.display());
+            return Err("модуль не проверен — замена не выполнена".into());
+        }
+    };
+    println!("{}", out.display());
+    println!("  контейнер:  {container} → SBZ1/zstd");
+    println!(
+        "  размер:     {} → {} Б (распакованный {})",
+        blob.len(),
+        new_size,
+        raw.len()
+    );
+    println!(
+        "  links:      {} строк, дайджест {} (до {} — {})",
+        rows_after,
+        &digest_after[..16.min(digest_after.len())],
+        &digest_before[..16.min(digest_before.len())],
+        if digest_before == digest_after {
+            "совпадает"
+        } else {
+            "РАСХОДИТСЯ"
+        }
+    );
+    let changed: Vec<String> = meta_before
+        .iter()
+        .filter(|(k, v)| meta_after.get(*k) != Some(*v))
+        .map(|(k, _)| k.clone())
+        .chain(
+            meta_after
+                .keys()
+                .filter(|k| !meta_before.contains_key(*k))
+                .cloned(),
+        )
+        .collect();
+    println!(
+        "  meta:       id={} kind={} target_id={} target_hash={} tokenizer={} (изменённых полей: {})",
+        meta.id,
+        meta.kind,
+        meta.extra.get("target_id").cloned().unwrap_or_default(),
+        meta.extra
+            .get("target_hash")
+            .map(|h| h[..12.min(h.len())].to_string())
+            .unwrap_or_default(),
+        meta.extra.get("tokenizer").cloned().unwrap_or_default(),
+        if changed.is_empty() {
+            "нет".to_string()
+        } else {
+            changed.join(", ")
+        }
+    );
+    if let Some(target) = target_hash_fit(&out, &meta) {
+        println!("  применимость: {target}");
+    }
+    println!(
+        "  создано:    {}",
+        if created.is_empty() {
+            "ничего (объекты уже были)".to_string()
+        } else {
+            created.join("; ")
+        }
+    );
+    println!("  проверка:   модуль в порядке");
+    if let Some(b) = backup {
+        println!("  бэкап:      {}", b.display());
+    }
+    Ok(())
+}
+
+/// Развернуть контейнер модуля в голый `.sb`: SBZ1 (zstd/brotli), сырой
+/// SQLite или чужой кодек (zlib/gzip), который читатель не открывает.
+fn decode_container(blob: &[u8], path: &Path) -> Result<(String, Vec<u8>), String> {
+    if studybible_store::sbz::is_sbz(blob) {
+        let raw =
+            studybible_store::sbz::unpack(blob).map_err(|e| format!("{}: {e}", path.display()))?;
+        let codec = studybible_store::sbz::Codec::from_id(blob[4]);
+        return Ok((format!("SBZ1/{}", codec.name()), raw));
+    }
+    if blob.starts_with(b"SQLite format 3\0") {
+        return Ok(("sb".into(), blob.to_vec()));
+    }
+    let mut raw = Vec::new();
+    if blob.len() > 2 && blob[0] == 0x78 {
+        flate2::read::ZlibDecoder::new(blob)
+            .read_to_end(&mut raw)
+            .map_err(|e| format!("{}: zlib: {e}", path.display()))?;
+        return Ok(("zlib".into(), raw));
+    }
+    if blob.starts_with(&[0x1f, 0x8b]) {
+        flate2::read::GzDecoder::new(blob)
+            .read_to_end(&mut raw)
+            .map_err(|e| format!("{}: gzip: {e}", path.display()))?;
+        return Ok(("gzip".into(), raw));
+    }
+    Err(format!(
+        "{}: неизвестный контейнер (не SBZ1, не SQLite, не zlib/gzip)",
+        path.display()
+    ))
+}
+
+/// Число строк `links` и логический дайджест содержимого: репак и индексы
+/// меняют байты файла, содержимое разметки — не должны.
+fn links_digest(conn: &rusqlite::Connection) -> Result<(i64, String), String> {
+    let has: i64 = conn
+        .query_row(
+            "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='links'",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if has == 0 {
+        return Ok((0, String::new()));
+    }
+    let mut st = conn
+        .prepare(
+            "SELECT book_id, chapter, verse, word, ref, strong, conf, flags, source
+             FROM links ORDER BY book_id, chapter, verse, word",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = st
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, u16>(1)?,
+                r.get::<_, u16>(2)?,
+                r.get::<_, u16>(3)?,
+                r.get::<_, String>(4)?,
+                r.get::<_, String>(5)?,
+                r.get::<_, i64>(6)?,
+                r.get::<_, String>(7)?,
+                r.get::<_, String>(8)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut hasher = Sha256::new();
+    let mut n = 0i64;
+    for row in rows {
+        let (b, c, v, w, rf, s, cf, fl, src) = row.map_err(|e| e.to_string())?;
+        hasher.update(format!("{b}|{c}|{v}|{w}|{rf}|{s}|{cf}|{fl}|{src}\n").as_bytes());
+        n += 1;
+    }
+    Ok((n, format!("{:x}", hasher.finalize())))
+}
+
+/// Пары `meta` для сверки до/после правки.
+fn meta_map(
+    conn: &rusqlite::Connection,
+) -> Result<std::collections::BTreeMap<String, String>, String> {
+    let mut st = conn
+        .prepare("SELECT key, value FROM meta")
+        .map_err(|e| e.to_string())?;
+    let rows = st
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+        .map_err(|e| e.to_string())?;
+    let mut out = std::collections::BTreeMap::new();
+    for row in rows {
+        let (k, v) = row.map_err(|e| e.to_string())?;
+        out.insert(k, v);
+    }
+    Ok(out)
+}
+
+/// Применимость слоя к переводу: `target_hash` слоя против
+/// `content_hash` модуля-цели, если он лежит рядом.
+fn target_hash_fit(layer: &Path, meta: &Meta) -> Option<String> {
+    let target_id = meta.extra.get("target_id")?;
+    if target_id.is_empty() {
+        return None;
+    }
+    let dir = layer.parent()?;
+    let target = ["sbz", "sb"]
+        .iter()
+        .map(|e| dir.join(format!("{target_id}.{e}")))
+        .find(|p| p.exists())?;
+    let m = open_any(&target).ok()?.module;
+    let hash = m.meta().content_hash.clone();
+    let want = meta.extra.get("target_hash").cloned().unwrap_or_default();
+    Some(format!(
+        "{} {} ({})",
+        if hash == want {
+            "применяется:"
+        } else {
+            "НЕ применяется:"
+        },
+        target_id,
+        if hash == want {
+            "target_hash совпадает"
+        } else {
+            "target_hash не совпадает — нужна перепривязка"
+        }
+    ))
 }
 
 /// `module pack`: `.sb` → `.sbz` (zstd по умолчанию, brotli по флагу).
@@ -1081,6 +1368,122 @@ fn block_text(b: &studybible_core::text::Block) -> String {
     s
 }
 
+/// Слова стихов модуля (токенизатор `w1`, ADR 0025) — вход для
+/// конвейера разметки: JSONL, первая строка `_meta` с привязкой
+/// (id, content_hash, версия токенизатора), дальше по стиху:
+/// `{"book":"GEN","chapter":1,"verse":1,"words":[…]}` (при `--with-spans`
+/// добавляется `"word_spans":[{"style":…,"attrs":…}, …]` той же длины).
+fn tokenize(args: &[String]) -> Result<(), String> {
+    let with_spans = args.iter().any(|a| a == "--with-spans");
+    let rest: Vec<String> = args
+        .iter()
+        .filter(|a| *a != "--with-spans")
+        .cloned()
+        .collect();
+    let path = module_arg(&rest)?;
+    let opened = open_any(&path)?;
+    let m = &opened.module;
+    let meta = m.meta();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    writeln!(
+        out,
+        "{}",
+        serde_json::json!({
+            "_meta": {
+                "target_id": meta.id,
+                "target_hash": meta.content_hash,
+                "tokenizer": studybible_core::text::WORDS_VERSION,
+                "versification": meta.versification,
+            }
+        })
+    )
+    .map_err(|e| e.to_string())?;
+    let mut verses = 0usize;
+    for (code, _) in m.books().map_err(|e| e.to_string())? {
+        let mut ch_n = 1u16;
+        while let Some(ch) = m.chapter(code, ch_n).map_err(|e| e.to_string())? {
+            let span_meta = if with_spans {
+                Some(verse_word_spans(&ch))
+            } else {
+                None
+            };
+            for (verse, text) in ch.verse_texts() {
+                let ws: Vec<&str> = studybible_core::text::words(&text);
+                if ws.is_empty() {
+                    continue;
+                }
+                let row = if let Some(ref sm) = span_meta {
+                    let wmeta = sm.get(&verse).cloned().unwrap_or_default();
+                    serde_json::json!({
+                        "book": code.to_string(),
+                        "chapter": ch_n,
+                        "verse": verse,
+                        "words": ws,
+                        "word_spans": wmeta,
+                    })
+                } else {
+                    serde_json::json!({
+                        "book": code.to_string(),
+                        "chapter": ch_n,
+                        "verse": verse,
+                        "words": ws,
+                    })
+                };
+                writeln!(out, "{row}").map_err(|e| e.to_string())?;
+                verses += 1;
+            }
+            ch_n += 1;
+        }
+    }
+    eprintln!(
+        "стихов: {verses} (токенизатор {})",
+        studybible_core::text::WORDS_VERSION
+    );
+    Ok(())
+}
+
+fn verse_word_spans(
+    ch: &studybible_core::text::Chapter,
+) -> std::collections::HashMap<u16, Vec<serde_json::Value>> {
+    use studybible_core::text::{BlockKind, Span};
+    let mut out: std::collections::HashMap<u16, Vec<serde_json::Value>> =
+        std::collections::HashMap::new();
+    let mut current: Option<u16> = None;
+    for block in &ch.blocks {
+        let kind = block.kind();
+        if kind == BlockKind::Heading || kind == BlockKind::Blank {
+            continue;
+        }
+        if kind == BlockKind::Superscription && current.is_none() {
+            current = Some(0);
+        }
+        for span in &block.spans {
+            match span {
+                Span::Verse(n) => {
+                    current = Some(*n);
+                }
+                Span::Text { text, style, attrs } => {
+                    let Some(v) = current else { continue };
+                    let ws = studybible_core::text::words(text);
+                    if ws.is_empty() {
+                        continue;
+                    }
+                    let entry = out.entry(v).or_default();
+                    for _ in ws {
+                        entry.push(serde_json::json!({
+                            "style": style,
+                            "attrs": attrs,
+                        }));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    out
+}
+
 fn read(args: &[String]) -> Result<(), String> {
     let pos = positional(args);
     let file = PathBuf::from(pos.first().ok_or("нужен файл модуля")?);
@@ -1159,6 +1562,9 @@ fn read(args: &[String]) -> Result<(), String> {
 }
 
 fn search(args: &[String]) -> Result<(), String> {
+    if let Some(code) = flag(args, "--strong") {
+        return search_strong(args, &code);
+    }
     let pos = positional(args);
     let file = PathBuf::from(pos.first().ok_or("нужен файл модуля")?);
     let query = pos.get(1..).unwrap_or(&[]).join(" ");
@@ -1185,6 +1591,178 @@ fn search(args: &[String]) -> Result<(), String> {
         println!("{name} {}:{}  {text}", hit.chapter, hit.verse);
     }
     Ok(())
+}
+
+/// `search --strong <код> [--layer <файл>] [--limit N] [--json] [--plan] <модуль>`:
+/// обратный поиск по номеру Стронга без кэша `.idx` (`SearchIndex::without_cache`)
+/// и с дайджестом выдачи — доказательная база для сверки реализаций
+/// (квитанция A2: старый бинарник vs новый) и для замеров.
+///
+/// `--json` печатает одну строку JSON: код, путь фолбэка, число стихов,
+/// дайджест, миллисекунды и сами стихи с индексами слов. `--plan`
+/// печатает `EXPLAIN QUERY PLAN` для `STRONG_LAYER_SQL` — проверка того,
+/// что запрос идёт по индексу, а не сканом.
+fn search_strong(args: &[String], code: &str) -> Result<(), String> {
+    // Булевы флаги (`--json`, `--plan`) не съедают значение, а
+    // `positional` считает любой `--флаг` флагом со значением — поэтому
+    // разбор позиционных идёт по списку без них.
+    let bare: Vec<String> = args
+        .iter()
+        .filter(|a| *a != "--json" && *a != "--plan")
+        .cloned()
+        .collect();
+    let file = module_arg(&bare)?;
+    let layer_file = flag(args, "--layer").map(PathBuf::from);
+    let limit: usize = flag(args, "--limit")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(usize::MAX);
+    let as_json = args.iter().any(|a| a == "--json");
+    let as_plan = args.iter().any(|a| a == "--plan");
+
+    let opened = open_any(&file)?;
+    let m = &opened.module;
+    let layer_opened = match &layer_file {
+        Some(p) => Some(open_any(p)?),
+        None => None,
+    };
+    let layer = layer_opened.as_ref().map(|o| &o.module);
+
+    if as_plan {
+        let target = layer.unwrap_or(m);
+        println!("{}", target.meta().id);
+        if target.has_strong_fast_path() {
+            // Печатаем план того запроса, который действительно
+            // выполняется, и — рядом — план с литеральным префиксом:
+            // с параметром оптимизатор не видит, что GLOB префиксный,
+            // и выбор диапазона откладывается на выполнение.
+            println!("  быстрый путь (индекс):");
+            for (label, sql) in [
+                ("links, параметр", studybible_store::STRONG_FAST_LINKS_SQL),
+                ("links, литерал", studybible_store::STRONG_FAST_LINKS_SQL),
+                (
+                    "links_extra, литерал",
+                    studybible_store::STRONG_FAST_EXTRA_SQL,
+                ),
+            ] {
+                let literal = label.ends_with("литерал");
+                for line in explain(target.conn(), sql, literal)? {
+                    println!("    {label}: {line}");
+                }
+            }
+        } else {
+            println!("  скан (индекса нет):");
+            for line in explain(target.conn(), studybible_store::STRONG_LAYER_SQL, false)? {
+                println!("    {line}");
+            }
+        }
+        return Ok(());
+    }
+
+    let idx = SearchIndex::without_cache(m);
+    let started = Instant::now();
+    let hits = idx
+        .search_strong_words(code, limit, layer, m)
+        .map_err(|e| e.to_string())?;
+    let ms = started.elapsed().as_millis();
+
+    // Дайджест выдачи: канонические строки «КОД глава:стих слова» в
+    // порядке выдачи. Код книги, а не локализованное название — иначе
+    // дайджест зависел бы от языкового профиля модуля. Порядок слов
+    // нормализован (по возрастанию) — он не часть контракта выдачи,
+    // в отличие от состава слов.
+    let prof = profile(m.meta());
+    let catalog = BookCatalog::builtin();
+    let mut hasher = Sha256::new();
+    for h in &hits {
+        hasher.update(
+            format!(
+                "{} {}:{} {}\n",
+                h.book,
+                h.chapter,
+                h.verse,
+                h.words
+                    .iter()
+                    .map(|w| w.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+            .as_bytes(),
+        );
+    }
+    let digest = format!("{:x}", hasher.finalize());
+
+    if as_json {
+        let items: Vec<serde_json::Value> = hits
+            .iter()
+            .map(|h| {
+                serde_json::json!({
+                    "book": h.book.to_string(),
+                    "name": catalog
+                        .by_code(h.book)
+                        .map(|b| b.abbr(prof).to_string())
+                        .unwrap_or_else(|| h.book.to_string()),
+                    "chapter": h.chapter,
+                    "verse": h.verse,
+                    "words": h.words,
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::json!({
+                "module": m.meta().id,
+                "layer": layer.map(|l| l.meta().id.clone()).unwrap_or_default(),
+                "code": code,
+                "verses": hits.len(),
+                "digest": digest,
+                "ms": ms,
+                "hits": items,
+            })
+        );
+        return Ok(());
+    }
+
+    println!(
+        "{} → {} стихов за {} мс, дайджест {}",
+        code,
+        hits.len(),
+        ms,
+        &digest[..16.min(digest.len())]
+    );
+    for h in hits.iter().take(20) {
+        let name = catalog
+            .by_code(h.book)
+            .map(|b| b.abbr(prof).to_string())
+            .unwrap_or_else(|| h.book.to_string());
+        println!("  {name} {}:{}  слова {:?}", h.chapter, h.verse, h.words);
+    }
+    Ok(())
+}
+
+/// Строки `EXPLAIN QUERY PLAN` для запроса — проверка использования
+/// индекса. `literal` подставляет префиксный литерал вместо `?1`:
+/// оптимизатор выбирает диапазон по индексу только для литерала, а для
+/// параметра откладывает выбор на выполнение (проверяется замером).
+fn explain(conn: &rusqlite::Connection, sql: &str, literal: bool) -> Result<Vec<String>, String> {
+    let (sql, bind): (String, Option<&str>) = if literal {
+        (sql.replace("?1", "'H0000*'"), None)
+    } else {
+        (sql.to_string(), Some("H0000*"))
+    };
+    let mut st = conn
+        .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+        .map_err(|e| e.to_string())?;
+    let rows = match bind {
+        Some(p) => st
+            .query_map(params![p], |r| r.get::<_, String>(3))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>(),
+        None => st
+            .query_map([], |r| r.get::<_, String>(3))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>(),
+    };
+    rows.map_err(|e| e.to_string())
 }
 
 fn user_db(args: &[String]) -> Result<UserData, String> {

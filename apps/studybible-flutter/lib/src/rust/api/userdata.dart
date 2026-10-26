@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `anchor_at`, `anchor`, `entry_info`, `kind_of`, `module_path_map`, `module_path`, `open`, `resolve_module`
+// These functions are ignored because they are not marked as `pub`: `anchor_at`, `anchor`, `entry_info`, `kind_of`, `lock_ud`, `module_path_map`, `module_path`, `open_cached`, `resolve_module`
 
 /// Снять состояние прогресса одним JSON:
 /// `{"read":["GEN:1",...], "last_position":"GEN:1"|null, "last_verse":{"GEN:1":5}}`.
@@ -25,7 +25,7 @@ Future<void> progressMarkRead({
   chapter: chapter,
 );
 
-/// «Продолжить отсюда»: одна запись-позиция на всю базу.
+/// «Продолжить отсюда»: позиция хранится в `meta('last_position')`.
 Future<void> progressSetPosition({
   required String path,
   required String book,
@@ -52,9 +52,17 @@ Future<void> progressSetVerse({
 );
 
 /// Сбросить весь прогресс (кнопка «Сбросить» в настройках).
-/// Трогает только служебные записи псевдо-модуля — пользовательские не затрагиваются.
+/// Трогает только служебные записи псевдо-модуля и `meta.last_position`.
 Future<void> progressReset({required String path}) =>
     RustLib.instance.api.crateApiUserdataProgressReset(path: path);
+
+/// Прочитать JSON настроек приложения из `meta('settings')`.
+Future<String?> settingsLoad({required String path}) =>
+    RustLib.instance.api.crateApiUserdataSettingsLoad(path: path);
+
+/// Записать JSON настроек приложения в `meta('settings')`.
+Future<void> settingsSave({required String path, required String json}) =>
+    RustLib.instance.api.crateApiUserdataSettingsSave(path: path, json: json);
 
 /// Записи одного вида; `module: None` — по всем модулям.
 Future<List<UserEntryInfo>> entriesList({
@@ -65,6 +73,19 @@ Future<List<UserEntryInfo>> entriesList({
   path: path,
   kind: kind,
   module: module,
+);
+
+/// Все живые записи пользователя (`hl`, `note`, `mark`, `tag`) одной главы.
+Future<List<UserEntryInfo>> entriesChapter({
+  required String path,
+  required String module,
+  required String book,
+  required PlatformInt64 chapter,
+}) => RustLib.instance.api.crateApiUserdataEntriesChapter(
+  path: path,
+  module: module,
+  book: book,
+  chapter: chapter,
 );
 
 /// Добавить запись к стиху модуля; возвращает id записи.

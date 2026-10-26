@@ -287,6 +287,30 @@ fn tokens_written_and_read() {
     assert!(matches!(span, Span::Text { text, .. } if text.trim() == "Вначале"));
 }
 
+const SRC_MULTI_STRONG: &str = "\\id GEN\n\
+\\c 1\n\\p\n\\v 1 \\w сотворил|strong=\"H1254\" strong=\"H853\" morph=\"TH8804\" morph=\"TH8804\"\\w* небо.\n";
+
+#[test]
+fn multi_strong_attrs_kept() {
+    // rsts: 30k+ спанов несут несколько strong=/morph= — раньше токен
+    // брал только первый, теряя связь слова со вторым номером.
+    let dir = tempfile::tempdir().unwrap();
+    let p = dir.path().join("a.sb");
+    let b = usfm::parse(SRC_MULTI_STRONG).unwrap();
+    let mut w = ModuleWriter::create(&p, &meta()).unwrap();
+    w.add_book(b.code, 1, "Бытие", &b.header).unwrap();
+    for ch in &b.chapters {
+        w.add_chapter(b.code, ch).unwrap();
+    }
+    w.finish().unwrap();
+
+    let m = Module::open(&p).unwrap();
+    let toks = m.tokens(BookCode::new("GEN").unwrap(), 1).unwrap();
+    assert_eq!(toks.len(), 1);
+    assert_eq!(toks[0].strong, "H1254 H853");
+    assert_eq!(toks[0].morph, "TH8804 TH8804");
+}
+
 #[test]
 fn kind_features_rights_roundtrip() {
     let dir = tempfile::tempdir().unwrap();

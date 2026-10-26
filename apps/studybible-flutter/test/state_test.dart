@@ -96,13 +96,8 @@ void main() {
       var saved = false;
       for (var i = 0; i < 100 && !saved; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        final all = await bridgeEntriesList('mark');
-        saved = all.any(
-          (e) =>
-              e.module == 'settings' &&
-              e.book == 'SET' &&
-              e.context.contains('com.test.tts'),
-        );
+        saved =
+            (await bridgeSettingsLoad())?.contains('com.test.tts') ?? false;
       }
       expect(saved, isTrue, reason: 'настройки не записались в UserData');
 
@@ -120,13 +115,8 @@ void main() {
       });
       for (var i = 0; i < 100; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
-        final all = await bridgeEntriesList('mark');
-        final ok = all.every(
-          (e) =>
-              !(e.module == 'settings' && e.book == 'SET') ||
-              !e.context.contains('com.test.tts'),
-        );
-        if (ok) break;
+        final raw = await bridgeSettingsLoad();
+        if (raw == null || !raw.contains('com.test.tts')) break;
       }
     });
   });

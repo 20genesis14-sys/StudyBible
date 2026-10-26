@@ -274,7 +274,41 @@ CREATE TABLE align_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
 CREATE TABLE xrefs_pack(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
                         verse INTEGER NOT NULL, blob BLOB NOT NULL,
                         PRIMARY KEY(book_id, chapter, verse));
+-- ADR 0025 (необязательная): слой разметки перевода — номера Стронга
+-- на словах целевого текста (kind='layer', features='strongs').
+-- word — индекс слова в стихе по токенизатору `w1` (с нуля);
+-- ref — адрес слова оригинала в базовом слое ('Gen.1.1#03', пусто —
+-- привязка только номером); strong — strong-ключ(и) через пробел;
+-- conf 0–10; flags — причины/пометки; source — происхождение
+-- (таблица, выравнивание, модель+версия, правило).
+CREATE TABLE links(book_id INTEGER NOT NULL, chapter INTEGER NOT NULL,
+                   verse INTEGER NOT NULL, word INTEGER NOT NULL,
+                   ref TEXT NOT NULL DEFAULT '', strong TEXT NOT NULL DEFAULT '',
+                   conf INTEGER NOT NULL DEFAULT 0,
+                   flags TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '',
+                   PRIMARY KEY(book_id, chapter, verse, word));
 ";
+
+/// Разметка слова перевода (таблица `links`, ADR 0025): слово стиха
+/// цели (индекс токенизатора `w1`, с нуля) → номер(а) Стронга и адрес
+/// слова оригинала в базовом слое.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Link {
+    /// Стих (глава известна из запроса).
+    pub verse: u16,
+    /// Порядковый номер слова в стихе (`text::words`, с нуля).
+    pub word: u16,
+    /// Адрес слова в базовом слое ('Gen.1.1#03'); пусто — без адреса.
+    pub r#ref: String,
+    /// strong-ключ(и) через пробел.
+    pub strong: String,
+    /// Уверенность 0–10 (шкала ADR 0025 п. 6).
+    pub conf: u8,
+    /// Причины/пометки через запятую.
+    pub flags: String,
+    /// Происхождение записи (таблица, выравнивание, модель+версия, правило).
+    pub source: String,
+}
 
 /// Структурная цель перекрёстной ссылки (таблица `xrefs`, ADR 0023):
 /// `verse` — стих источника (глава известна из запроса), `to` — цель
@@ -328,6 +362,26 @@ fn attr<'a>(attrs: &'a str, key: &str) -> Option<&'a str> {
     Some(&rest[..j])
 }
 
+/// Все значения `key="…"` в строке атрибутов, через пробел.
+/// Спан может нести несколько номеров Стронга/кодов морфологии
+/// (`strong="H1254" strong="H853" morph="TH8804" morph="TH8799"`) —
+/// позиционная связь i-го strong с i-м morph сохраняется.
+pub(crate) fn attr_all(attrs: &str, key: &str) -> String {
+    let pat = format!("{key}=\"");
+    let mut out = String::new();
+    let mut rest = attrs;
+    while let Some(i) = rest.find(&pat) {
+        let v = &rest[i + pat.len()..];
+        let Some(j) = v.find('"') else { break };
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(&v[..j]);
+        rest = &v[j + 1..];
+    }
+    out
+}
+
 /// Токен из спана текста: слово несёт attrs (`strong`, `lemma`, `morph`)
 /// или помечено стилем `w`. Возвращает None для обычного текста.
 fn token_of(verse: u16, seq: u16, text: &str, style: &str, attrs: &str) -> Option<Token> {
@@ -348,8 +402,8 @@ fn token_of(verse: u16, seq: u16, text: &str, style: &str, attrs: &str) -> Optio
         seq,
         surface,
         lemma: attr(attrs, "lemma").unwrap_or("").to_string(),
-        strong: attr(attrs, "strong").unwrap_or("").to_string(),
-        morph: attr(attrs, "morph").unwrap_or("").to_string(),
+        strong: attr_all(attrs, "strong"),
+        morph: attr_all(attrs, "morph"),
         gloss,
     })
 }
@@ -865,6 +919,28 @@ impl ModuleWriter {
         Ok(())
     }
 
+    /// Запись разметки слоя Стронга (таблица `links`, ADR 0025):
+    /// слово стиха цели → strong. У слоя нет глав и текста — слова
+    /// адресуются (книга, глава, стих, индекс w1) напрямую.
+    pub fn add_link(&self, book: BookCode, chapter: u16, link: &Link) -> Result<()> {
+        let book_id = self.book_id(book)?;
+        self.conn.execute(
+            "INSERT INTO links VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                book_id,
+                chapter,
+                link.verse,
+                link.word,
+                link.r#ref,
+                link.strong,
+                link.conf,
+                link.flags,
+                link.source
+            ],
+        )?;
+        Ok(())
+    }
+
     /// Встроить поисковый индекс FTS5 в модуль (таблица `fts`,
     /// ADR 0016 п. 11). Та же схема и нормализация, что у кэш-индекса
     /// `SearchIndex`; читатель без `fts` строит кэш как раньше.
@@ -955,6 +1031,10 @@ impl ModuleWriter {
             "UPDATE meta SET value = ?1 WHERE key = 'content_hash'",
             params![crate::hash::hex(self.hash.finalize())],
         )?;
+        // Производные объекты (индексы, `links_extra`) — после данных и
+        // до COMMIT: `content_hash` считается по потоку чтения, поэтому
+        // на привязку слоя к переводу они не влияют (derive.rs).
+        crate::derive::ensure_search_indexes(&self.conn)?;
         self.conn.execute_batch("COMMIT; PRAGMA optimize;")?;
         Ok(())
     }
@@ -964,7 +1044,8 @@ impl ModuleWriter {
 pub struct Module {
     conn: Connection,
     meta: Meta,
-    /// Путь к файлу — нужен SearchIndex для встроенного `fts`.
+    /// Путь к файлу модуля (для `.sbz` — путь сжатого исходника; поиску
+    /// он больше не нужен: SearchIndex читает живое соединение, OQ 54).
     path: std::path::PathBuf,
     /// Необязательные таблицы ADR 0016, которые есть в файле.
     has_tokens: bool,
@@ -980,6 +1061,13 @@ pub struct Module {
     has_variants: bool,
     has_entries: bool,
     has_marks: bool,
+    /// Таблица `links` — слой разметки Стронга (ADR 0025).
+    has_links: bool,
+    /// Таблица `links_extra` — «вторые и последующие» номера ячеек
+    /// `links.strong` (derive.rs): без неё быстрый путь неполон.
+    has_links_extra: bool,
+    /// Индекс по `links.strong` — быстрый путь обратного поиска.
+    has_links_strong_index: bool,
     /// Виртуальная таблица `fts` (FTS5) — готовый поисковый индекс.
     has_fts: bool,
     /// Код книги → book_id (таблица `books`).
@@ -1150,6 +1238,15 @@ impl Module {
             [],
             |r| r.get(0),
         )?;
+        // Быстрый путь обратного поиска (derive.rs) возможен только
+        // когда есть и индекс по номеру, и таблица «вторых» номеров:
+        // индекс без неё вернул бы неполную выдачу.
+        let has_links_strong_index = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='index' AND tbl_name='links'
+                 AND name=?1)",
+            params![crate::derive::LINKS_STRONG_INDEX],
+            |r| r.get(0),
+        )?;
         let book_ids = {
             let mut st = conn.prepare("SELECT code, book_id FROM books")?;
             st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
@@ -1170,6 +1267,9 @@ impl Module {
             has_variants: has("variants")?,
             has_entries: has("entries")?,
             has_marks: has("marks")?,
+            has_links: has("links")?,
+            has_links_extra: has("links_extra")?,
+            has_links_strong_index,
             has_fts,
             book_ids,
             conn,
@@ -1254,6 +1354,71 @@ impl Module {
             Ok((r.get::<_, u16>(0)?, r.get::<_, String>(1)?))
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Метаданные типов связей целей ссылок (`xrefs_meta`, слои
+    /// консенсуса): (стих, JSON-массив `[{tb,tc,tv,s?,k:[],v}]`).
+    /// Таблица аддитивная — у слоёв без неё пусто.
+    pub fn xref_meta(&self, book: BookCode, chapter: u16) -> Result<Vec<(u16, String)>> {
+        let Some(bid) = self.bid(book) else {
+            return Ok(vec![]);
+        };
+        let Ok(mut st) = self.conn.prepare(
+            "SELECT verse, meta FROM xrefs_meta
+             WHERE book_id=?1 AND chapter=?2 ORDER BY verse",
+        ) else {
+            return Ok(vec![]);
+        };
+        let rows = st.query_map(params![bid, chapter], |r| {
+            Ok((r.get::<_, u16>(0)?, r.get::<_, String>(1)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Разметка Стронга главы (таблица `links`, ADR 0025): записи
+    /// слоя `kind='layer'`/`features='strongs'` в координатах целевого
+    /// текста. Применяется вызывающим только при совпадении
+    /// `target_id`+`target_hash`+`tokenizer` из meta слоя с модулем.
+    pub fn links(&self, book: BookCode, chapter: u16) -> Result<Vec<Link>> {
+        if !self.has_links {
+            return Ok(vec![]);
+        }
+        let Some(bid) = self.bid(book).or_else(|| {
+            studybible_core::BookCatalog::builtin()
+                .by_code(book)
+                .and_then(|b| b.order_list)
+                .map(i64::from)
+        }) else {
+            return Ok(vec![]);
+        };
+        let mut st = self.conn.prepare(
+            "SELECT verse, word, ref, strong, conf, flags, source FROM links
+             WHERE book_id=?1 AND chapter=?2 ORDER BY verse, word",
+        )?;
+        let rows = st.query_map(params![bid, chapter], |r| {
+            Ok(Link {
+                verse: r.get(0)?,
+                word: r.get(1)?,
+                r#ref: r.get(2)?,
+                strong: r.get(3)?,
+                conf: r.get(4)?,
+                flags: r.get(5)?,
+                source: r.get(6)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Есть ли таблица `links` (ADR 0025).
+    pub fn has_links(&self) -> bool {
+        self.has_links
+    }
+
+    /// Возможен ли быстрый путь обратного поиска по номеру: есть индекс
+    /// по `links.strong` **и** таблица `links_extra` с «вторыми» номерами
+    /// (derive.rs). Иначе поиск идёт сканом — как раньше.
+    pub fn has_strong_fast_path(&self) -> bool {
+        self.has_links && self.has_links_extra && self.has_links_strong_index
     }
 
     /// Структурные цели перекрёстных ссылок главы (таблица `xrefs`,

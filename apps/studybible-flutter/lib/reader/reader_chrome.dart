@@ -1,6 +1,9 @@
 part of '../screens/reading_screen.dart';
 
-/// Панели и элементы управления экрана чтения.
+/// Панели и элементы управления экрана чтения. Хром остаётся на
+/// `_ReadingScreenState` (B10 этап 1): нотифаеры баров, поле поиска
+/// и стек рабочего места — экранные; панечно-волатильные поля читаются
+/// через `pane.` и меняются парой «мутация + pane.rebuild()».
 extension _ReaderChrome on _ReadingScreenState {
   /// Флаги слоёв по id вклада (ADR 0020): реестр задаёт порядок и
   /// доступность, настройки хранят состояние. Неизвестный id — мягкий
@@ -29,6 +32,7 @@ extension _ReaderChrome on _ReadingScreenState {
     Color cc(bool on, Color fixed) => on ? p.accent : (large ? fixed : p.muted);
     const cTranslate = Color(0xFF5C6BC0); // indigo
     const cInterl = Color(0xFFF9A825); // amber
+    const cSplit = Color(0xFF00897B); // teal
     const cTts = Color(0xFF43A047); // green
     const cHistory = Color(0xFF8D6E63); // brown
     const cNotes = Color(0xFF7E57C2); // purple
@@ -42,20 +46,21 @@ extension _ReaderChrome on _ReadingScreenState {
           // главы в том же кадре оставляла зависший барьер меню на web.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            _rebuild(() => _moduleId = v);
+            pane._moduleId = v;
+            pane.rebuild();
             // Подгружает модуль и текущую главу (лениво через мост).
-            _load(v);
-            _loadVerseEntries();
-            history.touch(v, _code, _ch);
+            pane._load(v);
+            pane._loadVerseEntries();
+            history.touch(v, pane._code, pane._ch);
             // Смена перевода на месте — переход: «назад» возвращает
             // прежний перевод (ADR 0019).
             workspace.go(
               Location.verse(
                 moduleId: v,
-                book: _code,
-                chapter: _ch,
-                verse: _selectedVerse ?? 0,
-                pane: _paneSnapshot(),
+                book: pane._code,
+                chapter: pane._ch,
+                verse: pane._selectedVerse ?? 0,
+                pane: pane._paneSnapshot(),
               ),
             );
           });
@@ -66,7 +71,7 @@ extension _ReaderChrome on _ReadingScreenState {
               value: e.key,
               child: Row(
                 children: [
-                  if (e.key == _moduleId)
+                  if (e.key == pane._moduleId)
                     Icon(Icons.check, size: 16, color: p.accent)
                   else
                     const SizedBox(width: 16),
@@ -82,16 +87,35 @@ extension _ReaderChrome on _ReadingScreenState {
         icon: Icon(
           Icons.view_day_outlined,
           size: sz,
-          color: cc(_interleaved, cInterl),
+          color: cc(pane._interleaved, cInterl),
         ),
         onPressed: () {
-          _rebuild(() {
-            _interleaved = !_interleaved;
-            if (_interleaved) _compare = false;
-          });
-          if (_interleaved) _initCompareModules();
-          workspace.updateSnapshot(_paneSnapshot());
+          pane._interleaved = !pane._interleaved;
+          if (pane._interleaved) pane._compare = false;
+          pane.rebuild();
+          if (pane._interleaved) pane._initCompareModules();
+          workspace.updateSnapshot(pane._paneSnapshot());
         },
+      ),
+      // Режим «две панели» (B10 этап 2): кнопка только на широком
+      // экране (панель управления с ней не рендерится на телефоне).
+      // Связь панелей — кнопка в шапке колонки (Icons.link/Icons.link_off),
+      // не здесь.
+      IconButton(
+        tooltip: tr('Две панели', 'Two panes'),
+        icon: Icon(Icons.splitscreen, size: sz, color: cc(_split, cSplit)),
+        onPressed: _toggleSplit,
+      ),
+      // Выбор раскладки — пресеты рабочего места (B10 этап 2);
+      // на узком экране пункт живёт в листе «Слои».
+      IconButton(
+        tooltip: tr('Раскладка', 'Layout'),
+        icon: Icon(
+          Icons.dashboard_customize,
+          size: sz,
+          color: cc(false, cSplit),
+        ),
+        onPressed: _presetSheet,
       ),
       IconButton(
         tooltip: _ttsPlaying
@@ -108,7 +132,10 @@ extension _ReaderChrome on _ReadingScreenState {
         IconButton(
           tooltip: tr('Поиск', 'Search'),
           icon: Icon(Icons.search, size: sz, color: p.muted),
-          onPressed: () => _openScreen('search', {'module': _moduleId}),
+          onPressed: () => _openScreen('search', {
+            'module': pane._moduleId,
+            'book': pane._code,
+          }),
         ),
       IconButton(
         tooltip: tr('История чтения', 'Reading history'),
@@ -123,47 +150,81 @@ extension _ReaderChrome on _ReadingScreenState {
     ];
   }
 
-  /// Переключатель «Чтение / Изучение» (ADR 0015): компактная
-  /// двухсегментная пилюля в верхней панели.
-  Widget _modeSwitch(Palette p) {
-    Widget seg(String label, ReaderMode m) {
-      final on = settings.readerMode == m;
-      return InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: on
-            ? null
-            : () => settings.update(() => settings.readerMode = m),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-          decoration: BoxDecoration(
-            color: on ? p.accent.withValues(alpha: 0.16) : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
+  /// Плавающая кнопка «очки» — переключатель «Чтение ↔ Изучение»
+  /// (ADR 0015): круглая полупрозрачная плашка справа внизу,
+  /// над нижней панелью. В «Изучении» акцентная, в «Чтении» —
+  /// приглушённая. Прячется вместе с хромом (`_barVisible`) и под
+  /// шторками. Глиф — ассет `assets/icons/glasses.png` (утверждённый
+  /// макет; белый на прозрачном, тонируется цветом палитры).
+  Widget _glassesFab(Palette p) {
+    final study = settings.readerMode == ReaderMode.study;
+    return Tooltip(
+      message: study
+          ? tr('Режим чтения', 'Reading mode')
+          : tr('Режим изучения', 'Study mode'),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => settings.update(
+            () => settings.readerMode = study
+                ? ReaderMode.reading
+                : ReaderMode.study,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: on ? FontWeight.w700 : FontWeight.w500,
-              color: on ? p.accent : p.muted,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: p.card,
+              border: Border.all(color: p.edge),
+            ),
+            child: Center(
+              child: Image.asset(
+                'assets/icons/glasses.png',
+                width: 27,
+                color: study ? p.accent : p.ink,
+                colorBlendMode: BlendMode.srcIn,
+              ),
             ),
           ),
         ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: p.edge.withValues(alpha: 0.30),
-        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          seg(tr('Чтение', 'Read'), ReaderMode.reading),
-          seg(tr('Изучение', 'Study'), ReaderMode.study),
-        ],
+    );
+  }
+
+  /// Плавающая кнопка «оглавление» — быстрый переход книга → глава:
+  /// круглая плашка слева внизу, пара к «очкам» справа (ADR 0015).
+  /// Тап повторяет тап по заголовку (`_quickNav`); удержание —
+  /// подсказка «Оглавление». Глиф — ассет `assets/icons/book.png`.
+  Widget _bookFab(Palette p) {
+    return Tooltip(
+      message: tr('Оглавление', 'Contents'),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: _quickNav,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: p.card,
+              border: Border.all(color: p.edge),
+            ),
+            child: Center(
+              child: Image.asset(
+                'assets/icons/book.png',
+                width: 26,
+                color: p.ink,
+                colorBlendMode: BlendMode.srcIn,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -211,10 +272,9 @@ extension _ReaderChrome on _ReadingScreenState {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Название книги короткое (~12 знаков + …) — длинные
-                  // имена не выталкивают поисковую пилюлю за экран.
-                  // Flexible loose: заголовок может сжаться до нуля,
-                  // пилюля при этом всегда целиком на экране.
+                  // Полное название книги + глава; под ним мелко —
+                  // перевод и режим. Flexible loose: при реальном
+                  // переполнении текст режется ellipsis.
                   Flexible(
                     // Тап по «Книга Гл. ▾» — быстрый переход
                     // книга → глава (ADR 0015).
@@ -222,25 +282,63 @@ extension _ReaderChrome on _ReadingScreenState {
                       borderRadius: BorderRadius.circular(8),
                       onTap: _quickNav,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Column(
                           mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              child: Text(
-                                '${_titleCapped()} $_ch',
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${pane._titleCapped()} ${pane._ch}',
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Icon(
+                                  Icons.expand_more,
+                                  size: 16,
+                                  color: p.muted,
+                                ),
+                              ],
                             ),
-                            Icon(
-                              Icons.expand_more,
-                              size: 16,
-                              color: p.muted,
+                            Text.rich(
+                              // Перевод — нейтральные чернила,
+                              // режим — акцент: состояние видно
+                              // сразу и перекликается с очками.
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: '${moduleName(pane._moduleId)} · ',
+                                    style: TextStyle(
+                                      color: p.ink.withValues(alpha: 0.7),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text:
+                                        settings.readerMode == ReaderMode.study
+                                        ? tr('Изучение', 'Study')
+                                        : tr('Чтение', 'Reading'),
+                                    style: TextStyle(
+                                      color: p.accent,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                letterSpacing: 0.3,
+                              ),
                             ),
                           ],
                         ),
@@ -251,12 +349,12 @@ extension _ReaderChrome on _ReadingScreenState {
                     IconButton(
                       tooltip: tr('Предыдущая глава', 'Previous chapter'),
                       icon: Icon(Icons.chevron_left, color: p.muted),
-                      onPressed: () => _go(-1),
+                      onPressed: () => pane._go(-1),
                     ),
                     IconButton(
                       tooltip: tr('Следующая глава', 'Next chapter'),
                       icon: Icon(Icons.chevron_right, color: p.muted),
-                      onPressed: () => _go(1),
+                      onPressed: () => pane._go(1),
                     ),
                     Expanded(
                       child: Align(
@@ -266,18 +364,11 @@ extension _ReaderChrome on _ReadingScreenState {
                           reverse: true,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _modeSwitch(p),
-                              const SizedBox(width: 6),
-                              ..._toolActions(p),
-                            ],
+                            children: _toolActions(p),
                           ),
                         ),
                       ),
                     ),
-                  ] else ...[
-                    const Spacer(),
-                    _modeSwitch(p),
                   ],
                 ],
               ),
@@ -291,52 +382,46 @@ extension _ReaderChrome on _ReadingScreenState {
   /// Плавающее поле поиска над нижней панелью (мобильная раскладка):
   /// не закрывает экран, клавиатура поднимается поверх. Enter или
   /// кнопка-стрелка — переход на экран результатов с запросом.
+  /// Позицию (Positioned) задаёт место вызова; видимость ведёт
+  /// нотифаер [_searchOpenN] (ADR 0030).
   Widget _searchField(Palette p) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    return Positioned(
-      left: 12,
-      right: 12,
-      // Над нижней панелью (инсет + высота кнопок ~66) и над
-      // мини-плеером TTS, если он есть.
-      bottom: bottomInset + 66 + (_ttsPlaying ? 64 : 0),
-      child: Material(
-        color: p.card,
-        elevation: 6,
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          child: Row(
-            children: [
-              Icon(Icons.search, size: 18, color: p.muted),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _searchCtrl,
-                  focusNode: _searchFocus,
-                  autofocus: true,
-                  textInputAction: TextInputAction.search,
-                  style: TextStyle(fontSize: 14, color: p.ink),
-                  decoration: InputDecoration(
-                    hintText: tr('Поиск по тексту', 'Search the text'),
-                    hintStyle: TextStyle(color: p.muted),
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
-                  onSubmitted: (_) => _openSearch(),
+    return Material(
+      color: p.card,
+      elevation: 6,
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        child: Row(
+          children: [
+            Icon(Icons.search, size: 18, color: p.muted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                focusNode: _searchFocus,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                style: TextStyle(fontSize: 14, color: p.ink),
+                decoration: InputDecoration(
+                  hintText: tr('Поиск по тексту', 'Search the text'),
+                  hintStyle: TextStyle(color: p.muted),
+                  border: InputBorder.none,
+                  isDense: true,
                 ),
+                onSubmitted: (_) => _openSearch(),
               ),
-              IconButton(
-                icon: Icon(Icons.close, size: 18, color: p.muted),
-                tooltip: tr('Закрыть', 'Close'),
-                onPressed: () => _rebuild(() => _searchOpen = false),
-              ),
-              IconButton(
-                icon: Icon(Icons.arrow_forward, size: 18, color: p.accent),
-                tooltip: tr('Искать', 'Search'),
-                onPressed: _openSearch,
-              ),
-            ],
-          ),
+            ),
+            IconButton(
+              icon: Icon(Icons.close, size: 18, color: p.muted),
+              tooltip: tr('Закрыть', 'Close'),
+              onPressed: () => _searchOpenN.value = false,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_forward, size: 18, color: p.accent),
+              tooltip: tr('Искать', 'Search'),
+              onPressed: _openSearch,
+            ),
+          ],
         ),
       ),
     );
@@ -344,9 +429,10 @@ extension _ReaderChrome on _ReadingScreenState {
 
   void _openSearch() {
     final q = _searchCtrl.text.trim();
-    _rebuild(() => _searchOpen = false);
+    _searchOpenN.value = false;
     _openScreen('search', {
-      'module': _moduleId,
+      'module': pane._moduleId,
+      'book': pane._code,
       if (q.isNotEmpty) 'q': q,
     });
   }
@@ -354,14 +440,14 @@ extension _ReaderChrome on _ReadingScreenState {
   /// Полоса прокрутки главы (была в AppBar).
   Widget _scrollProgress(Color color) {
     return ListenableBuilder(
-      listenable: _scroll,
+      listenable: pane._scroll,
       builder: (_, _) {
         final ready =
-            _scroll.hasClients &&
-            _scroll.positions.length == 1 &&
-            _scroll.position.hasContentDimensions;
-        final max = ready ? _scroll.position.maxScrollExtent : 0.0;
-        final off = ready ? _scroll.position.pixels : 0.0;
+            pane._scroll.hasClients &&
+            pane._scroll.positions.length == 1 &&
+            pane._scroll.position.hasContentDimensions;
+        final max = ready ? pane._scroll.position.maxScrollExtent : 0.0;
+        final off = ready ? pane._scroll.position.pixels : 0.0;
         return LinearProgressIndicator(
           value: max > 0 ? (off / max).clamp(0.0, 1.0) : 0.0,
           minHeight: 2,
@@ -431,7 +517,7 @@ extension _ReaderChrome on _ReadingScreenState {
               btn(
                 Icons.layers_outlined,
                 tr('Слои', 'Layers'),
-                _compare || _interleaved,
+                pane._compare || pane._interleaved,
                 _layersSheet,
               ),
               btn(
@@ -442,25 +528,20 @@ extension _ReaderChrome on _ReadingScreenState {
                 _ttsPlaying,
                 () => _toggleTts(),
               ),
-              btn(
-                Icons.search,
-                tr('Поиск', 'Search'),
-                _searchOpen,
-                () {
-                  _rebuild(() {
-                    _searchOpen = !_searchOpen;
-                    if (!_searchOpen) _searchCtrl.clear();
-                  });
-                  // Поле вставлено в этот же кадр — autofocus на
-                  // Android часто не поднимает клавиатуру; просим
-                  // фокус явно, когда виджет уже на дереве.
-                  if (_searchOpen) {
-                    WidgetsBinding.instance.addPostFrameCallback(
-                      (_) => _searchFocus.requestFocus(),
-                    );
-                  }
-                },
-              ),
+              btn(Icons.search, tr('Поиск', 'Search'), _searchOpen, () {
+                // Хром на нотифаере (ADR 0030): текст главы не
+                // перестраивается.
+                _searchOpenN.value = !_searchOpenN.value;
+                if (!_searchOpenN.value) _searchCtrl.clear();
+                // Поле вставлено в этот же кадр — autofocus на
+                // Android часто не поднимает клавиатуру; просим
+                // фокус явно, когда виджет уже на дереве.
+                if (_searchOpenN.value) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _searchFocus.requestFocus(),
+                  );
+                }
+              }),
               btn(Icons.more_horiz, tr('Ещё', 'More'), false, _moreSheet),
             ],
           ),
@@ -481,24 +562,25 @@ extension _ReaderChrome on _ReadingScreenState {
             for (final e in installedModules.entries)
               ListTile(
                 dense: true,
-                leading: e.key == _moduleId
+                leading: e.key == pane._moduleId
                     ? Icon(Icons.check, size: 18, color: p.accent)
                     : const SizedBox(width: 18),
                 title: Text(e.value),
                 onTap: () {
                   Navigator.of(context).pop();
                   _stopTts();
-                  _rebuild(() => _moduleId = e.key);
-                  _load(e.key);
-                  _loadVerseEntries();
-                  history.touch(e.key, _code, _ch);
+                  pane._moduleId = e.key;
+                  pane.rebuild();
+                  pane._load(e.key);
+                  pane._loadVerseEntries();
+                  history.touch(e.key, pane._code, pane._ch);
                   workspace.go(
                     Location.verse(
                       moduleId: e.key,
-                      book: _code,
-                      chapter: _ch,
-                      verse: _selectedVerse ?? 0,
-                      pane: _paneSnapshot(),
+                      book: pane._code,
+                      chapter: pane._ch,
+                      verse: pane._selectedVerse ?? 0,
+                      pane: pane._paneSnapshot(),
                     ),
                   );
                 },
@@ -551,18 +633,22 @@ extension _ReaderChrome on _ReadingScreenState {
                 ),
                 sw(
                   tr('Подстрочное сравнение', 'Interleaved compare'),
-                  tr('Второй перевод под каждым стихом', 'Second line per verse'),
-                  _interleaved,
-                  (v) => _rebuild(() {
-                    _interleaved = v;
+                  tr(
+                    'Второй перевод под каждым стихом',
+                    'Second line per verse',
+                  ),
+                  pane._interleaved,
+                  (v) {
+                    pane._interleaved = v;
                     if (v) {
-                      _compare = false;
-                      _initCompareModules();
+                      pane._compare = false;
+                      pane._initCompareModules();
                     }
-                    workspace.updateSnapshot(_paneSnapshot());
-                  }),
+                    workspace.updateSnapshot(pane._paneSnapshot());
+                    pane.rebuild();
+                  },
                 ),
-                if (_interleaved)
+                if (pane._interleaved)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -573,11 +659,11 @@ extension _ReaderChrome on _ReadingScreenState {
                           style: TextStyle(fontSize: 13, color: p.muted),
                         ),
                         const SizedBox(height: 6),
-                        _interleavedPicker(p),
+                        pane._interleavedPicker(context, p),
                       ],
                     ),
                   )
-                else if (_compare)
+                else if (pane._compare)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -587,7 +673,7 @@ extension _ReaderChrome on _ReadingScreenState {
                           style: TextStyle(fontSize: 13, color: p.muted),
                         ),
                         const SizedBox(width: 12),
-                        _comparePicker(p),
+                        pane._comparePicker(p),
                       ],
                     ),
                   ),
@@ -595,10 +681,11 @@ extension _ReaderChrome on _ReadingScreenState {
                 // Слои-флаги перебираются из реестра вкладов (ADR 0020):
                 // порядок и фильтр requires — у реестра, состояние — у
                 // настроек. `layer.compare` обработан выше отдельно.
-                for (final c in contributions
-                    .ofKind(ContributionKind.layer)
-                    .where((c) => c.id != 'layer.compare'))
-                  if (c.availableFor(_module))
+                for (final c
+                    in contributions
+                        .ofKind(ContributionKind.layer)
+                        .where((c) => c.id != 'layer.compare'))
+                  if (c.availableFor(pane._module))
                     sw(c.title, c.subtitle, _layerFlag(c.id), (v) {
                       settings.update(() => _setLayerFlag(c.id, v));
                       setSheet(() {});
@@ -612,6 +699,25 @@ extension _ReaderChrome on _ReadingScreenState {
                     ),
                     style: TextStyle(fontSize: 12, color: p.muted),
                   ),
+                ),
+                const Divider(),
+                // Раскладка рабочего места (B10 этап 2): на узком
+                // экране кнопки в верхней панели нет — пункт здесь.
+                ListTile(
+                  dense: true,
+                  leading: Icon(
+                    Icons.dashboard_customize,
+                    size: 20,
+                    color: p.muted,
+                  ),
+                  title: Text(
+                    tr('Раскладка', 'Layout'),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _presetSheet();
+                  },
                 ),
               ],
             ),
@@ -705,6 +811,62 @@ extension _ReaderChrome on _ReadingScreenState {
     );
   }
 
+  /// Лист «Раскладка» (B10 этап 2): пресеты рабочего места «Чтение/
+  /// Сравнение/Места» с одной строкой описания; выбор применяет
+  /// пресет ([_applyPreset]). Открывается кнопкой верхней панели
+  /// (десктоп) и пунктом листа «Слои» (узкий экран).
+  void _presetSheet() {
+    final p = context.palette;
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                tr('Раскладка', 'Layout'),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: p.ink,
+                ),
+              ),
+            ),
+            for (final preset in kWorkspacePresets)
+              ListTile(
+                dense: true,
+                leading: _activePresetId == preset.id
+                    ? Icon(Icons.check, size: 18, color: p.accent)
+                    : const SizedBox(width: 18),
+                title: Text(tr(preset.nameRu, preset.nameEn)),
+                subtitle: Text(
+                  _presetHint(preset.id),
+                  style: TextStyle(fontSize: 12, color: p.muted),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _applyPreset(preset.id);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Одна строка описания пресета раскладки.
+  String _presetHint(String id) => switch (id) {
+    'reading' => tr('Одна панель во всю ширину', 'One full-width pane'),
+    'comparing' => tr(
+      'Две панели рядом, листаются вместе',
+      'Two panes side by side, in sync',
+    ),
+    'places' => tr('Две независимые панели', 'Two independent panes'),
+    _ => '',
+  };
+
   /// Выбор вёрстки главы — из меню «Ещё».
   void _layoutSheet() {
     final p = context.palette;
@@ -739,7 +901,7 @@ extension _ReaderChrome on _ReadingScreenState {
   /// Быстрый переход по тапу на заголовок: книга → глава (ADR 0015).
   void _quickNav() {
     final p = context.palette;
-    final books = _module?.books ?? const <BookDoc>[];
+    final books = pane._module?.books ?? const <BookDoc>[];
     String? sel;
     showModalBottomSheet(
       context: context,
@@ -753,7 +915,9 @@ extension _ReaderChrome on _ReadingScreenState {
                     builder: (_) {
                       // Разделы как в каталоге: ВЗ → НЗ → прочие
                       // (книги модуля вне канона-66, напр. LXX).
-                      final ot = <BookDoc>[], nt = <BookDoc>[], ex = <BookDoc>[];
+                      final ot = <BookDoc>[],
+                          nt = <BookDoc>[],
+                          ex = <BookDoc>[];
                       for (final b in books) {
                         final idx = kCatalog.indexWhere((e) => e.$1 == b.code);
                         if (idx < 0) {
@@ -774,9 +938,7 @@ extension _ReaderChrome on _ReadingScreenState {
                           ])
                             if (list.isNotEmpty) ...[
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  2, 4, 2, 8,
-                                ),
+                                padding: const EdgeInsets.fromLTRB(2, 4, 2, 8),
                                 child: Text(
                                   label,
                                   style: TextStyle(
@@ -824,7 +986,7 @@ extension _ReaderChrome on _ReadingScreenState {
                           ),
                           Expanded(
                             child: Text(
-                              _titleOf(sel!),
+                              pane._titleOf(sel!),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
@@ -837,17 +999,20 @@ extension _ReaderChrome on _ReadingScreenState {
                         child: GridView.count(
                           // Плотнее: клетка главы ~вдвое меньше
                           // (десктоп 12, телефон 8 в строке).
-                          crossAxisCount:
-                              MediaQuery.of(ctx).size.width >= 700 ? 12 : 8,
+                          crossAxisCount: MediaQuery.of(ctx).size.width >= 700
+                              ? 12
+                              : 8,
                           childAspectRatio: 1.2,
                           padding: const EdgeInsets.all(12),
                           children: [
-                            for (var i = 1;
-                                i <=
-                                    (books
-                                        .firstWhere((b) => b.code == sel)
-                                        .chapters);
-                                i++)
+                            for (
+                              var i = 1;
+                              i <=
+                                  (books
+                                      .firstWhere((b) => b.code == sel)
+                                      .chapters);
+                              i++
+                            )
                               InkWell(
                                 borderRadius: BorderRadius.circular(8),
                                 onTap: () {
@@ -856,7 +1021,7 @@ extension _ReaderChrome on _ReadingScreenState {
                                 },
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: sel == _code && i == _ch
+                                    color: sel == pane._code && i == pane._ch
                                         ? p.accent.withValues(alpha: 0.16)
                                         : null,
                                     borderRadius: BorderRadius.circular(8),
@@ -866,10 +1031,11 @@ extension _ReaderChrome on _ReadingScreenState {
                                   child: Text(
                                     '$i',
                                     style: TextStyle(
-                                      fontWeight: sel == _code && i == _ch
+                                      fontWeight:
+                                          sel == pane._code && i == pane._ch
                                           ? FontWeight.w700
                                           : FontWeight.w400,
-                                      color: sel == _code && i == _ch
+                                      color: sel == pane._code && i == pane._ch
                                           ? p.accent
                                           : p.ink,
                                     ),
@@ -895,7 +1061,7 @@ extension _ReaderChrome on _ReadingScreenState {
         .map((e) => e.$3)
         .firstOrNull;
     final theme = appThemeOf(context);
-    final cur = b.code == _code;
+    final cur = b.code == pane._code;
     return Material(
       color: group != null ? groupColor(group, theme) : p.card,
       borderRadius: BorderRadius.circular(8),
@@ -931,10 +1097,10 @@ extension _ReaderChrome on _ReadingScreenState {
   /// как и свайп (ADR 0019).
   void _jumpTo(String code, int ch) {
     final loc = Location.verse(
-      moduleId: _moduleId,
+      moduleId: pane._moduleId,
       book: code,
       chapter: ch,
-      pane: _paneSnapshot(),
+      pane: pane._paneSnapshot(),
     );
     workspace.go(loc);
     _applyLocation(loc);
@@ -947,10 +1113,7 @@ extension _ReaderChrome on _ReadingScreenState {
       children: [
         SizedBox(
           width: 96,
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 12, color: p.muted),
-          ),
+          child: Text(label, style: TextStyle(fontSize: 12, color: p.muted)),
         ),
         Expanded(
           child: Slider(
@@ -1028,8 +1191,7 @@ extension _ReaderChrome on _ReadingScreenState {
                     expandedInsets: EdgeInsets.zero,
                     textStyle: const TextStyle(fontSize: 13),
                     onSelected: (f) async {
-                      if (f != null &&
-                          await ensureReadingFontLoaded(f)) {
+                      if (f != null && await ensureReadingFontLoaded(f)) {
                         settings.update(() => settings.readingFont = f);
                       }
                     },
@@ -1148,32 +1310,36 @@ extension _ReaderChrome on _ReadingScreenState {
   Future<void> _bookmarkChapter() async {
     await bridgeEntryAdd(
       kind: 'mark',
-      module: _moduleId,
-      book: _code,
-      chapter: _ch,
+      module: pane._moduleId,
+      book: pane._code,
+      chapter: pane._ch,
       verse: 0,
       text: '',
-      context: '${_titleOf(_code)} $_ch',
+      context: '${pane._titleOf(pane._code)} ${pane._ch}',
+    );
+    // Мутация извещает шину (B8): закладка главы — тоже запись.
+    userDataBus.changed(
+      module: pane._moduleId,
+      book: pane._code,
+      chapter: pane._ch,
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(tr('Закладка добавлена', 'Bookmark added')),
-        ),
+        SnackBar(content: Text(tr('Закладка добавлена', 'Bookmark added'))),
       );
     }
   }
 
   /// Плоский текст главы в буфер обмена.
   Future<void> _copyChapter() async {
-    final ch = _module?.chapter(_code, _ch);
+    final ch = pane._module?.chapter(pane._code, pane._ch);
     if (ch == null) return;
-    final verses = _plainVerses(ch);
-    final buf = StringBuffer('${_titleOf(_code)} $_ch\n\n');
+    final verses = pane._plainVerses(ch);
+    final buf = StringBuffer('${pane._titleOf(pane._code)} ${pane._ch}\n\n');
     for (final e in verses.entries) {
       buf.writeln('${e.key} ${e.value}');
     }
-    buf.write('(${moduleName(_moduleId)})');
+    buf.write('(${moduleName(pane._moduleId)})');
     await Clipboard.setData(ClipboardData(text: buf.toString()));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1185,12 +1351,11 @@ extension _ReaderChrome on _ReadingScreenState {
   /// Мини-плеер чтения вслух: «стих N», ‹ › перемотка по стихам,
   /// пауза/продолжить, стоп и ползунок прогресса по стихам главы
   /// (перетаскиваемый). Та же «стеклянная» заливка, что у
-  /// верхней и нижней панелей.
+  /// верхней и нижней панелей. Драг ползунка ведётся нотифаером
+  /// [_ttsDragN]: перестраивается только плеер, не весь экран
+  /// (ADR 0030).
   Widget _ttsPlayer(Palette p) {
     final len = _ttsList.length;
-    // Пока ползунок тащат — показываем стих под пальцем.
-    final shown = len == 0 ? 0 : (_ttsDrag ?? _ttsIndex).clamp(0, len - 1);
-    final v = len == 0 ? _ttsVerse : _ttsList[shown].key;
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
       child: BackdropFilter(
@@ -1205,79 +1370,93 @@ extension _ReaderChrome on _ReadingScreenState {
             border: Border.all(color: _ReadingScreenState._glassRim(p)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 46,
-                child: Row(
-                  children: [
-                    IconButton(
-                      tooltip: tr('Предыдущий стих', 'Previous verse'),
-                      icon: Icon(Icons.skip_previous, color: p.muted),
-                      onPressed: _ttsIndex > 0 ? () => _seekTts(-1) : null,
-                    ),
-                    IconButton(
-                      tooltip: _ttsPaused
-                          ? tr('Продолжить', 'Resume')
-                          : tr('Пауза', 'Pause'),
-                      icon: Icon(
-                        _ttsPaused ? Icons.play_arrow : Icons.pause,
-                        color: p.accent,
-                        size: 28,
-                      ),
-                      onPressed: _ttsPaused ? _resumeTts : _pauseTts,
-                    ),
-                    IconButton(
-                      tooltip: tr('Следующий стих', 'Next verse'),
-                      icon: Icon(Icons.skip_next, color: p.muted),
-                      onPressed: _ttsIndex < len - 1 ? () => _seekTts(1) : null,
-                    ),
-                    Expanded(
-                      child: Text(
-                        v == null
-                            ? ''
-                            : tr('стих $v', 'verse $v') + _ttsBackendTag(),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: p.muted),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: tr('Стоп', 'Stop'),
-                      icon: Icon(Icons.stop, color: p.jesus),
-                      onPressed: _stopTts,
-                    ),
-                  ],
-                ),
-              ),
-              if (len > 1)
-                SizedBox(
-                  height: 18,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 7,
-                      ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 14,
-                      ),
-                    ),
-                    child: Slider(
-                      value: shown.toDouble(),
-                      max: (len - 1).toDouble(),
-                      onChanged: (x) => _rebuild(() => _ttsDrag = x.round()),
-                      onChangeEnd: (x) {
-                        final i = x.round();
-                        _ttsDrag = null;
-                        _slideTts(i);
-                      },
+          child: ValueListenableBuilder<int?>(
+            valueListenable: _ttsDragN,
+            builder: (_, drag, _) {
+              // Пока ползунок тащат — показываем стих под пальцем.
+              final shown = len == 0
+                  ? 0
+                  : (drag ?? _ttsIndex).clamp(0, len - 1);
+              final v = len == 0 ? _ttsVerse : _ttsList[shown].key;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 46,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          tooltip: tr('Предыдущий стих', 'Previous verse'),
+                          icon: Icon(Icons.skip_previous, color: p.muted),
+                          onPressed: _ttsIndex > 0 ? () => _seekTts(-1) : null,
+                        ),
+                        IconButton(
+                          tooltip: _ttsPaused
+                              ? tr('Продолжить', 'Resume')
+                              : tr('Пауза', 'Pause'),
+                          icon: Icon(
+                            _ttsPaused ? Icons.play_arrow : Icons.pause,
+                            color: p.accent,
+                            size: 28,
+                          ),
+                          onPressed: _ttsPaused ? _resumeTts : _pauseTts,
+                        ),
+                        IconButton(
+                          tooltip: tr('Следующий стих', 'Next verse'),
+                          icon: Icon(Icons.skip_next, color: p.muted),
+                          onPressed: _ttsIndex < len - 1
+                              ? () => _seekTts(1)
+                              : null,
+                        ),
+                        Expanded(
+                          child: Text(
+                            v == null
+                                ? ''
+                                : tr('стих $v', 'verse $v') + _ttsBackendTag(),
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13, color: p.muted),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: tr('Стоп', 'Stop'),
+                          icon: Icon(Icons.stop, color: p.jesus),
+                          onPressed: _stopTts,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              const SizedBox(height: 4),
-            ],
+                  if (len > 1)
+                    SizedBox(
+                      height: 18,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 7,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 14,
+                          ),
+                        ),
+                        child: Slider(
+                          value: shown.toDouble(),
+                          max: (len - 1).toDouble(),
+                          // Во время драга — только нотифаер: экран
+                          // и текст главы не перестраиваются.
+                          onChanged: (x) => _ttsDragN.value = x.round(),
+                          onChangeEnd: (x) {
+                            final i = x.round();
+                            _ttsDragN.value = null;
+                            _slideTts(i);
+                          },
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -1291,20 +1470,73 @@ extension _ReaderChrome on _ReadingScreenState {
     _ => tr(' · сист.', ' · sys'),
   };
 
-  /// Единый отступ контента под плавающей верхней панелью:
-  /// строка состояния + прогресс (2) + ряд кнопок (~48) + зазор.
-  double _topClear() => MediaQuery.of(context).padding.top + 56;
+  /// Тап по стиху: панель действий + на десктопе сразу боковая панель
+  /// сносок. Двойной тап по тому же стиху — режим сравнения переводов.
+  /// Осталась на экране (B10 этап 1): панель сносок — хром на нотифаере,
+  /// меню действий — экранное; в спаны приходит хуком onSelectVerse.
+  /// [chCtx] — глава, в которой тапнули (режим «книга»: лента охватывает
+  /// всю книгу, и _ch переключается на главу тапнутого стиха).
+  void _selectVerse(int v, [int? chCtx]) {
+    if (chCtx != null && chCtx != pane._ch) {
+      pane._ch = chCtx;
+      pane._loadVerseEntries();
+    }
+    final ch = pane._module?.chapter(pane._code, pane._ch);
+    final wide = MediaQuery.of(context).size.width >= 700;
+    progress.setVerse(pane._code, pane._ch, v);
+    pane._selectedVerse = v;
+    pane.rebuild();
+    // Панель сносок — свой нотифаер (ADR 0030): открытие не
+    // пересобирает текст главы.
+    if (wide && ch != null && pane._notesOf(ch).isNotEmpty) {
+      _notesOpenN.value = true;
+    }
+    // Меню действий стиха — у места тапа, в следующем кадре
+    // (иначе позиция ещё не проставлена onTapDown).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && pane._selectedVerse == v) _verseMenu(v);
+    });
+  }
 
-  /// Отступ контента над нижней панелью кнопок (узкий экран).
-  double _bottomClear() => MediaQuery.of(context).padding.bottom + 62;
+  /// Боковая панель сносок: на десктопе — панель на нотифаере экрана,
+  /// на телефоне — шторка. Осталась на экране (B10 этап 1): владелец
+  /// панели — хром; записи главы читает у контроллера.
+  void _openNotes() {
+    final ch = pane._module?.chapter(pane._code, pane._ch);
+    if (ch == null) return;
+    final notes = pane._notesOf(ch);
+    final wide = MediaQuery.of(context).size.width >= 700;
+    if (wide) {
+      _notesOpenN.value = !_notesOpenN.value;
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: notes.length > 1 ? 0.6 : 0.3,
+          builder: (_, c) => NotesSheet(
+            notes: notes,
+            selectedVerse: pane._selectedVerse,
+            controller: c,
+            onRef: pane._goToRef,
+            variants: ch.variants,
+            openModule: pane._moduleId,
+            fromVrs: pane._module?.versification ?? '',
+            onOpenModule: pane._goToRefModule,
+            panelLoader: pane._panelLoader(pane._ch),
+            metaLoader: pane._metaLoader(pane._ch),
+          ),
+        ),
+      );
+    }
+  }
 
   /// Всплывающее меню действий стиха — у места тапа (_lastTapPos).
   /// Порядок: выделить, заметка, закладка, теги, сравнить (5-й),
-  /// параллельные, копировать, поделиться.
+  /// копировать, поделиться.
   Future<void> _verseMenu(int v) async {
     final p = context.palette;
-    final chNow = _module?.chapter(_code, _ch);
-    final hasNotes = chNow != null && _notesOf(chNow).any((n) => n.verse == v);
 
     PopupMenuItem<String> mi(String id, IconData i, String l) =>
         PopupMenuItem<String>(
@@ -1319,9 +1551,8 @@ extension _ReaderChrome on _ReadingScreenState {
           ),
         );
 
-    final pos = _lastTapPos;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final pos = pane._lastTapPos;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final choice = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(
@@ -1345,26 +1576,26 @@ extension _ReaderChrome on _ReadingScreenState {
         mi('copy', Icons.copy_outlined, tr('Копировать', 'Copy')),
         mi(
           'hl',
-          _highlights.containsKey(v)
+          pane._highlights.containsKey(v)
               ? Icons.highlight
               : Icons.highlight_outlined,
           tr('Выделить', 'Highlight'),
         ),
         mi(
           'note',
-          _verseNotes.containsKey(v)
+          pane._verseNotes.containsKey(v)
               ? Icons.sticky_note_2
               : Icons.edit_outlined,
           tr('Заметка', 'Note'),
         ),
         mi(
           'tags',
-          _tagEntries.containsKey(v) ? Icons.label : Icons.label_outline,
+          pane._tagEntries.containsKey(v) ? Icons.label : Icons.label_outline,
           tr('Теги', 'Tags'),
         ),
         mi(
           'mark',
-          _verseMarks.containsKey(v)
+          pane._verseMarks.containsKey(v)
               ? Icons.bookmark
               : Icons.bookmark_outline,
           tr('Закладка', 'Bookmark'),
@@ -1372,40 +1603,39 @@ extension _ReaderChrome on _ReadingScreenState {
         // «Сравнить» — стих во всех переводах (экран; список
         // переводов — в настройках).
         mi('cmp', Icons.compare_arrows, tr('Сравнить', 'Compare')),
-        if (hasNotes)
-          mi(
-            'refs',
-            Icons.library_books_outlined,
-            tr('Параллельные', 'Cross-refs'),
-          ),
+        // «Параллельные» (карточка стиха, xref-слой) в этой сборке
+        // отключены — слой не финализирован (см. dev).
         mi('share', Icons.share_outlined, tr('Поделиться', 'Share')),
       ],
     );
+    // Экран мог разобраться за время открытого меню: дальше и диалоги
+    // с контекстом, и pane.rebuild() — размонтированному экрану делать
+    // нечего (раньше гасился только пункт «Сравнить»).
+    if (!mounted) return;
     switch (choice) {
       case 'hl':
-        _chooseHighlight(v);
+        pane._chooseHighlight(context, v);
       case 'note':
-        _editNote(v);
+        pane._editNote(context, v);
       case 'mark':
-        _toggleMark(v);
+        pane._toggleMark(v);
       case 'tags':
-        _editTags(v);
+        pane._editTags(context, v);
       case 'cmp':
         if (!mounted) return;
         _openScreen('compare', {
-          'book': _code,
-          'ch': _ch,
+          'book': pane._code,
+          'ch': pane._ch,
           'v': v,
-          'vrs': _module?.versification ?? '',
+          'vrs': pane._module?.versification ?? '',
         });
-      case 'refs':
-        _openNotes();
       case 'copy':
-        _copyVerse(v);
+        pane._copyVerse(context, v);
       case 'share':
-        _shareVerse(v);
+        pane._shareVerse(context, v);
       case null:
-        _rebuild(() => _selectedVerse = null); // тап мимо — снять выбор
+        pane._selectedVerse = null; // тап мимо — снять выбор
+        pane.rebuild();
     }
   }
 }

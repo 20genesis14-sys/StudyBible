@@ -1,6 +1,7 @@
 ﻿# Скачивает внешние тексты из data/sources.json в каталог данных вне репозитория
 # и сверяет SHA-256. -Pin закрепляет хэши в sources.json (первый раз или при обновлении источника).
-param([switch]$Pin)
+# -Only <id,...> — обработать только перечисленные источники.
+param([switch]$Pin, [string[]]$Only)
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -10,10 +11,42 @@ $srcDir = Join-Path $dataDir 'sources'
 New-Item -ItemType Directory -Force $srcDir | Out-Null
 
 $manifest = Get-Content -Raw -Encoding UTF8 $manifestPath | ConvertFrom-Json
+if ($Only) {
+    # через -File список "a,b" приходит одной строкой — разбираем вручную
+    $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+    $unknown = @($Only | Where-Object { $_ -notin @($manifest.sources.id) })
+    if ($unknown) { throw "неизвестный id в -Only: $($unknown -join ', ')" }
+}
 $failed = $false
 
 foreach ($s in $manifest.sources) {
-    $zip = Join-Path $srcDir "$($s.id).zip"
+    if ($Only -and $s.id -notin $Only) { continue }
+    # "dest": подкаталог в sources/ (напр. strongs/stepbible); по умолчанию — id.
+    $sub = if ($s.dest) { $s.dest } else { $s.id }
+    # "files": набор отдельных файлов вместо zip (напр. файлы репозитория GitHub по путям).
+    if ($s.files) {
+        $entryOk = $true
+        foreach ($f in $s.files) {
+            $target = Join-Path $srcDir (Join-Path $sub $f.path)
+            New-Item -ItemType Directory -Force (Split-Path -Parent $target) | Out-Null
+            if (-not (Test-Path $target) -or $Pin) {
+                Write-Host "==> download $($s.id)/$($f.path)"
+                Invoke-WebRequest -UseBasicParsing $f.url -OutFile $target
+            }
+            $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($Pin) {
+                $f.sha256 = $hash
+            } elseif ($f.sha256 -ne $hash) {
+                Write-Host "SHA-256 mismatch: $($s.id)/$($f.path) expected '$($f.sha256)' got '$hash'" -ForegroundColor Red
+                $entryOk = $false
+            }
+        }
+        if (-not $entryOk) { $failed = $true; continue }
+        Write-Host "ok  $($s.id) $(@($s.files).Count) files"
+        continue
+    }
+    $zip = Join-Path $srcDir "$sub.zip"
+    New-Item -ItemType Directory -Force (Split-Path -Parent $zip) | Out-Null
     if (-not (Test-Path $zip) -or $Pin) {
         Write-Host "==> download $($s.id)"
         Invoke-WebRequest -UseBasicParsing $s.url -OutFile $zip
@@ -26,7 +59,7 @@ foreach ($s in $manifest.sources) {
         $failed = $true
         continue
     }
-    $dest = Join-Path $srcDir $s.id
+    $dest = Join-Path $srcDir $sub
     if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
     Expand-Archive -Path $zip -DestinationPath $dest
     # "flatten": true — архив содержит единственную папку-обёртку
@@ -40,7 +73,7 @@ foreach ($s in $manifest.sources) {
     }
     # "remove": список файлов внутри распаковки, не являющихся входом
     # конвертера (напр. VerseMap.xml у OSHB — это не OSIS-текст).
-    foreach ($junk in @($s.remove)) {
+    foreach ($junk in @($s.remove | Where-Object { $_ })) {
         $p = Join-Path $dest $junk
         if (Test-Path $p) { Remove-Item -Force $p }
     }
@@ -48,7 +81,7 @@ foreach ($s in $manifest.sources) {
 }
 
 if ($Pin) {
-    $json = $manifest | ConvertTo-Json -Depth 5
+    $json = $manifest | ConvertTo-Json -Depth 8
     [IO.File]::WriteAllText($manifestPath, $json + "`n", (New-Object Text.UTF8Encoding $false))
     Write-Host "pinned -> $manifestPath"
 }

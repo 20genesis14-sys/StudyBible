@@ -18,6 +18,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
 import 'package:path_provider/path_provider.dart';
 
 import 'frag.dart';
+import 'models.dart';
 import 'native_bridge.dart';
 import 'src/rust/frb_generated.dart';
 import 'src/rust/api/module.dart' as api_module;
@@ -147,14 +148,20 @@ String? _mobileDataDir;
 
 String _modulesDir() => '${dataDir()}${Platform.pathSeparator}modules';
 
+/// Тестовая БД — лениво, один раз на изолят.
+String? _testUserdataPath;
+
 /// Под flutter test (FLUTTER_TEST=true) пользовательская БД уходит
 /// во временный каталог — тесты не трогают реальный userdata.db.
+/// flutter test гоняет файлы в параллельных изолятах — каждому свой
+/// свежий userdata.db (Platform.script у всех одинаковый, поэтому
+/// просто уникальный каталог на изолят). Иначе записи соседнего файла
+/// или прошлого запуска ломают дедуп истории и дефолты настроек.
 String _userdataPath() {
   if (Platform.environment['FLUTTER_TEST'] == 'true') {
-    final d = Directory(
-      '${Directory.systemTemp.path}${Platform.pathSeparator}studybible-test',
-    )..createSync(recursive: true);
-    return '${d.path}${Platform.pathSeparator}userdata.db';
+    return _testUserdataPath ??= '${Directory.systemTemp
+            .createTempSync('studybible-test-')
+            .path}${Platform.pathSeparator}userdata.db';
   }
   return '${dataDir()}${Platform.pathSeparator}userdata.db';
 }
@@ -190,27 +197,35 @@ Future<T?> _guard<T>(String what, Future<T?> Function() f) async {
   }
 }
 
+/// Найти слойный файл в каталоге модулей: первый существующий
+/// `id.sbz`/`.sb` из [ids]; '' — ничего нет.
+String _findLayerFile(List<String> ids) {
+  final dir = _modulesDir();
+  for (final id in ids) {
+    for (final ext in ['sbz', 'sb']) {
+      final f = File('$dir${Platform.pathSeparator}$id.$ext');
+      if (f.existsSync()) return f.path;
+    }
+  }
+  return '';
+}
+
 /// Общий слой параллельных мест (ADR 0023): файл `openbible-xrefs`
-/// в каталоге модулей. Мост подмешивает его ссылки модулям без
-/// собственных `x`-спанов; настройка — `settings.externalXrefs`.
-Future<void> bridgeSetXrefLayer(bool enabled) =>
-    _guard('xrefLayer', () async {
-          var path = '';
-          if (enabled) {
-            final dir = _modulesDir();
-            for (final ext in ['sbz', 'sb']) {
-              final f = File(
-                '$dir${Platform.pathSeparator}openbible-xrefs.$ext',
-              );
-              if (f.existsSync()) {
-                path = f.path;
-                break;
-              }
-            }
-          }
-          await api_module.xrefLayerSet(path: path);
-        })
-        .then((_) {});
+/// в каталоге модулей. Мост
+/// подмешивает его ссылки модулям без собственных `x`-спанов;
+/// настройка — `settings.externalXrefs`.
+Future<void> bridgeSetXrefLayer(bool enabled) => _guard('xrefLayer', () async {
+  final path = enabled
+      ? _findLayerFile(const ['openbible-xrefs'])
+      : '';
+  await api_module.xrefLayerSet(path: path);
+}).then((_) {});
+
+/// Второй ярус ссылок: в этой сборке отключён.
+Future<void> bridgeSetXrefPanel(bool enabled) => _guard('xrefPanel', () async {
+  final path = enabled ? '' : '';
+  await api_module.xrefPanelSet(path: path);
+}).then((_) {});
 
 /// JSON-документ модуля формата export.rs (без глав).
 Future<String?> bridgeModuleDoc(String path) =>
@@ -222,6 +237,101 @@ Future<String?> bridgeChapterDoc(String path, String book, int chapter) =>
       'chapterDoc',
       () => api_module.chapterDoc(path: path, book: book, chapter: chapter),
     );
+
+SpanDoc _spanFromInfo(api_module.SpanDocInfo s) {
+  if (s.kind == 'v') return VerseSpanDoc(s.verse.toInt());
+  if (s.kind == 'f' || s.kind == 'x') {
+    return NoteSpanDoc(
+      kind: s.kind,
+      caller: s.caller,
+      text: s.text,
+      attrs: s.attrs,
+    );
+  }
+  return TextSpanDoc(text: s.text, style: s.style, attrs: s.attrs);
+}
+
+BlockDoc _blockFromInfo(api_module.BlockDocInfo b) => BlockDoc(
+  kind: switch (b.kind) {
+    'q' => BlockKind.poetry,
+    'h' => BlockKind.heading,
+    'd' => BlockKind.superscription,
+    'b' => BlockKind.blank,
+    _ => BlockKind.paragraph,
+  },
+  marker: b.marker,
+  spans: [for (final s in b.spans) _spanFromInfo(s)],
+);
+
+/// Прямая типизированная загрузка главы из `.sb` без JSON-строки.
+Future<ChapterDoc?> bridgeLoadChapterDoc(
+  String path,
+  String book,
+  int chapter,
+) async {
+  final info = await _guard(
+    'chapterDocTyped',
+    () => api_module.chapterDocTyped(path: path, book: book, chapter: chapter),
+  );
+  if (info == null) return null;
+  return ChapterDoc(
+    number: info.number.toInt(),
+    blocks: [for (final b in info.blocks) _blockFromInfo(b)],
+    variants: [
+      for (final v in info.variants)
+        VariantDoc(
+          verse: v.verse.toInt(),
+          tokenFrom: v.tokenFrom.toInt(),
+          tokenTo: v.tokenTo.toInt(),
+          readings: [
+            for (final r in v.readings)
+              ReadingDoc(
+                text: r.text,
+                isBase: r.isBase,
+                witnesses: r.witnesses,
+              ),
+          ],
+        ),
+    ],
+    layerMismatch: info.layerMismatch,
+  );
+}
+
+/// Прямая типизированная загрузка документа модуля из `.sb` без JSON-строки.
+Future<ModuleDoc?> bridgeLoadModuleDoc(String id, String path) async {
+  final info = await _guard(
+    'moduleDocTyped',
+    () => api_module.moduleDocTyped(path: path),
+  );
+  if (info == null) return null;
+  return ModuleDoc(
+    id: info.id.isEmpty ? id : info.id,
+    title: info.title,
+    language: info.language,
+    kind: info.kind.isEmpty ? 'bible' : info.kind,
+    features: info.features,
+    rights: info.rights,
+    versification: info.versification,
+    books: [
+      for (final b in info.books)
+        BookDoc(code: b.code, title: b.title, chapters: b.chapters.toInt()),
+    ],
+    chapters: {},
+    verseCounts: {for (final vc in info.verseCounts) vc.key: vc.count.toInt()},
+    chapterLoader: (code, n) => bridgeChapterDoc(path, code, n),
+    typedChapterLoader: (code, n) => bridgeLoadChapterDoc(path, code, n),
+  );
+}
+
+Future<String?> bridgeSettingsLoad() => _guard(
+  'settingsLoad',
+  () => api_userdata.settingsLoad(path: _userdataPath()),
+);
+
+Future<void> bridgeSettingsSave(String json) => _guard(
+  'settingsSave',
+  () => api_userdata.settingsSave(path: _userdataPath(), json: json),
+);
 
 Future<String?> bridgeProgressLoad() => _guard(
   'progressLoad',
@@ -295,6 +405,26 @@ Future<List<UserEntry>> bridgeEntriesList(String kind, {String? module}) async {
   ];
 }
 
+/// Все живые записи пользователя (`hl`, `note`, `mark`, `tag`) одной главы.
+Future<List<UserEntry>> bridgeEntriesChapter(
+  String module,
+  String book,
+  int chapter,
+) async {
+  final list = await _guard(
+    'entriesChapter',
+    () => api_userdata.entriesChapter(
+      path: _userdataPath(),
+      module: module,
+      book: book,
+      chapter: chapter,
+    ),
+  );
+  return [
+    for (final e in list ?? const <api_userdata.UserEntryInfo>[]) _entry(e),
+  ];
+}
+
 /// Добавить запись к стиху модуля; null — ошибка моста.
 /// [frag] — селектор куска стиха `{exact,pre,post}` (JSON);
 /// [created] — общая метка времени пачки (одно действие на
@@ -337,9 +467,7 @@ Future<List<({int s, int e})>> bridgeFragRanges(
     () async => api_userdata.fragRanges(text: verseText, frag: frag),
   );
   if (pairs == null) return const [];
-  return byteToUtf16(verseText, [
-    for (final n in pairs) n.toInt(),
-  ]);
+  return byteToUtf16(verseText, [for (final n in pairs) n.toInt()]);
 }
 
 Future<bool> bridgeEntryUpdate(String id, String text) async =>
@@ -524,6 +652,67 @@ Future<List<SearchHit>> bridgeModuleSearch(
       ),
   ];
 }
+
+/// Поиск по сноскам/параллельным местам модуля — те же операторы.
+Future<List<SearchHit>> bridgeNotesSearch(
+  String modulePath,
+  String query, {
+  int limit = 50,
+}) async {
+  final hits = await _guard(
+    'moduleNotesSearch',
+    () => api_module.moduleNotesSearch(
+      modulePath: modulePath,
+      cachePath: '$modulePath.idx',
+      query: query,
+      limit: limit,
+    ),
+  );
+  return [
+    for (final h in hits ?? const <api_module.SearchHitInfo>[])
+      SearchHit(
+        book: h.book,
+        chapter: h.chapter.toInt(),
+        verse: h.verse.toInt(),
+        snippet: h.snippet,
+      ),
+  ];
+}
+
+/// Поиск стихов по номеру Стронга (обратная сторона омнибокса):
+/// при валидном слое `{id}-strongs` — по его `links` (совпавшие
+/// слова помечены `[ ]` в сниппете), иначе — по собственной
+/// разметке модуля. `code` — как ввёл пользователь (разбор —
+/// на стороне ядра: добивка нулями и регистр не влияют).
+Future<List<SearchHit>> bridgeModuleStrongSearch(
+  String modulePath,
+  String code, {
+  int offset = 0,
+  int limit = 50,
+}) async {
+  final hits = await _guard(
+    'moduleStrongSearch',
+    () => api_module.moduleStrongSearch(
+      modulePath: modulePath,
+      cachePath: '',
+      code: code,
+      offset: offset,
+      limit: limit,
+    ),
+  );
+  return [
+    for (final h in hits ?? const <api_module.SearchHitInfo>[])
+      SearchHit(
+        book: h.book,
+        chapter: h.chapter.toInt(),
+        verse: h.verse.toInt(),
+        snippet: h.snippet,
+      ),
+  ];
+}
+
+
+
 
 // ---------- автоударения (RUAccent, нейробэкенд; ADR 0017) ----------
 

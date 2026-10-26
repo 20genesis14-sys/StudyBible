@@ -1,7 +1,10 @@
 part of '../screens/reading_screen.dart';
 
-/// Действия экрана чтения с записями пользователя.
-extension _ReaderController on _ReadingScreenState {
+/// Действия панели чтения с записями пользователя. После B10 этап 1
+/// (ADR 0014) методы работают с [ReaderPaneController]; `BuildContext`
+/// у методов с диалогами приходит параметром, вместо `mounted` —
+/// проверка `_alive`.
+extension _ReaderController on ReaderPaneController {
   String _verseText(int v) => _verseRaw(v).trim();
 
   /// Плоский текст стиха без тримма — к нему привязаны смещения
@@ -51,12 +54,13 @@ extension _ReaderController on _ReadingScreenState {
         context: txt.substring(0, txt.length.clamp(0, 40)),
       );
     }
-    await _loadVerseEntries();
+    // Мутация извещает шину (B8): перечитку делает подписчик-ридер.
+    userDataBus.changed(module: _moduleId, book: _code, chapter: _ch);
   }
 
   /// Диалог тегов стиха (kind=tag, text — имена через запятую,
   /// одна запись на стих; пустой список — записи нет).
-  Future<void> _editTags(int v) async {
+  Future<void> _editTags(BuildContext context, int v) async {
     final existing = _tagEntries[v];
     final text = await showDialog<String>(
       context: context,
@@ -86,7 +90,8 @@ extension _ReaderController on _ReadingScreenState {
         context: txt.substring(0, txt.length.clamp(0, 40)),
       );
     }
-    await _loadVerseEntries();
+    // Мутация извещает шину (B8).
+    userDataBus.changed(module: _moduleId, book: _code, chapter: _ch);
   }
 
   /// Выделить/снять выделение стиха (kind=hl в UserData);
@@ -108,14 +113,16 @@ extension _ReaderController on _ReadingScreenState {
         context: _verseText(v).substring(0, _verseText(v).length.clamp(0, 40)),
       );
     }
-    await _loadVerseEntries();
+    // Мутация извещает шину (B8).
+    userDataBus.changed(module: _moduleId, book: _code, chapter: _ch);
   }
 
   /// Меню цвета выделения стиха: тап по «Выделить» открывает выбор
   /// цвета; у уже выделенного стиха — галочка на текущем цвете и
   /// пункт «Убрать».
-  Future<void> _chooseHighlight(int v) async {
+  Future<void> _chooseHighlight(BuildContext context, int v) async {
     final c = await _pickHighlightColor(
+      context,
       current: _wholeHl(v)?.text ?? _highlights[v]?.firstOrNull?.text,
       removable: _highlights.containsKey(v),
     );
@@ -132,9 +139,10 @@ extension _ReaderController on _ReadingScreenState {
 
   /// Меню частичного выделения (тап по подсвеченным словам):
   /// цвет/заметка/снятие — только этой записи, стих не трогаем.
-  Future<void> _fragMenu(UserEntry entry) async {
+  Future<void> _fragMenu(BuildContext context, UserEntry entry) async {
     final note = _fragNoteOf(entry);
     final c = await _pickHighlightColor(
+      context,
       current: entry.text,
       removable: true,
       note: true,
@@ -143,7 +151,7 @@ extension _ReaderController on _ReadingScreenState {
     if (c == null) return;
     if (c == 'note') {
       final v = entry.verse;
-      if (!mounted) return;
+      if (!context.mounted) return;
       final action = await showDialog<String>(
         context: context,
         builder: (_) => NoteDialog(
@@ -161,11 +169,13 @@ extension _ReaderController on _ReadingScreenState {
               (await bridgeEntriesForeign(_moduleId, _code, _ch, v)).length,
         ),
       );
-      if (action == 'save' || action == 'delete') {
-        await _loadVerseEntries();
-      } else if (action == 'foreign') {
-        unawaited(_showForeignEntries(v));
+      if (action == 'foreign') {
+        // Контекст жив, пока жив экран: после диалога страхуемся
+        // mounted-проверкой (см. _copySelection — то же правило).
+        if (context.mounted) unawaited(_showForeignEntries(context, v));
       }
+      // save/delete: записи мутирует сам NoteDialog — извещение шине
+      // (B8) отправляет он, ручная перечитка здесь не нужна.
       return;
     }
     if (c == 'remove') {
@@ -187,13 +197,14 @@ extension _ReaderController on _ReadingScreenState {
       // Перекраска: имя цвета живёт в `text` записи.
       await bridgeEntryUpdate(entry.id, c);
     }
-    await _loadVerseEntries();
+    // Пачка снятий/перекраска — одно извещение шины (B8).
+    userDataBus.changed(module: _moduleId, book: _code, chapter: _ch);
   }
 
   /// Диалог заметки к стиху: текст + вложения (картинки, аудио).
   /// Записью заведует сам диалог (вложениям нужен id записи
   /// сразу при добавлении файла, до «Сохранить»).
-  Future<void> _editNote(int v) async {
+  Future<void> _editNote(BuildContext context, int v) async {
     final existing = _verseNotes[v];
     final action = await showDialog<String>(
       context: context,
@@ -211,19 +222,19 @@ extension _ReaderController on _ReadingScreenState {
             (await bridgeEntriesForeign(_moduleId, _code, _ch, v)).length,
       ),
     );
-    if (action == 'save' || action == 'delete') {
-      await _loadVerseEntries();
-    } else if (action == 'foreign') {
-      unawaited(_showForeignEntries(v));
+    if (action == 'foreign') {
+      if (context.mounted) unawaited(_showForeignEntries(context, v));
     }
+    // save/delete: записи мутирует сам NoteDialog — извещение шине
+    // (B8) отправляет он, ручная перечитка здесь не нужна.
   }
 
   /// Список записей других переводов к стиху (в.12, этап А):
   /// тап открывает её стих в её модуле, для заметки — сразу окно записи.
   /// «Чужие» только по установленным модулям — фильтр внутри моста.
-  Future<void> _showForeignEntries(int v) async {
+  Future<void> _showForeignEntries(BuildContext context, int v) async {
     final list = await bridgeEntriesForeign(_moduleId, _code, _ch, v);
-    if (!mounted || list.isEmpty) return;
+    if (!context.mounted || list.isEmpty) return;
     final p = context.palette;
     final e = await showDialog<UserEntry>(
       context: context,
@@ -274,7 +285,7 @@ extension _ReaderController on _ReadingScreenState {
         ],
       ),
     );
-    if (e == null || !mounted) return;
+    if (e == null || !context.mounted) return;
     // Переход на стих в её переводе — шаг стека рабочего места,
     // а не новый маршрут; «назад» вернёт сюда.
     final loc = Location.verse(
@@ -285,7 +296,7 @@ extension _ReaderController on _ReadingScreenState {
       pane: _paneSnapshot(),
     );
     workspace.go(loc);
-    _applyLocation(loc);
+    applyLocation(loc);
     if (e.kind == 'note') {
       // Окно заметки поверх нового экрана — сама запись её редактирует.
       final tag = (await bridgeEntriesList('tag', module: e.module))
@@ -296,7 +307,7 @@ extension _ReaderController on _ReadingScreenState {
                 t.verse == e.verse,
           )
           .firstOrNull;
-      if (!mounted) return;
+      if (!context.mounted) return;
       await showDialog<String>(
         context: context,
         builder: (_) => NoteDialog(
@@ -313,24 +324,24 @@ extension _ReaderController on _ReadingScreenState {
     }
   }
 
-  Future<void> _copyVerse(int v) async {
+  Future<void> _copyVerse(BuildContext context, int v) async {
     await Clipboard.setData(
       ClipboardData(text: '${_refOf(v)} — ${_verseText(v)}'),
     );
-    if (mounted) {
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(tr('Стих скопирован', 'Verse copied'))),
       );
     }
   }
 
-  Future<void> _shareVerse(int v) async {
+  Future<void> _shareVerse(BuildContext context, int v) async {
     await Clipboard.setData(
       ClipboardData(
         text: '${_refOf(v)}\n${_verseText(v)}\n(${moduleName(_moduleId)})',
       ),
     );
-    if (mounted) {
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -365,55 +376,38 @@ extension _ReaderController on _ReadingScreenState {
         .whenComplete(() => _syncingScroll = false);
   }
 
-  /// Перечитать выделения и заметки текущей главы из userdata.db.
+  /// Перечитать выделения и заметки текущей главы из userdata.db
+  /// одним индексным запросом `entries_chapter`.
   Future<void> _loadVerseEntries() async {
-    final hl = await bridgeEntriesList('hl', module: _moduleId);
-    final nt = await bridgeEntriesList('note', module: _moduleId);
-    final mk = await bridgeEntriesList('mark', module: _moduleId);
-    final tg = await bridgeEntriesList('tag', module: _moduleId);
-    if (!mounted) return;
-    _rebuild(() {
-      _highlights.clear();
-      for (final e in hl.where((e) => e.book == _code && e.chapter == _ch)) {
-        _highlights.putIfAbsent(e.verse, () => []).add(e);
+    final all = await bridgeEntriesChapter(_moduleId, _code, _ch);
+    if (!_alive) return;
+    // Записи пользователя запечены в строки главы — кэш больше не
+    // актуален (ADR 0030).
+    _chapterCache.clear();
+    _highlights.clear();
+    _verseNotes.clear();
+    _fragNotes.clear();
+    _verseMarks.clear();
+    _tagEntries.clear();
+    for (final e in all) {
+      switch (e.kind) {
+        case 'hl':
+          _highlights.putIfAbsent(e.verse, () => []).add(e);
+        case 'note':
+          if (e.frag.isEmpty) {
+            _verseNotes[e.verse] = e;
+          } else {
+            _fragNotes.putIfAbsent(e.verse, () => []).add(e);
+          }
+        case 'mark':
+          if (!e.text.startsWith('hist')) {
+            _verseMarks[e.verse] = e;
+          }
+        case 'tag':
+          _tagEntries[e.verse] = e;
       }
-      _verseNotes
-        ..clear()
-        ..addEntries(
-          nt
-              .where(
-                (e) => e.book == _code && e.chapter == _ch && e.frag.isEmpty,
-              )
-              .map((e) => MapEntry(e.verse, e)),
-        );
-      _fragNotes.clear();
-      for (final e in nt.where(
-        (e) => e.book == _code && e.chapter == _ch && e.frag.isNotEmpty,
-      )) {
-        _fragNotes.putIfAbsent(e.verse, () => []).add(e);
-      }
-      _verseMarks
-        ..clear()
-        ..addEntries(
-          mk
-              // Записи истории (text 'hist*') — не закладки, маркеры
-              // на стихи по ним не ставим.
-              .where(
-                (e) =>
-                    e.book == _code &&
-                    e.chapter == _ch &&
-                    !e.text.startsWith('hist'),
-              )
-              .map((e) => MapEntry(e.verse, e)),
-        );
-      _tagEntries
-        ..clear()
-        ..addEntries(
-          tg
-              .where((e) => e.book == _code && e.chapter == _ch)
-              .map((e) => MapEntry(e.verse, e)),
-        );
-    });
+    }
+    rebuild();
     // Частичные выделения: разрешаем frag-селекторы в смещения
     // плоского текста стиха (ядро, find_frag); смещения — в
     // не-trimmed тексте, frag строился по trimmed — поэтому
@@ -433,7 +427,7 @@ extension _ReaderController on _ReadingScreenState {
             );
       }
     }
-    if (mounted) _rebuild(() {});
+    if (_alive) rebuild();
   }
 
   /// Теги стиха (список по запятой из одной tag-записи).
@@ -450,29 +444,45 @@ extension _ReaderController on _ReadingScreenState {
     ModuleDoc m;
     try {
       m = await loadModule(id);
-    } catch (e) {
+    } catch (e, st) {
       // Модуль в списке, но недоступен (на web — нет .sb в бандле):
-      // логируем, строки сравнения остаются «…», приложение живёт.
-      debugPrint('[reader] module $id: $e');
+      // строки сравнения остаются «…», приложение живёт; провал —
+      // в журнале («Диагностика» в настройках).
+      errorLog.logError('reader.module.$id', e, st);
+      // Основной модуль не загрузился — зависшее возобновление
+      // чтения вслух гасим, иначе мини-плеер останется висеть.
+      if (id == _moduleId) cancelTtsResume();
       return;
     }
-    if (!mounted) return;
+    if (!_alive) return;
     // Для .sb-модулей глава подгружается лениво через мост.
     await m.ensureChapter(_code, _ch);
-    if (mounted) _rebuild(() => _mods[id] = m);
+    // Возобновление чтения вслух — до кадра с новым модулем: если
+    // поле погасилось (очередь пуста), плеер скроется этим же кадром,
+    // без зависшего пустого мини-плеера.
+    if (id == _moduleId && _alive) resumeTtsAfterNavigation(m);
+    if (_alive) {
+      _mods[id] = m;
+      rebuild();
+    }
     _prefetchNotes(m);
     // Глава подгрузилась — второй шанс прокрутить к целевому стиху
     // (при push по ссылке ключи появляются только после загрузки).
-    if (id == _moduleId && mounted) {
-      _scrollToVerse(widget.verse ?? progress.lastVerse['$_code:$_ch']);
+    if (id == _moduleId && _alive) {
+      _scrollToVerse(initialVerse ?? progress.lastVerse['$_code:$_ch']);
     }
   }
 
   /// Подгрузить текущую главу для модуля и перерисоваться.
   void _ensureChapter(ModuleDoc m, String code, int ch) {
     m.ensureChapter(code, ch).then((_) {
-      if (mounted) _rebuild(() {});
+      if (_alive) rebuild();
       if (code == _code && ch == _ch) _prefetchNotes(m);
+      // Глава основного модуля догрузилась — возможно, ждёт
+      // возобновление чтения вслух (переход при игре).
+      if (m.id == _moduleId && code == _code && ch == _ch) {
+        resumeTtsAfterNavigation(m);
+      }
     });
   }
 
@@ -483,50 +493,11 @@ extension _ReaderController on _ReadingScreenState {
     if (m.id != _moduleId) return;
     final ch = m.chapter(_code, _ch);
     if (ch != null) {
-      prefetchChapterNotes(
-        ch,
-        fromVrs: m.versification,
-        openModule: m.id,
-      );
+      prefetchChapterNotes(ch, fromVrs: m.versification, openModule: m.id);
     }
   }
 
-  // ---------- чтение вслух (TTS) ----------
-
-  String get _ttsLang => switch (_module?.language) {
-    'he' || 'hbo' || 'arc' => 'he-IL',
-    'grc' || 'el' => 'el-GR',
-    'en' => 'en-US',
-    _ => 'ru-RU',
-  };
-
-  Future<void> _toggleTts() async {
-    if (_ttsPlaying) {
-      _stopTts();
-      return;
-    }
-    final ch = _module?.chapter(_code, _ch);
-    if (ch == null) return;
-    final verses = _plainVerses(ch);
-    if (verses.isEmpty) return;
-    await _ttsService.start(
-      language: _ttsLang,
-      verses: verses.entries.toList(),
-    );
-  }
-
-  void _pauseTts() => _ttsService.pause();
-  void _resumeTts() => _ttsService.resume();
-
-  /// Переход ползунком плеера на стих с индексом [i]: на паузе
-  /// только сдвигает позицию, при игре — сразу озвучивает его.
-  void _slideTts(int i) => _ttsService.slide(i);
-
-  /// Перемотка на [dir] стихов. На паузе — просто сдвигает
-  /// позицию, при игре — сразу озвучивает новый стих.
-  void _seekTts(int dir) => _ttsService.seek(dir);
-
-  void _stopTts() => _ttsService.stop();
+  // ---------- прокрутка к стиху ----------
 
   /// Контекст для прокрутки к стиху [v]. Якорь-ключ висит на самом
   /// номере стиха внутри текста — обычно попадание точное. Если у
@@ -582,7 +553,7 @@ extension _ReaderController on _ReadingScreenState {
     try {
       var lastTarget = -1.0;
       var sameTarget = 0;
-      for (var i = 0; i < 40 && mounted; i++) {
+      for (var i = 0; i < 40 && _alive; i++) {
         // Кадр заказываем сами — на статичном экране кадров нет,
         // а нам нужно, чтобы лента достроила элементы (см.
         // _seekVerseBook — та же причина).
@@ -594,7 +565,7 @@ extension _ReaderController on _ReadingScreenState {
           const Duration(milliseconds: 400),
           onTimeout: () {},
         );
-        if (!mounted || !_scroll.hasClients) return;
+        if (!_alive || !_scroll.hasClients) return;
         final pos = _scroll.position;
         final ctx = _ctxForVerse(_blockKeys, '', v);
         if (ctx != null && ctx.mounted) {
@@ -679,7 +650,7 @@ extension _ReaderController on _ReadingScreenState {
       var stable = 0;
       var lastEst = -1.0;
       var sameEst = 0;
-      for (var i = 0; i < 40 && mounted; i++) {
+      for (var i = 0; i < 40 && _alive; i++) {
         // endOfFrame на статичном экране висит: кадр ждут, но
         // никто его не заказывает — прыжки меняют pixels в памяти,
         // а ListView не переразвёрстывается и главы не строятся.
@@ -694,7 +665,7 @@ extension _ReaderController on _ReadingScreenState {
           const Duration(milliseconds: 400),
           onTimeout: () {},
         );
-        if (!mounted || !_scroll.hasClients) return;
+        if (!_alive || !_scroll.hasClients) return;
         if (_code != code || _ch != ch) return; // ушли на другую главу
         final pos = _scroll.position;
         final ctx = _ctxForVerse(_bookVerseKeys, '$ch:', v);
@@ -787,14 +758,11 @@ extension _ReaderController on _ReadingScreenState {
   String _titleOf(String code) =>
       _module?.bookByCode(code)?.title ?? bookShort(code);
 
-  /// Название книги для верхней панели: длинные имена режем до
-  /// ~12 знаков с многоточием — иначе они выталкивают пилюлю
-  /// поиска за край экрана (узкие телефоны).
-  String _titleCapped() {
-    final t = _titleOf(_code);
-    if (t.length <= 13) return t;
-    return '${t.substring(0, 12).trimRight()}…';
-  }
+  /// Название книги для верхней панели: полное имя, реальное
+  /// переполнение обрабатывает Flexible + TextOverflow.ellipsis
+  /// (искусственный лимит ~12 знаков был защитой от пилюли
+  /// поиска — её давно нет).
+  String _titleCapped() => _titleOf(_code);
 
   /// Цель перехода _go без побочек: (код книги, глава, баннер края
   /// книги) — null на краю канона. Та же цель у листания-подгляда.
@@ -855,6 +823,145 @@ extension _ReaderController on _ReadingScreenState {
       pane: _paneSnapshot(),
     );
     workspace.go(loc);
-    _applyLocation(loc, banner);
+    applyLocation(loc, banner);
+  }
+
+  /// Координата стиха (book, chapter, verse) исходной панели [src] в
+  /// версификации модуля этой панели — взаимная синхронизация панелей
+  /// (B10 этап 2). Точечный вызов того же моста convertVerse, на
+  /// котором стоит кэш конверсий сравнения [_convs]; null — модуль
+  /// одной из панелей ещё не загружен.
+  Future<CvPoint?> _convFromPane(
+    ReaderPaneController src,
+    String book,
+    int chapter,
+    int verse,
+  ) async {
+    final from = src._module;
+    final to = _module;
+    if (from == null || to == null) return null;
+    final fv = from.versification;
+    final tv = to.versification;
+    // Версификация неизвестна или та же — тот же номер без моста.
+    if (fv.isEmpty || tv.isEmpty || fv == tv) {
+      return (book: book, chapter: chapter, verse: verse);
+    }
+    final pts = await convertVerse(book, chapter, verse, fv, tv);
+    return pts.firstOrNull;
+  }
+
+  /// Применить позицию, пришедшую от связанной панели (B10 этап 2,
+  /// взаимная синхронизация): стек рабочего места и журнал не
+  /// трогаем — запись делает панель, где пользователь навиговал;
+  /// эта следует за ней. Глава догружается, прокрутка — до стиха
+  /// (jump-механика [_scrollToVerse]).
+  void applySyncedVerse(String moduleId, String book, int chapter, int verse) {
+    _moduleId = moduleId;
+    _code = book;
+    _ch = chapter;
+    _selectedVerse = null;
+    _blockKeys.clear();
+    _bookVerseKeys.clear();
+    rebuild();
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    _load(moduleId);
+    _loadVerseEntries();
+    for (final m in _mods.values) {
+      _ensureChapter(m, book, chapter);
+    }
+    _scrollToVerse(verse > 0 ? verse : null);
+  }
+}
+
+/// Чтение вслух: TTS-сервис остаётся на экране (STAYS списка B10
+/// этап 1) — очередь, плеер и отложенное возобновление ведутся им;
+/// тексты стихов берутся у панели-владельца очереди (ttsOwnerPane,
+/// B10 этап 2): очередь принадлежит панели, где её запустили.
+extension _ReaderTts on _ReadingScreenState {
+  String get _ttsLang => switch (panes[ttsOwnerPane]._module?.language) {
+    'he' || 'hbo' || 'arc' => 'he-IL',
+    'grc' || 'el' => 'el-GR',
+    'en' => 'en-US',
+    _ => 'ru-RU',
+  };
+
+  Future<void> _toggleTts() async {
+    // Ручной запуск/останов — отложенное возобновление не нужно.
+    _ttsResumeChapter = null;
+    if (_ttsPlaying) {
+      _stopTts();
+      return;
+    }
+    // Очередь принадлежит панели, где чтение запущено (B10 этап 2):
+    // дальнейшие смены фокуса её не двигают и не глушат.
+    ttsOwnerPane = activePane;
+    final owner = panes[ttsOwnerPane];
+    final ch = owner._module?.chapter(owner._code, owner._ch);
+    if (ch == null) return;
+    final verses = owner._plainVerses(ch);
+    if (verses.isEmpty) return;
+    await _ttsService.start(
+      language: _ttsLang,
+      verses: verses.entries.toList(),
+    );
+  }
+
+  void _pauseTts() {
+    _ttsResumeChapter = null;
+    _ttsService.pause();
+  }
+
+  void _resumeTts() {
+    _ttsResumeChapter = null;
+    _ttsService.resume();
+  }
+
+  /// Переход ползунком плеера на стих с индексом [i]: на паузе
+  /// только сдвигает позицию, при игре — сразу озвучивает его.
+  void _slideTts(int i) {
+    _ttsResumeChapter = null;
+    _ttsService.slide(i);
+  }
+
+  /// Перемотка на [dir] стихов. На паузе — просто сдвигает
+  /// позицию, при игре — сразу озвучивает новый стих.
+  void _seekTts(int dir) {
+    _ttsResumeChapter = null;
+    _ttsService.seek(dir);
+  }
+
+  void _stopTts() {
+    // Ручной стоп и стоп перед переходом гасят и отложенное
+    // возобновление: [_applyLocation] ставит его уже ПОСЛЕ [_stopTts].
+    _ttsResumeChapter = null;
+    _ttsService.stop();
+  }
+
+  /// Возобновить чтение вслух после перехода ([_applyLocationFor]):
+  /// глава догрузилась — перезапускаем очередь с целевого стиха.
+  /// Поле [_ttsResumeChapter] потребляется один раз: кто первым
+  /// увидел главу готовой ([_load] или [_ensureChapter]), тот и
+  /// запустил, повторный вызов — no-op. Если очередь пуста, поле
+  /// всё равно гасится — мини-плеер не зависает.
+  void _ttsResumeAfterNavigation([ModuleDoc? doc]) {
+    final r = _ttsResumeChapter;
+    if (r == null) return;
+    _ttsResumeChapter = null;
+    final owner = panes[ttsOwnerPane];
+    if (owner._code != r.book || owner._ch != r.chapter) return;
+    final ch = (doc ?? owner._module)?.chapter(r.book, r.chapter);
+    if (ch == null) return;
+    final entries = owner._plainVerses(ch).entries.toList();
+    if (entries.isEmpty) return;
+    // Целевого стиха может не быть в очереди (неканонический номер,
+    // надписание) — тогда начинаем с первого стиха главы.
+    final idx = entries.indexWhere((e) => e.key == r.verse);
+    unawaited(
+      _ttsService.start(
+        language: _ttsLang,
+        verses: entries,
+        from: idx < 0 ? 0 : idx,
+      ),
+    );
   }
 }

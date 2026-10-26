@@ -1,102 +1,934 @@
 {
-    "comment":  "Внешние исходные тексты. Файлы хранятся вне репозитория (STUDYBIBLE_DATA, по умолчанию ..\\StudyBible-data), чтобы переводы не попали в git и на GitHub. sha256 закрепляется скриптом fetch-data.ps1 -Pin.",
-    "sources":  [
-                    {
-                        "id":  "russyn",
-                        "title":  "Синодальный перевод (1876)",
-                        "language":  "ru",
-                        "format":  "usfm",
-                        "url":  "https://eBible.org/Scriptures/russyn_usfm.zip",
-                        "page":  "https://ebible.org/find/details.php?id=russyn",
-                        "license":  "public domain",
-                        "sha256":  "acd5d80c0d28ca72d17cb12a2bb9f561d957439b03bddfaa433beb51cf7b0363"
-                    },
-                    {
-                        "id":  "engwebp",
-                        "title":  "World English Bible (без второканонических)",
-                        "language":  "en",
-                        "format":  "usfm",
-                        "url":  "https://eBible.org/Scriptures/engwebp_usfm.zip",
-                        "page":  "https://ebible.org/find/details.php?id=engwebp",
-                        "license":  "public domain; \"World English Bible\" — товарный знак eBible.org, изменённый текст так называть нельзя",
-                        "sha256":  "c725155aa8192b954e552a0b08aa75f8e7b85e6e56f1eb22efd6d30f5b4aa3cc"
-                    },
-                    {
-                        "id":  "eng-kjv2006",
-                        "title":  "King James Version (1769, с номерами Стронга)",
-                        "language":  "en",
-                        "format":  "usfm",
-                        "url":  "https://eBible.org/Scriptures/eng-kjv2006_usfm.zip",
-                        "page":  "https://ebible.org/find/details.php?id=eng-kjv2006",
-                        "license":  "public domain вне Великобритании (в UK — Letters Patent)",
-                        "sha256":  "311bc503438e98ce64f70a85932e144911ab486743391e43398cf65e39052218"
-                    },
-                    {
-                        "id":  "ru_rob",
-                        "title":  "Русская открытая Библия (aligned to UGNT/UHB)",
-                        "language":  "ru",
-                        "format":  "usfm",
-                        "url":  "https://git.door43.org/Door43-Catalog/ru_rob/archive/master.zip",
-                        "page":  "https://git.door43.org/Door43-Catalog/ru_rob",
-                        "license":  "CC BY-SA 4.0; требуется атрибуция и share-alike",
-                        "sha256":  "49428c3f6e4987856c2ff2059873cda7b83a93e38d646a5c2ec87448d4cb3ac8",
-                        "note": "zip распаковывается в ru_rob/*.usfm; перед сборкой прогоняется scripts/prep-rob.py (снятие \\zaln, перенос x-strong → \\w)"
-                    },
-                    {
-                        "id":  "englsv",
-                        "title":  "Literal Standard Version (YHWH, Стронг)",
-                        "language":  "en",
-                        "format":  "usfm",
-                        "url":  "https://eBible.org/Scriptures/englsv_usfm.zip",
-                        "page":  "https://ebible.org/find/details.php?id=englsv",
-                        "license":  "© 2020 Covenant Press — free to read, distribute, and translate from",
-                        "sha256":  "1944530ca36074c5666060ad8ba9345c2db4a9b841c318cc14446539a58e4618"
-                    },
-                    {
-                        "id":  "engbsb",
-                        "title":  "Berean Standard Bible (критический аппарат, Стронг)",
-                        "language":  "en",
-                        "format":  "usfm",
-                        "url":  "https://eBible.org/Scriptures/engbsb_usfm.zip",
-                        "page":  "https://ebible.org/find/details.php?id=engbsb",
-                        "license":  "public domain",
-                        "sha256":  "b77cc2d5161b03610204e2564934135b955ea87e534fd5ec7db336048699483b"
-                    },
-                    {
-                        "id":  "oshb",
-                        "title":  "Open Scriptures Hebrew Bible (OSHB v2.2)",
-                        "language":  "he",
-                        "format":  "osis",
-                        "url":  "https://github.com/openscriptures/morphhb/releases/download/v.2.2/OSHB-v.2.2.zip",
-                        "page":  "https://github.com/openscriptures/morphhb",
-                        "license":  "CC-BY",
-                        "flatten":  true,
-                        "remove":  ["VerseMap.xml"],
-                        "sha256":  "02f8711a4bd6ee322e7009beae158a51a63ca61ec4e90250ae261149c616c399",
-                        "note": "wlc/*.xml — OSIS с lemma+morph; VerseMap.xml — не книга, удаляется"
-                    },
-                    {
-                        "id":  "ugnt",
-                        "title":  "unfoldingWord Greek NT (USFM3)",
-                        "language":  "el",
-                        "format":  "usfm",
-                        "url":  "https://git.door43.org/unfoldingWord/el-x-koine_ugnt/archive/master.zip",
-                        "page":  "https://git.door43.org/unfoldingWord/el-x-koine_ugnt",
-                        "license":  "CC-BY-SA 4.0",
-                        "flatten":  true,
-                        "sha256":  "21e1f0e570f2b8185a44ee9dc821f371919278a0b1821edf29afba9efa2d1436",
-                        "note": "master-ветка; пин по sha256 — при обновлении источника запустить fetch-data.ps1 -Pin"
-                    },
-                    {
-                        "id":  "openbible-xrefs",
-                        "title":  "OpenBible cross references (~340 тыс. пар, TSV)",
-                        "language":  "en",
-                        "format":  "tsv",
-                        "url":  "https://a.openbible.info/data/cross-references.zip",
-                        "page":  "https://www.openbible.info/labs/cross-references/",
-                        "license":  "CC-BY 4.0",
-                        "sha256":  "19aafdf923275142d0849fb02c7d9965a8d1a9dafc691e9abbe146fa31895c73",
-                        "note": "не модуль: вход для inject_xrefs (apps/studybible-cli/src/bin/inject_xrefs.rs)"
-                    }
-                ]
+  "comment": "Внешние исходные тексты. Файлы хранятся вне репозитория (STUDYBIBLE_DATA, по умолчанию ..\\StudyBible-data), чтобы переводы не попали в git и на GitHub. sha256 закрепляется скриптом fetch-data.ps1 -Pin.",
+  "sources": [
+    {
+      "id": "russyn",
+      "title": "Синодальный перевод (1876)",
+      "language": "ru",
+      "format": "usfm",
+      "url": "https://eBible.org/Scriptures/russyn_usfm.zip",
+      "page": "https://ebible.org/find/details.php?id=russyn",
+      "license": "public domain",
+      "sha256": "acd5d80c0d28ca72d17cb12a2bb9f561d957439b03bddfaa433beb51cf7b0363"
+    },
+    {
+      "id": "engwebp",
+      "title": "World English Bible (без второканонических)",
+      "language": "en",
+      "format": "usfm",
+      "url": "https://eBible.org/Scriptures/engwebp_usfm.zip",
+      "page": "https://ebible.org/find/details.php?id=engwebp",
+      "license": "public domain; \"World English Bible\" — товарный знак eBible.org, изменённый текст так называть нельзя",
+      "sha256": "c725155aa8192b954e552a0b08aa75f8e7b85e6e56f1eb22efd6d30f5b4aa3cc"
+    },
+    {
+      "id": "eng-kjv2006",
+      "title": "King James Version (1769, с номерами Стронга)",
+      "language": "en",
+      "format": "usfm",
+      "url": "https://eBible.org/Scriptures/eng-kjv2006_usfm.zip",
+      "page": "https://ebible.org/find/details.php?id=eng-kjv2006",
+      "license": "public domain вне Великобритании (в UK — Letters Patent)",
+      "sha256": "311bc503438e98ce64f70a85932e144911ab486743391e43398cf65e39052218"
+    },
+    {
+      "id": "ru_rob",
+      "title": "Русская открытая Библия (aligned to UGNT/UHB)",
+      "language": "ru",
+      "format": "usfm",
+      "url": "https://git.door43.org/Door43-Catalog/ru_rob/archive/master.zip",
+      "page": "https://git.door43.org/Door43-Catalog/ru_rob",
+      "license": "CC BY-SA 4.0; требуется атрибуция и share-alike",
+      "sha256": "49428c3f6e4987856c2ff2059873cda7b83a93e38d646a5c2ec87448d4cb3ac8",
+      "note": "zip распаковывается в ru_rob/*.usfm; перед сборкой прогоняется scripts/prep-rob.py (снятие \\zaln, перенос x-strong → \\w)"
+    },
+    {
+      "id": "englsv",
+      "title": "Literal Standard Version (YHWH, Стронг)",
+      "language": "en",
+      "format": "usfm",
+      "url": "https://eBible.org/Scriptures/englsv_usfm.zip",
+      "page": "https://ebible.org/find/details.php?id=englsv",
+      "license": "© 2020 Covenant Press — free to read, distribute, and translate from",
+      "sha256": "1944530ca36074c5666060ad8ba9345c2db4a9b841c318cc14446539a58e4618"
+    },
+    {
+      "id": "bsb2025",
+      "title": "Berean Standard Bible (официальный USFM 2025, критический аппарат)",
+      "language": "en",
+      "format": "usfm",
+      "url": "https://berean.bible/",
+      "page": "https://biblehub.com/bsb/",
+      "license": "public domain",
+      "sha256": "f0c56438eb89c98e8f62c5c00461e25cc35b098ad5b179bc350cede759ee5f87",
+      "note": "bsb_usfm.zip «Autogenerated BSB by bsb2usfm»; файлы переименованы NN-CODE.usfm для канонического порядка книг"
+    },
+    {
+      "id": "oshb",
+      "title": "Open Scriptures Hebrew Bible (OSHB v2.2)",
+      "language": "he",
+      "format": "osis",
+      "url": "https://github.com/openscriptures/morphhb/releases/download/v.2.2/OSHB-v.2.2.zip",
+      "page": "https://github.com/openscriptures/morphhb",
+      "license": "CC-BY",
+      "flatten": true,
+      "remove": [
+        "VerseMap.xml"
+      ],
+      "sha256": "02f8711a4bd6ee322e7009beae158a51a63ca61ec4e90250ae261149c616c399",
+      "note": "wlc/*.xml — OSIS с lemma+morph; VerseMap.xml — не книга, удаляется"
+    },
+    {
+      "id": "ugnt",
+      "title": "unfoldingWord Greek NT (USFM3)",
+      "language": "el",
+      "format": "usfm",
+      "url": "https://git.door43.org/unfoldingWord/el-x-koine_ugnt/archive/master.zip",
+      "page": "https://git.door43.org/unfoldingWord/el-x-koine_ugnt",
+      "license": "CC-BY-SA 4.0",
+      "flatten": true,
+      "sha256": "21e1f0e570f2b8185a44ee9dc821f371919278a0b1821edf29afba9efa2d1436",
+      "note": "master-ветка; пин по sha256 — при обновлении источника запустить fetch-data.ps1 -Pin"
+    },
+    {
+      "id": "openbible-xrefs",
+      "title": "OpenBible cross references (~340 тыс. пар, TSV)",
+      "language": "en",
+      "format": "tsv",
+      "url": "https://a.openbible.info/data/cross-references.zip",
+      "page": "https://www.openbible.info/labs/cross-references/",
+      "license": "CC-BY 4.0",
+      "sha256": "19aafdf923275142d0849fb02c7d9965a8d1a9dafc691e9abbe146fa31895c73",
+      "note": "не модуль: вход для inject_xrefs (apps/studybible-cli/src/bin/inject_xrefs.rs)"
+    },
+    {
+      "id": "stepbible-data",
+      "title": "STEPBible Data: переводческие таблицы и лексиконы Стронга (TAHOT, TAGNT, TBESH, TBESG, TFLSJ, TIPNR, TVTMS, TTESV)",
+      "language": "hbo,grc,en",
+      "format": "stepbible-tsv",
+      "dest": "strongs/stepbible",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Lexicons/TBESG%20-%20Translators%20Brief%20lexicon%20of%20Extended%20Strongs%20for%20Greek%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Lexicons/TBESG - Translators Brief lexicon of Extended Strongs for Greek - STEPBible.org CC BY.txt",
+          "sha256": "312f723d7b8ef263bbdfb0451c9b8057125804dfff390b6f8544cff2a84b57f4"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Lexicons/TBESH%20-%20Translators%20Brief%20lexicon%20of%20Extended%20Strongs%20for%20Hebrew%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Lexicons/TBESH - Translators Brief lexicon of Extended Strongs for Hebrew - STEPBible.org CC BY.txt",
+          "sha256": "464dccadd95fd8620dd05fa0d7a4caba58ec3c4d5db3ebf38e43d046ca25b591"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Lexicons/TFLSJ%20%200-5624%20-%20Translators%20Formatted%20full%20LSJ%20Bible%20lexicon%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Lexicons/TFLSJ  0-5624 - Translators Formatted full LSJ Bible lexicon - STEPBible.org CC BY.txt",
+          "sha256": "fcc2845412132a7bb91fc3dbb5a544c807daf57e4791c4d9af61efe209e97691"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Lexicons/TFLSJ%20extra%20-%20Translators%20Formatted%20full%20LSJ%20Bible%20lexicon%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Lexicons/TFLSJ extra - Translators Formatted full LSJ Bible lexicon - STEPBible.org CC BY.txt",
+          "sha256": "fdb2840067faa11301b208a343a9453fbe40b367e94eac981071261626201bc2"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Morphology%20codes/TEGMC%20-%20Translators%20Expansion%20of%20Greek%20Morphhology%20Codes%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Morphology codes/TEGMC - Translators Expansion of Greek Morphhology Codes - STEPBible.org CC BY.txt",
+          "sha256": "5f0416f7617019a6082285214903bde569a980d5fd3b88b8d7020d944e94de82"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Morphology%20codes/TEHMC%20-%20Translators%20Expansion%20of%20Hebrew%20Morphology%20Codes%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Morphology codes/TEHMC - Translators Expansion of Hebrew Morphology Codes - STEPBible.org CC BY.txt",
+          "sha256": "78779bea824b31d4467dec0161d547481c86f266bc39def12cd11dc7dcbe6da7"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Proper%20Nouns/TIPNR%20-%20Translators%20Individualised%20Proper%20Names%20with%20all%20References%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Proper Nouns/TIPNR - Translators Individualised Proper Names with all References - STEPBible.org CC BY.txt",
+          "sha256": "1e1b655d18a55828d12c56bde74dda03f62f5afeb7f3e617c64f9676bbf34a58"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/README.md",
+          "path": "README.md",
+          "sha256": "261d5157c0ffeadeedad3f734db945a4c3642e3e4ce5fa28002985b6c52437b1"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Tagged-Bibles/TTESV%20-%20Tyndale%20Translation%20tags%20for%20ESV%20-%20TyndaleHouse.com%20STEPBible.org%20CC%20BY-NC.txt",
+          "path": "Tagged-Bibles/TTESV - Tyndale Translation tags for ESV - TyndaleHouse.com STEPBible.org CC BY-NC.txt",
+          "sha256": "8bd5830c651ffe03353895a26b61f2fe6a3d9633f15b7e5866238ca3253a3536"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Translators%20Amalgamated%20OT%2BNT/TAGNT%20Act-Rev%20-%20Translators%20Amalgamated%20Greek%20NT%20-%20STEPBible.org%20CC-BY.txt",
+          "path": "Translators Amalgamated OT+NT/TAGNT Act-Rev - Translators Amalgamated Greek NT - STEPBible.org CC-BY.txt",
+          "sha256": "524e32375361e6d3fa2f7ef00b87605fdc4317a762f395651a05fdc31ad031b7"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Translators%20Amalgamated%20OT%2BNT/TAGNT%20Mat-Jhn%20-%20Translators%20Amalgamated%20Greek%20NT%20-%20STEPBible.org%20CC-BY.txt",
+          "path": "Translators Amalgamated OT+NT/TAGNT Mat-Jhn - Translators Amalgamated Greek NT - STEPBible.org CC-BY.txt",
+          "sha256": "ab8eaaeb68e17a1dcfa34e1e9350358f22f03bc2a97244d848750ad81044bc8e"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Translators%20Amalgamated%20OT%2BNT/TAHOT%20Gen-Deu%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Translators Amalgamated OT+NT/TAHOT Gen-Deu - Translators Amalgamated Hebrew OT - STEPBible.org CC BY.txt",
+          "sha256": "e9b8546ee48fe0bfc57c3b70f5f40e98d96580e803526d19026224e31753368b"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Translators%20Amalgamated%20OT%2BNT/TAHOT%20Isa-Mal%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Translators Amalgamated OT+NT/TAHOT Isa-Mal - Translators Amalgamated Hebrew OT - STEPBible.org CC BY.txt",
+          "sha256": "f3ded203d2a74d6368932c97ae550d1d0754b271af491dc0dedf36fe3ba0bcc5"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Translators%20Amalgamated%20OT%2BNT/TAHOT%20Job-Sng%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Translators Amalgamated OT+NT/TAHOT Job-Sng - Translators Amalgamated Hebrew OT - STEPBible.org CC BY.txt",
+          "sha256": "bb508af3af07822fca84cc43a0eba79eb70eecf672aabc0245b8d8cecf329d96"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Translators%20Amalgamated%20OT%2BNT/TAHOT%20Jos-Est%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Translators Amalgamated OT+NT/TAHOT Jos-Est - Translators Amalgamated Hebrew OT - STEPBible.org CC BY.txt",
+          "sha256": "195fee1dc3653bab33701f170734eb894ed647c10cd08cc61749375fe8b73775"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/81450441d7c5a60672448b590201a0e042deb2a0/Versification/TVTMS%20-%20Translators%20Versification%20Traditions%20with%20Methodology%20for%20Standardisation%20for%20Eng%2BHeb%2BLat%2BGrk%2BOthers%20-%20STEPBible.org%20CC%20BY.txt",
+          "path": "Versification/TVTMS - Translators Versification Traditions with Methodology for Standardisation for Eng+Heb+Lat+Grk+Others - STEPBible.org CC BY.txt",
+          "sha256": "63058e0f20201af4bdaa7d830da5be8f493455d947c5f147d84840b33db9ddf8"
+        }
+      ],
+      "page": "https://github.com/STEPBible/STEPBible-Data",
+      "license": "CC BY 4.0 (TTESV — CC BY-NC 4.0; колонка Meaning в TBESH — © Online Bible, нужно разрешение)",
+      "commit": "81450441d7c5a60672448b590201a0e042deb2a0"
+    },
+    {
+      "id": "oshb-lexicon",
+      "title": "Open Scriptures Hebrew Lexicon (BDB, Strong, индекс)",
+      "language": "hbo,en",
+      "format": "xml",
+      "dest": "strongs/oshb-lexicon",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/readme.md",
+          "path": "readme.md",
+          "sha256": "9a129c25674387c494571c3828aa3a8eb78459c165e275c313ae26994ce8ff22"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/AugIndex.xml",
+          "path": "AugIndex.xml",
+          "sha256": "e7217ca8ff8ff3f21f9cf1bbe87411adf55f6aa88bcf5ed9ddc886cc6b160c5d"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/BrownDriverBriggs.xml",
+          "path": "BrownDriverBriggs.xml",
+          "sha256": "2b52658a4323d91674cda4090ab8b3ebddfff640f4f18143c28300e80b2c38f8"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/LexicalIndex.xml",
+          "path": "LexicalIndex.xml",
+          "sha256": "8f7a605c58899d2f44430149c143c00903976e1e91232476677972a69e5bc85f"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/HebrewStrong.xml",
+          "path": "HebrewStrong.xml",
+          "sha256": "a628f4f89f8bdaf2483fd3faf1abc8653cc6717758dfc9f24beb7571d9bdd0c4"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/BdbSchema.xsd",
+          "path": "BdbSchema.xsd",
+          "sha256": "1ab135774b937572c7216b65404669dd0b7ec2cc465e7f2fc6da8e8593e56a7d"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/LiSchema.xsd",
+          "path": "LiSchema.xsd",
+          "sha256": "d518f20dc1856f2a0ffce7e615cdff6ac00f80824ad82a4ce9a2f4d9e29d1b21"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/StrongSchema.xsd",
+          "path": "StrongSchema.xsd",
+          "sha256": "c47c0b43bd17ecce6b02e89fb8ae3f38e2e7507ef18c3d15910c6135563eaa6c"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/BDBPartsOfSpeech.xml",
+          "path": "BDBPartsOfSpeech.xml",
+          "sha256": "156d1efd8add719dfa20f57f58fb2a9a21959f62d5a38ce8f1d41d889c052b91"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/PartsOfSpeech.xml",
+          "path": "PartsOfSpeech.xml",
+          "sha256": "bf10cd86e8aea793b71a3cbb2b44e4f4bfcc1b8ba4955e7a3e605e1278428cab"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/openscriptures/HebrewLexicon/21c9add13bc727d3a951361778e97e3ff7afd1ce/HebrewLexicon.pdf",
+          "path": "HebrewLexicon.pdf",
+          "sha256": "01be8237564515a372c2bb0a27726506bf9bc429706bce828aca18a6b59d6a7b"
+        }
+      ],
+      "page": "https://github.com/openscriptures/HebrewLexicon",
+      "license": "CC BY 4.0; тексты BDB и Strong — общественное достояние",
+      "commit": "21c9add13bc727d3a951361778e97e3ff7afd1ce"
+    },
+    {
+      "id": "bsb-tables",
+      "title": "Berean Standard Bible: таблицы (bsb_tables.tsv)",
+      "language": "en",
+      "format": "tsv",
+      "dest": "strongs/bsb",
+      "files": [
+        {
+          "url": "https://bereanbible.com/bsb_tables.tsv",
+          "path": "bsb_tables.tsv",
+          "sha256": "09bbee6f9fe4fa22b5df28e8a9ffa99bf9c33435f4eb8c47c2dc221d855d35cb"
+        }
+      ],
+      "page": "https://bereanbible.com/",
+      "license": "CC0 (Berean Standard Bible)",
+      "retrieved": "2026-10-13"
+    },
+    {
+      "id": "macula-hebrew",
+      "title": "MACULA Hebrew (WLC, TSV)",
+      "language": "hbo",
+      "format": "tsv",
+      "dest": "strongs/macula-hebrew",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-hebrew/47db250bd55d0d8577f2a94fba114ef16c35b23c/README.md",
+          "path": "README.md",
+          "sha256": "eab7e8334723e2819904049f040db5ea6fc939fa9093810b3636107fc693426f"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-hebrew/47db250bd55d0d8577f2a94fba114ef16c35b23c/LICENSE.md",
+          "path": "LICENSE.md",
+          "sha256": "df45ba3224e7d6f9dba3ec8fd2d0b3f1d2febb2620147c889667886fccd4d8e1"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-hebrew/47db250bd55d0d8577f2a94fba114ef16c35b23c/WLC/tsv/.gitattributes",
+          "path": "WLC/tsv/.gitattributes",
+          "sha256": "8d074719aaa6bfb4feb0f68fcaf822f8eed5ff7819326024ef142ad59387bb92"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-hebrew/47db250bd55d0d8577f2a94fba114ef16c35b23c/WLC/tsv/README.md",
+          "path": "WLC/tsv/README.md",
+          "sha256": "00c9fba90473ec67d582c7f063f6dbce7618d6aeac28691e85c5c141961fb1c3"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-hebrew/47db250bd55d0d8577f2a94fba114ef16c35b23c/WLC/tsv/hebrew-lowfat-to-tsv.xq",
+          "path": "WLC/tsv/hebrew-lowfat-to-tsv.xq",
+          "sha256": "95bfc95cdae83d15dad8ea101d2d8a75b79d75beb091447fe455761f3537fa26"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-hebrew/47db250bd55d0d8577f2a94fba114ef16c35b23c/WLC/tsv/hebrew-nodes-to-tsv.xq",
+          "path": "WLC/tsv/hebrew-nodes-to-tsv.xq",
+          "sha256": "f79af52fb03d4a07ea87f5a5151676c41caf09d0ebd365b3f56d2661379923cb"
+        },
+        {
+          "url": "https://media.githubusercontent.com/media/Clear-Bible/macula-hebrew/47db250bd55d0d8577f2a94fba114ef16c35b23c/WLC/tsv/macula-hebrew.tsv",
+          "path": "WLC/tsv/macula-hebrew.tsv",
+          "sha256": "965cb0599beed2fe31283b615bcc369178141c0e718a66d97518d94309cfc124"
+        }
+      ],
+      "page": "https://github.com/Clear-Bible/macula-hebrew",
+      "license": "CC BY 4.0 (Biblica); данные MARBLE — проверить лицензию",
+      "commit": "47db250bd55d0d8577f2a94fba114ef16c35b23c",
+      "note": "macula-hebrew.tsv — Git LFS: raw-URL отдаёт указатель, поэтому берём через media.githubusercontent.com/media"
+    },
+    {
+      "id": "macula-greek",
+      "title": "MACULA Greek (SBLGNT, Nestle1904, TSV)",
+      "language": "grc",
+      "format": "tsv",
+      "dest": "strongs/macula-greek",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-greek/8423afe47b9e8f24b7772e808af45c7159a6fe7e/README.md",
+          "path": "README.md",
+          "sha256": "46bc2238caa8dcc0046798f7ce574fc402e460db54c1d396f45a85caf5a09501"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-greek/8423afe47b9e8f24b7772e808af45c7159a6fe7e/LICENSE.md",
+          "path": "LICENSE.md",
+          "sha256": "41b49a2387b628a7bc772ddfae3a8af9dd8f4d4470b27b6132f6da6c73e4a557"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-greek/8423afe47b9e8f24b7772e808af45c7159a6fe7e/Nestle1904/tsv/README.md",
+          "path": "Nestle1904/tsv/README.md",
+          "sha256": "8be4e4eee9ea5e05aacc5280149e9c1433a688335a7786e31d7ccd2e5e308fa9"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-greek/8423afe47b9e8f24b7772e808af45c7159a6fe7e/Nestle1904/tsv/macula-greek-Nestle1904.tsv",
+          "path": "Nestle1904/tsv/macula-greek-Nestle1904.tsv",
+          "sha256": "c7cf33b8273c0f549e3582d1610603c86210c18e1f245bb80a69281622385fa5"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-greek/8423afe47b9e8f24b7772e808af45c7159a6fe7e/SBLGNT/tsv/README.md",
+          "path": "SBLGNT/tsv/README.md",
+          "sha256": "35a4619a24be3f0014fb5c3b445db3ad4c0a499e1d758d5e20f0693b1e58bf88"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/Clear-Bible/macula-greek/8423afe47b9e8f24b7772e808af45c7159a6fe7e/SBLGNT/tsv/macula-greek-SBLGNT.tsv",
+          "path": "SBLGNT/tsv/macula-greek-SBLGNT.tsv",
+          "sha256": "7f71504fdee8659bdd9f85342e4103d645864c2851b8205915bb298f0c004cc5"
+        }
+      ],
+      "page": "https://github.com/Clear-Bible/macula-greek",
+      "license": "CC BY 4.0 (Biblica); данные MARBLE — проверить лицензию",
+      "commit": "8423afe47b9e8f24b7772e808af45c7159a6fe7e"
+    },
+    {
+      "id": "clear-alignments",
+      "title": "Clear Bible Alignments (выравнивание оригинала и перевода)",
+      "language": "mul",
+      "format": "tsv",
+      "dest": "strongs/clear-alignments",
+      "url": "https://codeload.github.com/Clear-Bible/Alignments/zip/c99bd0ae6946775f932517656308ca19fc706921",
+      "page": "https://github.com/Clear-Bible/Alignments",
+      "license": "CC BY 4.0",
+      "commit": "c99bd0ae6946775f932517656308ca19fc706921",
+      "flatten": true,
+      "sha256": "4d7fada91acbdbf220cc1f5968a1d73300c6cca11f2da41a5b8db9e6d7399d1b",
+      "note": "data/catalog.tsv — Git LFS-указатель в upstream; в архиве лежит только указатель"
+    },
+    {
+      "id": "asv-alignment-data",
+      "title": "ASV Bible Alignment Data (OpenBible.info)",
+      "language": "en,hbo,grc",
+      "format": "json",
+      "dest": "strongs/asv-alignment",
+      "url": "https://codeload.github.com/openbibleinfo/American-Standard-Version-Bible-Alignment-Data/zip/74b0a5257170e8dce977dbff522cacbfac192543",
+      "page": "https://github.com/openbibleinfo/American-Standard-Version-Bible-Alignment-Data",
+      "license": "код MIT; решения модели без заявленных прав; исходные данные CC BY 4.0 (см. LICENSE.md)",
+      "commit": "74b0a5257170e8dce977dbff522cacbfac192543",
+      "flatten": true,
+      "sha256": "13d7ec6545f32dc6e9bc2b927277b7064af17e2d8a459408c34070edf0ead027"
+    },
+    {
+      "id": "asv-bible",
+      "title": "American Standard Version (USX, выровнен)",
+      "language": "en",
+      "format": "usx",
+      "dest": "strongs/asv-bible",
+      "url": "https://codeload.github.com/openbibleinfo/American-Standard-Version-Bible/zip/b6580247af63991b406f02f612f73deca85235ff",
+      "page": "https://github.com/openbibleinfo/American-Standard-Version-Bible",
+      "license": "ASV — общественное достояние; см. LICENSE.md",
+      "commit": "b6580247af63991b406f02f612f73deca85235ff",
+      "flatten": true,
+      "sha256": "67d267ffb9613427db23330da930835a91b6aa1bfb5bd38f05086ee762987eda"
+    },
+    {
+      "id": "openbible-geocoding",
+      "title": "OpenBible Bible Geocoding Data (места, JSONL/KML/GeoJSON)",
+      "language": "en",
+      "format": "jsonl",
+      "dest": "strongs/openbible-geocoding",
+      "url": "https://codeload.github.com/openbibleinfo/Bible-Geocoding-Data/zip/7eb18a5ee62f27b9b93bd6689ea272d76dd23b8f",
+      "page": "https://github.com/openbibleinfo/Bible-Geocoding-Data",
+      "license": "CC BY 4.0",
+      "commit": "7eb18a5ee62f27b9b93bd6689ea272d76dd23b8f",
+      "flatten": true,
+      "sha256": "d4df6b4e456eea86ee4fe310e1190d7d1669b218f690bb0dcf778a0201cfc3d4"
+    },
+    {
+      "id": "abbott-smith",
+      "title": "Abbott-Smith Greek Lexicon (TEI XML)",
+      "language": "grc,en",
+      "format": "tei-xml",
+      "dest": "strongs/abbott-smith",
+      "url": "https://codeload.github.com/translatable-exegetical-tools/Abbott-Smith/zip/8c00cb244761aa23659421a8cbbbf7a3b27b7d59",
+      "page": "https://github.com/translatable-exegetical-tools/Abbott-Smith",
+      "license": "общественное достояние",
+      "commit": "8c00cb244761aa23659421a8cbbbf7a3b27b7d59",
+      "flatten": true,
+      "sha256": "63fac25768fc051432bca83bc3debb17ac97bb7e39b2626c89be172894658581"
+    },
+    {
+      "id": "ubs-dictionaries",
+      "title": "UBS dictionaries (SDBH Hebrew, Louw-Nida Greek)",
+      "language": "en",
+      "format": "json",
+      "dest": "strongs/ubs-dictionaries",
+      "page": "https://github.com/ubsicap/ubs-open-license",
+      "license": "CC BY-SA 4.0 (c) United Bible Societies",
+      "commit": "33dcc8c671511151551804e073f1d461bc5d5b1a",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/README.md",
+          "path": "dictionaries/README.md",
+          "sha256": "ac1aaeea6e6cd027d346b6ecb34b8036743977d3f56b603b88d1aec309c7fe30"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/greek/README.md",
+          "path": "dictionaries/greek/README.md",
+          "sha256": "29ffe0e7c9bd51b312abac5d1f68af47604e9ec24580377777afe86d035d51ed"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/greek/LICENSE.md",
+          "path": "dictionaries/greek/LICENSE.md",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/greek/JSON/UBSGreekNTDic-v1.1-en.JSON",
+          "path": "dictionaries/greek/JSON/UBSGreekNTDic-v1.1-en.JSON",
+          "sha256": "d84bb9077a43fa4a4f7e571fe2ffa460fa655d7b78439b366281ce527fd56893"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/greek/JSON/UBSGreekNTDicLexicalDomains-v1.1-en.JSON",
+          "path": "dictionaries/greek/JSON/UBSGreekNTDicLexicalDomains-v1.1-en.JSON",
+          "sha256": "a816a6bb2bdbdd7df6f46f771b5ddb1b9c019d73c3f0147e5a5cead5cfef8b4b"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/hebrew/README.md",
+          "path": "dictionaries/hebrew/README.md",
+          "sha256": "f18eab18a4bad4a83f45981064139f89a96cb4ae97e0e72833d709ae2fb52940"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/hebrew/LICENSE.md",
+          "path": "dictionaries/hebrew/LICENSE.md",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/hebrew/JSON/UBSHebrewDic-v0.9.3-en.JSON",
+          "path": "dictionaries/hebrew/JSON/UBSHebrewDic-v0.9.3-en.JSON",
+          "sha256": "3ed1758438762b4fc5db311d1e75720c82ee70b871e09d9caed30d4c64138be8"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/hebrew/JSON/UBSHebrewDicLexicalDomains-v0.9.3-en.JSON",
+          "path": "dictionaries/hebrew/JSON/UBSHebrewDicLexicalDomains-v0.9.3-en.JSON",
+          "sha256": "11dd87c61a25afd2e08def8973ec69f90bcf8f2a0512145387df24b3ea6e0812"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ubsicap/ubs-open-license/33dcc8c671511151551804e073f1d461bc5d5b1a/dictionaries/hebrew/JSON/UBSHebrewDicContextualDomains-v0.9.3-en.JSON",
+          "path": "dictionaries/hebrew/JSON/UBSHebrewDicContextualDomains-v0.9.3-en.JSON",
+          "sha256": "707c467b92235ac08e0861c8aadc93ef925c8f17182cdb6c3174306b3a8e0984"
+        }
+      ],
+      "note": "Официальный открытый релиз UBS: греческий словарь = переработанный Louw-Nida (источник @ln/@domain MACULA), иврит = SDBH (@sdbh). Домены и значения можно публиковать под CC BY-SA. Русского пока нет (en/fr/es/zh/pt)."
+    },
+    {
+      "id": "bdb-full",
+      "title": "Unabridged BDB Hebrew-English Lexicon (полная BDB)",
+      "language": "hbo,en",
+      "format": "json+csv",
+      "dest": "strongs/bdb-full",
+      "page": "https://github.com/eliranwong/unabridged-BDB-Hebrew-lexicon",
+      "license": "public domain (BDB 1906); форматирование — Eliran Wong (marvel.bible)",
+      "commit": "6e8326c6884f8ef1399c7a365d660da9bb9e2d01",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/eliranwong/unabridged-BDB-Hebrew-lexicon/6e8326c6884f8ef1399c7a365d660da9bb9e2d01/README.md",
+          "path": "README.md",
+          "sha256": "c52b20a9356089a3d041b806576066b5eacd40eeef6c7e993f7ad540136f9fb8"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/eliranwong/unabridged-BDB-Hebrew-lexicon/6e8326c6884f8ef1399c7a365d660da9bb9e2d01/DictBDB.json",
+          "path": "DictBDB.json",
+          "sha256": "5d826c580a4dd06f54a53d1e19b5e8c354aab0180e200849e3148b89f370e33d"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/eliranwong/unabridged-BDB-Hebrew-lexicon/6e8326c6884f8ef1399c7a365d660da9bb9e2d01/unabridged-BDB-Hebrew-lexicon.csv.zip",
+          "path": "unabridged-BDB-Hebrew-lexicon.csv.zip",
+          "sha256": "056276bd606cb394a8b5026dfd3401c3a8e27e9d3f858e45a20a48ce520a98e6"
+        }
+      ],
+      "note": "Полная BDB с маппингом на номера Стронга и ссылками; кандидат на lex_def уровня «глубокая статья» наряду с OSHB BDB."
+    },
+    {
+      "id": "bdb-aramaic",
+      "title": "Aquifer: BDB Aramaic Lexicon (арамейский раздел BDB, json+alignments)",
+      "language": "arc,en",
+      "format": "aquifer-json",
+      "dest": "strongs/bdb-aramaic",
+      "page": "https://github.com/BibleAquifer/BDBAramaicLexicon",
+      "license": "CC0 (public domain)",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/BDBAramaicLexicon/releases/download/v2026-09-18/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "e2f78a47d16699d88906e605ac560a7c357ea11711e7e386f7de81f3c90f4366"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/BDBAramaicLexicon/releases/download/v2026-09-18/English-alignments.zip",
+          "path": "English-alignments.zip",
+          "sha256": "42e4df22ed0d7233221b7127601d5b14db530b9799533e74059df57ed60b73ad"
+        }
+      ],
+      "note": "Арамейская часть BDB (номера H10xxx) — закрывает пробел bdb-full; alignments = привязка значений к стихам."
+    },
+    {
+      "id": "bdb-hebrew-aq",
+      "title": "Aquifer: BDB Hebrew Lexicon (json+alignments, редакция Aquifer)",
+      "language": "hbo,en",
+      "format": "aquifer-json",
+      "dest": "strongs/bdb-hebrew-aq",
+      "page": "https://github.com/BibleAquifer/BDBHebrewLexicon",
+      "license": "CC0 (public domain)",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/BDBHebrewLexicon/releases/download/v2026-09-18/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "66870220c3b274f874858467ee978f20284e761feba0c98ba0763f578a0057c2"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/BDBHebrewLexicon/releases/download/v2026-09-18/English-alignments.zip",
+          "path": "English-alignments.zip",
+          "sha256": "9082033ea5461314bf09105fac9cf6134429f3a0a6713f7b0ebb4b1c4995960b"
+        }
+      ],
+      "note": "Третья редакция BDB (после OSHB и bdb-full); alignments размечают значения по стихам — корпус снятой неоднозначности для lex_def и словарного интерлинеара."
+    },
+    {
+      "id": "rsb-aquifer",
+      "title": "Aquifer: Russian Synodal Bible + ручное пословное выравнивание (WLCM/SBLGNT→RUSSYN)",
+      "language": "ru",
+      "format": "usfm+alignment-json",
+      "dest": "strongs/rsb-aquifer",
+      "page": "https://github.com/BibleAquifer/RussianSynodalBible",
+      "license": "Public Domain CC0",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/RussianSynodalBible/releases/download/v2026-09-18/Russian-usfm.zip",
+          "path": "Russian-usfm.zip",
+          "sha256": "e8a728fc185c2c541299147a43b0efaa7424254e2381ed4bf35c7430c9bcd9a3"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/RussianSynodalBible/releases/download/v2026-09-18/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "7426494a00536141eda781ec0076ca2c2f49def145a281aeb0b4594c98b7bb80"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/RussianSynodalBible/releases/download/v2026-09-18/Russian-alignments.zip",
+          "path": "Russian-alignments.zip",
+          "sha256": "b7475db986abdada06727427420e2c0b25a0bb217e779c2ccdf63259d5bd213f"
+        }
+      ],
+      "note": "234 908 записей ручного выравнивания на все 66 книг (process=manual, формат Burrito/Clear, ID MACULA). Главный русский эталон фазы 8.3 вместе с rsts."
+    },
+    {
+      "id": "uw-tw",
+      "title": "Aquifer: unfoldingWord Translation Words (ключевые термины)",
+      "language": "en",
+      "format": "aquifer-json",
+      "dest": "strongs/uw-tw",
+      "page": "https://github.com/BibleAquifer/UWTranslationWords",
+      "license": "CC BY-SA 4.0 © unfoldingWord 2022; адаптация © Mission Mutual",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UWTranslationWords/releases/download/v2026-10-12/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "175fedb0777ff72d2d3008f7810cec7ec1e10b6e130d963b9bae967e61a57122"
+        }
+      ],
+      "note": "Статьи по ключевым терминам (русского релизного ассета нет — в репозитории есть rus-папка, при нужде брать оттуда)."
+    },
+    {
+      "id": "aquifer-obd",
+      "title": "Aquifer Open Bible Dictionary (адаптация Tyndale OBD, есть русский)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "strongs/aquifer-obd",
+      "page": "https://github.com/BibleAquifer/AquiferOpenBibleDictionary",
+      "license": "CC BY-SA 4.0; адаптация © Mission Mutual 2026, оригинал © Tyndale House Publishers 2023",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/AquiferOpenBibleDictionary/releases/download/v2026-10-12/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "b3449fb34fdf17e89182bb623ff987ebe1026078aca476e819eec5bc9ba3dde3"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/AquiferOpenBibleDictionary/releases/download/v2026-10-12/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "3d5e4b11ad18bb7fc6cd1976c81996114305c423208c1f46294717d1e07b9d07"
+        }
+      ],
+      "note": "Словарные статьи о сущностях/терминах на en+ru — контент карточек сущностей графа и имена entity_names(ru)."
+    },
+    {
+      "id": "ubs-fauna",
+      "title": "Aquifer: UBS Fauna Lexicon — животные Библии (md)",
+      "language": "en",
+      "format": "aquifer-md",
+      "dest": "strongs/ubs-fauna",
+      "page": "https://github.com/BibleAquifer/UBSFaunaLexicon",
+      "license": "CC BY-SA 4.0 © United Bible Societies 2025 (адаптация из E.R.Hope, 2005)",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UBSFaunaLexicon/releases/download/v2026-09-18/English-md.zip",
+          "path": "English-md.zip",
+          "sha256": "8f15f7ffdb1a898810bfed2765437c2735e7ab9026a3783ddee05491b543f0d0"
+        }
+      ],
+      "note": "Статьи по животным (сущности fauna графа). json-ассет ~223 МБ (встроенные медиа) — при нужде тянуть отдельно."
+    },
+    {
+      "id": "ubs-flora",
+      "title": "Aquifer: UBS Flora Lexicon — растения Библии (md)",
+      "language": "en",
+      "format": "aquifer-md",
+      "dest": "strongs/ubs-flora",
+      "page": "https://github.com/BibleAquifer/UBSFloraLexicon",
+      "license": "CC BY-SA 4.0 © United Bible Societies 2025",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UBSFloraLexicon/releases/download/v2026-09-18/English-md.zip",
+          "path": "English-md.zip",
+          "sha256": "176efe798bf4fe2efd5ca8f3e4aea69ebbf4f2d776c7acfb1e159f8aa762f212"
+        }
+      ],
+      "note": "Статьи по растениям (сущности flora графа)."
+    },
+    {
+      "id": "ubs-realia",
+      "title": "Aquifer: UBS Realia Lexicon — предметы/реалии (md)",
+      "language": "en",
+      "format": "aquifer-md",
+      "dest": "strongs/ubs-realia",
+      "page": "https://github.com/BibleAquifer/UBSRealiaLexicon",
+      "license": "CC BY-SA 4.0 © United Bible Societies 2025",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UBSRealiaLexicon/releases/download/v2026-09-18/English-md.zip",
+          "path": "English-md.zip",
+          "sha256": "5c88357099b8ab23019f6cead7efc9bf58a6ee354da4182c599d13e62bcd6d1e"
+        }
+      ],
+      "note": "Статьи по предметам/обычаям/материалам (object/custom/material графа). json-ассеты ~790 МБ — при нужде тянуть отдельно."
+    },
+    {
+      "id": "dict-themes",
+      "title": "Aquifer: Dictionary of Bible Themes (Manser)",
+      "language": "en",
+      "format": "aquifer-json",
+      "dest": "strongs/dict-themes",
+      "page": "https://github.com/BibleAquifer/DictionaryBibleThemes",
+      "license": "CC BY-SA 4.0 © Martin Manser 1999 (через Biblica)",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/DictionaryBibleThemes/releases/download/v2026-10-02/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "07afe5c8e771102bafce9c9937af7edf322ea8322dd4772cbc96efd54c77f01e"
+        }
+      ],
+      "note": "Тематический словарь — источник сущностей concept/event графа."
+    },
+    {
+      "id": "fia-keyterms",
+      "title": "Aquifer: FIA Key Terms (en+ru)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "strongs/fia-keyterms",
+      "page": "https://github.com/BibleAquifer/FIAKeyTerms",
+      "license": "CC BY-SA 4.0 © Word Collective 2025; адаптация © Mission Mutual",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/FIAKeyTerms/releases/download/v2026-10-05/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "94b94d181a1a4bd10c17d69779610a6861bedabc5f84511495bd850eb3c35ecc"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/FIAKeyTerms/releases/download/v2026-10-05/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "893c37498995ad4a7ee44d5dc6bee4107308d21ed65beede2ad7fa6a6779bd8a"
+        }
+      ],
+      "note": "Ключевые термины с русской локализацией — concept-сущности графа и entity_names(ru)."
+    },
+    {
+      "id": "biblica-keyterms",
+      "title": "Aquifer: Biblica Study Notes — Key Terms (en+ru)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "strongs/biblica-keyterms",
+      "page": "https://github.com/BibleAquifer/BiblicaStudyNotesKeyTerms",
+      "license": "CC BY-SA 4.0 © Biblica Inc. 2023; адаптация © Mission Mutual",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/BiblicaStudyNotesKeyTerms/releases/download/v2026-09-18/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "bd09f945a3f9d287fe16b179e1c6c41f82f4528a18e0f3ef4b68a0547b1df248"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/BiblicaStudyNotesKeyTerms/releases/download/v2026-09-18/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "fbd19a0f77affbab9118ac916b2c47e088cac4800c632ed35b6bd807d73ed90a"
+        }
+      ],
+      "note": "Ключевые термины Biblica (Biblica Bible Dictionary) с русской локализацией."
+    },
+    {
+      "id": "acai",
+      "title": "Aquifer ACAI — аннотации сущностей на уровне слов (WLC/SBLGNT, MACULA ID)",
+      "language": "en+локализации",
+      "format": "json+md",
+      "dest": "strongs/acai",
+      "url": "https://github.com/BibleAquifer/ACAI/archive/7e6a2d6674910aedb0888493ebbe6684d374ae5c.zip",
+      "flatten": true,
+      "sha256": "b287fc3bda2ac34afc250a7750d9e3220842b9ea55ee39327eea0236a42ecdcc",
+      "page": "https://github.com/BibleAquifer/ACAI",
+      "license": "CC BY-SA 4.0 © Mission Mutual 2025"
+    },
+    {
+      "id": "aquifer-osn",
+      "title": "Aquifer Open Study Notes (адаптация Tyndale OSN, en+ru)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "aquifer/aquifer-osn",
+      "page": "https://github.com/BibleAquifer/AquiferOpenStudyNotes",
+      "license": "CC BY-SA 4.0; © Mission Mutual 2026 (адаптация Tyndale Open Study Notes)",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/AquiferOpenStudyNotes/releases/download/v2026-09-18/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "c50f4ae0a7284d86418f13bba44948a6979ca9d38f0cb42f4babda20dcda558f"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/AquiferOpenStudyNotes/releases/download/v2026-09-18/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "93ee72320b8ef25e11a91a792421ec49ecf2a955451f96ed62a855321a94fe44"
+        }
+      ],
+      "note": "Постиховые учебные примечания — будущий модуль kind=commentary (трек «учебная Библия», после 1.0)."
+    },
+    {
+      "id": "biblica-notes",
+      "title": "Aquifer: Biblica Study Notes (en+ru)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "aquifer/biblica-notes",
+      "page": "https://github.com/BibleAquifer/BiblicaStudyNotes",
+      "license": "CC BY-SA 4.0 © Biblica Inc. 2023; адаптация © Mission Mutual",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/BiblicaStudyNotes/releases/download/v2026-09-18/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "5cc9ec0dcebb49a3e643d38b7be05cd3b7b2474d2088ad9c3c6e723628874b0c"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/BiblicaStudyNotes/releases/download/v2026-09-18/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "cdfab112ca14e5f219dde33ac9ed4cc9d23a7613cc3165f7d3ceb809fad2c7d6"
+        }
+      ],
+      "note": "Второй независимый набор учебных примечаний (трек «учебная Библия»)."
+    },
+    {
+      "id": "sil-tn",
+      "title": "Aquifer: SIL Open Translator's Notes (en)",
+      "language": "en",
+      "format": "aquifer-json",
+      "dest": "aquifer/sil-tn",
+      "page": "https://github.com/BibleAquifer/SILOpenTranslatorsNotes",
+      "license": "CC BY-SA 4.0 © SIL International 2024",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/SILOpenTranslatorsNotes/releases/download/v2026-09-18/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "8b563bd2d31594584e3fb5bd32f6e77ecf60422878a6fe12d8d424b580840c71"
+        }
+      ]
+    },
+    {
+      "id": "uw-tn",
+      "title": "Aquifer: unfoldingWord Translation Notes (en)",
+      "language": "en",
+      "format": "aquifer-json",
+      "dest": "aquifer/uw-tn",
+      "page": "https://github.com/BibleAquifer/UWTranslationNotes",
+      "license": "CC BY-SA 4.0 © unfoldingWord 2022",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UWTranslationNotes/releases/download/v2026-10-12/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "fba73d2d7dbca1cf2727b67f823bdc43ad4778d8112f925307e04f779875e8d0"
+        }
+      ]
+    },
+    {
+      "id": "uw-tq",
+      "title": "Aquifer: unfoldingWord Translation Questions (en)",
+      "language": "en",
+      "format": "aquifer-json",
+      "dest": "aquifer/uw-tq",
+      "page": "https://github.com/BibleAquifer/UWTranslationQuestions",
+      "license": "CC BY-SA 4.0 © unfoldingWord 2022",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UWTranslationQuestions/releases/download/v2026-10-12/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "8cc8302f58f91aef5f257a61c61900bfcaf00cf85b7f47f4ccb3baf9cab19ee1"
+        }
+      ]
+    },
+    {
+      "id": "uw-tm",
+      "title": "Aquifer: unfoldingWord Translation Manual (en)",
+      "language": "en",
+      "format": "aquifer-json",
+      "dest": "aquifer/uw-tm",
+      "page": "https://github.com/BibleAquifer/UWTranslationManual",
+      "license": "CC BY-SA 4.0 © unfoldingWord 2022",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UWTranslationManual/releases/download/v2026-10-12/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "eebf6328025fd7e7a53992daf4c00dfcf4e9d8608e71801b36b4146ca84e7a6f"
+        }
+      ]
+    },
+    {
+      "id": "fia-tg",
+      "title": "Aquifer: FIA Translation Guide (en+ru)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "aquifer/fia-tg",
+      "page": "https://github.com/BibleAquifer/FIATranslationGuide",
+      "license": "CC BY-SA 4.0 © Word Collective 2025; адаптация © Mission Mutual",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/FIATranslationGuide/releases/download/v2026-10-05-0001/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "f80b5dd8c37792d307445bd19bef469411fcc4f5e0bab21c8226c41f63545649"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/FIATranslationGuide/releases/download/v2026-10-05-0001/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "7a92c36fbc1a46076d7bfe219fef16f62bfb278a0aa4e129a8094ccfa8bb67f7"
+        }
+      ]
+    },
+    {
+      "id": "uw-obs",
+      "title": "Aquifer: unfoldingWord Open Bible Stories (en+ru)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "aquifer/uw-obs",
+      "page": "https://github.com/BibleAquifer/UWOpenBibleStories",
+      "license": "CC BY-SA 4.0 © unfoldingWord 2022; адаптация © Mission Mutual",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/UWOpenBibleStories/releases/download/v2026-09-18/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "81de071e75651dfa0a70f69aae82e9275a5810544e49b9bbb379014277e0f005"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/UWOpenBibleStories/releases/download/v2026-09-18/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "816798c95eee6e0df1460a8565498e38c2398e71337db9a4ae3dd62a5aaa1ff9"
+        }
+      ]
+    },
+    {
+      "id": "video-bible-dict",
+      "title": "Aquifer: Video Bible Dictionary (en+ru)",
+      "language": "en,ru",
+      "format": "aquifer-json",
+      "dest": "aquifer/video-bible-dict",
+      "page": "https://github.com/BibleAquifer/VideoBibleDictionary",
+      "license": "CC BY-SA 4.0 © Word Collective 2025; адаптация © Mission Mutual",
+      "files": [
+        {
+          "url": "https://github.com/BibleAquifer/VideoBibleDictionary/releases/download/v2026-09-23/English-json.zip",
+          "path": "English-json.zip",
+          "sha256": "9c31ac7926c29345857e5f3599789b2974c89ee5878bb95b86cac5f2a115e05b"
+        },
+        {
+          "url": "https://github.com/BibleAquifer/VideoBibleDictionary/releases/download/v2026-09-23/Russian-json.zip",
+          "path": "Russian-json.zip",
+          "sha256": "804698bf9863e5de4d2cf232533ebd9cf629974850354e32cd7511d27c7fc845"
+        }
+      ],
+      "note": "Видео-словарь: метаданные статей (медиа в json-ассетах тяжёлые — при нужде отдельно)."
+    }
+  ]
 }

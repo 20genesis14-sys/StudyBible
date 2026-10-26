@@ -396,6 +396,27 @@ List<RefMatch> findRefs(String text) {
   return out;
 }
 
+/// Панельная ссылка второго яруса (`openbible-xrefs`): стих главы
+/// в версификации модуля + отформатированные цели.
+class PanelRef {
+  const PanelRef(this.verse, this.refs);
+
+  final int verse;
+  final String refs;
+}
+
+/// Цель слойной ссылки с типами связи (`xrefs_meta`, ADR 0023):
+/// стих в версификации модуля, метка «Пс 22:16b», типы (quote, para,
+/// verbal, historical, thematic, …) и семейный балл ×100.
+class XrefMeta {
+  const XrefMeta(this.verse, this.label, this.kinds, this.score);
+
+  final int verse;
+  final String label;
+  final List<String> kinds;
+  final int score;
+}
+
 /// Переписать имена книг в ссылках [text] через [bookName]
 /// (код → «Лев»/«Lev» по языку интерфейса и раскладке названий);
 /// числа, диапазоны и пунктуация остаются как в оригинале.
@@ -414,6 +435,42 @@ String localizeRefs(String text, String Function(String code) bookName) {
   }
   buf.write(text.substring(pos));
   return buf.toString();
+}
+
+/// Паттерн одиночного запроса-ссылки для омнибокса поиска:
+/// регистронезависимо распознаёт «Ин 3:16», «ин 3 16», «Быт 1»,
+/// «1Кор 13:4-7», «John 3:16». Если стих не указан («Быт 1»),
+/// возвращает стих 1.
+final RegExp _queryRefPattern = RegExp(
+  r'^\s*((?:[1-4]\s*)?[A-Za-zА-Яа-яЁё\.]+(?:\s+[A-Za-zА-Яа-яЁё\.]+){0,2})\s+(\d{1,3})(?:\s*[:：,\.\s]\s*(\d{1,3}[a-e]?)(?:\s*[-–—]\s*(\d{1,3}[a-e]?))?)?\s*$',
+  unicode: true,
+);
+
+/// Распознать библейскую ссылку, введённую в строку поиска целиком.
+Ref? parseQueryRef(String query) {
+  final m = _queryRefPattern.firstMatch(query);
+  if (m != null) {
+    final book = _bookOf(m.group(1)!);
+    final ch = int.tryParse(m.group(2)!) ?? 0;
+    if (book != null && ch > 0) {
+      final rawVs = m.group(3);
+      final vs = rawVs == null
+          ? 1
+          : (int.tryParse(rawVs.replaceAll(RegExp('[a-e]\$'), '')) ?? 0);
+      final rawVe = m.group(4);
+      final ve = rawVe != null
+          ? int.tryParse(rawVe.replaceAll(RegExp('[a-e]\$'), ''))
+          : null;
+      if (vs > 0) return Ref(book, ch, vs, ve);
+    }
+  }
+  final refs = findRefs(query.trim());
+  if (refs.length == 1 &&
+      refs.first.start == 0 &&
+      refs.first.end == query.trim().length) {
+    return refs.first.ref;
+  }
+  return null;
 }
 
 String? _bookOf(String raw) {

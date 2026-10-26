@@ -30,6 +30,11 @@
 - Published documents are bilingual: English `X.md` is primary,
   Russian `X.ru.md` is its mirror (except `docs/ROADMAP.md` — Russian,
   local-only).
+- The agent harness improves through the loop in
+  `docs/AGENT-HARNESS.md` (ADR 0031): mechanical rules live in
+  `scripts/check-agent-rules.ps1` (a `ci.ps1` step; a `// nav:` line
+  comment is a reviewable exemption), behavioral probes run on frozen
+  cards in `evals/`.
 
 ## Source of decisions
 
@@ -43,7 +48,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci.ps1
 ```
 
 Steps: fmt, clippy (`-D warnings`), test, `cargo check` of the core for
-`wasm32-unknown-unknown`, `cargo deny check` — prerequisites and build
+`wasm32-unknown-unknown`, `cargo deny check`, agent-rules
+(`check-agent-rules.ps1`) — prerequisites and build
 variables are in `docs/ENVIRONMENT.md`.
 APK builds — only arm64-v8a (the user tests on his device):
 `flutter build apk --release --target-platform android-arm64`.

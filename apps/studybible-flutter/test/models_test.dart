@@ -106,7 +106,7 @@ void main() {
       expect(s('strong="G25"').strong, 'G25');
       expect(s('').strong, isNull);
       expect(s('lemma="x"').strong, isNull);
-      expect(s('strong="H1" strong="H2"').strong, 'H1'); // первый
+      expect(s('strong="H1" strong="H2"').strong, 'H1 H2'); // список целиком
     });
   });
 

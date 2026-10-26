@@ -70,7 +70,14 @@ impl Source {
             Self::Zip(z) => {
                 for i in 0..z.len() {
                     let mut f = z.by_index(i).map_err(err)?;
-                    if f.name().replace('\\', "/").to_lowercase().ends_with(&norm) {
+                    // zip 9: `name()` возвращает `Result` — имя записи может
+                    // быть не в UTF-8, поэтому ошибка вместо паники.
+                    if f.name()
+                        .map_err(err)?
+                        .replace('\\', "/")
+                        .to_lowercase()
+                        .ends_with(&norm)
+                    {
                         let mut buf = Vec::new();
                         f.read_to_end(&mut buf).map_err(err)?;
                         return Ok(buf);
@@ -103,11 +110,16 @@ impl Source {
             Self::Zip(z) => {
                 for i in 0..z.len() {
                     let Ok(mut f) = z.by_index(i) else { continue };
-                    let n = f.name().replace('\\', "/").to_lowercase();
+                    // Имя — владеемой строкой: заимствование `f` должно
+                    // кончиться до `read_to_end`.
+                    let Ok(raw) = f.name() else { continue };
+                    let n = raw.replace('\\', "/").to_lowercase();
                     if n.starts_with(&format!("{norm}/")) && !n.ends_with('/') {
                         let mut buf = Vec::new();
-                        if f.read_to_end(&mut buf).is_ok() {
-                            out.push((f.name().to_string(), buf));
+                        if f.read_to_end(&mut buf).is_ok()
+                            && let Ok(raw) = f.name()
+                        {
+                            out.push((raw.to_string(), buf));
                         }
                     }
                 }

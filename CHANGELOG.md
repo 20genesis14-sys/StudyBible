@@ -2,7 +2,95 @@
 
 All notable changes after the 1.0 release — one per line.
 
-## 1.1.1 (unreleased)
+## 1.1.2 — Visual update (unreleased)
+
+Usability and intuitiveness — fixing visual rough edges.
+
+- Search: query operators `"phrase"` (exact phrase), `word*`
+  (prefix), `?` (single letter), `*` inside a word — work across the
+  Bible, module footnotes ("In footnotes" chip) and personal notes.
+- Search: "By book" results mode — a List/By book segment,
+  accordion "Name · N".
+- Reading/Study mode switch as a glasses button, bottom-right corner.
+- Contents (Bible book picker) as an open-book button, bottom-left
+  corner.
+- The header now shows the full book and chapter name, plus the
+  translation and mode.
+- Search now understands Bible references (`Jn 3:16`, `Gen 1`) and
+  Strong's numbers (`H1254`, `G3056`): a button appears right above the
+  results so you can jump straight to that passage or dictionary entry.
+- Typing a Strong's number into search also lists every verse tagged
+  with it in the current translation (when the translation carries
+  Strong's markup) — the tagged words are marked in the snippets.
+  Results are shown in full rather than the first hundred, and a
+  suffixed number with no exact match (`H2300G`) falls back to the
+  base number so lettered variants like `H2300A` still surface.
+- Quick search filters let you narrow results in one tap to the whole
+  Bible, the Old Testament, the New Testament, or the book you are
+  currently reading.
+- Docs: the entity/knowledge module is renamed — "Biblical
+  mega-encyclopedia" → **Tree of Knowledge** («Древо знаний»); ADR 0024
+  files renamed to `0024-tree-of-knowledge.*`.
+- Fixed the whole Flutter test suite: parallel test files no longer
+  share one temporary `userdata.db`, the `.vrs` parser keeps verse
+  letter segments (`ESG 1:1a`), and tests were aligned with the
+  documented Strong's-list and settings-storage semantics.
+- Web builds are leaner: `scripts/build-web.ps1` builds `build/web`
+  and strips the duplicated `assets/assets/modules/*.sbz` (~11 MB) —
+  the web fetches modules from `modules/` and never uses the bundled
+  copies.
+- Copying selected text now puts a neat quote in your clipboard with
+  the exact verse reference and translation name, without extra spaces
+  or markers.
+- Phrase highlights and read-aloud word highlighting stay accurate in
+  poetic books (Psalms, Proverbs) and in verse-per-line mode.
+- Faster chapter turns, bookmarking and highlighting: the app now
+  loads only the current chapter's notes and highlights instead of
+  re-reading your entire notebook every time.
+- Tapping a note in a chapter heading opens the start of that
+  chapter cleanly.
+- Fixed broken Russian book titles when "Full book names" and the
+  "Modern" book-name style were turned on together.
+- On wide screens (desktop/tablet), tapping the Footnotes button a
+  second time now closes the side panel.
+- Settings and reading history are saved more reliably and no longer
+  slow down when you have many bookmarks and notes.
+- Read-aloud no longer stops when you swipe to another chapter or jump
+  via verses and search results.
+- Settings: a new "Diagnostics" section — an in-app error log with
+  copy-to-clipboard and clear actions.
+- Reader empty state: a loading spinner and a proper message instead
+  of the prototype placeholder.
+- Second comparison translation: your choice is remembered; the
+  default is the first installed module different from the main one.
+- Two reading panes side by side (wide screens): panes can be linked
+  to scroll together, layouts are saved as presets.
+- Modules: import a whole bundle at once — pick a .zip with .sb/.sbz
+  module files and they all land in the library.
+- Various fixes of visual rough edges across the app.
+- Miscellaneous fixes.
+
+## 1.1.1 (2026-10-12)
+
+- Cross-reference layer stores structured targets (`xrefs_pack`):
+  verse coordinates as packed data — the foundation for links that
+  survive translation updates; display is unchanged for now.
+- Layered cross-references now show book names in the interface
+  language (was: English OSIS names from the layer itself).
+- Web cold start is much lighter: the font manifest was cut to the
+  fonts actually used (Paper Mono, Charis SIL and Roboto Serif
+  removed), optional reading fonts load lazily only when selected,
+  and skwasm/CanvasKit is served locally instead of a CDN —
+  about 28.5 -> 12.8 MB on first load.
+- Web/desktop: the footnote panel no longer sits under the top bar.
+- Settings: switch rows are aligned evenly.
+- Android: APKs are split per ABI (armv7 / arm64 / x86_64) with
+  versionCode = version * 10 + ABI — smaller installs and the scheme
+  F-Droid requires.
+- Fixed: Android failed to load the Rust bridge library
+  (libstudybible_flutter_bridge.so) in some builds.
+- F-Droid recipe: reproducible build verified locally for all three
+  ABIs (build + verify_apks + allowed signer).
 
 ## 1.1.0 (2026-10-11)
 

@@ -126,10 +126,15 @@ fn versification_fixture_matches_texts() {
 }
 
 /// eBible russyn следует rsc, кроме Нав 24 и Притч 4, 13, где стоят вставки из Септуагинты по rso.
+/// Ис 3 — осознанное исключение: источник исправлен по печатному
+/// Синодальному (3:19 разделён на два стиха, 19b «увясла…» вынесена в
+/// 3:20, глава стала 26 стихов) — ни rsc, ни rso её не описывают.
 #[test]
 fn russyn_follows_rsc_except_lxx_insertions() {
     let Some(dir) = texts_dir() else { return };
     let (rsc, rso) = (vrs("rsc"), vrs("rso"));
+    // (книга, глава) → ожидаемое число стихов вне обоих профилей.
+    let intentional = [("ISA", 3u16, 26u16)];
     let mut deviations = BTreeSet::new();
     for (code, book) in load(&dir, "russyn") {
         let sizes = book.chapter_sizes();
@@ -141,6 +146,13 @@ fn russyn_follows_rsc_except_lxx_insertions() {
         for (i, &n) in sizes.iter().enumerate() {
             let c = i as u16 + 1;
             if Some(n) != rsc.last_verse(code, c) {
+                if let Some(&(_, _, want)) = intentional
+                    .iter()
+                    .find(|(b, ch, _)| *b == code.to_string() && *ch == c)
+                {
+                    assert_eq!(n, want, "{code} {c}: исправленная разметка изменилась");
+                    continue;
+                }
                 assert_eq!(
                     Some(n),
                     rso.last_verse(code, c),

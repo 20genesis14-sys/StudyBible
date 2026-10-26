@@ -15,7 +15,7 @@ quick-xml = "0.42.0"
 rusqlite = { version = "0.32", features = ["bundled", "serialize"] }
 serde_json = "1"
 studybible-core.workspace = true
-zip = "2.2"
+zip = "9.0.2"
 
 [dev-dependencies]
 tempfile = "3"

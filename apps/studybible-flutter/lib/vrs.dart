@@ -6,7 +6,7 @@ library;
 
 import 'models.dart';
 import 'vrs_stub.dart'
-    if (dart.library.html) 'vrs_web.dart'
+    if (dart.library.js_interop) 'vrs_web.dart'
     if (dart.library.io) 'vrs_io.dart' as impl;
 
 /// Координата стиха в целевой версификации.

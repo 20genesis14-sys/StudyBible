@@ -17,4 +17,14 @@
 
 releases/
 
+# Локальный скретч-рабочий каталог (промежуточные .sb, скрипты сравнения).
+/tmp/
+
 docs/ROADMAP.md
+
+__pycache__/
+apps/studybible-flutter/android/build/
+
+# IDE/agent state — локально, никогда не пушить на GitHub.
+/.zcode/
+/.devin/

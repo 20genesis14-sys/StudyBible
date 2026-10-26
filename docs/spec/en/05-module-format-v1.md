@@ -242,11 +242,12 @@ same.
   within the dictionary.
 - **S-8.** `meta.kind` — composition contract: `bible` — text with
   verses; `interlinear` — same plus `alignment`/`tokens`;
-  `commentary` — blocks bound to verses, no verse text;
-  `dictionary` and `layer` — `books` may be empty (content in
-  `entries`/apparatus); `critical` — carries `variants`;
-  `knowledge` — the knowledge-graph module (entities, relations,
-  verse mentions; ADR 0024, implementation deferred). Unknown
+  `commentary` — blocks bound to verses, no verse text (optional
+  `meta.subtype="study" | "translator"` and range end `verse_end` for
+  pericope notes); `dictionary` and `layer` — `books` may be empty
+  (content in `entries`/apparatus); `critical` — carries `variants`;
+  `knowledge` — the Tree of Knowledge module (entities, `entity_names`,
+  `entity_articles`, relations, verse mentions; ADR 0024). Unknown
   `kind` — read as `bible` (soft).
 - **S-9.** `meta.features` — an **open** list. Known values
   (`strongs`, `morph`, `tokens`, `alignment`, `variants`, `entries`,

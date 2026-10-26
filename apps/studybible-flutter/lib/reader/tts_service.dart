@@ -19,6 +19,7 @@ class ReaderTtsService {
     required this.onVerse,
     required this.onError,
     required this.titleOf,
+    this.onWordChanged,
   });
 
   /// Экран ещё жив (аналог mounted).
@@ -26,6 +27,11 @@ class ReaderTtsService {
 
   /// Перерисовать UI после изменения состояния.
   final void Function() onChanged;
+
+  /// Тик слова (пословная подсветка, ADR 0030): обновляет только
+  /// активную строку через нотифаер, экран не перестраивается.
+  /// null — тики идут через [onChanged] (старое поведение).
+  final void Function()? onWordChanged;
 
   /// Прокрутить текст к читаемому стиху.
   final void Function(int verse) onVerse;
@@ -64,9 +70,13 @@ class ReaderTtsService {
   /// id активного бэкенда ('system'/'neural') — для значка в плеере.
   String? get backendId => _backend?.id;
 
+  /// Запустить чтение очереди [verses]. [from] — стартовый индекс
+  /// очереди: возобновление после перехода на другую главу начинается
+  /// не с первого стиха, а с целевого (см. возобновление в экране).
   Future<void> start({
     required String language,
     required List<MapEntry<int, String>> verses,
+    int from = 0,
   }) async {
     if (verses.isEmpty) return;
     final pick = await pickVoiceBackend(language);
@@ -81,7 +91,15 @@ class ReaderTtsService {
       if (!settings.voiceWords) return;
       if (_word?.start == w.start && _word?.end == w.end) return;
       _word = w;
-      if (isActive()) onChanged();
+      // Тик слова — только активная строка (ADR 0030); без канала —
+      // старое поведение (перерисовка экрана).
+      if (isActive()) {
+        if (onWordChanged != null) {
+          onWordChanged!();
+        } else {
+          onChanged();
+        }
+      }
     });
     _list = verses;
     await readAloud.ensurePermission();
@@ -92,7 +110,7 @@ class ReaderTtsService {
       onNext: () => seek(1),
       onStop: stop,
     );
-    await speakFrom(0);
+    await speakFrom(from.clamp(0, verses.length - 1));
   }
 
   /// Цикл чтения с позиции [start] в очереди. Каждый запуск —

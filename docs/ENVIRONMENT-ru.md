@@ -48,14 +48,20 @@
 - `~/StudyBible` — второй чекаут репо в ext4;
   `origin = file:///mnt/d/StudyBible`, синхронизация через `git fetch`
   + checkout. `D:\StudyBible` остаётся мастер-копией для Windows-инструментов.
-- `/home/vagrant/fdroiddata` — **каноническое** рабочее дерево F-Droid
-  (повторяет раскладку buildserver `/home/vagrant/fdroiddata/build/<appid>`,
-  чтобы пути в APK совпадали для `fdroid verify`). Сборки и проверки
-  запускаются отсюда пользователем `gedeon`.
+- `/home/vagrant/build/dev.studybible` — **канонический** путь чекаута
+  F-Droid `--on-server` (GitLab CI и продакшн-билдсервер F-Droid запускают
+  `fdroid build` из `/home/vagrant`, запекая
+  `file:///home/vagrant/build/dev.studybible/...` в `libapp.so`); эталонные
+  APK для GitHub Releases собираются именно здесь с
+  `PUB_CACHE=/home/vagrant/build/dev.studybible/apps/studybible-flutter/.pub-cache`
+  и подписываются через `apksigner sign --alignment-preserved --v1-signing-enabled false`.
+  `/home/vagrant/fdroiddata` — локальное рабочее дерево `fdroid`.
 - `~/fdroid-fork` — форк fdroiddata для апстрим-MR (рецепт с источником
   GitHub, `binary:` + `AllowedAPKSigningKeys`).
-- `~/flutter` — чекаут Flutter SDK, пин `5fc346839b` (3.47.6);
-  используется F-Droid-сборками (srclib) и Linux-сборкой.
+- `~/flutter` — чекаут Flutter SDK на теге `3.47.6` (= `5fc346839b`);
+  используется F-Droid-сборками (srclib `flutter@stable` + `checkout -f`
+  пина `flutter-version` из `.github/workflows/release.yml`) и
+  Linux-сборкой.
 - `~/Android/Sdk` — Android SDK + NDK 28.2 в ext4; rustup 1.99.0
   в `~/.cargo`.
 - `D:\StudyBible-fdroid` — **устаревшая** копия старого локального
@@ -65,6 +71,23 @@
   `fdroid verify --reuse-remote-apk`.
 - Правило: исходники, деревья сборки и кэши — внутри ext4 (`~` или
   `/home/vagrant`); `/mnt/d` — только вход и выгрузка артефактов.
+
+## Подпись APK — один ключ везде
+
+Все сборки (release **и** debug) подписываются одним release-ключом —
+любой APK ставится поверх любого:
+
+- Keystore (не в гите): Windows `D:\StudyBible-tools\keys\studybible-release.jks`,
+  копия в WSL `~/StudyBible-keys/studybible-release.jks`.
+- `android/key.properties` (gitignored, свой на каждой машине): Windows
+  `storeFile=D:/StudyBible-tools/keys/...`, WSL
+  `~/StudyBible/apps/studybible-flutter/android/key.properties` с
+  `storeFile=/home/gedeon/StudyBible-keys/...`; пароли/alias одинаковые.
+- `build.gradle.kts`: `debug` и `release` используют `release`
+  signingConfig при наличии `key.properties`; без файла release
+  откатывается на debug-ключ (чужие машины, CI).
+- Сборки `fdroid verify` идут без key.properties — подпись накатывает
+  `apksigcopier` при верификации, как обычно.
 
 ## Внешние данные (`STUDYBIBLE_DATA`)
 

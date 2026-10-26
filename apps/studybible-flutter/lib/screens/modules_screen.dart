@@ -48,9 +48,33 @@ class _ModulesScreenState extends State<ModulesScreen> {
 
   void _runSearch(String q) => setState(() => _hits = lexiconSearch(_dict, q));
 
+  /// Импорт русского словаря Стронга (strongs_ru.json): копия в
+  /// приватный каталог приложения (Android 13+ не пускает туда
+  /// файловый менеджер — только импорт изнутри), сброс кэша.
+  Future<void> _importDict() async {
+    final result = await importStrongsDict();
+    if (!mounted || result == null) return;
+    lexiconReset();
+    final d = await lexicon();
+    if (!mounted) return;
+    setState(() => _dict = d);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+  }
+
   /// Импорт .sb-модуля из файла: копия в каталог модулей + перескан.
   Future<void> _import() async {
     final result = await importSbModule();
+    if (!mounted) return;
+    if (result == null) return;
+    await rescanModules();
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
+  }
+
+  /// Импорт zip-пачки модулей: распаковка в каталог модулей + перескан.
+  Future<void> _importZip() async {
+    final result = await importModulesZip();
     if (!mounted) return;
     if (result == null) return;
     await rescanModules();
@@ -82,6 +106,11 @@ class _ModulesScreenState extends State<ModulesScreen> {
               onPressed: _import,
               icon: const Icon(Icons.upload_file_outlined, size: 18),
               label: Text(tr('Импорт .sb', 'Import .sb')),
+            ),
+            TextButton.icon(
+              onPressed: _importZip,
+              icon: const Icon(Icons.folder_zip_outlined, size: 18),
+              label: Text(tr('Zip-пачка', 'Zip pack')),
             ),
           ],
         ),
@@ -135,6 +164,12 @@ class _ModulesScreenState extends State<ModulesScreen> {
             Text(
               tr('${_dict.length} статей', '${_dict.length} entries'),
               style: TextStyle(fontSize: 12, color: p.muted),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _importDict,
+              icon: const Icon(Icons.upload_file_outlined, size: 18),
+              label: Text(tr('Импорт', 'Import')),
             ),
           ],
         ),
