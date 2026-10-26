@@ -10,7 +10,7 @@ StudyBible — a cross-platform app for Bible reading and study. Everything work
 • Notes, bookmarks, highlights
 • Text-to-speech (system voices)
 • Voice memos attached to notes
-• Import of .sb/.sbz modules
+• Import of .sb/.sbz modules — single files or .zip bundles
 
 <b>Permissions:</b> the only optional permission is the microphone, used solely for recording voice memos attached to your notes. The app never goes online — the build has no INTERNET permission.
 
