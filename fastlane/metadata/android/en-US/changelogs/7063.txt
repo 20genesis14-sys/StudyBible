@@ -1,0 +1,1 @@
+Visual update: Reading/Study switch and Contents buttons, smarter search (phrases, references, Strong numbers, by-book results), faster chapters and notes, read-aloud fixes, zip module bundles

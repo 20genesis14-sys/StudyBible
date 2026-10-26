@@ -2,7 +2,7 @@
 
 All notable changes after the 1.0 release — one per line.
 
-## 1.1.2 — Visual update (unreleased)
+## 1.1.2 — Visual update (2026-10-26)
 
 Usability and intuitiveness — fixing visual rough edges.
 
